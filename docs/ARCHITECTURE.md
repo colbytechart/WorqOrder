@@ -1,0 +1,215 @@
+# WorqOrder Architecture
+
+## 1. Architectural goals
+
+The architecture keeps the offline core small, testable, and independent of Google services:
+
+```text
+Compose screens and navigation
+        ↓ state / events
+ViewModels
+        ↓
+Repositories and rule-heavy domain services
+        ↓
+Room | DataStore | clocks/zones | CSV output | Google Sheets gateway
+```
+
+Room owns clients, tasks, intervals, and active-timer truth. DataStore owns preferences and selection hints. UI observes `Flow` state and sends intent-like events; it does not mutate DAOs directly or own authoritative timer state.
+
+## 2. Technology baseline
+
+- Kotlin only, native Android.
+- Jetpack Compose, Material 3, Compose Navigation, lifecycle-aware ViewModels.
+- Coroutines and Flow for asynchronous work/observation.
+- Room with KSP, schema export, transactions, and explicit migrations.
+- Preferences DataStore.
+- `java.time` on minimum SDK 26; no legacy date/time library is needed.
+- Gradle Kotlin DSL with `gradle/libs.versions.toml` in the implementation milestone.
+- Manual dependency injection through a small `ApplicationContainer`.
+- Stable releases only. Version selection is performed and recorded when scaffolding starts, not guessed in this planning milestone.
+
+### SDK/toolchain observation
+
+The planning inspection found one installed platform at `android-36.1` (`AndroidVersion.ApiLevel=36.1`, Android 16, extension level 20) and Build Tools `36.0.0`; `ANDROID_HOME`/`ANDROID_SDK_ROOT` were unset. The intended baseline is:
+
+- `minSdk = 26`;
+- `targetSdk = 36`; and
+- the newest stable installed compile SDK, currently API 36.1, using the stable Android Gradle Plugin syntax that officially supports minor SDK releases.
+
+Milestone 1 must set the SDK path locally, inspect stable installed/available packages, and prove the chosen stable AGP/Gradle/Kotlin/JDK matrix with a build. If API 36.1 cannot be consumed by a stable installed toolchain, install/use the latest mutually supported stable SDK rather than adding preview build tooling. Do not commit `local.properties`. Prefer the JDK version required by the selected stable AGP (normally Android Studio's bundled JDK), not the unrelated system Java 22 discovered during planning.
+
+## 3. Initial project shape
+
+Use a single Android application module for the MVP. Package boundaries provide separation without premature Gradle-module overhead:
+
+```text
+app                    application, container, activity, navigation root
+ui                     theme and shared Compose components
+ui.main                main screen and MainViewModel
+ui.tasks               create/edit task UI and ViewModels
+ui.clients             reusable client management UI and ViewModel
+ui.settings            settings UI and ViewModel
+data                   repository implementations and transaction coordinator
+data.local             Room database, entities, DAOs, migrations
+data.preferences       DataStore keys/models/repository
+domain                 rule-heavy services and domain errors/results
+timer                  normalization, display ticker, clocks
+export                 export row model/builder and orchestration
+export.csv             serializer and document destination
+export.google          authorization and Sheets gateway
+model                   UI/domain models that are not persistence entities
+util                    narrow formatting/parsing helpers
+```
+
+Do not add one “use case” class per repository getter. Add named domain services where multiple entities, clocks, transactions, or invariants are involved.
+
+## 4. Application container
+
+`WorqOrderApplication` will own one lazily/eagerly constructed application-scoped container. The container supplies:
+
+- Room database and DAOs;
+- repositories for clients, tasks, settings, and selection;
+- `Clock` abstraction returning current UTC `Instant`;
+- monotonic elapsed-time source;
+- device/effective `ZoneId` providers;
+- timer transaction coordinator and normalization service;
+- interval validator;
+- export-row builder and CSV serializer;
+- document-output adapter;
+- Google authorization coordinator and `GoogleSheetsGateway`; and
+- dispatcher provider where tests require deterministic dispatchers.
+
+ViewModel factories request only their direct dependencies. Android framework types stay in adapters/gateways, not pure domain services. A DI framework is not planned; reconsider only if container wiring becomes demonstrably unsafe or unmaintainable.
+
+## 5. UI state and navigation
+
+Proposed routes:
+
+- `main`
+- `task/create?epochDay={...}`
+- `task/{taskId}/edit`
+- `settings`
+- `settings/time-zone`
+- optional `settings/clients/archived`
+
+Dialog destinations may be Compose dialogs when state restoration and accessibility remain correct; otherwise use full screens.
+
+Each ViewModel exposes an immutable `StateFlow<UiState>` and a separate bounded effect mechanism for one-time navigation, picker launches, snackbars, and authorization UI. Collect flows lifecycle-aware. Use `SavedStateHandle` for route/UI restoration only; persisted business state remains in Room/DataStore.
+
+`MainUiState` combines:
+
+- displayed date;
+- effective/pinned zone;
+- tasks with database-computed completed totals;
+- preferred/selected task;
+- active-timer record and active task;
+- monotonic display contribution;
+- export default/connection readiness; and
+- operation/error state.
+
+The visible ticker runs only while collected and an interval is active. It emits display refresh signals (for example, every 16–100 ms depending on performance), never database mutations. Format milliseconds from the computed duration; do not imply 1 ms refresh precision.
+
+## 6. Repository and service responsibilities
+
+### Repositories
+
+- `ClientRepository`: observe active/archived clients; add, rename, archive, restore using one canonical-name validator.
+- `TaskRepository`: observe a date, fetch a task/series, create/edit/delete a daily task, and expose interval history. Multi-table writes use Room transactions.
+- `SettingsRepository`: typed Flow access to theme, zone mode/manual ID, default export, spreadsheet metadata, and last export status.
+- `SelectionRepository`: preferred series/last task hints in DataStore, with dangling-reference repair.
+
+### Domain services
+
+- `TimerCoordinator`: sole public start/stop entry point; delegates transaction blocks to the Room database.
+- `TimerNormalizer`: splits an open interval at every date boundary and repairs active selection/task ownership.
+- `DailyRolloverService`: find-or-create by series/date/assignment zone and copy current metadata safely.
+- `IntervalValidator`: boundary, ordering, overlap, open-state, and DST-local-time validation.
+- `ExportRowBuilder`: takes a consistent Room snapshot and emits stable logical rows.
+- `ExportCoordinator`: normalize, snapshot, route by destination, record outcome, and never modify task data as part of delivery.
+
+## 7. Concurrency and transaction model
+
+- All timer mutations go through one application-scoped `Mutex` **and** Room transactions. The mutex reduces same-process races; database invariants/transactions remain the real protection.
+- Start transaction: normalize; validate selection/date; verify no active record/open interval; create interval with next ordinal; insert singleton active record; return snapshot.
+- Stop transaction: load singleton active record; normalize through `now`; close the currently open segment unless normalization already reaches an exact boundary; remove active record; update timestamps; return affected tasks.
+- Midnight normalization transaction may close/create several intervals/tasks and retarget the singleton active record atomically.
+- Task/client edits use optimistic current-state validation inside their write transaction, not only form validation.
+- Export reads use one Room transaction and one captured `exportInstant` so task totals and interval durations agree.
+- Google/SAF I/O occurs after the Room read transaction ends. Network/file failures never roll back or mutate task records.
+- DAO write methods capable of creating/opening/closing intervals remain internal to the data layer; ViewModels cannot bypass the coordinator.
+
+## 8. Time architecture
+
+Use three distinct concepts:
+
+1. `UtcClock.now(): Instant` for persisted boundaries, creation/update timestamps, recovery, and export snapshots.
+2. `MonotonicTimeSource.nowNanos()` for the live contribution while a process session remains alive. Android's elapsed realtime source includes device sleep.
+3. `EffectiveZoneProvider.zoneId(): ZoneId` from device mode or validated manual settings.
+
+At Start/recovery, the UI establishes a base duration and a monotonic anchor. It derives future frames from the monotonic delta. After process death, it reconstructs once from the persisted start instant and current UTC instant, then re-anchors monotonically.
+
+The `ActiveTimer` captures the geographical boundary zone at Start. Time-zone settings are locked while active, and external device-zone changes do not change the session's splitting zone. Historical tasks always use their stored zone ID.
+
+Detailed algorithms and anomaly policy are in `TIMER_AND_DATE_RULES.md`.
+
+## 9. Storage architecture
+
+### Room
+
+- Database file is opened normally and retained.
+- Foreign keys are enabled.
+- Version 1 schema is exported to source control.
+- Every version change supplies explicit forward migration(s), schema JSON, and migration instrumentation tests.
+- Release builds never use destructive fallback. Destructive migration may be used only in isolated test fixtures if clearly scoped.
+
+### Preferences DataStore
+
+Typed preferences include theme, time-zone mode/manual ID, default export destination, preferred task series, last selected task, connected spreadsheet ID/title/account display hint, and last export outcome. DataStore does not contain task rows, interval state, passwords, service-account material, raw access tokens, or refresh tokens.
+
+### File output
+
+Use Android user-mediated/scoped storage. A `DocumentOutputDestination` wraps `ContentResolver` operations so cancellation, output failure, encoding, and unit/instrumentation tests can be isolated. The open CSV bytes are fully serialized before requesting/committing output where practical; close streams deterministically.
+
+## 10. Google boundary
+
+Google support is a replaceable gateway outside the offline core.
+
+- Do not add Firebase.
+- Do not use service accounts in an APK.
+- Use Google-supported Android account authorization, with Google Play services managing authorization credentials. Do not persist raw tokens in DataStore.
+- Treat authentication/account identity separately from authorization to call Sheets.
+- Request only the Sheets scope required for user-entered arbitrary spreadsheet IDs and document why; no Drive-wide scope.
+- Use the Sheets API v4 through a stable supported client or a small REST adapter, selected after an implementation-time official-doc review.
+- Gateway operations are suspendable and return typed outcomes: offline, authorization required/expired, permission denied, not found, marker conflict, rate limited, server failure, validation failure, canceled, and success.
+
+The planning review (2026-07-22) found current official guidance directing Android apps to Credential Manager for Sign in with Google and to the Google Identity authorization API for access to Google data. Official samples can mention alpha dependencies even when stable-only policy forbids them; therefore Milestone 6 must select a stable supported path or document an explicit exception for approval. See `EXPORT_SPEC.md` for the setup and verification gate.
+
+## 11. Security and privacy
+
+- No local account is required for core use.
+- Store only necessary Google spreadsheet metadata; let Google-supported components manage credentials.
+- Never log client descriptions, spreadsheet contents, authorization headers, IDs unnecessarily, or credential payloads.
+- Validate spreadsheet IDs/URLs strictly and display only sanitized errors.
+- Use `ValueInputOption.RAW` for Sheets so user strings are not interpreted as formulas.
+- CSV preserves field text with RFC quoting. Document that downstream spreadsheet programs can interpret formula-like CSV cells; do not silently alter authoritative text without a product decision.
+- Network security uses platform TLS; no cleartext traffic.
+- No storage permission is expected under the selected SAF/scoped approach.
+
+## 12. Dependency policy
+
+The implementation dependency set should remain limited to Android/Jetpack Compose, lifecycle/navigation, coroutines, Room, DataStore, test libraries, and the smallest stable Google identity/Sheets stack that satisfies the gateway. Avoid date libraries, Excel libraries, DI frameworks, Firebase BOM, reflection-heavy mapping layers, and general-purpose networking stacks unless the Google client choice demonstrably needs one.
+
+All versions live in the version catalog. Renovation is a separate reviewed change. A dependency update must pass formatting, lint, unit, Room/migration instrumentation, Compose tests, and builds.
+
+## 13. Test architecture
+
+- Pure JVM tests own clocks, zones, DST dates, formatting, canonical names, interval validation, rollover, splitting, export rows, and CSV serialization.
+- `kotlinx-coroutines-test` controls dispatchers/tickers.
+- Room instrumentation tests use a real SQLite database for constraints, transactions, and every migration path.
+- ViewModel tests combine fake repositories/gateways and deterministic time.
+- Compose UI tests cover the main workflows, disabled states, confirmation, settings, picker/authorization launch effects, and accessibility semantics.
+- Fake `Clock`, monotonic source, zone provider, document destination, and Google gateway are first-class test fixtures.
+
+## 14. Operational behavior
+
+Core failures are represented in UI state and remain retryable. Last export outcome stores destination, displayed date, time, and a safe error category/detail. There is no background auto-sync or scheduled export. Process recovery is triggered on app startup/resume and before Start, Stop, edit, delete, and export operations that depend on normalized timer state.

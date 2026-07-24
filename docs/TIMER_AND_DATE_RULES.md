@@ -9,7 +9,7 @@ At every committed database state:
 3. The referenced interval belongs to one daily task and uses the `boundaryZoneId` captured at Start.
 4. Every completed interval has `start < stop` and lies within its task's stored local-date boundaries.
 5. Intervals for a task do not overlap.
-6. A series has at most one daily task for a work date.
+6. A series has at most one daily task for a `(work date, assignment ZoneId)` pair.
 7. The visible timer is derived state, never a persisted counter.
 
 All algorithms use injected time sources and execute rule-dependent database changes in Room transactions.
@@ -44,17 +44,21 @@ Render at least two hour digits, but never truncate larger hours: `07:03:09.004`
 
 ## 4. Starting
 
-`start(selectedTaskId)` obtains one `nowInstant`, then under the timer mutex and one Room transaction:
+`TimerCoordinator.start()` obtains one `nowInstant` under the application-scoped timer mutex:
 
 1. Resolve the effective zone and `today`.
-2. Normalize any existing active interval through `nowInstant`. If one remains active, reject with `AlreadyRunning`.
-3. Resolve the selected task and preferred series. If it is not the exact `(series, today, effectiveZoneId)` copy, find/create that copy using the rollover algorithm and select it; this includes a same-date task retained under another assignment zone.
-4. Require the displayed date and resolved task work date to equal today and its stored zone to equal the effective Start zone.
-5. Recheck that `active_timer` is empty and there is no unreferenced null-stop interval.
-6. Allocate the next stable ordinal and create an interval with `start=nowInstant`, `stop=null`.
-7. Insert singleton active state with the resolved effective geographical zone captured as `boundaryZoneId`.
-8. Update selection hints after the transaction succeeds.
-9. Establish a process-local monotonic anchor for display.
+2. Resolve the persistent timing selection and verify its task/series relationship.
+3. Require that task to be the exact `(series, today, effectiveZoneId)` daily copy. An
+   intentionally selected historical/future task is rejected and is not silently converted into
+   today's task.
+4. In one Room transaction, recheck that `active_timer` is empty and no open candidate exists,
+   allocate the next stable ordinal, insert `start=nowInstant`/`stop=null`, and insert singleton
+   active state with the effective geographical zone captured as `boundaryZoneId`.
+5. Establish a process-local monotonic anchor using the task's completed total before Start.
+
+Actual-date carryover reconciliation is a separate `SelectionCoordinator` operation and may run on
+resume/date-change normalization before Start is offered. It does not reinterpret a task that the
+user intentionally selected while browsing a historical date today.
 
 A failed precondition creates no interval. Concurrent Start calls yield one success at most.
 
@@ -80,7 +84,7 @@ When the app stays foreground across a date boundary, the ticker/date observer r
 
 ## 6. Stopping
 
-`stop()` obtains `nowInstant`, then under the timer mutex and one Room transaction:
+`TimerCoordinator.stop()` obtains `nowInstant`, then under the timer mutex:
 
 1. Load the singleton active state and referenced interval; if absent, return `NotRunning` idempotently.
 2. Normalize the interval through every boundary strictly before `nowInstant` using the active session's pinned zone.
@@ -88,7 +92,9 @@ When the app stays foreground across a date boundary, the ticker/date observer r
 4. Close the final open interval at `nowInstant`.
 5. Validate positive duration and the owning task boundary.
 6. Delete the singleton active row and update affected timestamps.
-7. If the effective current date is now later, find/create/select the series copy for current today without creating an interval.
+7. Select the task owning the final closed segment. If Stop was exactly at midnight, ordinary
+   selection reconciliation may subsequently select/create the new day's task without creating a
+   zero-length interval.
 8. Clear the process-local monotonic anchor after commit.
 
 The database stop instant is the injected wall-clock UTC instant, as required for historical reconstruction. The final persisted total may differ from the pre-stop monotonic display if the user/network adjusted wall time during the interval; see anomaly handling.
@@ -122,6 +128,8 @@ For multiple missed dates, repeat at each `atStartOfDay` boundary. Never add fix
 ## 8. Daily selection rollover
 
 Rollover is based on an actual change of today, not ordinary browsing with the date selector.
+Selection preferences therefore retain the selected task ID, preferred series ID, effective date
+on which the timing selection was made, and its effective ZoneId.
 
 1. Read the preferred series and its last concrete daily task.
 2. Calculate today with the effective zone.
@@ -130,7 +138,12 @@ Rollover is based on an actual change of today, not ordinary browsing with the d
 5. On a uniqueness race, query and use the already-inserted row.
 6. Persist the new concrete task selection.
 
-This can run on resume, normalization, or Start. It must not create duplicates and does not move/edit the source task. If the source was deleted or its client relationship is invalid, clear selection and require the user to choose rather than fabricate metadata.
+This can run on resume or actual-date normalization before the UI enables Start. When the
+selection was made on today's effective date but points to a historical/future task, preserve it
+for viewing and keep Start ineligible. Rollover must not create duplicates and does not move/edit
+the source task. If the source was deleted, the selected series does not match it, or its client
+relationship is invalid, clear selection and require the user to choose rather than fabricate
+metadata.
 
 ## 9. Time-zone setting changes
 
@@ -175,11 +188,15 @@ The product requires wall-clock UTC persistence and monotonic live display, whic
 
 - Ordinary wall-clock changes do not make the live in-process display jump.
 - At Stop/recovery/export, compare wall-derived and available monotonic elapsed values.
-- If wall time makes `stop <= start` or differs beyond an implementation-defined diagnostic tolerance, do not silently synthesize a historical wall instant. Keep the timer recoverable, show a `ClockChanged` error, and guide the user to correct device time or stop and manually correct the interval.
+- If wall time makes `stop <= start` or differs from the live monotonic estimate by more than the
+  initial diagnostic tolerance of two minutes, do not silently synthesize a historical wall
+  instant. Keep the timer recoverable, return `ClockChanged`, and later UI must guide the user to
+  correct device time or manually correct the interval.
 - If process death removed the monotonic reference, wall-clock reconstruction is the only source; show anomaly state for negative duration and never write an invalid stop.
 - Tests inject jumps forward/backward and prove no database invariant is broken.
 
-The exact user copy and tolerance are implementation UX choices, but the no-silent-corruption rule is fixed.
+The exact user copy remains a later UI choice. Changing the two-minute diagnostic tolerance is a
+reviewed behavior change; the no-silent-corruption rule is fixed.
 
 ## 13. Lifecycle triggers
 
@@ -194,3 +211,7 @@ Normalize/check on:
 - after device boot only when the user next launches the app (no boot receiver required).
 
 No alarm, wake lock, foreground service, or per-tick persistence is needed.
+
+Milestone 3 implements the pure/coordinating services and transaction operations. Android
+lifecycle trigger wiring, the collected UI ticker, process-launch normalization, and user-facing
+clock-anomaly recovery remain Milestones 4 and 12.

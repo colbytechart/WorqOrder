@@ -65,15 +65,16 @@ Do not add one “use case” class per repository getter. Add named domain serv
 
 ## 4. Application container
 
-`WorqOrderApplication` owns one lazily constructed application-scoped container. As of Milestone 2, the container constructs one retained `WorqOrderDatabase` instance and supplies Room-backed client, task, and active-timer repositories, a UUID entity-ID generator, and the system UTC clock. Later milestones extend the same boundary with:
+`WorqOrderApplication` owns one lazily constructed application-scoped container. As of Milestone
+3, the container constructs one retained `WorqOrderDatabase`, Room-backed client/task/active-timer
+repositories, the selection-only Preferences DataStore repository, UTC/device-zone/elapsed
+realtime adapters, one shared timer-operation mutex, one process-local live timer session,
+`SelectionCoordinator`, `TimerCoordinator`, and `ActiveTimerNormalizer`.
 
-- Room database and DAOs;
-- repositories for clients, tasks, settings, and selection;
-- `Clock` abstraction returning current UTC `Instant`;
-- monotonic elapsed-time source;
-- device/effective `ZoneId` providers;
-- timer transaction coordinator and normalization service;
-- interval validator;
+Later milestones extend the same boundary with:
+
+- repositories/providers for remaining typed settings and manual effective ZoneId mode;
+- ViewModel-facing timer presentation/ticker wiring;
 - export-row builder and CSV serializer;
 - document-output adapter;
 - Google authorization coordinator and `GoogleSheetsGateway`; and
@@ -114,26 +115,42 @@ The visible ticker runs only while collected and an interval is active. It emits
 ### Repositories
 
 - `ClientRepository`: implemented in Milestone 2 with active/all-client `Flow` observations and add, rename, archive, and restore operations using one canonical-name validator. It returns typed invalid-name, duplicate-active-name, and not-found outcomes.
-- `TaskRepository`: implemented persistence foundations observe a date, fetch task/client/detail models, find a `(series, date, zone)` copy, create/update/delete daily tasks, insert completed intervals, and expose ordered validation history and completed duration. Later domain services add date-boundary, overlap, running-task, and selection rules.
-- `ActiveTimerRepository`: implemented persistence foundation observes/reads the singleton and delegates atomic open/close storage mutations to `ActiveTimerDao`. It does not decide whether Start is allowed, split at midnight, or drive a display ticker.
+- `TaskRepository`: observes dates/tasks, fetches joined/detail models, atomically finds or creates
+  an exact `(series, date, zone)` copy from current source metadata, creates/updates/deletes daily
+  tasks, inserts completed intervals, and exposes ordered validation history and completed totals.
+- `ActiveTimerRepository`: observes/reads the singleton and delegates atomic open, multi-boundary
+  continuation, retarget, and final close operations to `ActiveTimerDao`. Eligibility and boundary
+  calculation remain outside the DAO.
 - `SettingsRepository`: typed Flow access to theme, zone mode/manual ID, default export, spreadsheet metadata, and last export status.
-- `SelectionRepository`: preferred series/last task hints in DataStore, with dangling-reference repair.
+- `SelectedTaskRepository`: implemented in Preferences DataStore with task/series hints plus the
+  effective selection date/zone needed to distinguish real daily carryover from intentional
+  historical browsing. It stores no task or interval truth.
 
 ### Domain services
 
-- `TimerCoordinator`: sole public start/stop entry point; delegates transaction blocks to the Room database.
-- `TimerNormalizer`: splits an open interval at every date boundary and repairs active selection/task ownership.
-- `DailyRolloverService`: find-or-create by series/date/assignment zone and copy current metadata safely.
-- `IntervalValidator`: boundary, ordering, overlap, open-state, and DST-local-time validation.
+- `TimerCoordinator`: typed Start/Stop entry point; validates exact-today eligibility, coordinates
+  the shared mutex and Room transaction APIs, and owns clock-anomaly results/live-anchor changes.
+- `ActiveTimerNormalizer`: calculates all crossed boundaries from the pinned session zone, applies
+  one atomic continuation chain, follows the active task selection, and re-anchors display state.
+- `SelectionCoordinator`: select/clear/observe, active-timer switching lock, dangling repair, and
+  exact three-part daily rollover using current source metadata.
+- `ManualIntervalValidator`: pure boundary, ordering, overlap, open/running-state, and explicit
+  DST gap/overlap validation.
+- `DurationMath`, `MidnightBoundaryCalculator`, and `LiveTimerSession`: pure accumulated duration,
+  real-zone boundary, and process-local monotonic/recovery models.
 - `ExportRowBuilder`: takes a consistent Room snapshot and emits stable logical rows.
 - `ExportCoordinator`: normalize, snapshot, route by destination, record outcome, and never modify task data as part of delivery.
 
 ## 7. Concurrency and transaction model
 
-- Milestone 2 implements the storage-critical open/close portions as Room transactions. The later timer coordinator adds one application-scoped `Mutex`, selection/date validation, normalization, and clock policy. The mutex will reduce same-process races; database constraints/transactions remain the real protection.
+- Milestone 3 adds one application-scoped `Mutex`, selection/date validation, normalization, and
+  clock policy. The mutex reduces same-process races; database constraints and transactions remain
+  the cross-coordinator protection.
 - Open storage transaction: verify no active record/open candidate, allocate the next ordinal, insert one interval with `stop = null` and unique `active_slot = 1`, insert singleton active state with matching task/interval IDs, touch the task, and return one snapshot.
 - Close storage transaction: load and validate the singleton and referenced open interval, write a valid later stop, release `active_slot`, delete active state, touch the task, and return one snapshot. Missing active state is an idempotent no-op.
-- Midnight normalization transaction may close/create several intervals/tasks and retarget the singleton active record atomically.
+- Midnight normalization receives a Kotlin-calculated ordered boundary plan. One Room transaction
+  closes each segment, finds or creates the exact three-part daily copy, inserts the continuation,
+  retargets the singleton, and either leaves the final interval open or closes/clears it for Stop.
 - Task/client edits use optimistic current-state validation inside their write transaction, not only form validation.
 - Export reads use one Room transaction and one captured `exportInstant` so task totals and interval durations agree.
 - Google/SAF I/O occurs after the Room read transaction ends. Network/file failures never roll back or mutate task records.
@@ -144,8 +161,8 @@ The visible ticker runs only while collected and an interval is active. It emits
 Use three distinct concepts:
 
 1. `UtcClock.now(): Instant` for persisted boundaries, creation/update timestamps, recovery, and export snapshots.
-2. `MonotonicTimeSource.nowNanos()` for the live contribution while a process session remains alive. Android's elapsed realtime source includes device sleep.
-3. `EffectiveZoneProvider.zoneId(): ZoneId` from device mode or validated manual settings.
+2. `MonotonicTimeSource.elapsedRealtimeNanos()` for the live contribution while a process session remains alive. Android's elapsed realtime source includes device sleep.
+3. `EffectiveZoneIdProvider.zoneId(): ZoneId` from device mode now and validated manual settings later.
 
 At Start/recovery, the UI establishes a base duration and a monotonic anchor. It derives future frames from the monotonic delta. After process death, it reconstructs once from the persisted start instant and current UTC instant, then re-anchors monotonically.
 
@@ -167,9 +184,10 @@ Detailed algorithms and anomaly policy are in `TIMER_AND_DATE_RULES.md`.
 
 ### Preferences DataStore
 
-Typed preferences include theme, time-zone mode/manual ID, default export destination, preferred task series, last selected task, connected spreadsheet ID/title/account display hint, and last export outcome. DataStore does not contain task rows, interval state, passwords, service-account material, raw access tokens, or refresh tokens.
-
-The owner-directed Milestone 2 implementation is Room/repository-only. Preferences DataStore remains a prepared dependency; typed preference storage is intentionally not implemented by this milestone.
+Milestone 3 implements only atomic timing-selection preferences: task ID, series ID, effective
+selection date, and selection ZoneId. Theme, time-zone mode/manual ID, export default, spreadsheet
+metadata, and last export outcome remain Milestone 7 or later. DataStore does not contain task
+rows, interval state, passwords, service-account material, raw access tokens, or refresh tokens.
 
 ### File output
 
@@ -187,7 +205,7 @@ Google support is a replaceable gateway outside the offline core.
 - Use the Sheets API v4 through a stable supported client or a small REST adapter, selected after an implementation-time official-doc review.
 - Gateway operations are suspendable and return typed outcomes: offline, authorization required/expired, permission denied, not found, marker conflict, rate limited, server failure, validation failure, canceled, and success.
 
-The planning review (2026-07-22) found current official guidance directing Android apps to Credential Manager for Sign in with Google and to the Google Identity authorization API for access to Google data. Official samples can mention alpha dependencies even when stable-only policy forbids them; therefore Milestone 6 must select a stable supported path or document an explicit exception for approval. See `EXPORT_SPEC.md` for the setup and verification gate.
+The planning review (2026-07-22) found current official guidance directing Android apps to Credential Manager for Sign in with Google and to the Google Identity authorization API for access to Google data. Official samples can mention alpha dependencies even when stable-only policy forbids them; therefore Milestone 9 must select a stable supported path or document an explicit exception for approval. See `EXPORT_SPEC.md` for the setup and verification gate.
 
 ## 11. Security and privacy
 

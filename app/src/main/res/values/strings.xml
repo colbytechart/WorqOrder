@@ -18,7 +18,7 @@
     <string name="empty_task_list">No tasks yet</string>
     <string name="empty_task_list_supporting">Task behavior will be added in a later milestone.</string>
     <string name="add_task">Add task</string>
-    <string name="export_disabled">Export unavailable in this scaffold</string>
+    <string name="export">Export</string>
 
     <string name="create_task">Create task</string>
     <string name="create_task_placeholder">The task form will be implemented in the local task workflow milestone.</string>

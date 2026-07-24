@@ -12,18 +12,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,17 +62,10 @@ fun MainScreen(
                 },
             )
         },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onCreateTask,
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(R.string.add_task),
-                    )
-                },
-                text = { Text(stringResource(R.string.add_task)) },
-                elevation = FloatingActionButtonDefaults.elevation(),
+        bottomBar = {
+            MainBottomActions(
+                canExport = uiState.canExport,
+                onCreateTask = onCreateTask,
             )
         },
     ) { scaffoldPadding ->
@@ -103,13 +98,45 @@ private fun MainContent(
                     .weight(1f)
                     .heightIn(min = WorqOrderDimens.TaskListMinimumHeight),
         )
-        Spacer(Modifier.height(WorqOrderDimens.ItemSpacing))
-        Button(
+    }
+}
+
+@Composable
+private fun MainBottomActions(
+    canExport: Boolean,
+    onCreateTask: () -> Unit,
+) {
+    BottomAppBar(
+        contentPadding =
+            PaddingValues(
+                horizontal = WorqOrderDimens.ScreenPadding,
+                vertical = WorqOrderDimens.BottomActionVerticalPadding,
+            ),
+    ) {
+        FilledTonalButton(
             onClick = {},
-            enabled = uiState.canExport,
-            modifier = Modifier.fillMaxWidth(),
+            enabled = canExport,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .heightIn(min = WorqOrderDimens.ActionButtonHeight),
         ) {
-            Text(stringResource(R.string.export_disabled))
+            Text(stringResource(R.string.export))
+        }
+        Spacer(Modifier.width(WorqOrderDimens.BottomActionSpacing))
+        Button(
+            onClick = onCreateTask,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .heightIn(min = WorqOrderDimens.ActionButtonHeight),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+            )
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.add_task))
         }
     }
 }

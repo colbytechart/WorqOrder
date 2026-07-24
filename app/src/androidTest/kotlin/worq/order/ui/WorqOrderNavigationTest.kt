@@ -1,12 +1,14 @@
 package worq.order.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,9 +24,36 @@ class WorqOrderNavigationTest {
         composeRule.onNodeWithText("WorqOrder").assertIsDisplayed()
         composeRule.onNodeWithText("00:00:00.000").assertIsDisplayed()
         composeRule.onNodeWithText("Tasks").assertIsDisplayed()
-        composeRule
-            .onNodeWithText("Export unavailable in this scaffold")
-            .assertIsNotEnabled()
+        composeRule.onNodeWithText("Export").assertIsNotEnabled()
+        composeRule.onNodeWithText("Add task").assertIsEnabled()
+    }
+
+    @Test
+    fun bottomActionsDoNotOverlap() {
+        val exportAction =
+            composeRule
+                .onNodeWithText("Export")
+                .assertIsDisplayed()
+                .assertIsNotEnabled()
+        val addTaskAction =
+            composeRule
+                .onNodeWithText("Add task")
+                .assertIsDisplayed()
+                .assertIsEnabled()
+
+        val exportBounds = exportAction.fetchSemanticsNode().boundsInRoot
+        val addTaskBounds = addTaskAction.fetchSemanticsNode().boundsInRoot
+
+        assertTrue(
+            "Export must end before Add task begins: $exportBounds vs $addTaskBounds",
+            exportBounds.right <= addTaskBounds.left,
+        )
+    }
+
+    @Test
+    fun addTaskActionNavigatesToCreateTaskPlaceholder() {
+        composeRule.onNodeWithText("Add task").performClick()
+        composeRule.onNodeWithText("Create task").assertIsDisplayed()
     }
 
     @Test

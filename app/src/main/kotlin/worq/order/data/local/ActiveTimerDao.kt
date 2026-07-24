@@ -1,0 +1,208 @@
+package worq.order.data.local
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Transaction
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+abstract class ActiveTimerDao {
+    @Query(
+        """
+        SELECT *
+        FROM active_timer
+        WHERE singleton_id = 1
+        LIMIT 1
+        """,
+    )
+    abstract suspend fun readActiveTimer(): ActiveTimerEntity?
+
+    @Query(
+        """
+        SELECT *
+        FROM active_timer
+        WHERE singleton_id = 1
+        LIMIT 1
+        """,
+    )
+    abstract fun observeActiveTimer(): Flow<ActiveTimerEntity?>
+
+    @Query("SELECT * FROM work_intervals WHERE id = :intervalId LIMIT 1")
+    protected abstract suspend fun readIntervalInternal(
+        intervalId: String,
+    ): WorkIntervalEntity?
+
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM work_intervals
+        WHERE stop_epoch_ms IS NULL
+           OR active_slot IS NOT NULL
+        """,
+    )
+    protected abstract suspend fun countOpenIntervalCandidates(): Int
+
+    @Query("SELECT MAX(ordinal) FROM work_intervals WHERE task_id = :taskId")
+    protected abstract suspend fun readMaxOrdinal(taskId: String): Int?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    protected abstract suspend fun insertIntervalInternal(interval: WorkIntervalEntity)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    protected abstract suspend fun insertActiveTimerInternal(activeTimer: ActiveTimerEntity)
+
+    @Query(
+        """
+        UPDATE work_intervals
+        SET stop_epoch_ms = :stopEpochMs,
+            active_slot = NULL,
+            updated_at_epoch_ms = :updatedAtEpochMs
+        WHERE id = :intervalId
+          AND task_id = :taskId
+          AND stop_epoch_ms IS NULL
+          AND active_slot = 1
+        """,
+    )
+    protected abstract suspend fun closeIntervalInternal(
+        intervalId: String,
+        taskId: String,
+        stopEpochMs: Long,
+        updatedAtEpochMs: Long,
+    ): Int
+
+    @Query(
+        """
+        DELETE FROM active_timer
+        WHERE singleton_id = 1
+          AND interval_id = :intervalId
+          AND task_id = :taskId
+        """,
+    )
+    protected abstract suspend fun clearActiveTimerInternal(
+        intervalId: String,
+        taskId: String,
+    ): Int
+
+    @Query(
+        """
+        UPDATE daily_tasks
+        SET updated_at_epoch_ms = :updatedAtEpochMs
+        WHERE id = :taskId
+        """,
+    )
+    protected abstract suspend fun touchTask(
+        taskId: String,
+        updatedAtEpochMs: Long,
+    ): Int
+
+    @Transaction
+    open suspend fun createActiveIntervalAndTimer(
+        intervalId: String,
+        taskId: String,
+        boundaryZoneId: String,
+        startEpochMs: Long,
+        createdAtEpochMs: Long,
+    ): ActiveTimerTransactionEntity {
+        require(intervalId.isNotBlank()) { "intervalId must not be blank" }
+        require(taskId.isNotBlank()) { "taskId must not be blank" }
+        require(boundaryZoneId.isNotBlank()) { "boundaryZoneId must not be blank" }
+
+        if (readActiveTimer() != null || countOpenIntervalCandidates() != 0) {
+            throw ActiveTimerAlreadyExistsException()
+        }
+
+        val interval =
+            WorkIntervalEntity(
+                id = intervalId,
+                taskId = taskId,
+                ordinal = (readMaxOrdinal(taskId) ?: 0) + 1,
+                startEpochMs = startEpochMs,
+                stopEpochMs = null,
+                activeSlot = WorkIntervalEntity.ACTIVE_SLOT,
+                wasManuallyEdited = false,
+                createdAtEpochMs = createdAtEpochMs,
+                updatedAtEpochMs = createdAtEpochMs,
+            )
+        val activeTimer =
+            ActiveTimerEntity(
+                intervalId = intervalId,
+                taskId = taskId,
+                boundaryZoneId = boundaryZoneId,
+                createdAtEpochMs = createdAtEpochMs,
+                updatedAtEpochMs = createdAtEpochMs,
+            )
+
+        insertIntervalInternal(interval)
+        insertActiveTimerInternal(activeTimer)
+        if (touchTask(taskId, createdAtEpochMs) != 1) {
+            throw PersistenceInvariantException(
+                "Active interval $intervalId has no owning task $taskId",
+            )
+        }
+        return ActiveTimerTransactionEntity(
+            activeTimer = activeTimer,
+            interval = interval,
+        )
+    }
+
+    @Transaction
+    open suspend fun closeActiveIntervalAndClearTimer(
+        stopEpochMs: Long,
+        updatedAtEpochMs: Long,
+    ): ActiveTimerTransactionEntity? {
+        val activeTimer = readActiveTimer() ?: return null
+        val interval =
+            readIntervalInternal(activeTimer.intervalId)
+                ?: throw PersistenceInvariantException(
+                    "Active timer points to missing interval ${activeTimer.intervalId}",
+                )
+
+        if (
+            interval.taskId != activeTimer.taskId ||
+            interval.stopEpochMs != null ||
+            interval.activeSlot != WorkIntervalEntity.ACTIVE_SLOT
+        ) {
+            throw PersistenceInvariantException(
+                "Active timer and interval ${interval.id} are inconsistent",
+            )
+        }
+        require(stopEpochMs > interval.startEpochMs) {
+            "An active interval must stop after it starts"
+        }
+
+        if (
+            closeIntervalInternal(
+                intervalId = interval.id,
+                taskId = interval.taskId,
+                stopEpochMs = stopEpochMs,
+                updatedAtEpochMs = updatedAtEpochMs,
+            ) != 1
+        ) {
+            throw PersistenceInvariantException(
+                "Active interval ${interval.id} could not be closed",
+            )
+        }
+        if (clearActiveTimerInternal(interval.id, interval.taskId) != 1) {
+            throw PersistenceInvariantException(
+                "Active timer for interval ${interval.id} could not be cleared",
+            )
+        }
+        if (touchTask(interval.taskId, updatedAtEpochMs) != 1) {
+            throw PersistenceInvariantException(
+                "Closed interval ${interval.id} has no owning task ${interval.taskId}",
+            )
+        }
+
+        return ActiveTimerTransactionEntity(
+            activeTimer = activeTimer.copy(updatedAtEpochMs = updatedAtEpochMs),
+            interval =
+                interval.copy(
+                    stopEpochMs = stopEpochMs,
+                    activeSlot = null,
+                    updatedAtEpochMs = updatedAtEpochMs,
+                ),
+        )
+    }
+}

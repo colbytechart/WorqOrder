@@ -9,6 +9,7 @@
 - Booleans are SQLite integers through Room.
 - Every mutable entity has `createdAtEpochMs` and `updatedAtEpochMs`; updates use the injected UTC clock.
 - Entities are persistence details. Repositories map them to domain models and validate strings/time values before writes.
+- Room version 1 stores these primitive values directly and requires no type converters. Domain mappings reconstruct `Instant`, `LocalDate`, and `ZoneId` deterministically.
 
 ## 2. Entity relationship overview
 
@@ -71,6 +72,7 @@ Changing client/description changes only this daily task. A later rollover copie
 | `ordinal` | INTEGER | positive sequence within the task |
 | `start_epoch_ms` | INTEGER | UTC start instant |
 | `stop_epoch_ms` | INTEGER nullable | null only for the global open interval |
+| `active_slot` | INTEGER nullable UNIQUE | null when completed; fixed value `1` for the sole open interval |
 | `was_manually_edited` | INTEGER | true after a manual boundary edit; manual creation also true |
 | `created_at_epoch_ms` | INTEGER | UTC epoch millis |
 | `updated_at_epoch_ms` | INTEGER | UTC epoch millis |
@@ -79,6 +81,8 @@ Constraints/indexes:
 
 - Unique `(task_id, ordinal)`.
 - Index `(task_id, start_epoch_ms)` for chronological display/overlap checks.
+- Unique nullable `active_slot` structurally prevents a second open interval: SQLite permits many nulls for completed rows but only one row containing `1`.
+- Unique `(id, task_id)` supports the composite active-timer foreign key that proves the pointed interval belongs to the recorded task.
 - Completed rows require `start_epoch_ms < stop_epoch_ms`.
 - An interval must lie within `[taskDate.atStartOfDay(zone), nextDate.atStartOfDay(zone)]`; this zone-aware rule is enforced in the transaction service because SQLite cannot interpret `ZoneId` rules.
 - Intervals for the same task cannot overlap. Validate against current rows inside the write transaction.
@@ -86,36 +90,41 @@ Constraints/indexes:
 
 Ordinals are stable presentation/export numbers, not array indexes. Deleting an interval does not renumber surviving rows; a new ordinal is `max + 1`. Chronological UI ordering uses start instant, then ordinal/ID. This avoids export identities changing after edits.
 
+Version 1 deliberately uses the nullable unique `active_slot` instead of a custom partial SQLite index or trigger. This keeps the invariant in the exported Room schema and avoids out-of-band schema objects. Public repository insertion creates only completed intervals; the active-timer transaction is the only data-layer path that writes `stop_epoch_ms = NULL` and `active_slot = 1`.
+
 ## 6. `active_timer`
 
 | Column | Type | Rules |
 | --- | --- | --- |
 | `singleton_id` | INTEGER PK | always `1`; at most one row |
-| `interval_id` | TEXT UNIQUE FK | references the one open `work_intervals.id`, delete restricted |
+| `interval_id` | TEXT FK | part of composite reference to the open interval, delete restricted |
+| `task_id` | TEXT | paired with `interval_id` in the composite foreign key |
 | `boundary_zone_id` | TEXT | valid ZoneId captured at Start |
 | `created_at_epoch_ms` | INTEGER | UTC epoch millis |
 | `updated_at_epoch_ms` | INTEGER | UTC epoch millis |
 
-The table is empty when stopped and contains exactly one row when running. It is the process-recovery pointer and structural global cardinality guard. The timer coordinator maintains this invariant transactionally:
+The table is empty when stopped and contains one fixed-key row when running. Its composite `(interval_id, task_id)` foreign key references unique `(work_intervals.id, work_intervals.task_id)`, so Room/SQLite proves that the active interval belongs to the recorded task. `ON DELETE RESTRICT` blocks deletion of the active interval and, through task-to-interval cascade, blocks deletion of its running task.
+
+The active row is the process-recovery pointer while `work_intervals.active_slot` is the structural global-open cardinality guard. The fixed-key DAO and transaction layer maintain the pointer invariant:
 
 - an active row must point to an interval whose stop is null;
 - every null-stop interval must be the referenced interval;
 - no API outside the timer/data transaction layer may create a null-stop interval; and
 - startup consistency checking reports/repairs only well-defined incomplete commits, never silently discards recorded time.
 
-A partial unique SQLite index or trigger that enforces at most one null `stop_epoch_ms` may be added in database version 1 if Room schema export and migration tests faithfully preserve it. Otherwise the singleton plus internal DAO visibility and transaction invariant query is the approved structure; this choice must be locked during Milestone 1.
+`ActiveTimerDao.createActiveIntervalAndTimer` allocates the next ordinal, inserts the open interval, inserts singleton ID `1`, and touches the task in one Room transaction. `closeActiveIntervalAndClearTimer` validates the pointer, closes the interval, releases `active_slot`, clears the singleton, and touches the task in one transaction. A failed statement rolls back the whole change. Today/selection checks, midnight splitting, overlap validation, and clock-anomaly policy remain later domain-service responsibilities.
 
 Monotonic anchors are process-local and are not stored here. Persisting elapsed-realtime values across boots would be invalid.
 
 ## 7. Computed queries and models
 
-Room projection `TaskWithClientAndCompletedTotal` joins task/client and computes:
+Room projection `TaskListItemEntity` joins task/client and computes:
 
 ```text
 completed total = SUM(max(stop_epoch_ms - start_epoch_ms, 0)) for completed intervals
 ```
 
-The running contribution is added in the domain/UI layer from the active interval and the display time source. No total-duration column is stored, preventing cache drift. A detail projection retrieves all intervals ordered by `start_epoch_ms`, then ordinal and ID.
+The running contribution is added in the domain/UI layer from the active interval and the display time source. No total-duration column is stored, preventing cache drift. `TaskWithOrderedIntervalsEntity` retrieves task/client metadata and all intervals ordered by `start_epoch_ms`, then ordinal and ID.
 
 ## 8. Preferences DataStore schema
 
@@ -167,6 +176,14 @@ Database version 1 is never “throwaway.” The implementation milestone must:
 5. omit `fallbackToDestructiveMigration` from release construction.
 
 Migration tests populate clients, archived clients, multiple task series/dates, completed/open intervals, and preferences-relevant identifiers before migrating, then verify data and invariants afterward.
+
+Implemented version-1 details:
+
+- production database name: `worqorder.db`;
+- Room annotation: `version = 1`, `exportSchema = true`;
+- committed schema path: `app/schemas/worq.order.data.local.WorqOrderDatabase/1.json`;
+- production construction uses `Room.databaseBuilder` without startup deletion, seeding, or destructive fallback; and
+- there is no `0 -> 1` migration because version 1 is the first schema. The first schema change must add an explicit forward migration and migration instrumentation test.
 
 ## 12. Deliberate non-models
 

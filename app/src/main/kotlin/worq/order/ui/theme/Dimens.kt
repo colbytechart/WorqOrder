@@ -10,4 +10,7 @@ object WorqOrderDimens {
     val TimerCardHeight = 180.dp
     val TaskListMinimumHeight = 160.dp
     val IconButtonSize = 48.dp
+    val ActionButtonHeight = 48.dp
+    val BottomActionSpacing = 12.dp
+    val BottomActionVerticalPadding = 8.dp
 }

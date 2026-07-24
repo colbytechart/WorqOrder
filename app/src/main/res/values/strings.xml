@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WorqOrder</string>
+    <string name="navigate_back">Navigate back</string>
+    <string name="open_settings">Open settings</string>
+
+    <string name="tracked_time">Tracked time</string>
+    <string name="timer_zero">00:00:00.000</string>
+    <string name="start">Start</string>
+
+    <string name="work_date">Work date</string>
+    <string name="date_preview">Today (preview)</string>
+    <string name="previous_day">Previous day</string>
+    <string name="next_day">Next day</string>
+    <string name="choose_date">Choose date</string>
+
+    <string name="task_list">Tasks</string>
+    <string name="empty_task_list">No tasks yet</string>
+    <string name="empty_task_list_supporting">Task behavior will be added in a later milestone.</string>
+    <string name="add_task">Add task</string>
+    <string name="export_disabled">Export unavailable in this scaffold</string>
+
+    <string name="create_task">Create task</string>
+    <string name="create_task_placeholder">The task form will be implemented in the local task workflow milestone.</string>
+    <string name="edit_task">Edit task</string>
+    <string name="edit_task_placeholder">Editing for task %1$s will be implemented in a later milestone.</string>
+
+    <string name="settings">Settings</string>
+    <string name="settings_placeholder">Theme, time-zone, and export preferences are intentionally inactive in this scaffold.</string>
+    <string name="client_management">Client management</string>
+    <string name="open_client_management">Open client management</string>
+    <string name="client_management_placeholder">Client add, rename, archive, and restore behavior will be implemented in a later milestone.</string>
+</resources>

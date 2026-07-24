@@ -27,47 +27,85 @@ There was no Gradle project, Android source/resource, Room schema, or prior plan
 Fixed inputs and checks before Milestone 1 scaffolding is considered durable:
 
 1. Use the final Android `applicationId` and Kotlin namespace `worq.order` exactly.
-2. Confirm that the existing license is intended for this application (no change is proposed here).
-3. Inventory Android Studio/SDK/JDK and set a local SDK path without committing it.
-4. Verify current stable AGP, Gradle, Kotlin, Compose compiler/plugin, and KSP compatibility with installed API 36.1; install stable components if required.
+2. GNU GPL version 3 is confirmed as the intended license; retain the existing `LICENSE`.
+3. Use Android Studio's Embedded JDK/JBR 21 and a local, uncommitted SDK path.
+4. Use the stable, build-proven toolchain and library matrix recorded below with installed API 36.1.
 
-D-030 fixes CSV delivery to `ACTION_CREATE_DOCUMENT`. Google Cloud ownership/configuration can wait until Milestone 6, and `worq.order` remains stable from Milestone 1.
+D-030 fixes CSV delivery to `ACTION_CREATE_DOCUMENT`. Google Cloud ownership/configuration can wait until Milestone 7, and `worq.order` remains stable from Milestone 1.
 
-## 4. Milestone 1 — Project and persistence foundation (recommended next)
+## 4. Milestone 1 — Initial Android project scaffold
 
-This is the exact recommended next milestone. It deliberately excludes user-facing task/timer/export implementation.
+This owner-directed scope supersedes the earlier draft that combined scaffolding and persistence. It establishes a buildable shell only and deliberately excludes production persistence and application behavior.
 
 ### Scope
 
-- Scaffold one native Android application module with Kotlin DSL, version catalog, Compose/Material 3, Compose Navigation foundation, min API 26, target API 36, and the verified latest stable installed compile SDK.
-- Establish namespace/application ID as `worq.order`, debug/release build types without secrets, stable lint/format/test configuration, and Room schema export directory.
-- Add a minimal accessible app/activity/theme/navigation shell that builds, with no pretend task functionality.
-- Add the manual `ApplicationContainer` and abstractions for UTC clock, monotonic time, effective/device zone, dispatcher provider, document destination, and Google gateway interfaces only.
-- Implement database version 1 entities/DAOs/transactions for clients, daily tasks, work intervals, and singleton active timer exactly per `DATA_MODEL.md`.
-- Decide/test the optional partial unique open-interval index/trigger versus the approved singleton/internal-DAO invariant; record the final database choice.
-- Add Preferences DataStore typed models/defaults (Dark, device zone, CSV default, null selection/connection), without credentials.
-- Add repository interfaces and persistence implementations needed to prove create/read/constraints; do not add screens/workflows beyond the shell.
-- Add UUID/time/date converters and pure duration formatting/canonical-name validation where required by the schema.
-- Commit Room version 1 schema JSON and database documentation alignment.
+- Scaffold one native Android application module with Kotlin DSL, a version catalog, Compose/Material 3, Compose Navigation, min API 26, target API 36, and compile SDK API 36.1.
+- Establish namespace/application ID `worq.order`, debug/release build types without secrets, KSP, Room and Preferences DataStore dependencies prepared but unused by a production schema.
+- Create the package boundaries in `ARCHITECTURE.md` and a small empty `ApplicationContainer` boundary for future dependency construction.
+- Add compile-safe destinations for Main, Create Task, Edit Task, Settings, and Client Management.
+- Make the static Main placeholder visibly contain the top app bar, timer card, date selector, empty task-list region, Add Task control, and disabled export control.
+- Establish explicit Material 3 Light and Dark Compose themes without persisting theme selection yet.
+- Use string resources for visible text, content descriptions for actionable icons, centralized dimensions, and no unrequested permissions.
+- Add one JVM route smoke test and Compose UI smoke/navigation tests.
 
 ### Explicit exclusions
 
-- No main task list/create/edit/client/settings screens beyond a non-functional navigation/theme shell.
-- No functional Start/Stop, ticker, rollover, midnight splitting, CSV picker/serialization, Google dependency/authorization/API call, Google Cloud configuration file, Firebase, or XLSX.
+- No production Room entities, DAOs, database, schema export, migrations, or persistence repositories.
+- No typed Preferences DataStore implementation or persisted theme behavior.
+- No real task/client behavior, functional Start/Stop, ticker, rollover, midnight splitting, interval validation, CSV picker/serialization, Google dependency/authorization/API call, Google Cloud configuration file, Firebase, or XLSX.
 - No seed/sample production data.
 
 ### Verification/done gate
 
-- Fresh database creation and reopen instrumentation tests.
-- Tests for foreign keys, client active-name uniqueness, series/date/zone uniqueness, interval ordinal uniqueness, cascade/restrict behavior, and active singleton/open invariant.
+- Gradle configuration, debug application assembly, JVM tests, lint, and test-APK assembly pass offline under the documented JDK/SDK matrix.
+- Compose instrumentation tests run when a device/emulator is available; otherwise the test APK is compiled and the missing runtime target is reported precisely.
+- Dependency/manifest/source inspection confirms stable pinned releases, KSP rather than kapt, prepared Room/DataStore dependencies, Kotlin/Compose-only application code, and no prohibited libraries, permissions, credentials, or implementation behavior.
+
+### Proven initial version matrix
+
+| Component | Version |
+| --- | --- |
+| Gradle wrapper | 9.4.1 |
+| Android Gradle Plugin | 9.2.1 |
+| Kotlin / Compose compiler plugin | 2.3.10 |
+| KSP | 2.3.8 |
+| Compile SDK | 36.1 |
+| Target / minimum SDK | 36 / 26 |
+| AndroidX Core | 1.18.0 |
+| Activity Compose | 1.13.0 |
+| Lifecycle | 2.10.0 |
+| Navigation Compose | 2.9.8 |
+| Room | 2.8.4 |
+| Preferences DataStore | 1.2.1 |
+| Kotlin coroutines | 1.10.2 |
+| Compose BOM | 2026.06.00 |
+| JUnit 4 | 4.13.2 |
+| AndroidX Test JUnit / Runner / Espresso | 1.3.0 / 1.7.0 / 3.7.0 |
+
+## 5. Milestone 2 — Persistence foundation
+
+Entry: Milestone 1 scaffold accepted.
+
+### Scope
+
+- Configure Room schema export from database version 1.
+- Implement entities, DAOs, indexes, foreign keys, and transactions for clients, daily tasks, work intervals, and the singleton active timer exactly per `DATA_MODEL.md`.
+- Decide/test the optional structural open-interval index/trigger versus the singleton/internal-DAO invariant and record the final database choice.
+- Add Preferences DataStore typed models/defaults (Dark, device zone, CSV default, null selection/connection), without credentials.
+- Add repository interfaces and persistence implementations needed to prove create/read/constraints, without task/timer UI behavior.
+- Add persistence-required UUID/time/date converters and pure canonical-name/duration helpers.
+- Commit the Room version 1 schema JSON and align database documentation.
+
+### Tests/gate
+
+- Fresh database creation/reopen, foreign keys, active-client-name uniqueness, series/date/zone uniqueness, ordinal uniqueness, cascade/restrict behavior, and singleton/open invariants.
 - DataStore default/persistence tests where practical.
-- Pure tests for canonical names, epoch-day/ZoneId conversion, and accumulated duration formatting.
-- Dependency report confirms stable releases, KSP rather than kapt where supported, no prohibited libraries/permissions/secrets.
-- Formatting, lint, unit tests, instrumentation tests, and debug plus applicable release build pass under the documented JDK/SDK matrix.
+- Canonical-name, epoch-day/ZoneId conversion, and accumulated-duration formatting tests.
+- Migration-test foundation from version 1, dependency/permission inspection, and the full milestone quality gate.
 
-## 5. Milestone 2 — Local clients and daily-task workflow
+## 6. Milestone 3 — Local clients and daily-task workflow
 
-Entry: Milestone 1 accepted.
+Entry: Milestone 2 accepted.
 
 ### Scope
 
@@ -82,7 +120,7 @@ Entry: Milestone 1 accepted.
 
 Acceptance sections UI/clients/task create-edit-delete that do not require a running timer; Room transaction and ViewModel/coroutine tests; central Compose flows/accessibility; full milestone quality gate.
 
-## 6. Milestone 3 — Timer, rollover, and midnight normalization
+## 7. Milestone 4 — Timer, rollover, and midnight normalization
 
 Entry: local CRUD accepted and fake time fixtures available.
 
@@ -100,7 +138,7 @@ Entry: local CRUD accepted and fake time fixtures available.
 
 All timer and date acceptance scenarios, including concurrency, rotation, process reconstruction, background/device sleep, exact/multiple midnights, 23/25-hour days, spring/fall DST, external zone changes, and anomaly fixtures. Instrument transaction invariants and run Compose central workflow tests.
 
-## 7. Milestone 4 — Interval editor and local settings completion
+## 8. Milestone 5 — Interval editor and local settings completion
 
 Entry: timer rules accepted.
 
@@ -117,7 +155,7 @@ Entry: timer rules accepted.
 
 All interval/time-zone/theme/accessibility acceptance scenarios; fake zones/clocks; ViewModel and Compose tests; full quality gate.
 
-## 8. Milestone 5 — CSV logical export and delivery
+## 9. Milestone 6 — CSV logical export and delivery
 
 Entry: accepted D-030 behavior and stable local data/timer normalization.
 
@@ -133,7 +171,7 @@ Entry: accepted D-030 behavior and stable local data/timer normalization.
 
 Golden schema tests, Unicode/quote/comma/CRLF tests, large-hour/DST/running snapshots, cancellation/partial failure, provider instrumentation, manifest/dependency checks for no storage permission/XLSX, and full quality gate.
 
-## 9. Milestone 6 — Google authorization, connection, and export
+## 10. Milestone 7 — Google authorization, connection, and export
 
 Entry: CSV row model stable; signing strategy and Google Cloud owner available. The application ID is fixed as `worq.order`.
 
@@ -157,7 +195,7 @@ Entry: CSV row model stable; signing strategy and Google Cloud owner available. 
 
 Fake-gateway unit/ViewModel/Compose scenarios plus controlled integration tests against a non-production spreadsheet/account. Prove no new spreadsheet is created, unchanged re-export has no duplicates, changes/deletes replace correctly, conflicts remain untouched, other tabs remain untouched, local Room never changes, and credential/scope static checks pass.
 
-## 10. Milestone 7 — MVP hardening and release candidate
+## 11. Milestone 8 — MVP hardening and release candidate
 
 Entry: all feature milestones individually accepted.
 
@@ -174,7 +212,7 @@ Entry: all feature milestones individually accepted.
 
 Every acceptance scenario mapped to passing evidence; clean database upgrade; no prohibited dependency/permission/credential; formatting/lint/unit/instrumentation/UI tests and debug/release builds pass; known limitations documented.
 
-## 11. Dependency selection checklist
+## 12. Dependency selection checklist
 
 At the first milestone that needs a dependency:
 
@@ -187,14 +225,14 @@ At the first milestone that needs a dependency:
 
 Likely categories, not frozen versions: Android Gradle/Kotlin/Compose plugins, Compose BOM stable, activity-compose, Material 3, navigation-compose, lifecycle ViewModel/runtime Compose, coroutines, Room runtime/ktx/compiler KSP/testing, DataStore preferences, AndroidX test/JUnit/Compose test, coroutine-test, and the later minimal stable Google identity/Sheets client set.
 
-## 12. Risk register
+## 13. Risk register
 
 | Risk | Impact | Mitigation/gate |
 | --- | --- | --- |
 | `ACTION_CREATE_DOCUMENT` cannot force Downloads folder | Files may be saved outside `Downloads/WorqOrder` | Accepted D-030 gives location control to the standard system picker; no storage-permission workaround |
 | OAuth configuration differs from app identity | Google authorization fails | Register the exact `worq.order` application ID with each required signing fingerprint |
 | API 36.1 minor compile syntax/tool compatibility | Build failure or preview-tool temptation | Prove stable matrix in Milestone 1; install latest mutually stable SDK if needed |
-| Google Android auth APIs evolve/stable sample gap | Integration churn or policy conflict | Mandatory official-doc/stable-library gate in Milestone 6 |
+| Google Android auth APIs evolve/stable sample gap | Integration churn or policy conflict | Mandatory official-doc/stable-library gate in Milestone 7 |
 | Sheets scope is sensitive | Consent/verification burden | Sheets-only scope with written arbitrary-ID justification; no Drive scope |
 | Collaborative sheet changes between marker check/write | Possible remote conflict | Exact marker, narrow read, atomic batch, raw values, idempotent retry; never change Room |
 | Wall-clock correction while timer runs | Live and persisted elapsed can disagree | Monotonic live view, UTC persistence, explicit anomaly state/manual correction |
@@ -205,7 +243,7 @@ Likely categories, not frozen versions: Android Gradle/Kotlin/Compose plugins, C
 | Room migration loss | Irrecoverable local truth | schema exports from v1, explicit migrations, populated migration tests, no destructive fallback |
 | Very frequent timer recomposition | battery/performance issues | collection-scoped coarse ticker, derived state, profile and adjust without losing timestamp accuracy |
 
-## 13. Traceability
+## 14. Traceability
 
 - Product behavior and concept reconciliation: `PRODUCT_SPEC.md`.
 - Layering/toolchain/security/test strategy: `ARCHITECTURE.md`.

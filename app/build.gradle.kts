@@ -50,6 +50,10 @@ android {
         compose = true
     }
 
+    sourceSets {
+        getByName("androidTest").assets.directories.add(file("schemas").path)
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -60,6 +64,10 @@ android {
         abortOnError = true
         checkReleaseBuilds = true
     }
+}
+
+ksp {
+    arg("room.schemaLocation", file("schemas").path)
 }
 
 dependencies {
@@ -78,7 +86,6 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
 
-    // Prepared for the persistence milestone; no production schema exists yet.
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)

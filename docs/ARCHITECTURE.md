@@ -65,7 +65,7 @@ Do not add one “use case” class per repository getter. Add named domain serv
 
 ## 4. Application container
 
-`WorqOrderApplication` will own one lazily/eagerly constructed application-scoped container. The container supplies:
+`WorqOrderApplication` owns one lazily constructed application-scoped container. As of Milestone 2, the container constructs one retained `WorqOrderDatabase` instance and supplies Room-backed client, task, and active-timer repositories, a UUID entity-ID generator, and the system UTC clock. Later milestones extend the same boundary with:
 
 - Room database and DAOs;
 - repositories for clients, tasks, settings, and selection;
@@ -113,8 +113,9 @@ The visible ticker runs only while collected and an interval is active. It emits
 
 ### Repositories
 
-- `ClientRepository`: observe active/archived clients; add, rename, archive, restore using one canonical-name validator.
-- `TaskRepository`: observe a date, fetch a task/series, create/edit/delete a daily task, and expose interval history. Multi-table writes use Room transactions.
+- `ClientRepository`: implemented in Milestone 2 with active/all-client `Flow` observations and add, rename, archive, and restore operations using one canonical-name validator. It returns typed invalid-name, duplicate-active-name, and not-found outcomes.
+- `TaskRepository`: implemented persistence foundations observe a date, fetch task/client/detail models, find a `(series, date, zone)` copy, create/update/delete daily tasks, insert completed intervals, and expose ordered validation history and completed duration. Later domain services add date-boundary, overlap, running-task, and selection rules.
+- `ActiveTimerRepository`: implemented persistence foundation observes/reads the singleton and delegates atomic open/close storage mutations to `ActiveTimerDao`. It does not decide whether Start is allowed, split at midnight, or drive a display ticker.
 - `SettingsRepository`: typed Flow access to theme, zone mode/manual ID, default export, spreadsheet metadata, and last export status.
 - `SelectionRepository`: preferred series/last task hints in DataStore, with dangling-reference repair.
 
@@ -129,9 +130,9 @@ The visible ticker runs only while collected and an interval is active. It emits
 
 ## 7. Concurrency and transaction model
 
-- All timer mutations go through one application-scoped `Mutex` **and** Room transactions. The mutex reduces same-process races; database invariants/transactions remain the real protection.
-- Start transaction: normalize; validate selection/date; verify no active record/open interval; create interval with next ordinal; insert singleton active record; return snapshot.
-- Stop transaction: load singleton active record; normalize through `now`; close the currently open segment unless normalization already reaches an exact boundary; remove active record; update timestamps; return affected tasks.
+- Milestone 2 implements the storage-critical open/close portions as Room transactions. The later timer coordinator adds one application-scoped `Mutex`, selection/date validation, normalization, and clock policy. The mutex will reduce same-process races; database constraints/transactions remain the real protection.
+- Open storage transaction: verify no active record/open candidate, allocate the next ordinal, insert one interval with `stop = null` and unique `active_slot = 1`, insert singleton active state with matching task/interval IDs, touch the task, and return one snapshot.
+- Close storage transaction: load and validate the singleton and referenced open interval, write a valid later stop, release `active_slot`, delete active state, touch the task, and return one snapshot. Missing active state is an idempotent no-op.
 - Midnight normalization transaction may close/create several intervals/tasks and retarget the singleton active record atomically.
 - Task/client edits use optimistic current-state validation inside their write transaction, not only form validation.
 - Export reads use one Room transaction and one captured `exportInstant` so task totals and interval durations agree.
@@ -156,15 +157,19 @@ Detailed algorithms and anomaly policy are in `TIMER_AND_DATE_RULES.md`.
 
 ### Room
 
-- Database file is opened normally and retained.
-- Foreign keys are enabled.
-- Version 1 schema is exported to source control.
+- The stable production file is `worqorder.db`, opened normally through one application-container database instance and retained.
+- Foreign keys are explicit and enabled by Room.
+- Version 1 schema is exported to `app/schemas/worq.order.data.local.WorqOrderDatabase/1.json`.
+- The four version-1 entities are `clients`, `daily_tasks`, `work_intervals`, and `active_timer`.
+- A nullable unique `work_intervals.active_slot` is the structural one-open-interval guard. `active_timer` uses fixed singleton ID `1` plus a composite foreign key to the exact interval/task pair.
 - Every version change supplies explicit forward migration(s), schema JSON, and migration instrumentation tests.
 - Release builds never use destructive fallback. Destructive migration may be used only in isolated test fixtures if clearly scoped.
 
 ### Preferences DataStore
 
 Typed preferences include theme, time-zone mode/manual ID, default export destination, preferred task series, last selected task, connected spreadsheet ID/title/account display hint, and last export outcome. DataStore does not contain task rows, interval state, passwords, service-account material, raw access tokens, or refresh tokens.
+
+The owner-directed Milestone 2 implementation is Room/repository-only. Preferences DataStore remains a prepared dependency; typed preference storage is intentionally not implemented by this milestone.
 
 ### File output
 
@@ -205,7 +210,7 @@ All versions live in the version catalog. Renovation is a separate reviewed chan
 
 - Pure JVM tests own clocks, zones, DST dates, formatting, canonical names, interval validation, rollover, splitting, export rows, and CSV serialization.
 - `kotlinx-coroutines-test` controls dispatchers/tickers.
-- Room instrumentation tests use a real SQLite database for constraints, transactions, and every migration path.
+- Room instrumentation tests use real SQLite, primarily in-memory databases plus one named reopen fixture, for schema creation, observations, normalization conflicts, foreign keys, unique indexes, cascades/restrictions, ordering, atomic active mutations, reopen persistence, and packaged schema availability. Version 1 has no predecessor migration; every later schema version must add populated migration-path coverage.
 - ViewModel tests combine fake repositories/gateways and deterministic time.
 - Compose UI tests cover the main workflows, disabled states, confirmation, settings, picker/authorization launch effects, and accessibility semantics.
 - Fake `Clock`, monotonic source, zone provider, document destination, and Google gateway are first-class test fixtures.

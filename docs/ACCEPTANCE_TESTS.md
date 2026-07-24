@@ -158,6 +158,14 @@ Given selected today's task and no active interval, Start creates exactly one nu
 
 Given the same task, three Start/Stop cycles create three intervals with increasing stable ordinals; the total equals their exact sum and no counter column exists.
 
+### TMR-02a Reselect and continue accumulated total
+
+Given Task 1 runs 9:00–10:00 AM, Task 2 runs 10:30–11:00 AM, and Task 1 is reselected at
+1:00 PM, then Task 1 initially displays one accumulated hour. Starting and stopping it from
+1:00–2:00 PM creates a second Task 1 interval rather than extending the first. Final authoritative
+history is Task 1 `09:00–10:00` plus `13:00–14:00` (two hours total) and Task 2
+`10:30–11:00` (thirty minutes total).
+
 ### TMR-03 Stop transaction
 
 Given one active interval, Stop writes one wall-clock UTC stop, clears active state, preserves the interval, and leaves the displayed total derived from completed intervals.
@@ -214,7 +222,16 @@ Given the app stays foreground across midnight, the first date-change refresh no
 
 ### DATE-05 Rollover uniqueness
 
-Given repeated/concurrent resume/Start rollover attempts in one effective zone, exactly one `(seriesId, workDate, ZoneId)` task exists and it is selected. A pre-existing same-series/date task assigned under another zone is retained separately and is not rewritten.
+Given repeated/concurrent resume/date-change reconciliation attempts in one effective zone,
+exactly one `(seriesId, workDate, ZoneId)` task exists and it is selected. A pre-existing
+same-series/date task assigned under another zone is retained separately and is not rewritten.
+
+### DATE-05a Historical selection is not rollover
+
+Given the effective date has not changed and the user intentionally selects a task from a
+historical displayed date, reconciliation preserves that task for viewing and Start remains
+ineligible. Given instead that a timing selection made yesterday is restored after the effective
+date advances, reconciliation finds or creates and selects the exact series/today/ZoneId copy.
 
 ### DATE-06 Rollover metadata
 
@@ -250,7 +267,11 @@ Given a preferred series lacks a task on a browsed historical/future date, merel
 
 ### DATE-14 Same date in different zones
 
-Given a same-series/today task was assigned under a prior ZoneId, Start resolves or creates the exact current-zone copy, selects it, and leaves the prior-zone task untouched. If both appear on the displayed date, the UI distinguishes their zones and export includes their stored ZoneIds.
+Given a same-series/today task was assigned under a prior ZoneId, actual-date/zone reconciliation
+resolves or creates the exact current-zone copy, selects it, and leaves the prior-zone task
+untouched before Start is enabled. A direct Start against the prior-zone copy is rejected. If both
+appear on the displayed date, the UI distinguishes their zones and export includes their stored
+ZoneIds.
 
 ## 7. Theme and persistence
 
@@ -401,6 +422,16 @@ Source/build inspection confirms Kotlin application code, Compose rather than XM
 ### BUILD-02 Quality gate
 
 Formatting, lint, unit tests, coroutine tests, relevant Room/Compose instrumentation tests, and applicable debug/release builds pass before each implementation milestone is declared complete.
+
+### M3-01 Domain test evidence
+
+Milestone 3 JVM tests use fake UTC clocks, elapsed-realtime sources, effective ZoneIds, selection
+storage, Room-facing repositories, and multiple real geographical zones. They cover typed
+Start/Stop failures, repeated totals, exact date/zone eligibility, rollover/reuse, duration
+formatting, recovery/anomaly clamping, manual interval/DST validation, and real midnight
+boundaries. Instrumentation tests cover DataStore recreation, atomic Room continuation/Stop
+chains, idempotence, and concurrent global Start protection. Lifecycle/UI presentation remains
+deferred to its owning milestones.
 
 ## 11. Accessibility and resilience
 

@@ -9,6 +9,11 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.ArrayDeque
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -23,6 +28,7 @@ import org.junit.runner.RunWith
 import worq.order.data.ClientMutationResult
 import worq.order.data.CreateActiveIntervalResult
 import worq.order.data.EntityIdGenerator
+import worq.order.data.TimerSplitBoundary
 import worq.order.model.Client
 import worq.order.timer.UtcClock
 
@@ -398,6 +404,174 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
+    fun activeTimerNormalizationCreatesDailyContinuationAndIsIdempotent() =
+        runBlocking {
+            insertClient(id = "client-1")
+            insertTask(
+                id = "task-day-1",
+                clientId = "client-1",
+                workDateEpochDay = LocalDate.of(2026, 7, 24).toEpochDay(),
+            )
+            val repository =
+                RoomActiveTimerRepository(
+                    activeTimerDao = database.activeTimerDao(),
+                    idGenerator =
+                        QueueIdGenerator(
+                            "interval-day-1",
+                            "task-day-2",
+                            "interval-day-2",
+                        ),
+                    clock = FixedClock(Instant.parse("2026-07-25T05:00:00Z")),
+                )
+            val start = Instant.parse("2026-07-25T03:30:00Z")
+            val boundary = Instant.parse("2026-07-25T04:00:00Z")
+            val created =
+                repository.createActiveInterval(
+                    taskId = "task-day-1",
+                    boundaryZoneId = TEST_ZONE,
+                    start = start,
+                ) as CreateActiveIntervalResult.Created
+
+            val normalized =
+                requireNotNull(
+                    repository.normalizeActiveInterval(
+                        expectedIntervalId = created.snapshot.interval.id,
+                        boundaries =
+                            listOf(
+                                TimerSplitBoundary(
+                                    instant = boundary,
+                                    workDate = LocalDate.of(2026, 7, 25),
+                                    zoneId = TEST_ZONE,
+                                ),
+                            ),
+                    ),
+                )
+            val repeated =
+                requireNotNull(
+                    repository.normalizeActiveInterval(
+                        expectedIntervalId = normalized.interval.id,
+                        boundaries = emptyList(),
+                    ),
+                )
+
+            val sourceInterval =
+                requireNotNull(database.workIntervalDao().readInterval("interval-day-1"))
+            val continuationTask =
+                requireNotNull(database.taskDao().readTask("task-day-2"))
+            assertEquals(boundary.toEpochMilli(), sourceInterval.stopEpochMs)
+            assertNull(sourceInterval.activeSlot)
+            assertEquals("series-1", continuationTask.seriesId)
+            assertEquals("client-1", continuationTask.clientId)
+            assertEquals("Task task-day-1", continuationTask.description)
+            assertEquals(LocalDate.of(2026, 7, 25).toEpochDay(), continuationTask.workDateEpochDay)
+            assertEquals(TEST_ZONE.id, continuationTask.zoneId)
+            assertEquals("interval-day-2", normalized.interval.id)
+            assertEquals("task-day-2", normalized.interval.taskId)
+            assertNull(normalized.interval.stop)
+            assertEquals(normalized, repeated)
+            assertEquals(1, database.workIntervalDao().countIntervalsForTask("task-day-1"))
+            assertEquals(1, database.workIntervalDao().countIntervalsForTask("task-day-2"))
+        }
+
+    @Test
+    fun stoppingAcrossMultipleMidnightsSplitsAndClearsAtomically() =
+        runBlocking {
+            insertClient(id = "client-1")
+            insertTask(
+                id = "task-day-1",
+                clientId = "client-1",
+                workDateEpochDay = LocalDate.of(2026, 7, 24).toEpochDay(),
+            )
+            val stop = Instant.parse("2026-07-26T05:00:00Z")
+            val repository =
+                RoomActiveTimerRepository(
+                    activeTimerDao = database.activeTimerDao(),
+                    idGenerator =
+                        QueueIdGenerator(
+                            "interval-day-1",
+                            "task-day-2",
+                            "interval-day-2",
+                            "task-day-3",
+                            "interval-day-3",
+                        ),
+                    clock = FixedClock(stop),
+                )
+            val created =
+                repository.createActiveInterval(
+                    taskId = "task-day-1",
+                    boundaryZoneId = TEST_ZONE,
+                    start = Instant.parse("2026-07-25T03:30:00Z"),
+                ) as CreateActiveIntervalResult.Created
+
+            val closed =
+                requireNotNull(
+                    repository.closeActiveInterval(
+                        expectedIntervalId = created.snapshot.interval.id,
+                        boundaries =
+                            listOf(
+                                TimerSplitBoundary(
+                                    instant = Instant.parse("2026-07-25T04:00:00Z"),
+                                    workDate = LocalDate.of(2026, 7, 25),
+                                    zoneId = TEST_ZONE,
+                                ),
+                                TimerSplitBoundary(
+                                    instant = Instant.parse("2026-07-26T04:00:00Z"),
+                                    workDate = LocalDate.of(2026, 7, 26),
+                                    zoneId = TEST_ZONE,
+                                ),
+                            ),
+                        stop = stop,
+                    ),
+                )
+
+            assertEquals("interval-day-3", closed.interval.id)
+            assertEquals(stop, closed.interval.stop)
+            assertNull(database.activeTimerDao().readActiveTimer())
+            assertEquals(
+                Instant.parse("2026-07-25T04:00:00Z").toEpochMilli(),
+                database.workIntervalDao().readInterval("interval-day-1")?.stopEpochMs,
+            )
+            assertEquals(
+                Instant.parse("2026-07-26T04:00:00Z").toEpochMilli(),
+                database.workIntervalDao().readInterval("interval-day-2")?.stopEpochMs,
+            )
+            assertEquals(
+                stop.toEpochMilli(),
+                database.workIntervalDao().readInterval("interval-day-3")?.stopEpochMs,
+            )
+        }
+
+    @Test
+    fun concurrentRoomRepositoryStartsHaveOneWinner() =
+        runBlocking {
+            insertClient(id = "client-1")
+            insertTask(id = "task-1", clientId = "client-1")
+            val repository =
+                RoomActiveTimerRepository(
+                    activeTimerDao = database.activeTimerDao(),
+                    idGenerator = AtomicIdGenerator(),
+                    clock = FixedClock(TEST_NOW),
+                )
+
+            val results =
+                coroutineScope {
+                    List(2) {
+                        async(Dispatchers.IO) {
+                            repository.createActiveInterval(
+                                taskId = "task-1",
+                                boundaryZoneId = TEST_ZONE,
+                                start = TEST_NOW,
+                            )
+                        }
+                    }.awaitAll()
+                }
+
+            assertEquals(1, results.count { it is CreateActiveIntervalResult.Created })
+            assertEquals(1, results.count { it is CreateActiveIntervalResult.AlreadyActive })
+            assertEquals(1, database.workIntervalDao().countIntervalsForTask("task-1"))
+        }
+
+    @Test
     fun dataPersistsAfterFileDatabaseIsClosedAndReopened() =
         runBlocking {
             database.close()
@@ -537,6 +711,12 @@ class WorqOrderDatabaseTest {
         private val remainingIds = ArrayDeque(ids.toList())
 
         override fun newId(): String = remainingIds.removeFirst()
+    }
+
+    private class AtomicIdGenerator : EntityIdGenerator {
+        private val next = AtomicInteger()
+
+        override fun newId(): String = "generated-${next.incrementAndGet()}"
     }
 
     private class FixedClock(

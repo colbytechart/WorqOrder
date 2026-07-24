@@ -164,6 +164,47 @@ The detailed Milestone 2 prompt limits implementation to Room entities, DAOs, lo
 
 Consequences: the existing stable DataStore dependency remains prepared but unused. Typed settings, selection hints, and their persistence tests move to the settings/selection milestones. This scope correction does not change product behavior or permit later UI/timer/export work.
 
+### D-036 — Fifteen-milestone delivery sequence
+
+The owner replaced the earlier eight broad implementation milestones with the exact
+fifteen-milestone sequence recorded in `IMPLEMENTATION_PLAN.md`: scaffold; Room persistence;
+timer/date domain; Main/live presentation; clients; task/interval CRUD; persistent settings; CSV;
+current Google integration planning; Google connection settings; Sheets export; lifecycle
+hardening; accessibility/usability; full audit; release/handoff.
+
+Consequences: feature ownership and deferred work follow that sequence. In particular, Milestone 3
+contains no final UI, Google, or CSV behavior; Google documentation/dependency discovery is
+Milestone 9.
+
+### D-037 — Timing selection distinguishes rollover from historical browsing
+
+Milestone 3 persists task ID, series ID, the effective local date on which the timing selection was
+made, and its effective ZoneId. A selection carried through a real date change is reconciled to the
+exact `(series ID, today, effective ZoneId)` copy. A historical/future task intentionally selected
+while browsing today remains viewable but is not silently rolled forward and cannot Start.
+
+This resolves the interaction between automatic daily carryover and the explicit rule that
+historical tasks are inactive. Start itself requires an exact today/date/zone task; lifecycle/Main
+integration will call reconciliation for real date rollover.
+
+### D-038 — Milestone 3 timer and clock-anomaly contracts
+
+Start and Stop return typed expected outcomes. One application-scoped mutex reduces same-process
+races, while the Room singleton, unique active slot, and transactions remain authoritative.
+Midnight plans are calculated in Kotlin with the Start-pinned ZoneId and applied as one transaction
+that can create/find daily copies, close segments, insert continuations, and retarget/clear the
+active pointer.
+
+The visible live contribution uses Android elapsed realtime and is never persisted. Recovery
+clamps a negative provisional wall contribution to zero and surfaces an anomaly. Stop returns
+`ClockChanged` without writing when `stop <= start` or when a live wall/monotonic comparison differs
+by more than the initial two-minute diagnostic tolerance.
+
+Repeated timing always creates separate intervals. The clarified example is authoritative:
+Task 1 has 9:00–10:00 AM and 1:00–2:00 PM intervals (two total hours); Task 2 has a
+10:30–11:00 AM interval (thirty minutes). Reselecting Task 1 displays its existing one-hour total
+before its second Start.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.

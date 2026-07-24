@@ -27,6 +27,9 @@ class RoomTaskRepository(
             tasks.map(TaskListItemEntity::toModel)
         }
 
+    override fun observeTask(taskId: String): Flow<DailyTask?> =
+        taskDao.observeTask(taskId).map { task -> task?.toModel() }
+
     override suspend fun readTaskWithClient(taskId: String): TaskWithClient? =
         taskDao.readTaskWithClient(taskId)?.toModel()
 
@@ -62,6 +65,35 @@ class RoomTaskRepository(
             )
         taskDao.insertDailyTask(entity)
         return entity.toModel()
+    }
+
+    override suspend fun findOrCreateDailyTaskCopy(
+        sourceTaskId: String,
+        workDate: LocalDate,
+        zoneId: ZoneId,
+    ): DailyTask? {
+        require(sourceTaskId.isNotBlank()) { "sourceTaskId must not be blank" }
+        val proposedTaskId = idGenerator.newId()
+        val createdAtEpochMs = clock.now().toEpochMilli()
+        return try {
+            taskDao
+                .findOrCreateDailyTaskCopy(
+                    sourceTaskId = sourceTaskId,
+                    proposedTaskId = proposedTaskId,
+                    workDateEpochDay = workDate.toEpochDay(),
+                    zoneId = zoneId.id,
+                    createdAtEpochMs = createdAtEpochMs,
+                )?.toModel()
+        } catch (error: android.database.sqlite.SQLiteConstraintException) {
+            val source = taskDao.readTask(sourceTaskId) ?: return null
+            taskDao
+                .findCorrespondingTask(
+                    seriesId = source.seriesId,
+                    workDateEpochDay = workDate.toEpochDay(),
+                    zoneId = zoneId.id,
+                )?.toModel()
+                ?: throw error
+        }
     }
 
     override suspend fun updateTaskMetadata(

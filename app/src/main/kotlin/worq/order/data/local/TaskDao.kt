@@ -37,6 +37,9 @@ abstract class TaskDao {
         workDateEpochDay: Long,
     ): Flow<List<TaskListItemEntity>>
 
+    @Query("SELECT * FROM daily_tasks WHERE id = :taskId LIMIT 1")
+    abstract fun observeTask(taskId: String): Flow<DailyTaskEntity?>
+
     @Query(
         """
         SELECT
@@ -76,6 +79,41 @@ abstract class TaskDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract suspend fun insertDailyTask(task: DailyTaskEntity)
+
+    @Transaction
+    open suspend fun findOrCreateDailyTaskCopy(
+        sourceTaskId: String,
+        proposedTaskId: String,
+        workDateEpochDay: Long,
+        zoneId: String,
+        createdAtEpochMs: Long,
+    ): DailyTaskEntity? {
+        require(proposedTaskId.isNotBlank()) { "proposedTaskId must not be blank" }
+        require(zoneId.isNotBlank()) { "zoneId must not be blank" }
+
+        val source = readTask(sourceTaskId) ?: return null
+        findCorrespondingTask(
+            seriesId = source.seriesId,
+            workDateEpochDay = workDateEpochDay,
+            zoneId = zoneId,
+        )?.let { existing ->
+            return existing
+        }
+
+        val copy =
+            DailyTaskEntity(
+                id = proposedTaskId,
+                seriesId = source.seriesId,
+                clientId = source.clientId,
+                description = source.description,
+                workDateEpochDay = workDateEpochDay,
+                zoneId = zoneId,
+                createdAtEpochMs = createdAtEpochMs,
+                updatedAtEpochMs = createdAtEpochMs,
+            )
+        insertDailyTask(copy)
+        return copy
+    }
 
     @Query(
         """

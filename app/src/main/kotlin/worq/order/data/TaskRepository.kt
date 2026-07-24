@@ -23,6 +23,8 @@ data class NewDailyTask(
 interface TaskRepository {
     fun observeTasksForDate(workDate: LocalDate): Flow<List<TaskListItem>>
 
+    fun observeTask(taskId: String): Flow<DailyTask?>
+
     suspend fun readTaskWithClient(taskId: String): TaskWithClient?
 
     suspend fun readTaskWithIntervals(taskId: String): TaskWithIntervals?
@@ -34,6 +36,18 @@ interface TaskRepository {
     ): DailyTask?
 
     suspend fun insertDailyTask(newTask: NewDailyTask): DailyTask
+
+    /**
+     * Finds or atomically creates the exact series/date/zone copy of [sourceTaskId].
+     *
+     * Returns null when the source task no longer exists. The new copy retains the source task's
+     * current client, description, and series ID.
+     */
+    suspend fun findOrCreateDailyTaskCopy(
+        sourceTaskId: String,
+        workDate: LocalDate,
+        zoneId: ZoneId,
+    ): DailyTask?
 
     suspend fun updateTaskMetadata(
         taskId: String,

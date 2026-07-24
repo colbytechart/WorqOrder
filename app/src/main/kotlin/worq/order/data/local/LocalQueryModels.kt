@@ -40,3 +40,11 @@ data class ActiveTimerTransactionEntity(
     val activeTimer: ActiveTimerEntity,
     val interval: WorkIntervalEntity,
 )
+
+data class TimerContinuationEntityInput(
+    val boundaryEpochMs: Long,
+    val workDateEpochDay: Long,
+    val zoneId: String,
+    val proposedTaskId: String,
+    val proposedIntervalId: String,
+)

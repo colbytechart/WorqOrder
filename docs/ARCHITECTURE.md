@@ -66,15 +66,15 @@ Do not add one “use case” class per repository getter. Add named domain serv
 ## 4. Application container
 
 `WorqOrderApplication` owns one lazily constructed application-scoped container. As of Milestone
-3, the container constructs one retained `WorqOrderDatabase`, Room-backed client/task/active-timer
+6, the container constructs one retained `WorqOrderDatabase`, Room-backed client/task/active-timer
 repositories, the selection-only Preferences DataStore repository, UTC/device-zone/elapsed
 realtime adapters, one shared timer-operation mutex, one process-local live timer session,
-`SelectionCoordinator`, `TimerCoordinator`, and `ActiveTimerNormalizer`.
+`SelectionCoordinator`, `TimerCoordinator`, `ActiveTimerNormalizer`, and
+`TaskMutationCoordinator`.
 
 Later milestones extend the same boundary with:
 
 - repositories/providers for remaining typed settings and manual effective ZoneId mode;
-- ViewModel-facing timer presentation/ticker wiring;
 - export-row builder and CSV serializer;
 - document-output adapter;
 - Google authorization coordinator and `GoogleSheetsGateway`; and
@@ -87,7 +87,7 @@ ViewModel factories request only their direct dependencies. Android framework ty
 Proposed routes:
 
 - `main`
-- `task/create?epochDay={...}`
+- `task/create/{workDateEpochDay}`
 - `task/{taskId}/edit`
 - `settings`
 - `settings/time-zone`
@@ -137,6 +137,9 @@ The visible ticker runs only while collected and an interval is active. It emits
   exact three-part daily rollover using current source metadata.
 - `ManualIntervalValidator`: pure boundary, ordering, overlap, open/running-state, and explicit
   DST gap/overlap validation.
+- `TaskMutationCoordinator`: shared task metadata validation, active-client-at-commit enforcement,
+  today-only automatic selection after creation, validated manual interval add/edit/delete, and
+  selected-task cleanup after daily-task deletion.
 - `DurationMath`, `MidnightBoundaryCalculator`, and `LiveTimerSession`: pure accumulated duration,
   real-zone boundary, and process-local monotonic/recovery models.
 - `ExportRowBuilder`: takes a consistent Room snapshot and emits stable logical rows.
@@ -179,10 +182,10 @@ Detailed algorithms and anomaly policy are in `TIMER_AND_DATE_RULES.md`.
 - Foreign keys are explicit and enabled by Room.
 - Version 1 schema is exported to `app/schemas/worq.order.data.local.WorqOrderDatabase/1.json`.
 - The four version-1 entities are `clients`, `daily_tasks`, `work_intervals`, and `active_timer`.
-- Milestone 6 evolves the database to version 2 by adding non-null
+- Milestone 6 evolved the database to version 2 by adding non-null
   `daily_tasks.hardware_software_purchases` with an empty-string default for existing rows and
-  widening short-description validation to 400 characters. The change requires an explicit
-  `1 -> 2` migration, exported version-2 schema, and populated migration test.
+  widening short-description validation to 400 characters. Production registers the explicit
+  `1 -> 2` migration; the version-2 schema and populated migration test are committed.
 - A nullable unique `work_intervals.active_slot` is the structural one-open-interval guard. `active_timer` uses fixed singleton ID `1` plus a composite foreign key to the exact interval/task pair.
 - Every version change supplies explicit forward migration(s), schema JSON, and migration instrumentation tests.
 - Release builds never use destructive fallback. Destructive migration may be used only in isolated test fixtures if clearly scoped.

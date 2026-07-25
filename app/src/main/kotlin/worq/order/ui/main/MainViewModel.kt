@@ -35,6 +35,8 @@ import worq.order.data.ActiveTimerRepository
 import worq.order.data.TaskRepository
 import worq.order.domain.SelectTaskResult
 import worq.order.domain.SelectionCoordinator
+import worq.order.domain.DeleteTaskOperationResult
+import worq.order.domain.TaskMutationCoordinator
 import worq.order.model.ActiveTimerSnapshot
 import worq.order.model.DailyTask
 import worq.order.model.TaskListItem
@@ -76,6 +78,7 @@ private data class MainRawState(
     val message: MainMessage? = null,
     val isDatePickerVisible: Boolean = false,
     val openTaskMenuTaskId: String? = null,
+    val taskPendingDeletionId: String? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -89,6 +92,7 @@ class MainViewModel(
     private val utcClock: UtcClock,
     private val zoneIdProvider: EffectiveZoneIdProvider,
     private val currentDateProvider: CurrentDateProvider,
+    private val taskMutationCoordinator: TaskMutationCoordinator,
 ) : ViewModel() {
     private val initialToday = currentDateProvider.today()
     private val rawState =
@@ -184,6 +188,21 @@ class MainViewModel(
                 }
             MainEvent.CloseTaskMenu ->
                 rawState.update { it.copy(openTaskMenuTaskId = null) }
+            is MainEvent.EditTask -> {
+                rawState.update { it.copy(openTaskMenuTaskId = null) }
+                mutableEffects.tryEmit(MainEffect.NavigateToEditTask(event.taskId))
+            }
+            is MainEvent.RequestDeleteTask ->
+                rawState.update {
+                    it.copy(
+                        openTaskMenuTaskId = null,
+                        taskPendingDeletionId = event.taskId,
+                        message = null,
+                    )
+                }
+            MainEvent.ConfirmDeleteTask -> deletePendingTask()
+            MainEvent.DismissDeleteTask ->
+                rawState.update { it.copy(taskPendingDeletionId = null) }
             MainEvent.DismissMessage ->
                 rawState.update { it.copy(message = null) }
             MainEvent.RetryData -> {
@@ -450,6 +469,37 @@ class MainViewModel(
         }
     }
 
+    private fun deletePendingTask() {
+        val taskId = rawState.value.taskPendingDeletionId ?: return
+        viewModelScope.launch {
+            val result =
+                runCatching {
+                    taskMutationCoordinator.deleteTask(taskId)
+                }.getOrElse {
+                    rawState.update {
+                        it.copy(
+                            taskPendingDeletionId = null,
+                            message = MainMessage.DATA_UNAVAILABLE,
+                        )
+                    }
+                    return@launch
+                }
+            rawState.update {
+                it.copy(
+                    taskPendingDeletionId = null,
+                    message =
+                        when (result) {
+                            DeleteTaskOperationResult.Deleted -> null
+                            DeleteTaskOperationResult.TaskNotFound ->
+                                MainMessage.TASK_NOT_FOUND
+                            DeleteTaskOperationResult.RunningTask ->
+                                MainMessage.RUNNING_TASK_LOCKED
+                        },
+                )
+            }
+        }
+    }
+
     private fun MainRawState.toUiState(): MainUiState {
         val loadedTasks =
             (tasks as? MainLoad.Value<List<TaskListItem>>)
@@ -505,6 +555,7 @@ class MainViewModel(
                     canSelect =
                         activeTaskId == null &&
                             !isTimerOperationInProgress,
+                    canModify = !isRunning && !isTimerOperationInProgress,
                 )
             }
         val activeLoadKnown = activeTimer is MainLoad.Value
@@ -561,6 +612,8 @@ class MainViewModel(
                     },
             isDatePickerVisible = isDatePickerVisible,
             openTaskMenuTaskId = openTaskMenuTaskId,
+            taskPendingDeletion =
+                taskItems.firstOrNull { it.id == taskPendingDeletionId },
             canExport = false,
         )
     }
@@ -595,6 +648,7 @@ class MainViewModel(
                 utcClock = container.utcClock,
                 zoneIdProvider = container.zoneIdProvider,
                 currentDateProvider = container.currentDateProvider,
+                taskMutationCoordinator = container.taskMutationCoordinator,
             ) as T
         }
     }

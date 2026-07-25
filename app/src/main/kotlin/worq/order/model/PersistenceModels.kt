@@ -20,6 +20,7 @@ data class DailyTask(
     val seriesId: String,
     val clientId: String,
     val description: String,
+    val hardwareSoftwarePurchases: String = "",
     val workDate: LocalDate,
     val zoneId: ZoneId,
     val createdAt: Instant,

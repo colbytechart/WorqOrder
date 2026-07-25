@@ -58,6 +58,24 @@ abstract class TaskDao {
     )
     abstract suspend fun readTaskWithClient(taskId: String): TaskWithClientEntity?
 
+    @Query(
+        """
+        SELECT
+            task.*,
+            client.name AS joined_client_name,
+            client.canonical_name AS joined_client_canonical_name,
+            client.is_active AS joined_client_is_active,
+            client.created_at_epoch_ms AS joined_client_created_at_epoch_ms,
+            client.updated_at_epoch_ms AS joined_client_updated_at_epoch_ms,
+            client.archived_at_epoch_ms AS joined_client_archived_at_epoch_ms
+        FROM daily_tasks AS task
+        INNER JOIN clients AS client ON client.id = task.client_id
+        WHERE task.id = :taskId
+        LIMIT 1
+        """,
+    )
+    abstract fun observeTaskWithClient(taskId: String): Flow<TaskWithClientEntity?>
+
     @Query("SELECT * FROM daily_tasks WHERE id = :taskId LIMIT 1")
     abstract suspend fun readTask(taskId: String): DailyTaskEntity?
 
@@ -79,6 +97,34 @@ abstract class TaskDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract suspend fun insertDailyTask(task: DailyTaskEntity)
+
+    @Query(
+        """
+        SELECT is_active
+        FROM clients
+        WHERE id = :clientId
+        LIMIT 1
+        """,
+    )
+    protected abstract suspend fun readClientActive(clientId: String): Boolean?
+
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM active_timer
+        WHERE task_id = :taskId
+        """,
+    )
+    protected abstract suspend fun countActiveTimerForTask(taskId: String): Int
+
+    @Transaction
+    open suspend fun insertDailyTaskIfClientActive(task: DailyTaskEntity): Boolean {
+        if (readClientActive(task.clientId) != true) {
+            return false
+        }
+        insertDailyTask(task)
+        return true
+    }
 
     @Transaction
     open suspend fun findOrCreateDailyTaskCopy(
@@ -106,6 +152,7 @@ abstract class TaskDao {
                 seriesId = source.seriesId,
                 clientId = source.clientId,
                 description = source.description,
+                hardwareSoftwarePurchases = source.hardwareSoftwarePurchases,
                 workDateEpochDay = workDateEpochDay,
                 zoneId = zoneId,
                 createdAtEpochMs = createdAtEpochMs,
@@ -120,19 +167,70 @@ abstract class TaskDao {
         UPDATE daily_tasks
         SET client_id = :clientId,
             description = :description,
+            hardware_software_purchases = :hardwareSoftwarePurchases,
             updated_at_epoch_ms = :updatedAtEpochMs
         WHERE id = :taskId
         """,
     )
-    abstract suspend fun updateTaskMetadata(
+    protected abstract suspend fun updateTaskMetadataInternal(
         taskId: String,
         clientId: String,
         description: String,
+        hardwareSoftwarePurchases: String,
         updatedAtEpochMs: Long,
     ): Int
 
+    @Transaction
+    open suspend fun updateStoppedTaskMetadata(
+        taskId: String,
+        clientId: String,
+        description: String,
+        hardwareSoftwarePurchases: String,
+        updatedAtEpochMs: Long,
+    ): TaskMetadataWriteEntityResult {
+        if (readTask(taskId) == null) {
+            return TaskMetadataWriteEntityResult(TaskMetadataWriteStatus.TASK_NOT_FOUND)
+        }
+        if (countActiveTimerForTask(taskId) != 0) {
+            return TaskMetadataWriteEntityResult(TaskMetadataWriteStatus.RUNNING_TASK)
+        }
+        if (readClientActive(clientId) != true) {
+            return TaskMetadataWriteEntityResult(TaskMetadataWriteStatus.CLIENT_UNAVAILABLE)
+        }
+        if (
+            updateTaskMetadataInternal(
+                taskId = taskId,
+                clientId = clientId,
+                description = description,
+                hardwareSoftwarePurchases = hardwareSoftwarePurchases,
+                updatedAtEpochMs = updatedAtEpochMs,
+            ) != 1
+        ) {
+            return TaskMetadataWriteEntityResult(TaskMetadataWriteStatus.TASK_NOT_FOUND)
+        }
+        return TaskMetadataWriteEntityResult(
+            status = TaskMetadataWriteStatus.UPDATED,
+            task = readTask(taskId),
+        )
+    }
+
     @Query("DELETE FROM daily_tasks WHERE id = :taskId")
     abstract suspend fun deleteTask(taskId: String): Int
+
+    @Transaction
+    open suspend fun deleteStoppedTask(taskId: String): TaskDeleteStatus {
+        if (readTask(taskId) == null) {
+            return TaskDeleteStatus.TASK_NOT_FOUND
+        }
+        if (countActiveTimerForTask(taskId) != 0) {
+            return TaskDeleteStatus.RUNNING_TASK
+        }
+        return if (deleteTask(taskId) == 1) {
+            TaskDeleteStatus.DELETED
+        } else {
+            TaskDeleteStatus.TASK_NOT_FOUND
+        }
+    }
 
     @Query(
         """

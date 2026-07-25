@@ -349,6 +349,7 @@ abstract class ActiveTimerDao {
                     seriesId = task.seriesId,
                     clientId = task.clientId,
                     description = task.description,
+                    hardwareSoftwarePurchases = task.hardwareSoftwarePurchases,
                     workDateEpochDay = continuation.workDateEpochDay,
                     zoneId = continuation.zoneId,
                     createdAtEpochMs = updatedAtEpochMs,

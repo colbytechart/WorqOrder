@@ -125,7 +125,7 @@ Archive, not delete, removes a client from new-task selectors. The retained clie
 
 ## 6. Tasks and interval editing
 
-A task-edit screen changes the daily task's client, short description, and **Hardware / Software Purchases** text and lists intervals chronologically. It supports editing start/stop, deleting an interval, and may support manually adding an interval if implemented in the same milestone.
+A task-edit screen changes the daily task's client, short description, and **Hardware / Software Purchases** text and lists intervals chronologically. It supports manually adding an interval, editing a completed interval's start/stop, and deleting a completed interval through the same validation path.
 
 Validation rejects:
 

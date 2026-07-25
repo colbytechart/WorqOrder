@@ -16,7 +16,8 @@ enum class MainMessage {
     NO_ACTIVE_TIMER,
     CLOCK_CHANGED,
     DATA_UNAVAILABLE,
-    TASK_ACTIONS_DEFERRED,
+    TASK_NOT_FOUND,
+    RUNNING_TASK_LOCKED,
 }
 
 data class MainTaskItemUi(
@@ -28,6 +29,7 @@ data class MainTaskItemUi(
     val isSelected: Boolean,
     val isRunning: Boolean,
     val canSelect: Boolean,
+    val canModify: Boolean = true,
 )
 
 data class RunningTaskUi(
@@ -53,6 +55,7 @@ data class MainUiState(
     val message: MainMessage? = null,
     val isDatePickerVisible: Boolean = false,
     val openTaskMenuTaskId: String? = null,
+    val taskPendingDeletion: MainTaskItemUi? = null,
     val canExport: Boolean = false,
 ) {
     val isTimerRunning: Boolean
@@ -96,6 +99,18 @@ sealed interface MainEvent {
 
     data object CloseTaskMenu : MainEvent
 
+    data class EditTask(
+        val taskId: String,
+    ) : MainEvent
+
+    data class RequestDeleteTask(
+        val taskId: String,
+    ) : MainEvent
+
+    data object ConfirmDeleteTask : MainEvent
+
+    data object DismissDeleteTask : MainEvent
+
     data object DismissMessage : MainEvent
 
     data object RetryData : MainEvent
@@ -109,4 +124,8 @@ sealed interface MainEffect {
     ) : MainEffect
 
     data object NavigateToSettings : MainEffect
+
+    data class NavigateToEditTask(
+        val taskId: String,
+    ) : MainEffect
 }

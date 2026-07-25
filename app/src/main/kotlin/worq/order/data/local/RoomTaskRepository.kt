@@ -4,11 +4,18 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import worq.order.data.CreateDailyTaskResult
+import worq.order.data.DeleteTaskResult
 import worq.order.data.EntityIdGenerator
-import worq.order.data.MAX_TASK_DESCRIPTION_CODE_POINTS
+import worq.order.data.ManualIntervalPersistenceResult
 import worq.order.data.NewDailyTask
+import worq.order.data.NormalizedTaskMetadata
+import worq.order.data.TaskMetadataValidationResult
+import worq.order.data.TaskMetadataValidator
 import worq.order.data.TaskRepository
+import worq.order.data.UpdateTaskMetadataResult
 import worq.order.model.DailyTask
 import worq.order.model.TaskListItem
 import worq.order.model.TaskWithClient
@@ -30,6 +37,19 @@ class RoomTaskRepository(
     override fun observeTask(taskId: String): Flow<DailyTask?> =
         taskDao.observeTask(taskId).map { task -> task?.toModel() }
 
+    override fun observeTaskWithIntervals(taskId: String): Flow<TaskWithIntervals?> =
+        combine(
+            taskDao.observeTaskWithClient(taskId),
+            workIntervalDao.observeOrderedIntervals(taskId),
+        ) { taskWithClient, intervals ->
+            taskWithClient?.let {
+                TaskWithIntervals(
+                    taskWithClient = it.toModel(),
+                    intervals = intervals.map(WorkIntervalEntity::toModel),
+                )
+            }
+        }
+
     override suspend fun readTaskWithClient(taskId: String): TaskWithClient? =
         taskDao.readTaskWithClient(taskId)?.toModel()
 
@@ -50,21 +70,19 @@ class RoomTaskRepository(
 
     override suspend fun insertDailyTask(newTask: NewDailyTask): DailyTask {
         require(newTask.clientId.isNotBlank()) { "clientId must not be blank" }
-        val description = normalizeDescription(newTask.description)
-        val nowEpochMs = clock.now().toEpochMilli()
-        val entity =
-            DailyTaskEntity(
-                id = idGenerator.newId(),
-                seriesId = newTask.seriesId ?: idGenerator.newId(),
-                clientId = newTask.clientId,
-                description = description,
-                workDateEpochDay = newTask.workDate.toEpochDay(),
-                zoneId = newTask.zoneId.id,
-                createdAtEpochMs = nowEpochMs,
-                updatedAtEpochMs = nowEpochMs,
-            )
+        val entity = newTask.toEntity()
         taskDao.insertDailyTask(entity)
         return entity.toModel()
+    }
+
+    override suspend fun createDailyTask(newTask: NewDailyTask): CreateDailyTaskResult {
+        require(newTask.clientId.isNotBlank()) { "clientId must not be blank" }
+        val entity = newTask.toEntity()
+        return if (taskDao.insertDailyTaskIfClientActive(entity)) {
+            CreateDailyTaskResult.Created(entity.toModel())
+        } else {
+            CreateDailyTaskResult.ClientUnavailable
+        }
     }
 
     override suspend fun findOrCreateDailyTaskCopy(
@@ -100,19 +118,37 @@ class RoomTaskRepository(
         taskId: String,
         clientId: String,
         description: String,
-    ): Boolean {
+        hardwareSoftwarePurchases: String,
+    ): UpdateTaskMetadataResult {
         require(taskId.isNotBlank()) { "taskId must not be blank" }
         require(clientId.isNotBlank()) { "clientId must not be blank" }
-        return taskDao.updateTaskMetadata(
-            taskId = taskId,
-            clientId = clientId,
-            description = normalizeDescription(description),
-            updatedAtEpochMs = clock.now().toEpochMilli(),
-        ) == 1
+        val metadata = normalizeMetadata(description, hardwareSoftwarePurchases)
+        val result =
+            taskDao.updateStoppedTaskMetadata(
+                taskId = taskId,
+                clientId = clientId,
+                description = metadata.description,
+                hardwareSoftwarePurchases = metadata.hardwareSoftwarePurchases,
+                updatedAtEpochMs = clock.now().toEpochMilli(),
+            )
+        return when (result.status) {
+            TaskMetadataWriteStatus.UPDATED ->
+                UpdateTaskMetadataResult.Updated(requireNotNull(result.task).toModel())
+            TaskMetadataWriteStatus.TASK_NOT_FOUND ->
+                UpdateTaskMetadataResult.TaskNotFound
+            TaskMetadataWriteStatus.CLIENT_UNAVAILABLE ->
+                UpdateTaskMetadataResult.ClientUnavailable
+            TaskMetadataWriteStatus.RUNNING_TASK ->
+                UpdateTaskMetadataResult.RunningTask
+        }
     }
 
-    override suspend fun deleteTask(taskId: String): Boolean =
-        taskDao.deleteTask(taskId) == 1
+    override suspend fun deleteTask(taskId: String): DeleteTaskResult =
+        when (taskDao.deleteStoppedTask(taskId)) {
+            TaskDeleteStatus.DELETED -> DeleteTaskResult.Deleted
+            TaskDeleteStatus.TASK_NOT_FOUND -> DeleteTaskResult.TaskNotFound
+            TaskDeleteStatus.RUNNING_TASK -> DeleteTaskResult.RunningTask
+        }
 
     override suspend fun insertCompletedInterval(
         taskId: String,
@@ -133,6 +169,46 @@ class RoomTaskRepository(
             ).toModel()
     }
 
+    override suspend fun addManualInterval(
+        taskId: String,
+        start: Instant,
+        stop: Instant,
+    ): ManualIntervalPersistenceResult =
+        workIntervalDao
+            .addManualInterval(
+                intervalId = idGenerator.newId(),
+                taskId = taskId,
+                startEpochMs = start.toEpochMilli(),
+                stopEpochMs = stop.toEpochMilli(),
+                updatedAtEpochMs = clock.now().toEpochMilli(),
+            ).toPersistenceResult()
+
+    override suspend fun updateManualInterval(
+        taskId: String,
+        intervalId: String,
+        start: Instant,
+        stop: Instant,
+    ): ManualIntervalPersistenceResult =
+        workIntervalDao
+            .updateManualInterval(
+                intervalId = intervalId,
+                taskId = taskId,
+                startEpochMs = start.toEpochMilli(),
+                stopEpochMs = stop.toEpochMilli(),
+                updatedAtEpochMs = clock.now().toEpochMilli(),
+            ).toPersistenceResult()
+
+    override suspend fun deleteManualInterval(
+        taskId: String,
+        intervalId: String,
+    ): ManualIntervalPersistenceResult =
+        workIntervalDao
+            .deleteManualInterval(
+                intervalId = intervalId,
+                taskId = taskId,
+                updatedAtEpochMs = clock.now().toEpochMilli(),
+            ).toPersistenceResult()
+
     override suspend fun readIntervalsForOverlapValidation(
         taskId: String,
     ): List<WorkInterval> =
@@ -143,15 +219,56 @@ class RoomTaskRepository(
     override suspend fun readCompletedDurationMillis(taskId: String): Long =
         workIntervalDao.readCompletedDurationMs(taskId)
 
-    private fun normalizeDescription(rawDescription: String): String {
-        val description = rawDescription.trim()
-        require(description.isNotEmpty()) { "Description must not be blank" }
-        require(
-            description.codePointCount(0, description.length) <=
-                MAX_TASK_DESCRIPTION_CODE_POINTS,
-        ) {
-            "Description must not exceed $MAX_TASK_DESCRIPTION_CODE_POINTS characters"
-        }
-        return description
+    private fun NewDailyTask.toEntity(): DailyTaskEntity {
+        val metadata = normalizeMetadata(description, hardwareSoftwarePurchases)
+        val nowEpochMs = clock.now().toEpochMilli()
+        return DailyTaskEntity(
+            id = idGenerator.newId(),
+            seriesId = seriesId ?: idGenerator.newId(),
+            clientId = clientId,
+            description = metadata.description,
+            hardwareSoftwarePurchases = metadata.hardwareSoftwarePurchases,
+            workDateEpochDay = workDate.toEpochDay(),
+            zoneId = zoneId.id,
+            createdAtEpochMs = nowEpochMs,
+            updatedAtEpochMs = nowEpochMs,
+        )
     }
+
+    private fun normalizeMetadata(
+        description: String,
+        hardwareSoftwarePurchases: String,
+    ): NormalizedTaskMetadata =
+        when (
+            val validation =
+                TaskMetadataValidator.validate(
+                    description = description,
+                    hardwareSoftwarePurchases = hardwareSoftwarePurchases,
+                )
+        ) {
+            is TaskMetadataValidationResult.Valid -> validation.metadata
+            is TaskMetadataValidationResult.Invalid ->
+                throw IllegalArgumentException(
+                    "Invalid task metadata: ${validation.errors.joinToString()}",
+                )
+        }
 }
+
+private fun ManualIntervalWriteEntityResult.toPersistenceResult():
+    ManualIntervalPersistenceResult =
+    when (status) {
+        ManualIntervalWriteStatus.SAVED ->
+            ManualIntervalPersistenceResult.Saved(requireNotNull(interval).toModel())
+        ManualIntervalWriteStatus.DELETED ->
+            ManualIntervalPersistenceResult.Deleted
+        ManualIntervalWriteStatus.TASK_NOT_FOUND ->
+            ManualIntervalPersistenceResult.TaskNotFound
+        ManualIntervalWriteStatus.INTERVAL_NOT_FOUND ->
+            ManualIntervalPersistenceResult.IntervalNotFound
+        ManualIntervalWriteStatus.RUNNING_TASK ->
+            ManualIntervalPersistenceResult.RunningTask
+        ManualIntervalWriteStatus.RUNNING_INTERVAL ->
+            ManualIntervalPersistenceResult.RunningInterval
+        ManualIntervalWriteStatus.OVERLAP ->
+            ManualIntervalPersistenceResult.Overlap
+    }

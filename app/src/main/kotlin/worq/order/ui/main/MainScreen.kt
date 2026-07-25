@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -111,6 +112,30 @@ fun MainScreen(
             onDismiss = { onEvent(MainEvent.DismissDatePicker) },
         )
     }
+    uiState.taskPendingDeletion?.let { task ->
+        AlertDialog(
+            onDismissRequest = { onEvent(MainEvent.DismissDeleteTask) },
+            title = { Text(stringResource(R.string.delete_task_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.delete_task_from_main_message,
+                        task.description,
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onEvent(MainEvent.ConfirmDeleteTask) }) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { onEvent(MainEvent.DismissDeleteTask) }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -188,6 +213,8 @@ private fun MainContent(
             onSelectTask = { onEvent(MainEvent.SelectTask(it)) },
             onOpenTaskMenu = { onEvent(MainEvent.OpenTaskMenu(it)) },
             onCloseTaskMenu = { onEvent(MainEvent.CloseTaskMenu) },
+            onEditTask = { onEvent(MainEvent.EditTask(it)) },
+            onDeleteTask = { onEvent(MainEvent.RequestDeleteTask(it)) },
             onRetry = { onEvent(MainEvent.RetryData) },
             modifier =
                 Modifier
@@ -490,6 +517,8 @@ private fun TaskList(
     onSelectTask: (String) -> Unit,
     onOpenTaskMenu: (String) -> Unit,
     onCloseTaskMenu: () -> Unit,
+    onEditTask: (String) -> Unit,
+    onDeleteTask: (String) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -553,6 +582,8 @@ private fun TaskList(
                             onSelect = { onSelectTask(task.id) },
                             onOpenMenu = { onOpenTaskMenu(task.id) },
                             onCloseMenu = onCloseTaskMenu,
+                            onEdit = { onEditTask(task.id) },
+                            onDelete = { onDeleteTask(task.id) },
                         )
                     }
                 }
@@ -568,6 +599,8 @@ private fun TaskRow(
     onSelect: () -> Unit,
     onOpenMenu: () -> Unit,
     onCloseMenu: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     val rowStateDescription =
         when {
@@ -666,14 +699,14 @@ private fun TaskRow(
                     onDismissRequest = onCloseMenu,
                 ) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.edit_task_deferred)) },
-                        onClick = {},
-                        enabled = false,
+                        text = { Text(stringResource(R.string.edit_task_action)) },
+                        onClick = onEdit,
+                        enabled = task.canModify,
                     )
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.delete_task_deferred)) },
-                        onClick = {},
-                        enabled = false,
+                        text = { Text(stringResource(R.string.delete_task_action)) },
+                        onClick = onDelete,
+                        enabled = task.canModify,
                     )
                 }
             }
@@ -815,7 +848,8 @@ private fun MainMessage.stringResource(): Int =
         MainMessage.NO_ACTIVE_TIMER -> R.string.no_active_timer
         MainMessage.CLOCK_CHANGED -> R.string.clock_changed
         MainMessage.DATA_UNAVAILABLE -> R.string.data_unavailable
-        MainMessage.TASK_ACTIONS_DEFERRED -> R.string.task_actions_deferred
+        MainMessage.TASK_NOT_FOUND -> R.string.task_no_longer_exists
+        MainMessage.RUNNING_TASK_LOCKED -> R.string.running_task_edit_blocked
     }
 
 @Preview(showBackground = true)

@@ -48,3 +48,36 @@ data class TimerContinuationEntityInput(
     val proposedTaskId: String,
     val proposedIntervalId: String,
 )
+
+enum class TaskMetadataWriteStatus {
+    UPDATED,
+    TASK_NOT_FOUND,
+    CLIENT_UNAVAILABLE,
+    RUNNING_TASK,
+}
+
+data class TaskMetadataWriteEntityResult(
+    val status: TaskMetadataWriteStatus,
+    val task: DailyTaskEntity? = null,
+)
+
+enum class TaskDeleteStatus {
+    DELETED,
+    TASK_NOT_FOUND,
+    RUNNING_TASK,
+}
+
+enum class ManualIntervalWriteStatus {
+    SAVED,
+    DELETED,
+    TASK_NOT_FOUND,
+    INTERVAL_NOT_FOUND,
+    RUNNING_TASK,
+    RUNNING_INTERVAL,
+    OVERLAP,
+}
+
+data class ManualIntervalWriteEntityResult(
+    val status: ManualIntervalWriteStatus,
+    val interval: WorkIntervalEntity? = null,
+)

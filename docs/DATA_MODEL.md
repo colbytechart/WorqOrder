@@ -64,10 +64,10 @@ Constraints/indexes:
 
 Changing client, short description, or hardware/software-purchases text changes only this daily task. A later rollover copies the changed values. Deleting a daily task cascades to its intervals, does not affect clients, and does not affect another row with the same series ID.
 
-The `hardware_software_purchases` column is introduced by the planned version-2 migration in
+The `hardware_software_purchases` column was introduced by the implemented version-2 migration in
 Milestone 6. It is non-null with `DEFAULT ''` so every version-1 daily task migrates without
-inventing purchase data. The 400-character limits are enforced through the shared task-metadata
-validator rather than a destructive table replacement.
+inventing purchase data. The shared task-metadata validator enforces the two independent
+400-character limits rather than rebuilding the table destructively.
 
 ## 5. `work_intervals`
 
@@ -183,21 +183,25 @@ Database version 1 is never “throwaway.” The implementation milestone must:
 
 Migration tests populate clients, archived clients, multiple task series/dates, completed/open intervals, and preferences-relevant identifiers before migrating, then verify data and invariants afterward.
 
-Implemented version-1 details:
+Implemented schema details:
 
 - production database name: `worqorder.db`;
-- Room annotation: `version = 1`, `exportSchema = true`;
-- committed schema path: `app/schemas/worq.order.data.local.WorqOrderDatabase/1.json`;
+- Room annotation: `version = 2`, `exportSchema = true`;
+- committed schemas:
+  `app/schemas/worq.order.data.local.WorqOrderDatabase/1.json` and
+  `app/schemas/worq.order.data.local.WorqOrderDatabase/2.json`;
 - production construction uses `Room.databaseBuilder` without startup deletion, seeding, or destructive fallback; and
-- there is no `0 -> 1` migration because version 1 is the first schema. The first schema change must add an explicit forward migration and migration instrumentation test.
+- there is no `0 -> 1` migration because version 1 is the first schema. Production construction
+  registers the explicit `MIGRATION_1_2`, and every later change must add another explicit forward
+  migration and instrumentation test.
 
-Planned first schema evolution:
+Implemented first schema evolution:
 
-- Milestone 6 increments Room to version 2 and adds
+- Milestone 6 incremented Room to version 2 and added
   `daily_tasks.hardware_software_purchases TEXT NOT NULL DEFAULT ''`;
 - existing task IDs, series IDs, client relationships, descriptions, dates, zones, timestamps,
   intervals, and active-timer state remain unchanged;
-- the migration exports
+- KSP exports
   `app/schemas/worq.order.data.local.WorqOrderDatabase/2.json`; and
 - a populated `1 -> 2` migration instrumentation test verifies the empty default for existing
   tasks and preservation of every pre-existing relationship and timer invariant.

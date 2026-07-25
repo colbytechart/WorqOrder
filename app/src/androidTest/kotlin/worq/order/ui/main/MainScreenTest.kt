@@ -171,6 +171,42 @@ class MainScreenTest {
     }
 
     @Test
+    fun overflowMenuOffersEditAndDeleteEvents() {
+        val events = mutableListOf<MainEvent>()
+        var state by
+            mutableStateOf(
+                MainUiState
+                    .ready()
+                    .copy(tasks = listOf(task(id = "task-1"))),
+            )
+        composeRule.setContent {
+            WorqOrderTheme(darkTheme = true) {
+                MainScreen(
+                    uiState = state,
+                    onEvent = { event ->
+                        events += event
+                        when (event) {
+                            is MainEvent.OpenTaskMenu ->
+                                state = state.copy(openTaskMenuTaskId = event.taskId)
+                            MainEvent.CloseTaskMenu ->
+                                state = state.copy(openTaskMenuTaskId = null)
+                            else -> Unit
+                        }
+                    },
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Options for Description").performClick()
+        composeRule.onNodeWithText("Edit").assertIsEnabled().performClick()
+        assertTrue(events.contains(MainEvent.EditTask("task-1")))
+
+        state = state.copy(openTaskMenuTaskId = "task-1")
+        composeRule.onNodeWithText("Delete").assertIsEnabled().performClick()
+        assertTrue(events.contains(MainEvent.RequestDeleteTask("task-1")))
+    }
+
+    @Test
     fun browsingWhileRunningShowsIdentityAndTodayShortcut() {
         val state =
             MainUiState
@@ -237,6 +273,7 @@ class MainScreenTest {
         isSelected = selected,
         isRunning = running,
         canSelect = canSelect,
+        canModify = !running,
     )
 
     private companion object {

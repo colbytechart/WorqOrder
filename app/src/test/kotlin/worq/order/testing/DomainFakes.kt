@@ -12,11 +12,15 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import worq.order.data.ActiveTimerRepository
 import worq.order.data.CreateActiveIntervalResult
+import worq.order.data.CreateDailyTaskResult
+import worq.order.data.DeleteTaskResult
+import worq.order.data.ManualIntervalPersistenceResult
 import worq.order.data.NewDailyTask
 import worq.order.data.SelectedTaskRepository
 import worq.order.data.SelectedTaskState
 import worq.order.data.TaskRepository
 import worq.order.data.TimerSplitBoundary
+import worq.order.data.UpdateTaskMetadataResult
 import worq.order.model.ActiveTimer
 import worq.order.model.ActiveTimerSnapshot
 import worq.order.model.Client
@@ -70,6 +74,7 @@ class FakeTaskRepository : TaskRepository {
     private val taskState = MutableStateFlow<Map<String, DailyTask>>(emptyMap())
     private val intervalRevision = MutableStateFlow(0L)
     private val intervals = mutableMapOf<String, MutableList<WorkInterval>>()
+    private val runningTaskIds = mutableSetOf<String>()
     private var taskId = 0
     private var intervalId = 0
 
@@ -93,6 +98,23 @@ class FakeTaskRepository : TaskRepository {
 
     override fun observeTask(taskId: String): Flow<DailyTask?> =
         taskState.map { it[taskId] }
+
+    override fun observeTaskWithIntervals(taskId: String): Flow<TaskWithIntervals?> =
+        combine(taskState, intervalRevision) { tasks, _ ->
+            tasks[taskId]?.let { task ->
+                TaskWithIntervals(
+                    taskWithClient =
+                        TaskWithClient(
+                            task = task,
+                            client = CLIENT.copy(id = task.clientId),
+                        ),
+                    intervals =
+                        intervals[taskId]
+                            .orEmpty()
+                            .sortedWith(compareBy(WorkInterval::start, WorkInterval::ordinal)),
+                )
+            }
+        }
 
     override suspend fun readTaskWithClient(taskId: String): TaskWithClient? =
         taskState.value[taskId]?.let {
@@ -127,6 +149,8 @@ class FakeTaskRepository : TaskRepository {
                     seriesId = newTask.seriesId ?: "series-$taskId",
                     clientId = newTask.clientId,
                     description = newTask.description.trim(),
+                    hardwareSoftwarePurchases =
+                        newTask.hardwareSoftwarePurchases.trim(),
                     workDate = newTask.workDate,
                     zoneId = newTask.zoneId,
                     createdAt = now,
@@ -142,6 +166,9 @@ class FakeTaskRepository : TaskRepository {
             taskState.value = taskState.value + (task.id to task)
             task
         }
+
+    override suspend fun createDailyTask(newTask: NewDailyTask): CreateDailyTaskResult =
+        CreateDailyTaskResult.Created(insertDailyTask(newTask))
 
     override suspend fun findOrCreateDailyTaskCopy(
         sourceTaskId: String,
@@ -170,9 +197,15 @@ class FakeTaskRepository : TaskRepository {
         taskId: String,
         clientId: String,
         description: String,
-    ): Boolean =
+        hardwareSoftwarePurchases: String,
+    ): UpdateTaskMetadataResult =
         mutex.withLock {
-            val current = taskState.value[taskId] ?: return@withLock false
+            val current =
+                taskState.value[taskId]
+                    ?: return@withLock UpdateTaskMetadataResult.TaskNotFound
+            if (taskId in runningTaskIds) {
+                return@withLock UpdateTaskMetadataResult.RunningTask
+            }
             taskState.value =
                 taskState.value +
                     (
@@ -180,17 +213,26 @@ class FakeTaskRepository : TaskRepository {
                             current.copy(
                                 clientId = clientId,
                                 description = description,
+                                hardwareSoftwarePurchases =
+                                    hardwareSoftwarePurchases,
                             )
                     )
-            true
+            UpdateTaskMetadataResult.Updated(requireNotNull(taskState.value[taskId]))
         }
 
-    override suspend fun deleteTask(taskId: String): Boolean =
+    override suspend fun deleteTask(taskId: String): DeleteTaskResult =
         mutex.withLock {
+            if (taskId in runningTaskIds) {
+                return@withLock DeleteTaskResult.RunningTask
+            }
             val existed = taskState.value.containsKey(taskId)
             taskState.value = taskState.value - taskId
             intervals.remove(taskId)
-            existed
+            if (existed) {
+                DeleteTaskResult.Deleted
+            } else {
+                DeleteTaskResult.TaskNotFound
+            }
         }
 
     override suspend fun insertCompletedInterval(
@@ -208,6 +250,90 @@ class FakeTaskRepository : TaskRepository {
             )
         addInterval(interval)
         return interval
+    }
+
+    override suspend fun addManualInterval(
+        taskId: String,
+        start: Instant,
+        stop: Instant,
+    ): ManualIntervalPersistenceResult {
+        if (taskState.value[taskId] == null) {
+            return ManualIntervalPersistenceResult.TaskNotFound
+        }
+        if (taskId in runningTaskIds) {
+            return ManualIntervalPersistenceResult.RunningTask
+        }
+        if (hasOverlap(taskId, start, stop)) {
+            return ManualIntervalPersistenceResult.Overlap
+        }
+        val interval =
+            newInterval(
+                taskId = taskId,
+                start = start,
+                stop = stop,
+                wasManuallyEdited = true,
+            )
+        addInterval(interval)
+        return ManualIntervalPersistenceResult.Saved(interval)
+    }
+
+    override suspend fun updateManualInterval(
+        taskId: String,
+        intervalId: String,
+        start: Instant,
+        stop: Instant,
+    ): ManualIntervalPersistenceResult {
+        if (taskState.value[taskId] == null) {
+            return ManualIntervalPersistenceResult.TaskNotFound
+        }
+        if (taskId in runningTaskIds) {
+            return ManualIntervalPersistenceResult.RunningTask
+        }
+        val current =
+            intervals[taskId]
+                .orEmpty()
+                .firstOrNull { it.id == intervalId }
+                ?: return ManualIntervalPersistenceResult.IntervalNotFound
+        if (current.stop == null) {
+            return ManualIntervalPersistenceResult.RunningInterval
+        }
+        if (hasOverlap(taskId, start, stop, intervalId)) {
+            return ManualIntervalPersistenceResult.Overlap
+        }
+        val changed =
+            current.copy(
+                start = start,
+                stop = stop,
+                wasManuallyEdited = true,
+                updatedAt = stop,
+            )
+        replaceInterval(changed)
+        return ManualIntervalPersistenceResult.Saved(changed)
+    }
+
+    override suspend fun deleteManualInterval(
+        taskId: String,
+        intervalId: String,
+    ): ManualIntervalPersistenceResult {
+        if (taskState.value[taskId] == null) {
+            return ManualIntervalPersistenceResult.TaskNotFound
+        }
+        return mutex.withLock {
+            if (taskId in runningTaskIds) {
+                return@withLock ManualIntervalPersistenceResult.RunningTask
+            }
+            val taskIntervals = intervals[taskId].orEmpty()
+            val interval =
+                taskIntervals.firstOrNull { it.id == intervalId }
+                    ?: return@withLock ManualIntervalPersistenceResult.IntervalNotFound
+            if (interval.stop == null) {
+                return@withLock ManualIntervalPersistenceResult.RunningInterval
+            }
+            intervals[taskId] =
+                taskIntervals.filterNot { it.id == intervalId }.toMutableList()
+            intervalRevision.value += 1L
+            ManualIntervalPersistenceResult.Deleted
+        }
     }
 
     override suspend fun readIntervalsForOverlapValidation(
@@ -243,6 +369,18 @@ class FakeTaskRepository : TaskRepository {
         }
     }
 
+    suspend fun markRunning(taskId: String) {
+        mutex.withLock {
+            runningTaskIds += taskId
+        }
+    }
+
+    suspend fun markStopped(taskId: String) {
+        mutex.withLock {
+            runningTaskIds -= taskId
+        }
+    }
+
     fun newInterval(
         taskId: String,
         start: Instant,
@@ -269,6 +407,25 @@ class FakeTaskRepository : TaskRepository {
             .mapNotNull { interval ->
                 interval.stop?.let { Duration.between(interval.start, it).toMillis() }
             }.sum()
+
+    private fun hasOverlap(
+        taskId: String,
+        start: Instant,
+        stop: Instant,
+        excludingIntervalId: String? = null,
+    ): Boolean =
+        intervals[taskId]
+            .orEmpty()
+            .asSequence()
+            .filter { it.id != excludingIntervalId }
+            .any { interval ->
+                val existingStop = interval.stop
+                if (existingStop == null) {
+                    stop.isAfter(interval.start)
+                } else {
+                    start.isBefore(existingStop) && interval.start.isBefore(stop)
+                }
+            }
 
     private companion object {
         val CLIENT =
@@ -310,6 +467,7 @@ class FakeActiveTimerRepository(
             }
             val interval = tasks.newInterval(taskId = taskId, start = start, stop = null)
             tasks.addInterval(interval)
+            tasks.markRunning(taskId)
             val timer =
                 ActiveTimer(
                     intervalId = interval.id,
@@ -353,6 +511,7 @@ class FakeActiveTimerRepository(
                     updatedAt = stop,
                 )
             tasks.replaceInterval(closed)
+            tasks.markStopped(closed.taskId)
             active.value = null
             ActiveTimerSnapshot(
                 activeTimer = continued.activeTimer.copy(updatedAt = stop),
@@ -375,6 +534,7 @@ class FakeActiveTimerRepository(
                     updatedAt = boundary.instant,
                 )
             tasks.replaceInterval(closed)
+            tasks.markStopped(closed.taskId)
             val nextTask =
                 requireNotNull(
                     tasks.findOrCreateDailyTaskCopy(
@@ -390,6 +550,7 @@ class FakeActiveTimerRepository(
                     stop = null,
                 )
             tasks.addInterval(continuation)
+            tasks.markRunning(nextTask.id)
             snapshot =
                 ActiveTimerSnapshot(
                     activeTimer =

@@ -534,12 +534,164 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
+    fun taskCreationRequiresClientToRemainActiveAtTransactionTime() =
+        runBlocking {
+            insertClient(id = "client-1")
+            val clientRepository =
+                RoomClientRepository(
+                    clientDao = database.clientDao(),
+                    idGenerator = QueueIdGenerator(),
+                    clock = FixedClock(TEST_NOW),
+                )
+            val taskRepository =
+                RoomTaskRepository(
+                    taskDao = database.taskDao(),
+                    workIntervalDao = database.workIntervalDao(),
+                    idGenerator =
+                        QueueIdGenerator(
+                            "task-must-not-persist",
+                            "series-must-not-persist",
+                        ),
+                    clock = FixedClock(TEST_NOW),
+                )
+            clientRepository.archiveClient("client-1")
+
+            val result =
+                taskRepository.createDailyTask(
+                    worq.order.data.NewDailyTask(
+                        clientId = "client-1",
+                        description = "Task",
+                        hardwareSoftwarePurchases = "Laptop",
+                        workDate = TEST_DATE,
+                        zoneId = TEST_ZONE,
+                    ),
+                )
+
+            assertEquals(worq.order.data.CreateDailyTaskResult.ClientUnavailable, result)
+            assertNull(database.taskDao().readTask("task-must-not-persist"))
+        }
+
+    @Test
+    fun taskMetadataAndManualIntervalsUseTransactionalGuards() =
+        runBlocking {
+            insertClient(id = "client-1")
+            insertTask(id = "task-1", clientId = "client-1")
+            val repository =
+                RoomTaskRepository(
+                    taskDao = database.taskDao(),
+                    workIntervalDao = database.workIntervalDao(),
+                    idGenerator =
+                        QueueIdGenerator(
+                            "manual-1",
+                            "manual-overlap",
+                        ),
+                    clock = FixedClock(TEST_NOW),
+                )
+
+            val updated =
+                repository.updateTaskMetadata(
+                    taskId = "task-1",
+                    clientId = "client-1",
+                    description = " Updated task ",
+                    hardwareSoftwarePurchases = " Laptop and IDE ",
+                )
+            assertTrue(updated is worq.order.data.UpdateTaskMetadataResult.Updated)
+            val task = requireNotNull(database.taskDao().readTask("task-1"))
+            assertEquals("Updated task", task.description)
+            assertEquals("Laptop and IDE", task.hardwareSoftwarePurchases)
+
+            val added =
+                repository.addManualInterval(
+                    taskId = "task-1",
+                    start = Instant.ofEpochMilli(2_000),
+                    stop = Instant.ofEpochMilli(3_000),
+                )
+            assertTrue(added is worq.order.data.ManualIntervalPersistenceResult.Saved)
+            val overlap =
+                repository.addManualInterval(
+                    taskId = "task-1",
+                    start = Instant.ofEpochMilli(2_500),
+                    stop = Instant.ofEpochMilli(3_500),
+                )
+            assertEquals(
+                worq.order.data.ManualIntervalPersistenceResult.Overlap,
+                overlap,
+            )
+
+            val edited =
+                repository.updateManualInterval(
+                    taskId = "task-1",
+                    intervalId = "manual-1",
+                    start = Instant.ofEpochMilli(4_000),
+                    stop = Instant.ofEpochMilli(6_000),
+                )
+            assertTrue(edited is worq.order.data.ManualIntervalPersistenceResult.Saved)
+            assertEquals(
+                2_000L,
+                database.workIntervalDao().readCompletedDurationMs("task-1"),
+            )
+            assertEquals(
+                worq.order.data.ManualIntervalPersistenceResult.Deleted,
+                repository.deleteManualInterval("task-1", "manual-1"),
+            )
+            assertEquals(
+                0L,
+                database.workIntervalDao().readCompletedDurationMs("task-1"),
+            )
+        }
+
+    @Test
+    fun runningTaskRejectsMetadataIntervalAndTaskMutations() =
+        runBlocking {
+            insertClient(id = "client-1")
+            insertTask(id = "task-1", clientId = "client-1")
+            database.activeTimerDao().createActiveIntervalAndTimer(
+                intervalId = "active-interval",
+                taskId = "task-1",
+                boundaryZoneId = TEST_ZONE.id,
+                startEpochMs = 1_000,
+                createdAtEpochMs = 1_000,
+            )
+            val repository =
+                RoomTaskRepository(
+                    taskDao = database.taskDao(),
+                    workIntervalDao = database.workIntervalDao(),
+                    idGenerator = QueueIdGenerator("unused"),
+                    clock = FixedClock(TEST_NOW),
+                )
+
+            assertEquals(
+                worq.order.data.UpdateTaskMetadataResult.RunningTask,
+                repository.updateTaskMetadata(
+                    taskId = "task-1",
+                    clientId = "client-1",
+                    description = "Changed",
+                    hardwareSoftwarePurchases = "",
+                ),
+            )
+            assertEquals(
+                worq.order.data.ManualIntervalPersistenceResult.RunningTask,
+                repository.addManualInterval(
+                    taskId = "task-1",
+                    start = Instant.ofEpochMilli(100),
+                    stop = Instant.ofEpochMilli(500),
+                ),
+            )
+            assertEquals(
+                worq.order.data.DeleteTaskResult.RunningTask,
+                repository.deleteTask("task-1"),
+            )
+            assertNotNull(database.taskDao().readTask("task-1"))
+        }
+
+    @Test
     fun activeTimerNormalizationCreatesDailyContinuationAndIsIdempotent() =
         runBlocking {
             insertClient(id = "client-1")
             insertTask(
                 id = "task-day-1",
                 clientId = "client-1",
+                hardwareSoftwarePurchases = "Laptop",
                 workDateEpochDay = LocalDate.of(2026, 7, 24).toEpochDay(),
             )
             val repository =
@@ -593,6 +745,7 @@ class WorqOrderDatabaseTest {
             assertEquals("series-1", continuationTask.seriesId)
             assertEquals("client-1", continuationTask.clientId)
             assertEquals("Task task-day-1", continuationTask.description)
+            assertEquals("Laptop", continuationTask.hardwareSoftwarePurchases)
             assertEquals(LocalDate.of(2026, 7, 25).toEpochDay(), continuationTask.workDateEpochDay)
             assertEquals(TEST_ZONE.id, continuationTask.zoneId)
             assertEquals("interval-day-2", normalized.interval.id)
@@ -746,18 +899,137 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
-    fun exportedVersionOneSchemaIsPackagedForVerification() {
+    fun exportedSchemasArePackagedForVerification() {
         val testContext = InstrumentationRegistry.getInstrumentation().context
 
-        val schema =
+        val versionOne =
             testContext.assets
-                .open(SCHEMA_ASSET_PATH)
+                .open(VERSION_ONE_SCHEMA_ASSET_PATH)
+                .bufferedReader()
+                .use { it.readText() }
+        val versionTwo =
+            testContext.assets
+                .open(VERSION_TWO_SCHEMA_ASSET_PATH)
                 .bufferedReader()
                 .use { it.readText() }
 
-        assertTrue(schema.contains("\"version\": 1"))
-        assertTrue(schema.contains("\"tableName\": \"clients\""))
-        assertTrue(schema.contains("\"tableName\": \"active_timer\""))
+        assertTrue(versionOne.contains("\"version\": 1"))
+        assertTrue(versionTwo.contains("\"version\": 2"))
+        assertTrue(versionTwo.contains("\"tableName\": \"clients\""))
+        assertTrue(versionTwo.contains("\"tableName\": \"active_timer\""))
+        assertTrue(versionTwo.contains("\"columnName\": \"hardware_software_purchases\""))
+    }
+
+    @Test
+    fun migrationOneToTwoPreservesPopulatedTaskAndActiveTimer() =
+        runBlocking {
+            context.deleteDatabase(MIGRATION_TEST_DATABASE)
+            createPopulatedVersionOneDatabase()
+
+            val migrated =
+                Room
+                    .databaseBuilder(
+                        context,
+                        WorqOrderDatabase::class.java,
+                        MIGRATION_TEST_DATABASE,
+                    ).addMigrations(WorqOrderMigrations.MIGRATION_1_2)
+                    .allowMainThreadQueries()
+                    .build()
+            try {
+                val task = requireNotNull(migrated.taskDao().readTask("migration-task"))
+                assertEquals("Existing description", task.description)
+                assertEquals("", task.hardwareSoftwarePurchases)
+                val intervals =
+                    migrated.workIntervalDao()
+                        .readIntervalsForOverlapValidation("migration-task")
+                assertEquals(2, intervals.size)
+                assertEquals(
+                    "migration-active",
+                    migrated.activeTimerDao().readActiveTimer()?.intervalId,
+                )
+            } finally {
+                migrated.close()
+                context.deleteDatabase(MIGRATION_TEST_DATABASE)
+            }
+        }
+
+    private fun createPopulatedVersionOneDatabase() {
+        val sqlite =
+            context.openOrCreateDatabase(
+                MIGRATION_TEST_DATABASE,
+                Context.MODE_PRIVATE,
+                null,
+            )
+        sqlite.use { database ->
+            database.execSQL("PRAGMA foreign_keys = ON")
+            database.execSQL(
+                "CREATE TABLE clients (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, canonical_name TEXT NOT NULL, active_name_key TEXT, is_active INTEGER NOT NULL, created_at_epoch_ms INTEGER NOT NULL, updated_at_epoch_ms INTEGER NOT NULL, archived_at_epoch_ms INTEGER)",
+            )
+            database.execSQL(
+                "CREATE UNIQUE INDEX index_clients_active_name_key ON clients (active_name_key)",
+            )
+            database.execSQL(
+                "CREATE INDEX index_clients_active_sort ON clients (is_active, name, id)",
+            )
+            database.execSQL(
+                "CREATE TABLE daily_tasks (id TEXT NOT NULL PRIMARY KEY, series_id TEXT NOT NULL, client_id TEXT NOT NULL, description TEXT NOT NULL, work_date_epoch_day INTEGER NOT NULL, zone_id TEXT NOT NULL, created_at_epoch_ms INTEGER NOT NULL, updated_at_epoch_ms INTEGER NOT NULL, FOREIGN KEY(client_id) REFERENCES clients(id) ON UPDATE NO ACTION ON DELETE RESTRICT)",
+            )
+            database.execSQL(
+                "CREATE UNIQUE INDEX index_daily_tasks_series_date_zone ON daily_tasks (series_id, work_date_epoch_day, zone_id)",
+            )
+            database.execSQL(
+                "CREATE INDEX index_daily_tasks_work_date_sort ON daily_tasks (work_date_epoch_day, created_at_epoch_ms, id)",
+            )
+            database.execSQL(
+                "CREATE INDEX index_daily_tasks_client_id ON daily_tasks (client_id)",
+            )
+            database.execSQL(
+                "CREATE TABLE work_intervals (id TEXT NOT NULL PRIMARY KEY, task_id TEXT NOT NULL, ordinal INTEGER NOT NULL, start_epoch_ms INTEGER NOT NULL, stop_epoch_ms INTEGER, active_slot INTEGER, was_manually_edited INTEGER NOT NULL, created_at_epoch_ms INTEGER NOT NULL, updated_at_epoch_ms INTEGER NOT NULL, FOREIGN KEY(task_id) REFERENCES daily_tasks(id) ON UPDATE NO ACTION ON DELETE CASCADE)",
+            )
+            database.execSQL(
+                "CREATE UNIQUE INDEX index_work_intervals_task_ordinal ON work_intervals (task_id, ordinal)",
+            )
+            database.execSQL(
+                "CREATE INDEX index_work_intervals_task_start ON work_intervals (task_id, start_epoch_ms, ordinal, id)",
+            )
+            database.execSQL(
+                "CREATE UNIQUE INDEX index_work_intervals_active_slot ON work_intervals (active_slot)",
+            )
+            database.execSQL(
+                "CREATE UNIQUE INDEX index_work_intervals_id_task ON work_intervals (id, task_id)",
+            )
+            database.execSQL(
+                "CREATE TABLE active_timer (singleton_id INTEGER NOT NULL PRIMARY KEY, interval_id TEXT NOT NULL, task_id TEXT NOT NULL, boundary_zone_id TEXT NOT NULL, created_at_epoch_ms INTEGER NOT NULL, updated_at_epoch_ms INTEGER NOT NULL, FOREIGN KEY(interval_id, task_id) REFERENCES work_intervals(id, task_id) ON UPDATE NO ACTION ON DELETE RESTRICT)",
+            )
+            database.execSQL(
+                "CREATE UNIQUE INDEX index_active_timer_interval_task ON active_timer (interval_id, task_id)",
+            )
+            database.execSQL(
+                "CREATE INDEX index_active_timer_task_id ON active_timer (task_id)",
+            )
+            database.execSQL(
+                "CREATE TABLE room_master_table (id INTEGER PRIMARY KEY, identity_hash TEXT)",
+            )
+            database.execSQL(
+                "INSERT INTO room_master_table (id, identity_hash) VALUES (42, '7cea78f332f52d42b7bd750092d38e4a')",
+            )
+            database.execSQL(
+                "INSERT INTO clients VALUES ('migration-client', 'Client', 'client', 'client', 1, 1000, 1000, NULL)",
+            )
+            database.execSQL(
+                "INSERT INTO daily_tasks VALUES ('migration-task', 'migration-series', 'migration-client', 'Existing description', ${TEST_DATE.toEpochDay()}, '${TEST_ZONE.id}', 1000, 1000)",
+            )
+            database.execSQL(
+                "INSERT INTO work_intervals VALUES ('migration-complete', 'migration-task', 1, 1000, 2000, NULL, 0, 1000, 2000)",
+            )
+            database.execSQL(
+                "INSERT INTO work_intervals VALUES ('migration-active', 'migration-task', 2, 3000, NULL, 1, 0, 3000, 3000)",
+            )
+            database.execSQL(
+                "INSERT INTO active_timer VALUES (1, 'migration-active', 'migration-task', '${TEST_ZONE.id}', 3000, 3000)",
+            )
+            database.version = 1
+        }
     }
 
     private suspend fun insertClient(
@@ -778,6 +1050,7 @@ class WorqOrderDatabaseTest {
         id: String,
         clientId: String,
         seriesId: String = "series-1",
+        hardwareSoftwarePurchases: String = "",
         workDateEpochDay: Long = TEST_DATE.toEpochDay(),
         zoneId: String = TEST_ZONE.id,
     ) {
@@ -787,6 +1060,7 @@ class WorqOrderDatabaseTest {
                 seriesId = seriesId,
                 clientId = clientId,
                 description = "Task $id",
+                hardwareSoftwarePurchases = hardwareSoftwarePurchases,
                 workDateEpochDay = workDateEpochDay,
                 zoneId = zoneId,
                 createdAtEpochMs = 1_000,
@@ -868,7 +1142,10 @@ class WorqOrderDatabaseTest {
         val TEST_DATE: LocalDate = LocalDate.of(2026, 7, 23)
         val TEST_ZONE: ZoneId = ZoneId.of("America/New_York")
         const val REOPEN_TEST_DATABASE = "worqorder-milestone2-reopen-test.db"
-        const val SCHEMA_ASSET_PATH =
+        const val MIGRATION_TEST_DATABASE = "worqorder-migration-1-2-test.db"
+        const val VERSION_ONE_SCHEMA_ASSET_PATH =
             "worq.order.data.local.WorqOrderDatabase/1.json"
+        const val VERSION_TWO_SCHEMA_ASSET_PATH =
+            "worq.order.data.local.WorqOrderDatabase/2.json"
     }
 }

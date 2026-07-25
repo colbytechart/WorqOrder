@@ -20,6 +20,7 @@ import org.junit.Rule
 import org.junit.Test
 import worq.order.data.NewDailyTask
 import worq.order.domain.SelectionCoordinator
+import worq.order.domain.TaskMutationCoordinator
 import worq.order.model.DailyTask
 import worq.order.testing.FakeActiveTimerRepository
 import worq.order.testing.FakeMonotonicTimeSource
@@ -297,6 +298,13 @@ class MainViewModelTest {
                 liveTimerSession = liveTimerSession,
                 operationLock = operationLock,
             )
+        private val taskMutationCoordinator =
+            TaskMutationCoordinator(
+                taskRepository = tasks,
+                selectionCoordinator = selectionCoordinator,
+                currentDateProvider = currentDateProvider,
+                zoneIdProvider = zone,
+            )
 
         fun viewModel() =
             MainViewModel(
@@ -309,6 +317,7 @@ class MainViewModelTest {
                 utcClock = clock,
                 zoneIdProvider = zone,
                 currentDateProvider = currentDateProvider,
+                taskMutationCoordinator = taskMutationCoordinator,
             )
 
         suspend fun addTask(

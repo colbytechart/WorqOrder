@@ -21,6 +21,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import worq.order.data.ExportDestination
 import worq.order.ui.theme.WorqOrderTheme
 
 @RunWith(AndroidJUnit4::class)
@@ -168,6 +169,28 @@ class MainScreenTest {
 
         assertTrue(events.contains(MainEvent.OpenSettings))
         assertTrue(events.contains(MainEvent.OpenCreateTask))
+    }
+
+    @Test
+    fun exportActionNamesDateAndDestination() {
+        val events = mutableListOf<MainEvent>()
+        setMainContent(
+            state =
+                MainUiState
+                    .ready()
+                    .copy(
+                        canExport = true,
+                        exportDestination = ExportDestination.GOOGLE_SHEETS,
+                    ),
+            onEvent = events::add,
+        )
+
+        composeRule
+            .onNodeWithText("Set up Google Sheets for Jul 24")
+            .assertIsEnabled()
+            .performClick()
+
+        assertTrue(events.contains(MainEvent.Export))
     }
 
     @Test

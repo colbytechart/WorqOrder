@@ -203,10 +203,13 @@ Entry: local task workflows accepted.
 
 ### Scope
 
-- Preferences DataStore models and repositories for explicit Light/Dark appearance,
+- Preferences DataStore models and repositories for System/Light/Dark appearance,
   device/manual ZoneId mode, manual geographical ZoneId, default export destination,
   selection state consolidation, and non-secret export status.
-- Immediate theme application.
+- System appearance is the first-launch default and follows the device; Light and Dark
+  remain enabled explicit overrides. All theme changes apply immediately.
+- Place Client Management first in the Settings list, followed by Appearance, Time zone,
+  export default, and Google connection status.
 - Searchable/navigable ZoneId selection and display of the effective ZoneId.
 - Block time-zone setting mutations while a timer is active; historical task dates and
   stored zones never move.

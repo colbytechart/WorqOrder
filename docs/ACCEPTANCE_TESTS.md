@@ -293,13 +293,13 @@ ZoneIds.
 
 ## 7. Theme and persistence
 
-### SET-01 Immediate Light/Dark
+### SET-01 Immediate appearance modes
 
-Changing between Light and Dark updates the whole Compose tree immediately and persists through recreation/process/device restart. If System exists, explicit choices remain available and deterministic.
+Client Management is the first normal Settings item, followed by Appearance, Time zone, export default, and Google connection status. System is selected by default and follows device Light/Dark configuration changes. Selecting explicit Light or Dark overrides the device while all three radio choices remain enabled. Every change updates the whole Compose tree immediately and persists through recreation/process/device restart.
 
 ### SET-02 Settings durability
 
-Zone mode/manual ID, export default, spreadsheet metadata, and valid selection hints survive supported restarts through DataStore; no token/task data is stored there.
+Theme, zone mode/manual ID, export default, spreadsheet metadata, and valid selection hints survive supported restarts through DataStore; no token/task data is stored there. First launch defaults to System theme, device-zone mode, and CSV.
 
 ### SET-03 Database durability
 
@@ -308,6 +308,21 @@ Created clients/tasks/intervals survive activity recreation, backgrounding, proc
 ### SET-04 No uninstall promise
 
 Help/release claims do not state that local data survives uninstall or clearing app storage.
+
+### SET-05 Invalid preference fallback
+
+Given an unknown stored theme, zone-mode, or export enum, the app uses System, device-zone mode, or
+CSV respectively. A missing, invalid, fixed-offset, or legacy-alias manual zone cannot activate
+manual mode. A malformed selection hint is treated as no selection rather than becoming task or
+timer truth.
+
+### SET-06 Startup zone and displayed date
+
+Given persisted manual-zone selection and a stale eligible task selection, startup waits for the
+persisted effective zone before rollover and creates/reuses only the exact series/date/zone copy.
+Normal startup displays today and does not restore an old browsed date. If an effective-zone change
+occurs while Main displays today, Main follows the new today; an intentionally browsed date remains
+unchanged.
 
 ## 8. CSV
 

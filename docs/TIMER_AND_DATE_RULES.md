@@ -128,7 +128,7 @@ For multiple missed dates, repeat at each `atStartOfDay` boundary. Never add fix
 
 ## 8. Daily selection rollover
 
-Rollover is based on an actual change of today, not ordinary browsing with the date selector.
+Rollover is based on an actual change of today or the effective geographical zone, not ordinary browsing with the date selector.
 Selection preferences therefore retain the selected task ID, preferred series ID, effective date
 on which the timing selection was made, and its effective ZoneId.
 
@@ -141,21 +141,25 @@ on which the timing selection was made, and its effective ZoneId.
 5. On a uniqueness race, query and use the already-inserted row.
 6. Persist the new concrete task selection.
 
-This can run on resume or actual-date normalization before the UI enables Start. When the
-selection was made on today's effective date but points to a historical/future task, preserve it
-for viewing and keep Start ineligible. Rollover must not create duplicates and does not move/edit
-the source task. If the source was deleted, the selected series does not match it, or its client
-relationship is invalid, clear selection and require the user to choose rather than fabricate
-metadata.
+This can run on startup/resume, actual-date normalization, or an effective-zone change before the
+UI enables Start. Before any persisted selection is reconciled, wait for the first DataStore-backed
+effective-zone value so a temporary device-zone default cannot create the wrong daily copy. A
+selection is eligible for rollover only when the source task's stored date/zone matches the
+date/zone context recorded when it was selected. If it was intentionally selected from a
+historical/future or prior-zone row, preserve it for viewing and keep Start ineligible. Rollover
+must not create duplicates and does not move/edit the source task. If the source was deleted, the
+selected series does not match it, or its client relationship is invalid, clear selection and
+require the user to choose rather than fabricate metadata.
 
 ## 9. Time-zone setting changes
 
 - Time-zone mode/manual ID controls are disabled and repository writes reject changes whenever `active_timer` exists.
 - In device mode, read the current geographical system zone. Do not store only its current offset.
-- Validate manual IDs against available `ZoneId` values; exclude raw fixed-offset IDs from the primary selector.
+- Validate manual IDs against the supported geographical IANA region namespaces; exclude raw fixed-offset and legacy alias IDs from the selector. Store and display the selected canonical ID.
 - On an allowed change, future calculations of today, rollover, and newly assigned tasks use the new zone.
 - Existing `work_date_epoch_day` and `zone_id` remain untouched.
 - A task manually created for a displayed date stores the effective zone at creation.
+- If Main was displaying the previous value of today, an effective-zone change moves it to the new today. If the user was browsing another date, that displayed date remains unchanged.
 
 If the device zone changes externally during an active device-mode timer, keep using the Start-captured boundary zone until Stop. Show the pinned session zone if relevant. Adopt the device's new zone afterward and perform selection rollover. This explicit policy avoids silently changing an already-running interval's calendar rules.
 

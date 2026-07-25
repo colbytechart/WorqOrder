@@ -73,6 +73,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import worq.order.R
+import worq.order.data.ExportDestination
 import worq.order.ui.theme.WorqOrderDimens
 import worq.order.ui.theme.WorqOrderTheme
 
@@ -156,7 +157,9 @@ fun MainScreen(
         bottomBar = {
             MainBottomActions(
                 canExport = uiState.canExport,
-                onExport = {},
+                exportDestination = uiState.exportDestination,
+                displayedDate = uiState.displayedDate,
+                onExport = { onEvent(MainEvent.Export) },
                 onCreateTask = { onEvent(MainEvent.OpenCreateTask) },
             )
         },
@@ -227,6 +230,8 @@ private fun MainContent(
 @Composable
 private fun MainBottomActions(
     canExport: Boolean,
+    exportDestination: ExportDestination,
+    displayedDate: LocalDate,
     onExport: () -> Unit,
     onCreateTask: () -> Unit,
 ) {
@@ -245,7 +250,27 @@ private fun MainBottomActions(
                     .weight(1f)
                     .heightIn(min = WorqOrderDimens.ActionButtonHeight),
         ) {
-            Text(stringResource(R.string.export))
+            val formattedDate =
+                DateTimeFormatter
+                    .ofPattern("MMM d")
+                    .format(displayedDate)
+            Text(
+                text =
+                    when (exportDestination) {
+                        ExportDestination.CSV ->
+                            stringResource(
+                                R.string.export_date_as_csv,
+                                formattedDate,
+                            )
+                        ExportDestination.GOOGLE_SHEETS ->
+                            stringResource(
+                                R.string.setup_google_sheets_for_date,
+                                formattedDate,
+                            )
+                    },
+                maxLines = 2,
+                textAlign = TextAlign.Center,
+            )
         }
         Spacer(Modifier.width(WorqOrderDimens.BottomActionSpacing))
         Button(

@@ -19,12 +19,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import worq.order.data.NewDailyTask
+import worq.order.data.ExportDestination
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.model.DailyTask
 import worq.order.testing.FakeActiveTimerRepository
 import worq.order.testing.FakeMonotonicTimeSource
 import worq.order.testing.FakeSelectedTaskRepository
+import worq.order.testing.FakeSettingsRepository
 import worq.order.testing.FakeTaskRepository
 import worq.order.testing.FakeUtcClock
 import worq.order.testing.FakeZoneIdProvider
@@ -234,6 +236,100 @@ class MainViewModelTest {
         }
 
     @Test
+    fun exportDestinationUpdatesButtonStateAndGoogleRoutesToSetup() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            assertEquals(
+                ExportDestination.CSV,
+                viewModel.uiState.value.exportDestination,
+            )
+            assertFalse(viewModel.uiState.value.canExport)
+
+            fixture.settings.setDefaultExportDestination(
+                ExportDestination.GOOGLE_SHEETS,
+            )
+            runCurrent()
+
+            assertEquals(
+                ExportDestination.GOOGLE_SHEETS,
+                viewModel.uiState.value.exportDestination,
+            )
+            assertTrue(viewModel.uiState.value.canExport)
+
+            val effect = async { viewModel.effects.first() }
+            runCurrent()
+            viewModel.onEvent(MainEvent.Export)
+            assertEquals(
+                MainEffect.NavigateToGoogleSheetsSettings,
+                effect.await(),
+            )
+        }
+
+    @Test
+    fun effectiveZoneChangeMovesTodayPresentationButPreservesBrowsedDate() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.clock.instant = Instant.parse("2026-07-25T02:00:00Z")
+            val historical =
+                fixture.addTask(
+                    LocalDate.of(2026, 7, 23),
+                    seriesId = "historical-series",
+                )
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+            assertEquals(LocalDate.of(2026, 7, 24), viewModel.uiState.value.today)
+
+            fixture.zone.current = ZoneId.of("Asia/Tokyo")
+            runCurrent()
+            assertEquals(LocalDate.of(2026, 7, 25), viewModel.uiState.value.today)
+            assertEquals(
+                LocalDate.of(2026, 7, 25),
+                viewModel.uiState.value.displayedDate,
+            )
+            val unchanged =
+                requireNotNull(
+                    fixture.tasks.readTaskWithClient(historical.id),
+                ).task
+            assertEquals(LocalDate.of(2026, 7, 23), unchanged.workDate)
+            assertEquals(NEW_YORK, unchanged.zoneId)
+
+            viewModel.onEvent(MainEvent.PreviousDate)
+            runCurrent()
+            val browsedDate = viewModel.uiState.value.displayedDate
+            fixture.zone.current = ZoneId.of("Pacific/Honolulu")
+            runCurrent()
+            assertEquals(browsedDate, viewModel.uiState.value.displayedDate)
+        }
+
+    @Test
+    fun resumeAfterDateRolloverFollowsTodayButPreservesBrowsing() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            fixture.clock.instant = NOW.plusSeconds(24 * 60 * 60)
+            viewModel.onEvent(MainEvent.LifecycleResumed)
+            runCurrent()
+            assertEquals(TODAY.plusDays(1), viewModel.uiState.value.today)
+            assertEquals(TODAY.plusDays(1), viewModel.uiState.value.displayedDate)
+
+            viewModel.onEvent(MainEvent.PreviousDate)
+            runCurrent()
+            val browsed = viewModel.uiState.value.displayedDate
+            fixture.clock.instant = fixture.clock.instant.plusSeconds(24 * 60 * 60)
+            viewModel.onEvent(MainEvent.LifecycleResumed)
+            runCurrent()
+            assertEquals(browsed, viewModel.uiState.value.displayedDate)
+        }
+
+    @Test
     fun repositoryBackedSelectionSurvivesViewModelRecreation() =
         runTest(mainDispatcherRule.dispatcher) {
             val fixture = Fixture()
@@ -267,6 +363,7 @@ class MainViewModelTest {
         val active = FakeActiveTimerRepository(tasks)
         val clock = FakeUtcClock(NOW)
         val zone = FakeZoneIdProvider(NEW_YORK)
+        val settings = FakeSettingsRepository()
         val monotonic = FakeMonotonicTimeSource()
         private val currentDateProvider = CurrentDateProvider(clock, zone)
         private val operationLock = TimerOperationLock()
@@ -318,6 +415,7 @@ class MainViewModelTest {
                 zoneIdProvider = zone,
                 currentDateProvider = currentDateProvider,
                 taskMutationCoordinator = taskMutationCoordinator,
+                settingsRepository = settings,
             )
 
         suspend fun addTask(

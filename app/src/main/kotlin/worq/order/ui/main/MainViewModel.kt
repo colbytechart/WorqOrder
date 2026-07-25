@@ -32,6 +32,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import worq.order.app.ApplicationContainer
 import worq.order.data.ActiveTimerRepository
+import worq.order.data.ExportDestination
+import worq.order.data.SettingsRepository
 import worq.order.data.TaskRepository
 import worq.order.domain.SelectTaskResult
 import worq.order.domain.SelectionCoordinator
@@ -79,6 +81,7 @@ private data class MainRawState(
     val isDatePickerVisible: Boolean = false,
     val openTaskMenuTaskId: String? = null,
     val taskPendingDeletionId: String? = null,
+    val exportDestination: ExportDestination = ExportDestination.CSV,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -93,6 +96,7 @@ class MainViewModel(
     private val zoneIdProvider: EffectiveZoneIdProvider,
     private val currentDateProvider: CurrentDateProvider,
     private val taskMutationCoordinator: TaskMutationCoordinator,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
     private val initialToday = currentDateProvider.today()
     private val rawState =
@@ -148,6 +152,8 @@ class MainViewModel(
         observeTasks()
         observeSelection()
         observeActiveTimer()
+        observeSettings()
+        observeEffectiveZoneId()
         refreshLifecycleState()
     }
 
@@ -179,6 +185,11 @@ class MainViewModel(
                 )
             MainEvent.OpenSettings ->
                 mutableEffects.tryEmit(MainEffect.NavigateToSettings)
+            MainEvent.Export -> {
+                if (rawState.value.exportDestination == ExportDestination.GOOGLE_SHEETS) {
+                    mutableEffects.tryEmit(MainEffect.NavigateToGoogleSheetsSettings)
+                }
+            }
             is MainEvent.OpenTaskMenu ->
                 rawState.update {
                     it.copy(
@@ -285,6 +296,44 @@ class MainViewModel(
             }.onEach { activeTimer ->
                 rawState.update { it.copy(activeTimer = activeTimer) }
             }.launchIn(viewModelScope)
+    }
+
+    private fun observeSettings() {
+        settingsRepository
+            .observeSettings()
+            .map { it.defaultExportDestination }
+            .distinctUntilChanged()
+            .onEach { destination ->
+                rawState.update {
+                    it.copy(exportDestination = destination)
+                }
+            }.launchIn(viewModelScope)
+    }
+
+    private fun observeEffectiveZoneId() {
+        zoneIdProvider
+            .observeZoneId()
+            .distinctUntilChanged()
+            .onEach { zoneId ->
+                updateEffectiveZone(zoneId)
+            }.launchIn(viewModelScope)
+    }
+
+    private fun updateEffectiveZone(zoneId: ZoneId) {
+        val newToday = utcClock.now().atZone(zoneId).toLocalDate()
+        rawState.update { state ->
+            state.copy(
+                displayedDate =
+                    if (state.displayedDate == state.today) {
+                        newToday
+                    } else {
+                        state.displayedDate
+                    },
+                today = newToday,
+                effectiveZoneId = zoneId,
+            )
+        }
+        refreshLifecycleState()
     }
 
     private suspend fun ensureLiveTimerRecovered(snapshot: ActiveTimerSnapshot) {
@@ -407,6 +456,7 @@ class MainViewModel(
     private fun refreshLifecycleState() {
         viewModelScope.launch {
             lifecycleRefreshMutex.withLock {
+                zoneIdProvider.awaitZoneId()
                 refreshClockContext()
                 val normalization =
                     runCatching {
@@ -444,6 +494,12 @@ class MainViewModel(
         }
         rawState.update {
             it.copy(
+                displayedDate =
+                    if (it.displayedDate == it.today) {
+                        today
+                    } else {
+                        it.displayedDate
+                    },
                 today = today,
                 effectiveZoneId = zoneId,
             )
@@ -462,8 +518,15 @@ class MainViewModel(
 
     private fun refreshClockContext() {
         rawState.update {
+            val today = currentDateProvider.today()
             it.copy(
-                today = currentDateProvider.today(),
+                displayedDate =
+                    if (it.displayedDate == it.today) {
+                        today
+                    } else {
+                        it.displayedDate
+                    },
+                today = today,
                 effectiveZoneId = zoneIdProvider.zoneId(),
             )
         }
@@ -614,7 +677,8 @@ class MainViewModel(
             openTaskMenuTaskId = openTaskMenuTaskId,
             taskPendingDeletion =
                 taskItems.firstOrNull { it.id == taskPendingDeletionId },
-            canExport = false,
+            canExport = exportDestination == ExportDestination.GOOGLE_SHEETS,
+            exportDestination = exportDestination,
         )
     }
 
@@ -649,6 +713,7 @@ class MainViewModel(
                 zoneIdProvider = container.zoneIdProvider,
                 currentDateProvider = container.currentDateProvider,
                 taskMutationCoordinator = container.taskMutationCoordinator,
+                settingsRepository = container.settingsRepository,
             ) as T
         }
     }

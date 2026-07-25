@@ -11,13 +11,19 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import worq.order.data.ActiveTimerRepository
+import worq.order.data.AppSettings
 import worq.order.data.CreateActiveIntervalResult
 import worq.order.data.CreateDailyTaskResult
 import worq.order.data.DeleteTaskResult
 import worq.order.data.ManualIntervalPersistenceResult
 import worq.order.data.NewDailyTask
+import worq.order.data.ExportDestination
 import worq.order.data.SelectedTaskRepository
 import worq.order.data.SelectedTaskState
+import worq.order.data.SettingsRepository
+import worq.order.data.ThemeMode
+import worq.order.data.TimeZoneMode
+import worq.order.data.TimeZoneSettingResult
 import worq.order.data.TaskRepository
 import worq.order.data.TimerSplitBoundary
 import worq.order.data.UpdateTaskMetadataResult
@@ -46,9 +52,62 @@ class FakeMonotonicTimeSource(
 }
 
 class FakeZoneIdProvider(
-    var current: ZoneId,
+    initial: ZoneId,
 ) : EffectiveZoneIdProvider {
-    override fun zoneId(): ZoneId = current
+    private val state = MutableStateFlow(initial)
+
+    var current: ZoneId
+        get() = state.value
+        set(value) {
+            state.value = value
+        }
+
+    override fun zoneId(): ZoneId = state.value
+
+    override fun observeZoneId(): Flow<ZoneId> = state
+}
+
+class FakeSettingsRepository(
+    initial: AppSettings = AppSettings(),
+) : SettingsRepository {
+    private val state = MutableStateFlow(initial)
+
+    override fun observeSettings(): Flow<AppSettings> = state
+
+    override suspend fun readSettings(): AppSettings = state.value
+
+    override suspend fun setThemeMode(themeMode: ThemeMode) {
+        state.value = state.value.copy(themeMode = themeMode)
+    }
+
+    override suspend fun setTimeZoneMode(
+        timeZoneMode: TimeZoneMode,
+    ): TimeZoneSettingResult {
+        val current = state.value
+        if (timeZoneMode == TimeZoneMode.MANUAL && current.manualZoneId == null) {
+            return TimeZoneSettingResult.InvalidManualZone
+        }
+        val updated = current.copy(timeZoneMode = timeZoneMode)
+        state.value = updated
+        return TimeZoneSettingResult.Updated(updated)
+    }
+
+    override suspend fun setManualZoneId(zoneId: ZoneId): TimeZoneSettingResult {
+        val updated =
+            state.value.copy(
+                timeZoneMode = TimeZoneMode.MANUAL,
+                manualZoneId = zoneId,
+            )
+        state.value = updated
+        return TimeZoneSettingResult.Updated(updated)
+    }
+
+    override suspend fun setDefaultExportDestination(
+        destination: ExportDestination,
+    ) {
+        state.value =
+            state.value.copy(defaultExportDestination = destination)
+    }
 }
 
 class FakeSelectedTaskRepository(

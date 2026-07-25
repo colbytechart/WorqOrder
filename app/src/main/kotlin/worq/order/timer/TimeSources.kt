@@ -3,6 +3,8 @@ package worq.order.timer
 import android.os.SystemClock
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 fun interface MonotonicTimeSource {
     fun elapsedRealtimeNanos(): Long
@@ -14,6 +16,10 @@ object AndroidMonotonicTimeSource : MonotonicTimeSource {
 
 fun interface EffectiveZoneIdProvider {
     fun zoneId(): ZoneId
+
+    fun observeZoneId(): Flow<ZoneId> = flowOf(zoneId())
+
+    suspend fun awaitZoneId(): ZoneId = zoneId()
 }
 
 object DeviceZoneIdProvider : EffectiveZoneIdProvider {

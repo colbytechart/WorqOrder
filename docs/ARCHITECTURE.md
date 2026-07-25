@@ -66,15 +66,14 @@ Do not add one “use case” class per repository getter. Add named domain serv
 ## 4. Application container
 
 `WorqOrderApplication` owns one lazily constructed application-scoped container. As of Milestone
-6, the container constructs one retained `WorqOrderDatabase`, Room-backed client/task/active-timer
-repositories, the selection-only Preferences DataStore repository, UTC/device-zone/elapsed
+7, the container constructs one retained `WorqOrderDatabase`, Room-backed client/task/active-timer
+repositories, typed settings and selection Preferences DataStore repositories, UTC/device/manual-zone/elapsed
 realtime adapters, one shared timer-operation mutex, one process-local live timer session,
 `SelectionCoordinator`, `TimerCoordinator`, `ActiveTimerNormalizer`, and
 `TaskMutationCoordinator`.
 
 Later milestones extend the same boundary with:
 
-- repositories/providers for remaining typed settings and manual effective ZoneId mode;
 - export-row builder and CSV serializer;
 - document-output adapter;
 - Google authorization coordinator and `GoogleSheetsGateway`; and
@@ -122,7 +121,7 @@ The visible ticker runs only while collected and an interval is active. It emits
 - `ActiveTimerRepository`: observes/reads the singleton and delegates atomic open, multi-boundary
   continuation, retarget, and final close operations to `ActiveTimerDao`. Eligibility and boundary
   calculation remain outside the DAO.
-- `SettingsRepository`: typed Flow access to theme, zone mode/manual ID, default export, spreadsheet metadata, and last export status.
+- `SettingsRepository`: implemented typed Flow access to theme, zone mode/manual ID, and default export. Spreadsheet metadata and last export status extend it in later export/Google milestones.
 - `SelectedTaskRepository`: implemented in Preferences DataStore with task/series hints plus the
   effective selection date/zone needed to distinguish real daily carryover from intentional
   historical browsing. It stores no task or interval truth.
@@ -192,10 +191,12 @@ Detailed algorithms and anomaly policy are in `TIMER_AND_DATE_RULES.md`.
 
 ### Preferences DataStore
 
-Milestone 3 implements only atomic timing-selection preferences: task ID, series ID, effective
-selection date, and selection ZoneId. Theme, time-zone mode/manual ID, export default, spreadsheet
-metadata, and last export outcome remain Milestone 7 or later. DataStore does not contain task
-rows, interval state, passwords, service-account material, raw access tokens, or refresh tokens.
+DataStore stores atomic timing-selection preferences (task ID, series ID, effective selection date,
+and selection ZoneId) plus typed theme, time-zone mode/manual ID, and export-default values.
+Spreadsheet metadata and last export outcome remain later milestones. Domain operations that can
+create daily copies or intervals wait for the first persisted effective-zone emission. DataStore
+does not contain task rows, active-timer state, passwords, service-account material, raw access
+tokens, or refresh tokens.
 
 ### File output
 

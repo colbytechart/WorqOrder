@@ -83,6 +83,7 @@ class SelectionCoordinator(
 
     suspend fun selectTask(taskId: String): SelectTaskResult =
         mutex.withLock {
+            zoneIdProvider.awaitZoneId()
             val activeTimer = activeTimerRepository.readActiveTimer()
             if (activeTimer != null && activeTimer.taskId != taskId) {
                 return@withLock SelectTaskResult.LockedByActiveTimer(
@@ -115,6 +116,7 @@ class SelectionCoordinator(
 
     suspend fun reconcileForToday(): SelectionReconciliationResult =
         mutex.withLock {
+            zoneIdProvider.awaitZoneId()
             activeTimerRepository.readActiveTimer()?.let { activeTimer ->
                 val runningTask =
                     taskRepository.readTaskWithClient(activeTimer.taskId)?.task
@@ -157,7 +159,10 @@ class SelectionCoordinator(
                 return@withLock SelectionReconciliationResult.AlreadyCurrent
             }
 
-            if (selection.selectedOnDate >= today) {
+            if (
+                source.workDate != selection.selectedOnDate ||
+                source.zoneId != selection.selectedInZone
+            ) {
                 return@withLock SelectionReconciliationResult.HistoricalSelectionPreserved
             }
 

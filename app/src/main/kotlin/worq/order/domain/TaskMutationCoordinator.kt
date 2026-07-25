@@ -87,6 +87,7 @@ class TaskMutationCoordinator(
         hardwareSoftwarePurchases: String,
         workDate: LocalDate,
     ): CreateTaskOperationResult {
+        zoneIdProvider.awaitZoneId()
         val metadata =
             when (
                 val validation =

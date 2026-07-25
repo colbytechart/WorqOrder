@@ -107,7 +107,8 @@ Given an open segment starting at `segmentStart` and a normalization endpoint `n
 2. Compute `nextBoundary = segmentDate.plusDays(1).atStartOfDay(zone).toInstant()`.
 3. While `nextBoundary < now` (or `<= now` when normalizing without immediately stopping):
    - close the current segment at `nextBoundary`;
-   - find/create the next date's task with the same series ID, copied client/description, and the pinned boundary ZoneId;
+   - find/create the next date's task with the same series ID, copied client, short description,
+     and hardware/software-purchases text, and the pinned boundary ZoneId;
    - create the next interval at `nextBoundary`, open unless another boundary/end is known;
    - assign a new stable interval ID and next ordinal on that daily task;
    - retarget `active_timer` to the new open interval;
@@ -134,7 +135,9 @@ on which the timing selection was made, and its effective ZoneId.
 1. Read the preferred series and its last concrete daily task.
 2. Calculate today with the effective zone.
 3. Query `(seriesId, todayEpochDay, effectiveZoneId)`.
-4. If missing, insert a task that copies the source daily task's current client and description, stores today's epoch day and the effective ZoneId, and keeps the series ID. Do not repurpose a same-date copy whose stored assignment zone differs.
+4. If missing, insert a task that copies the source daily task's current client, short description,
+   and hardware/software-purchases text, stores today's epoch day and the effective ZoneId, and
+   keeps the series ID. Do not repurpose a same-date copy whose stored assignment zone differs.
 5. On a uniqueness race, query and use the already-inserted row.
 6. Persist the new concrete task selection.
 

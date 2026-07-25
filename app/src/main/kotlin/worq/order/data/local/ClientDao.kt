@@ -44,6 +44,20 @@ abstract class ClientDao {
         excludingClientId: String?,
     ): ClientEntity?
 
+    @Query(
+        """
+        SELECT *
+        FROM clients
+        WHERE is_active = 0
+          AND canonical_name = :canonicalName
+        ORDER BY created_at_epoch_ms ASC, id ASC
+        LIMIT 1
+        """,
+    )
+    abstract suspend fun findArchivedClientByNormalizedName(
+        canonicalName: String,
+    ): ClientEntity?
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract suspend fun addClient(client: ClientEntity)
 

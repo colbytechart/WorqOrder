@@ -8,6 +8,10 @@ sealed interface ClientMutationResult {
         val client: Client,
     ) : ClientMutationResult
 
+    data class MatchingArchivedClient(
+        val client: Client,
+    ) : ClientMutationResult
+
     data class InvalidName(
         val reason: ClientNameValidationError,
     ) : ClientMutationResult

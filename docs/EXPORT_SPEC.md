@@ -38,21 +38,22 @@ Columns appear in this exact order:
 | 6 | Client Name | retained current client name |
 | 7 | Task ID | stable daily-task UUID |
 | 8 | Task Series ID | stable series UUID |
-| 9 | Description | task description |
-| 10 | Interval ID | UUID or blank for zero-interval task |
-| 11 | Interval Number | stable positive ordinal or blank |
-| 12 | Interval State | `COMPLETED`, `RUNNING`, or `NO_INTERVAL` |
-| 13 | Start Local | ISO zoned date-time including offset and zone, or blank |
-| 14 | Stop Local | ISO zoned date-time including offset and zone, or blank |
-| 15 | Start UTC | ISO-8601 instant or blank |
-| 16 | Stop UTC | ISO-8601 instant or blank |
-| 17 | Interval Duration Milliseconds | integer; running uses export snapshot; blank for no interval |
-| 18 | Interval Duration Formatted | accumulated `HH:MM:SS.mmm`; blank for no interval |
-| 19 | Task Total Duration Milliseconds | integer total at export snapshot |
-| 20 | Task Total Duration Formatted | accumulated `HH:MM:SS.mmm` |
-| 21 | Task Created UTC | ISO-8601 instant |
-| 22 | Task Updated UTC | ISO-8601 instant |
-| 23 | Interval Manually Edited | `true`/`false`, blank for no interval |
+| 9 | Description | short task description |
+| 10 | Hardware / Software Purchases | optional task text; blank when none |
+| 11 | Interval ID | UUID or blank for zero-interval task |
+| 12 | Interval Number | stable positive ordinal or blank |
+| 13 | Interval State | `COMPLETED`, `RUNNING`, or `NO_INTERVAL` |
+| 14 | Start Local | ISO zoned date-time including offset and zone, or blank |
+| 15 | Stop Local | ISO zoned date-time including offset and zone, or blank |
+| 16 | Start UTC | ISO-8601 instant or blank |
+| 17 | Stop UTC | ISO-8601 instant or blank |
+| 18 | Interval Duration Milliseconds | integer; running uses export snapshot; blank for no interval |
+| 19 | Interval Duration Formatted | accumulated `HH:MM:SS.mmm`; blank for no interval |
+| 20 | Task Total Duration Milliseconds | integer total at export snapshot |
+| 21 | Task Total Duration Formatted | accumulated `HH:MM:SS.mmm` |
+| 22 | Task Created UTC | ISO-8601 instant |
+| 23 | Task Updated UTC | ISO-8601 instant |
+| 24 | Interval Manually Edited | `true`/`false`, blank for no interval |
 
 Local timestamps use the task's stored ZoneId and include the resolved UTC offset so fall-back times are unambiguous. UTC values use `Instant.toString()` semantics. Numeric milliseconds are base-10 with no grouping. Empty optional values are empty fields, not the strings `null` or `N/A`.
 
@@ -72,7 +73,7 @@ Rows sort by task creation instant, task ID, interval start (null last), interva
 - On output failure after creation, close the stream, attempt deletion only through the granted document API when supported, and report that a partial provider document may remain if deletion is unsupported.
 - Repeating export is permitted. `ACTION_CREATE_DOCUMENT` may disambiguate an existing filename; do not overwrite unrelated files silently.
 
-CSV faithfully preserves client/description text. Some spreadsheet programs interpret cells beginning with `=`, `+`, `-`, or `@` as formulas when opening CSV. RFC quoting does not prevent that behavior. Silently prefixing text would change exported data, so formula-injection transformation is not part of schema version 1; flag it in release security review and document safe import behavior.
+CSV faithfully preserves client, description, and hardware/software-purchases text. Some spreadsheet programs interpret cells beginning with `=`, `+`, `-`, or `@` as formulas when opening CSV. RFC quoting does not prevent that behavior. Silently prefixing text would change exported data, so formula-injection transformation is not part of schema version 1; flag it in release security review and document safe import behavior.
 
 ## 5. CSV destination resolution
 
@@ -107,7 +108,7 @@ Disconnect clears local ID/title association only. Sign-out invokes the supporte
 
 ### Authentication and authorization choice
 
-Identity and Sheets authorization are distinct. Before Milestone 6, re-read current official Google documentation and select stable releases only. The planned behavior is:
+Identity and Sheets authorization are distinct. Before Milestone 9, re-read current official Google documentation and select stable releases only. The planned behavior is:
 
 - use the current Google-supported Android account/identity UI for user sign-in/account choice;
 - use the Google Identity authorization client to request permission to call Sheets;
@@ -143,7 +144,7 @@ Reserved layout:
 | `C1` | work date `YYYY-MM-DD` |
 | `A2` | label `Exported At UTC` |
 | `B2` | snapshot instant |
-| row 4 | the 23 exact column headers |
+| row 4 | the 24 exact column headers |
 | row 5 onward | logical export rows |
 
 Rows 1–3 and the table are application-owned. Users are warned that edits inside a marked tab will be replaced on the next export. Other tabs are never touched.
@@ -166,7 +167,9 @@ Rows 1–3 and the table are application-owned. Users are warned that edits insi
 
 Replacement, not append-only merging, is authoritative. This resolves contradictory earlier append wording and ensures edits, deleted intervals, deleted tasks, and changed metadata are reflected without duplicates. Repeating unchanged export produces the same logical tab contents apart from the explicit export timestamp.
 
-Use raw cell values so client/description text is not evaluated as formulas. IDs/timestamps are strings; duration milliseconds can be numeric. Do not create a new spreadsheet document at export.
+Use raw cell values so client, description, and hardware/software-purchases text fields are not
+evaluated as formulas. IDs/timestamps are strings; duration milliseconds can be numeric. Do not
+create a new spreadsheet document at export.
 
 ## 8. Google failure behavior
 
@@ -208,7 +211,7 @@ An OAuth Android client identifier is not a password, but it must still be restr
 Tests must prove:
 
 - exact schema/header/order and zero-task/zero-interval behavior;
-- commas, quotes, CR/LF, Unicode, long hours, DST-offset local timestamps;
+- commas, quotes, CR/LF, Unicode, both task text fields, long hours, DST-offset local timestamps;
 - one consistent snapshot for a running interval;
 - picker cancellation writes nothing;
 - serializer/output failures do not claim success;

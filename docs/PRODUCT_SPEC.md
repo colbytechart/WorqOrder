@@ -16,7 +16,7 @@ Task tracking, editing, client management, timer recovery, and CSV row generatio
 ### Included
 
 - Native Kotlin Android application using Compose and Material 3.
-- Daily task creation, selection, editing, confirmation-based deletion, and interval editing.
+- Daily task creation, selection, metadata editing, confirmation-based deletion, and interval editing.
 - One globally active timer with activity/process recovery and local-midnight splitting.
 - Active and archived client management.
 - Device or manually chosen geographical time zone.
@@ -40,6 +40,7 @@ Task tracking, editing, client management, timer recovery, and CSV row generatio
 - **Displayed date:** the date selected on the main screen. It filters the task list and is always the export date.
 - **Today:** `Clock.now()` interpreted in the currently effective application `ZoneId`.
 - **Daily task:** one task record for one work date. Corresponding records on other dates share a task-series ID.
+- **Hardware / Software Purchases:** optional free-form task metadata for listing hardware and software purchases associated with a daily task.
 - **Interval:** a start instant and optional stop instant belonging to one daily task.
 - **Open interval:** the sole interval with no stop instant, referenced by the singleton active-timer record.
 - **Connected spreadsheet:** the one validated Google spreadsheet ID stored in settings. A connection is not a sync relationship.
@@ -95,7 +96,8 @@ A plus/FAB opens a task-creation screen or accessible dialog containing:
 
 - a client selector of alphabetically sorted active clients;
 - an inline **Add client** action using the same validation/repository path as Settings;
-- a required description, trimmed, maximum 200 characters;
+- a required short description, trimmed, maximum 400 characters;
+- an optional text field labeled **Hardware / Software Purchases**, trimmed when nonblank, maximum 400 characters; and
 - **Create** and **Cancel** actions.
 
 Create validates and writes one daily task. If its work date is today, it becomes selected. Cancel writes nothing. Creating on a historical or future displayed date returns to that date but does not change the live-timing selection merely because it was created.
@@ -123,11 +125,12 @@ Archive, not delete, removes a client from new-task selectors. The retained clie
 
 ## 6. Tasks and interval editing
 
-A task-edit screen changes the daily task's client/description and lists intervals chronologically. It supports editing start/stop, deleting an interval, and may support manually adding an interval if implemented in the same milestone.
+A task-edit screen changes the daily task's client, short description, and **Hardware / Software Purchases** text and lists intervals chronologically. It supports editing start/stop, deleting an interval, and may support manually adding an interval if implemented in the same milestone.
 
 Validation rejects:
 
-- blank or over-200-character descriptions;
+- blank or over-400-character short descriptions;
+- over-400-character **Hardware / Software Purchases** text; this optional field may be blank;
 - a start at or after stop;
 - overlap with another interval for that task;
 - an interval outside the start/end instants of the task's stored work date and zone;
@@ -157,7 +160,7 @@ Disconnecting a spreadsheet clears its ID/title association but does not delete 
 - Preferences DataStore holds preferences and selection hints, not task records or raw OAuth/access/refresh tokens.
 - Versioned, non-destructive migrations and Room schema exports begin at database version 1.
 - Selection persists as a preferred task-series ID plus the last concrete daily-task ID. Invalid references are repaired safely.
-- When the effective local date advances, the selected series lazily finds or creates its new daily task using `(series ID, work date, assignment ZoneId)` uniqueness, copies the prior daily task's current client/description, and becomes selected. The zone context prevents a future task assigned under a different zone from being silently repurposed.
+- When the effective local date advances, the selected series lazily finds or creates its new daily task using `(series ID, work date, assignment ZoneId)` uniqueness, copies the prior daily task's current client, short description, and hardware/software-purchases text, and becomes selected. The zone context prevents a future task assigned under a different zone from being silently repurposed.
 
 ## 9. Export behavior summary
 
@@ -179,7 +182,7 @@ The three supplied images are visual concepts, not pixel-perfect requirements. T
 | Date controls show arrows/calendar plus `+` and `-`, with no visible date | The date must be labeled; add task is separate; minus is not a deletion affordance for the whole list. | Add a prominent date label, keep previous/next/calendar, use one labeled/accessible FAB for Add Task, and remove the ambiguous minus. |
 | Rows emphasize client and clock ranges | Rows must also show description, total duration, selected/running state. | Use client + description as primary metadata and total duration as trailing content; optionally show a time range as secondary detail. |
 | Bottom button says “submit” | Destination and displayed date are ambiguous. | Use the date/destination-specific export labels. |
-| New-task dialog says “ok,” lacks Add Client | Required actions and validation are less clear. | Label **Create**/**Cancel** and add inline **Add client**. Keep the useful character count; set limit to 200. |
+| New-task dialog says “ok,” lacks Add Client, and has no purchases field | Required actions and validation are less clear. | Label **Create**/**Cancel**, add inline **Add client**, and add **Hardware / Software Purchases** as a second text field. Show a character count for each text field with a 400-character limit. |
 | Settings uses a fixed-offset “Eastern Time” label | Fixed offsets fail DST and the product requires geographical IDs. | Show `America/New_York` (with a friendly label optionally), never store only `UTC-05:00`. |
 | “Dark mode” toggle only | Explicit Light and Dark are required. | Use a two-choice segmented/radio control; optional System is third. |
 | Export default appears as “Connected Google Sheet” | Connection state and default destination are distinct. | Separate destination choice from account/spreadsheet connection status and controls. |

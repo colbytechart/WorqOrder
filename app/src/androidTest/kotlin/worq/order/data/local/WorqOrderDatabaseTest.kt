@@ -122,6 +122,100 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
+    fun addingMatchingArchivedClientOffersRestoreInsteadOfCreatingDuplicate() =
+        runBlocking {
+            database.clientDao().addClient(
+                clientEntity(
+                    id = "archived-client",
+                    name = "Acme Corp",
+                    canonicalName = "acme corp",
+                ).copy(
+                    activeNameKey = null,
+                    isActive = false,
+                    archivedAtEpochMs = 2_000,
+                ),
+            )
+            val repository =
+                RoomClientRepository(
+                    clientDao = database.clientDao(),
+                    idGenerator = QueueIdGenerator("must-not-be-used"),
+                    clock = FixedClock(TEST_NOW),
+                )
+
+            val result = repository.addClient("  ACME\t corp ")
+
+            assertTrue(result is ClientMutationResult.MatchingArchivedClient)
+            assertEquals(
+                "archived-client",
+                (result as ClientMutationResult.MatchingArchivedClient).client.id,
+            )
+            assertEquals(1, database.clientDao().observeAllClients().first().size)
+        }
+
+    @Test
+    fun renameUpdatesHistoricalTaskJoinWithoutRewritingTask() =
+        runBlocking {
+            insertClient(id = "client-1", name = "Original Name")
+            insertTask(id = "task-1", clientId = "client-1")
+            val taskBefore = requireNotNull(database.taskDao().readTask("task-1"))
+            val repository =
+                RoomClientRepository(
+                    clientDao = database.clientDao(),
+                    idGenerator = QueueIdGenerator(),
+                    clock = FixedClock(TEST_NOW),
+                )
+
+            val result = repository.renameClient("client-1", " Updated   Name ")
+            val joined = requireNotNull(database.taskDao().readTaskWithClient("task-1"))
+
+            assertTrue(result is ClientMutationResult.Success)
+            assertEquals("Updated Name", joined.clientName)
+            assertEquals(taskBefore, database.taskDao().readTask("task-1"))
+        }
+
+    @Test
+    fun renameAndRestoreRejectActiveNormalizedNameConflicts() =
+        runBlocking {
+            insertClient(id = "active-acme", name = "Acme", canonicalName = "acme")
+            insertClient(id = "active-beta", name = "Beta", canonicalName = "beta")
+            database.clientDao().addClient(
+                clientEntity(
+                    id = "archived-acme",
+                    name = "ACME",
+                    canonicalName = "acme",
+                ).copy(
+                    activeNameKey = null,
+                    isActive = false,
+                    archivedAtEpochMs = 2_000,
+                ),
+            )
+            val repository =
+                RoomClientRepository(
+                    clientDao = database.clientDao(),
+                    idGenerator = QueueIdGenerator(),
+                    clock = FixedClock(TEST_NOW),
+                )
+
+            assertEquals(
+                ClientMutationResult.DuplicateActiveName("active-acme"),
+                repository.renameClient("active-beta", " ACME "),
+            )
+            assertEquals(
+                ClientMutationResult.DuplicateActiveName("active-acme"),
+                repository.restoreClient("archived-acme"),
+            )
+            assertEquals(
+                "Beta",
+                database.clientDao().readClient("active-beta")?.name,
+            )
+            assertFalse(
+                requireNotNull(
+                    database.clientDao().readClient("archived-acme"),
+                ).isActive,
+            )
+        }
+
+    @Test
     fun archivingClientPreservesHistoricalTaskJoin() =
         runBlocking {
             insertClient(id = "client-1", name = "Historical Client")
@@ -142,6 +236,42 @@ class WorqOrderDatabaseTest {
             assertFalse(requireNotNull(joinedTask).clientIsActive)
             assertTrue(database.clientDao().observeActiveClients().first().isEmpty())
             assertEquals(1, database.clientDao().observeAllClients().first().size)
+        }
+
+    @Test
+    fun clientRenameAndArchiveDoNotDisturbRelatedRunningTimer() =
+        runBlocking {
+            insertClient(id = "client-1", name = "Running Client")
+            insertTask(id = "task-1", clientId = "client-1")
+            database.activeTimerDao().createActiveIntervalAndTimer(
+                intervalId = "active-interval",
+                taskId = "task-1",
+                boundaryZoneId = TEST_ZONE.id,
+                startEpochMs = 1_000,
+                createdAtEpochMs = 1_000,
+            )
+            val repository =
+                RoomClientRepository(
+                    clientDao = database.clientDao(),
+                    idGenerator = QueueIdGenerator(),
+                    clock = FixedClock(TEST_NOW),
+                )
+
+            assertTrue(
+                repository.renameClient("client-1", "Renamed Client") is
+                    ClientMutationResult.Success,
+            )
+            assertTrue(
+                repository.archiveClient("client-1") is
+                    ClientMutationResult.Success,
+            )
+
+            val active = requireNotNull(database.activeTimerDao().readActiveTimer())
+            val joined = requireNotNull(database.taskDao().readTaskWithClient("task-1"))
+            assertEquals("active-interval", active.intervalId)
+            assertEquals("task-1", active.taskId)
+            assertEquals("Renamed Client", joined.clientName)
+            assertFalse(joined.clientIsActive)
         }
 
     @Test

@@ -48,7 +48,8 @@ Client deletion is not exposed. The task foreign key uses `ON DELETE RESTRICT` a
 | `id` | TEXT PK | stable daily-task UUID |
 | `series_id` | TEXT | stable UUID shared by corresponding dates |
 | `client_id` | TEXT FK | references `clients.id`, delete restricted |
-| `description` | TEXT | trimmed, 1–200 characters |
+| `description` | TEXT | trimmed short description, 1–400 characters |
+| `hardware_software_purchases` | TEXT | optional trimmed free-form text, 0–400 characters; empty string means none |
 | `work_date_epoch_day` | INTEGER | assigned `LocalDate` |
 | `zone_id` | TEXT | valid ZoneId used for this assignment |
 | `created_at_epoch_ms` | INTEGER | UTC epoch millis |
@@ -59,9 +60,14 @@ Constraints/indexes:
 - Unique `(series_id, work_date_epoch_day, zone_id)` prevents duplicate rollover copies in one date-rule context. A same-series/same-date task assigned under a different geographical zone remains distinct rather than having its historical zone silently changed.
 - Index `(work_date_epoch_day)` supports the main list.
 - Index `(client_id)` supports joins and client history.
-- Description nonblank/length is primarily a domain constraint; migrations may add compatible SQLite checks when Room schema support is proven.
+- Short-description and purchases-text validation is primarily a domain constraint; migrations may add compatible SQLite checks when Room schema support is proven.
 
-Changing client/description changes only this daily task. A later rollover copies the changed values. Deleting a daily task cascades to its intervals, does not affect clients, and does not affect another row with the same series ID.
+Changing client, short description, or hardware/software-purchases text changes only this daily task. A later rollover copies the changed values. Deleting a daily task cascades to its intervals, does not affect clients, and does not affect another row with the same series ID.
+
+The `hardware_software_purchases` column is introduced by the planned version-2 migration in
+Milestone 6. It is non-null with `DEFAULT ''` so every version-1 daily task migrates without
+inventing purchase data. The 400-character limits are enforced through the shared task-metadata
+validator rather than a destructive table replacement.
 
 ## 5. `work_intervals`
 
@@ -124,7 +130,7 @@ Room projection `TaskListItemEntity` joins task/client and computes:
 completed total = SUM(max(stop_epoch_ms - start_epoch_ms, 0)) for completed intervals
 ```
 
-The running contribution is added in the domain/UI layer from the active interval and the display time source. No total-duration column is stored, preventing cache drift. `TaskWithOrderedIntervalsEntity` retrieves task/client metadata and all intervals ordered by `start_epoch_ms`, then ordinal and ID.
+The running contribution is added in the domain/UI layer from the active interval and the display time source. No total-duration column is stored, preventing cache drift. `TaskWithOrderedIntervalsEntity` retrieves task/client metadata, including hardware/software-purchases text, and all intervals ordered by `start_epoch_ms`, then ordinal and ID.
 
 ## 8. Preferences DataStore schema
 
@@ -184,6 +190,17 @@ Implemented version-1 details:
 - committed schema path: `app/schemas/worq.order.data.local.WorqOrderDatabase/1.json`;
 - production construction uses `Room.databaseBuilder` without startup deletion, seeding, or destructive fallback; and
 - there is no `0 -> 1` migration because version 1 is the first schema. The first schema change must add an explicit forward migration and migration instrumentation test.
+
+Planned first schema evolution:
+
+- Milestone 6 increments Room to version 2 and adds
+  `daily_tasks.hardware_software_purchases TEXT NOT NULL DEFAULT ''`;
+- existing task IDs, series IDs, client relationships, descriptions, dates, zones, timestamps,
+  intervals, and active-timer state remain unchanged;
+- the migration exports
+  `app/schemas/worq.order.data.local.WorqOrderDatabase/2.json`; and
+- a populated `1 -> 2` migration instrumentation test verifies the empty default for existing
+  tasks and preservation of every pre-existing relationship and timer invariant.
 
 ## 12. Deliberate non-models
 

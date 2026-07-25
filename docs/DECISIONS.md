@@ -94,7 +94,10 @@ Export/commit Room schemas from version 1, write explicit migrations and instrum
 
 ### D-021 — Validation limits
 
-Client names are maximum 100 characters and canonicalized with trim, repeated-whitespace collapse, and locale-independent case normalization. Task descriptions are maximum 200 characters, matching the useful character-count cue in the concept.
+Client names are maximum 100 characters and canonicalized with trim, repeated-whitespace collapse,
+and locale-independent case normalization. A task's required short description and optional
+hardware/software-purchases text are each maximum 400 characters. Both are trimmed; the short
+description cannot be blank, while purchases text may be blank.
 
 ### D-022 — Client rename semantics
 
@@ -204,6 +207,29 @@ Repeated timing always creates separate intervals. The clarified example is auth
 Task 1 has 9:00–10:00 AM and 1:00–2:00 PM intervals (two total hours); Task 2 has a
 10:30–11:00 AM interval (thirty minutes). Reselecting Task 1 displays its existing one-hour total
 before its second Start.
+
+### D-039 — Client changes while timing
+
+Renaming or archiving a client is allowed while a related task is running. Both operations retain
+the same client row and stable client ID, so the daily task foreign key, active interval, and timer
+identity remain intact. Renaming changes the referenced display name; archiving only removes the
+client from future new-task selectors while historical and running-task resolution continues.
+
+Consequences: client management does not need to stop or rewrite a timer. Restoring remains subject
+to active canonical-name uniqueness, and no client-management action hard-deletes a client.
+
+### D-040 — Hardware and software purchases task metadata
+
+Each daily task has a second free-form text field labeled **Hardware / Software Purchases** in
+addition to its required short description. The purchases field is optional and has no structured
+currency, quantity, attachment, or inventory behavior. It is stored on the daily task, editable
+through the same task create/edit workflow, copied with the other current metadata during
+selection rollover and midnight continuation, and included in both export destinations.
+
+Consequences: Milestone 6 owns the form/repository/domain integration and an explicit Room
+version-1-to-version-2 migration that gives existing tasks an empty purchases value. Milestones 8
+and 11 include the field in their shared logical export schema. No implementation is performed as
+part of this documentation decision.
 
 ## Deferred decisions
 

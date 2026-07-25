@@ -13,11 +13,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import worq.order.ui.clients.ClientManagementScreen
+import worq.order.ui.clients.ClientManagementViewModel
 import worq.order.ui.main.MainEffect
 import worq.order.ui.main.MainScreen
 import worq.order.ui.main.MainViewModel
 import worq.order.ui.settings.SettingsScreen
 import worq.order.ui.tasks.CreateTaskScreen
+import worq.order.ui.tasks.CreateTaskViewModel
 import worq.order.ui.tasks.EditTaskScreen
 
 @Composable
@@ -54,7 +56,21 @@ fun WorqOrderApp() {
             )
         }
         composable(AppRoutes.CREATE_TASK) {
-            CreateTaskScreen(onNavigateBack = navController::popBackStack)
+            val application =
+                LocalContext.current.applicationContext as WorqOrderApplication
+            val factory =
+                remember(application) {
+                    CreateTaskViewModel.Factory(
+                        clientRepository = application.container.clientRepository,
+                    )
+                }
+            val viewModel: CreateTaskViewModel = viewModel(factory = factory)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            CreateTaskScreen(
+                uiState = uiState,
+                onEvent = viewModel::onEvent,
+                onNavigateBack = navController::popBackStack,
+            )
         }
         composable(
             route = AppRoutes.EDIT_TASK,
@@ -82,7 +98,21 @@ fun WorqOrderApp() {
             )
         }
         composable(AppRoutes.CLIENT_MANAGEMENT) {
-            ClientManagementScreen(onNavigateBack = navController::popBackStack)
+            val application =
+                LocalContext.current.applicationContext as WorqOrderApplication
+            val factory =
+                remember(application) {
+                    ClientManagementViewModel.Factory(
+                        clientRepository = application.container.clientRepository,
+                    )
+                }
+            val viewModel: ClientManagementViewModel = viewModel(factory = factory)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            ClientManagementScreen(
+                uiState = uiState,
+                onEvent = viewModel::onEvent,
+                onNavigateBack = navController::popBackStack,
+            )
         }
     }
 }

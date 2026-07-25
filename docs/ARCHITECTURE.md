@@ -116,8 +116,9 @@ The visible ticker runs only while collected and an interval is active. It emits
 
 - `ClientRepository`: implemented in Milestone 2 with active/all-client `Flow` observations and add, rename, archive, and restore operations using one canonical-name validator. It returns typed invalid-name, duplicate-active-name, and not-found outcomes.
 - `TaskRepository`: observes dates/tasks, fetches joined/detail models, atomically finds or creates
-  an exact `(series, date, zone)` copy from current source metadata, creates/updates/deletes daily
-  tasks, inserts completed intervals, and exposes ordered validation history and completed totals.
+  an exact `(series, date, zone)` copy from current source metadata (client, short description, and
+  hardware/software-purchases text), creates/updates/deletes daily tasks, inserts completed
+  intervals, and exposes ordered validation history and completed totals.
 - `ActiveTimerRepository`: observes/reads the singleton and delegates atomic open, multi-boundary
   continuation, retarget, and final close operations to `ActiveTimerDao`. Eligibility and boundary
   calculation remain outside the DAO.
@@ -178,6 +179,10 @@ Detailed algorithms and anomaly policy are in `TIMER_AND_DATE_RULES.md`.
 - Foreign keys are explicit and enabled by Room.
 - Version 1 schema is exported to `app/schemas/worq.order.data.local.WorqOrderDatabase/1.json`.
 - The four version-1 entities are `clients`, `daily_tasks`, `work_intervals`, and `active_timer`.
+- Milestone 6 evolves the database to version 2 by adding non-null
+  `daily_tasks.hardware_software_purchases` with an empty-string default for existing rows and
+  widening short-description validation to 400 characters. The change requires an explicit
+  `1 -> 2` migration, exported version-2 schema, and populated migration test.
 - A nullable unique `work_intervals.active_slot` is the structural one-open-interval guard. `active_timer` uses fixed singleton ID `1` plus a composite foreign key to the exact interval/task pair.
 - Every version change supplies explicit forward migration(s), schema JSON, and migration instrumentation tests.
 - Release builds never use destructive fallback. Destructive migration may be used only in isolated test fixtures if clearly scoped.
@@ -211,7 +216,8 @@ The planning review (2026-07-22) found current official guidance directing Andro
 
 - No local account is required for core use.
 - Store only necessary Google spreadsheet metadata; let Google-supported components manage credentials.
-- Never log client descriptions, spreadsheet contents, authorization headers, IDs unnecessarily, or credential payloads.
+- Never log task descriptions, hardware/software-purchases text, spreadsheet contents,
+  authorization headers, IDs unnecessarily, or credential payloads.
 - Validate spreadsheet IDs/URLs strictly and display only sanitized errors.
 - Use `ValueInputOption.RAW` for Sheets so user strings are not interpreted as formulas.
 - CSV preserves field text with RFC quoting. Document that downstream spreadsheet programs can interpret formula-like CSV cells; do not silently alter authoritative text without a product decision.
@@ -226,7 +232,8 @@ All versions live in the version catalog. Renovation is a separate reviewed chan
 
 ## 13. Test architecture
 
-- Pure JVM tests own clocks, zones, DST dates, formatting, canonical names, interval validation, rollover, splitting, export rows, and CSV serialization.
+- Pure JVM tests own clocks, zones, DST dates, formatting, canonical names, task-metadata
+  validation/copying, interval validation, rollover, splitting, export rows, and CSV serialization.
 - `kotlinx-coroutines-test` controls dispatchers/tickers.
 - Room instrumentation tests use real SQLite, primarily in-memory databases plus one named reopen fixture, for schema creation, observations, normalization conflicts, foreign keys, unique indexes, cascades/restrictions, ordering, atomic active mutations, reopen persistence, and packaged schema availability. Version 1 has no predecessor migration; every later schema version must add populated migration-path coverage.
 - ViewModel tests combine fake repositories/gateways and deterministic time.

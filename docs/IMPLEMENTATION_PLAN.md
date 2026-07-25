@@ -173,6 +173,15 @@ Entry: client management accepted.
 
 - Task creation for the displayed date, client selector, inline Add Client through the
   same client repository operation, Create/Cancel semantics, and selection behavior.
+- Add the required short-description field and optional text field labeled
+  **Hardware / Software Purchases** to task creation/editing. Trim both, enforce an
+  independent 400-character maximum for each, and continue to reject blank short
+  descriptions.
+- Evolve Room from version 1 to version 2 by adding the non-null
+  `daily_tasks.hardware_software_purchases` column with an empty default. Export the
+  version-2 schema and add a populated non-destructive `1 -> 2` migration test.
+- Extend task models, repositories, and the existing selection-rollover/midnight-copy
+  coordination so both text fields follow the documented daily-copy metadata rules.
 - Task selection and accumulated total presentation for current and historical dates.
 - Daily task metadata editing and chronological interval detail.
 - Manual interval add/edit/delete using Milestone 3 validation and explicit DST choices.
@@ -181,8 +190,10 @@ Entry: client management accepted.
 
 ### Verification gate
 
-- Unit, Room, ViewModel, and Compose tests cover creation/cancellation, selection,
-  repeated intervals, editor validation, DST input, running locks, and deletion scope.
+- Unit, Room, ViewModel, and Compose tests cover creation/cancellation, both 400-character
+  text-field contracts, populated database migration, metadata rollover/copying,
+  selection, repeated intervals, editor validation, DST input, running locks, and
+  deletion scope.
 
 ## 10. Milestone 7 — Time-zone, theme, export-default, and persistent application settings
 
@@ -213,6 +224,8 @@ Entry: local data and export-default settings accepted.
 
 - Immutable schema-versioned logical export rows built from one authoritative snapshot
   for the displayed date.
+- Include **Hardware / Software Purchases** immediately after Description in the shared
+  schema, preserving blank values and the same RFC-style handling as other user text.
 - One row per interval, zero-interval rows, deterministic sorting, UTC/local fields,
   totals, and running-interval snapshot rules.
 - UTF-8 RFC-style CSV serialization with correct Unicode, comma, quote, and line-break
@@ -276,6 +289,8 @@ Entry: account and spreadsheet connection accepted.
 ### Scope
 
 - Reuse the CSV logical row schema and exact column order.
+- Include hardware/software-purchases text through that shared schema and write it as a
+  raw value.
 - Export only to the single connected spreadsheet and one application-owned
   `WorqOrder_YYYY-MM-DD` tab per displayed date.
 - Create/verify marker and schema version, reject unmarked same-name conflicts, and

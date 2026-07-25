@@ -57,12 +57,15 @@ class WorqOrderNavigationTest {
     }
 
     @Test
-    fun settingsIconNavigatesToSettingsPlaceholder() {
+    fun settingsIconNavigatesToClientManagement() {
         composeRule.onNodeWithContentDescription("Open settings").performClick()
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
         composeRule
             .onNodeWithText(
-                "Theme, time-zone, and export preferences are intentionally inactive in this scaffold.",
+                "Add, rename, remove, or restore clients without changing historical tasks.",
             ).assertIsDisplayed()
+        composeRule.onNodeWithText("Client management").performClick()
+        composeRule.onNodeWithText("Active clients").assertIsDisplayed()
+        composeRule.onNodeWithText("Add client").assertIsDisplayed()
     }
 }

@@ -31,6 +31,11 @@ class RoomClientRepository(
         findConflict(normalized.canonicalName)?.let { conflict ->
             return ClientMutationResult.DuplicateActiveName(conflict.id)
         }
+        clientDao
+            .findArchivedClientByNormalizedName(normalized.canonicalName)
+            ?.let { archived ->
+                return ClientMutationResult.MatchingArchivedClient(archived.toModel())
+            }
 
         val nowEpochMs = clock.now().toEpochMilli()
         val entity =

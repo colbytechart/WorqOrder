@@ -4,7 +4,10 @@
 
 These scenarios define observable MVP behavior. Automated coverage may combine pure unit, coroutine, Room instrumentation, ViewModel, and Compose UI tests, but a requirement is not complete merely because one layer was tested. Use fake UTC clock, fake monotonic time, fake effective-zone provider, fake document destination, and fake Google Sheets gateway to make time/failure cases deterministic.
 
-Unless stated otherwise, examples use `America/New_York`, a healthy version 1 Room database, and no active timer. Duration comparisons use exact milliseconds even when the UI ticker renders less frequently.
+Unless stated otherwise, examples use `America/New_York`, a healthy database at the latest
+implemented Room version, and no active timer. Migration scenarios name their source and target
+versions explicitly. Duration comparisons use exact milliseconds even when the UI ticker renders
+less frequently.
 
 ## 2. Main screen and selection
 
@@ -86,7 +89,10 @@ Given historical references, no UI exposes destructive client deletion, and a di
 
 ### TASK-01 Create today
 
-Given valid client/description and displayed today, when Create is tapped once, then one Room task is written with a new task/series ID, today's epoch day/current ZoneId/timestamps, it becomes selected, and navigation returns to main.
+Given today is displayed and the client, short description, and optional
+hardware/software-purchases text are valid, when Create is tapped once, then one Room task is
+written with a new task/series ID, today's epoch day/current ZoneId/timestamps, it becomes selected,
+and navigation returns to main.
 
 ### TASK-02 Create other date
 
@@ -98,11 +104,19 @@ Given edited form fields, when Cancel/back is confirmed according to normal navi
 
 ### TASK-04 Description validation
 
-Blank/whitespace-only and over-200-character descriptions fail; valid descriptions are trimmed and saved.
+Blank/whitespace-only and over-400-character short descriptions fail; valid descriptions are
+trimmed and saved.
+
+### TASK-04a Hardware/software-purchases validation
+
+The field labeled `Hardware / Software Purchases` may be blank. Nonblank text is trimmed and saved;
+over-400-character text is rejected with field-level validation.
 
 ### TASK-05 Edit metadata
 
-Given a stopped task, changing client/description affects that daily task only. Existing sibling dates remain unchanged; a later rollover copies the edited current metadata.
+Given a stopped task, changing client, short description, or hardware/software-purchases text
+affects that daily task only. Existing sibling dates remain unchanged; a later rollover copies the
+edited current metadata.
 
 ### TASK-06 Delete task
 
@@ -235,7 +249,9 @@ date advances, reconciliation finds or creates and selects the exact series/toda
 
 ### DATE-06 Rollover metadata
 
-Given selected prior task metadata was edited before rollover, the new copy uses its current client/description, same series ID, new stable task ID, new date, and zone used for assignment.
+Given selected prior task metadata was edited before rollover, the new copy uses its current
+client, short description, and hardware/software-purchases text, same series ID, new stable task
+ID, new date, and zone used for assignment.
 
 ### DATE-07 Spring forward
 
@@ -305,11 +321,14 @@ Header and each row use schema version 1 columns in the exact documented order. 
 
 ### CSV-03 One row per interval
 
-A task with three intervals produces exactly three rows with repeated task/client metadata and stable interval ordinals.
+A task with three intervals produces exactly three rows with repeated task/client metadata,
+including hardware/software-purchases text, and stable interval ordinals.
 
 ### CSV-04 Escaping/Unicode
 
-Fields containing comma, quote, CR, LF, emoji, accented and non-Latin characters round-trip under UTF-8 and RFC-style quoting; quotes double and records use CRLF.
+Description and hardware/software-purchases fields containing comma, quote, CR, LF, emoji,
+accented and non-Latin characters round-trip under UTF-8 and RFC-style quoting; quotes double and
+records use CRLF.
 
 ### CSV-05 Durations/timestamps
 
@@ -371,7 +390,8 @@ Export/re-export never modifies other tabs. Within a marked tab, documented app-
 
 ### GS-10 Raw values
 
-Client/description values starting with formula characters are written as literal/raw strings, not executable formulas.
+Client, description, and hardware/software-purchases values starting with formula characters are
+written as literal/raw strings, not executable formulas.
 
 ### GS-11 Offline
 
@@ -414,6 +434,13 @@ For every schema version, migrate a populated prior database to latest and verif
 ### DB-04 Schema export
 
 Versioned Room schema JSON is committed and changes are reviewed with migration/acceptance updates.
+
+### DB-05 Task-metadata migration
+
+Migrating a populated version-1 database to version 2 adds non-null
+`hardware_software_purchases` with an empty value on existing tasks, preserves every existing
+client/task/interval/active-timer relationship, and accepts independently validated 400-character
+description and purchases values after migration.
 
 ### BUILD-01 Technology guardrails
 

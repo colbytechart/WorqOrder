@@ -47,13 +47,51 @@
     <string name="task_actions_deferred">Task editing and deletion will be added in a later milestone.</string>
 
     <string name="create_task">Create task</string>
-    <string name="create_task_placeholder">The task form will be implemented in the local task workflow milestone.</string>
     <string name="edit_task">Edit task</string>
     <string name="edit_task_placeholder">Editing for task %1$s will be implemented in a later milestone.</string>
 
     <string name="settings">Settings</string>
-    <string name="settings_placeholder">Theme, time-zone, and export preferences are intentionally inactive in this scaffold.</string>
+    <string name="settings_overview">Manage local app options and reference data.</string>
+    <string name="settings_preferences_deferred">Theme, time-zone, and export preferences will be available in their settings milestone.</string>
     <string name="client_management">Client management</string>
-    <string name="open_client_management">Open client management</string>
-    <string name="client_management_placeholder">Client add, rename, archive, and restore behavior will be implemented in a later milestone.</string>
+    <string name="client_management_summary">Add, rename, remove, or restore clients without changing historical tasks.</string>
+
+    <string name="active_clients">Active clients</string>
+    <string name="archived_clients">Archived clients</string>
+    <string name="no_active_clients">No active clients</string>
+    <string name="no_active_clients_supporting">Add a client before creating a task.</string>
+    <string name="no_archived_clients">No archived clients</string>
+    <string name="clients_load_failed">Clients could not be loaded.</string>
+    <string name="add_client">Add client</string>
+    <string name="rename_client">Rename client</string>
+    <string name="rename_client_action">Rename %1$s</string>
+    <string name="remove_client_action">Remove %1$s from the client list</string>
+    <string name="restore_client">Restore</string>
+    <string name="restore_client_action">Restore %1$s</string>
+    <string name="client_name">Client name</string>
+    <string name="client_name_limit">Maximum 100 characters</string>
+    <string name="client_name_blank">Enter a client name.</string>
+    <string name="client_name_too_long">Client names can contain at most 100 characters.</string>
+    <string name="client_name_duplicate">An active client already uses this name.</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="remove">Remove</string>
+    <string name="remove_client_title">Remove %1$s?</string>
+    <string name="remove_client_explanation">Historical tasks and recorded time will remain intact. This client will no longer appear when choosing a client for a new task.</string>
+    <string name="restore_archived_client_title">Restore removed client?</string>
+    <string name="restore_archived_client_explanation">A removed client named %1$s already exists. Restore that client instead of creating a duplicate.</string>
+    <string name="client_not_found">That client is no longer available.</string>
+    <string name="restore_client_conflict">This client cannot be restored because an active client now uses the same name. Rename the active client first.</string>
+    <string name="client_data_unavailable">Client data is temporarily unavailable. Try again.</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="active_client_status">Available for new tasks</string>
+    <string name="archived_client_status">Removed from new task choices</string>
+
+    <string name="task_client">Client</string>
+    <string name="choose_client">Choose a client</string>
+    <string name="change_client">Change selected client</string>
+    <string name="add_client_inline">Add client</string>
+    <string name="task_client_required">A task must have an active client.</string>
+    <string name="task_creation_milestone_notice">Description entry and task saving will be implemented in Milestone 6.</string>
+    <string name="create_task_disabled">Create (available in Milestone 6)</string>
 </resources>

@@ -117,7 +117,7 @@ Retain the dark/high-contrast vertical visual direction where Material 3/accessi
 
 ### D-026 — Initial theme
 
-Default to Dark on first launch to follow the supplied concepts. Light is an equally supported explicit setting and applies immediately. A later System option must not replace Light/Dark choices.
+Default to System on first launch so WorqOrder follows the device appearance. Light and Dark remain equally supported explicit radio choices and all three settings apply immediately without recreating navigation or timer state.
 
 ### D-027 — Stable ordinals and row order
 
@@ -246,11 +246,41 @@ Consequences: add and edit share the same domain validator and transactional ove
 guards. Manual intervals remain millisecond-precise in storage even though new picker input is
 minute-granular.
 
+### D-042 — Milestone 7 typed settings and effective-zone readiness
+
+Preferences DataStore stores `theme_mode`, `time_zone_mode`, `manual_zone_id`, and
+`default_export_destination` through one typed `SettingsRepository`. First-launch and unknown-value
+fallbacks are System theme, device-zone mode, and CSV; manual selection accepts only geographical
+IANA region namespaces and preserves the selected canonical ID.
+
+Time-zone writes share the timer-operation mutex and recheck Room's singleton active timer before
+committing. The effective-zone provider observes both DataStore and Android time-zone broadcasts.
+An active timer's captured boundary zone overrides both until Stop, after which the current device
+or manual zone becomes effective. Domain operations that can create a daily copy or interval wait
+for the first DataStore-backed effective-zone value, preventing an incorrect startup rollover.
+
+Selection rollover now distinguishes context explicitly: a source task eligible when selected is
+rolled when either effective date or zone changes, including a same-date zone change; a task
+intentionally selected outside its own stored date/zone context remains view-only. No historical
+task row is rewritten. Main normally starts on today, follows a changed today only when it was
+already showing today, and preserves an intentionally browsed date.
+
+The root Compose theme observes the typed setting without Activity recreation. The Main export
+button names the displayed date and stored destination; CSV remains disabled until Milestone 8,
+while Google Sheets without a connection routes to an explanatory Settings state and performs no
+network call. Google connection state and APIs remain Milestones 10 and 11.
+
+### D-043 — Settings appearance and information hierarchy
+
+System, Light, and Dark are always-enabled radio choices. System is the first-launch and
+unknown-value fallback; while selected, it follows the device configuration without disabling the
+two explicit overrides. Client Management is the first normal Settings item, followed by
+Appearance, Time zone, export default, and Google connection status.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.
 - Restored-client UI placement; restoration capability is planned, but it may be an Archived subsection or separate route.
-- System theme mode; explicit Light/Dark ship first.
 - Multiple connected spreadsheets, background automatic export, imports, synchronization, XLSX, and foreground timer service are outside MVP.
 
 ## Implementation inputs still needed

@@ -145,11 +145,11 @@ For DST overlaps, the editor must show enough offset/occurrence information to d
 
 Settings contains:
 
-- **Time zone:** device-zone mode or manual geographical `ZoneId`, searchable/navigable selector, and effective ID display. Mode/zone changes are blocked during timing. Historical stored dates and zone IDs never move.
-- **Appearance:** explicit Light and Dark choices; System may be included as a third choice. Changes are persisted in Preferences DataStore and apply immediately.
-- **Export default:** CSV or Google Sheets.
+- **Clients:** active list with add/rename/archive and optional archived list with restore. Client Management is the first normal Settings item so the most frequent local-data administration workflow is immediately reachable.
+- **Appearance:** explicit System, Light, and Dark choices, with System as the first-launch default. System follows the device appearance while Light and Dark remain enabled as immediately selectable overrides. Changes are persisted in Preferences DataStore and apply immediately without recreating navigation or timer state.
+- **Time zone:** device-zone mode or manual geographical `ZoneId`, searchable/navigable selector, and effective ID display. Device mode is the first-launch default. Mode/zone changes are blocked during timing. Historical stored dates and zone IDs never move.
+- **Export default:** CSV or Google Sheets, with CSV as the first-launch and corrupt-value fallback.
 - **Google Sheets:** authorization/sign-in state, sign-out, spreadsheet URL/ID input, Validate/Connect, connected title and ID, and Disconnect.
-- **Clients:** active list with add/rename/archive and optional archived list with restore.
 
 Disconnecting a spreadsheet clears its ID/title association but does not delete the spreadsheet or revoke unrelated account access. Sign-out clears the app's Google identity/authorization session through supported Google APIs and marks Google export unavailable; it does not alter Room.
 
@@ -159,8 +159,8 @@ Disconnecting a spreadsheet clears its ID/title association but does not delete 
 - Clients, daily tasks, intervals, and the singleton active-timer pointer survive supported lifecycle/process/device restart events.
 - Preferences DataStore holds preferences and selection hints, not task records or raw OAuth/access/refresh tokens.
 - Versioned, non-destructive migrations and Room schema exports begin at database version 1.
-- Selection persists as a preferred task-series ID plus the last concrete daily-task ID. Invalid references are repaired safely.
-- When the effective local date advances, the selected series lazily finds or creates its new daily task using `(series ID, work date, assignment ZoneId)` uniqueness, copies the prior daily task's current client, short description, and hardware/software-purchases text, and becomes selected. The zone context prevents a future task assigned under a different zone from being silently repurposed.
+- Selection persists as a preferred task-series ID plus the last concrete daily-task ID and the date/zone context in which that task was selected. Invalid references are repaired safely. The displayed date is not persisted; normal startup displays today.
+- When the effective local date or geographical zone changes, an eligible timing selection lazily finds or creates its new daily task using `(series ID, work date, assignment ZoneId)` uniqueness, copies the prior daily task's current client, short description, and hardware/software-purchases text, and becomes selected. A task intentionally selected outside its own stored date/zone context remains view-only instead of being rolled. The zone context prevents a task assigned under a different zone from being silently repurposed.
 
 ## 9. Export behavior summary
 
@@ -184,7 +184,7 @@ The three supplied images are visual concepts, not pixel-perfect requirements. T
 | Bottom button says “submit” | Destination and displayed date are ambiguous. | Use the date/destination-specific export labels. |
 | New-task dialog says “ok,” lacks Add Client, and has no purchases field | Required actions and validation are less clear. | Label **Create**/**Cancel**, add inline **Add client**, and add **Hardware / Software Purchases** as a second text field. Show a character count for each text field with a 400-character limit. |
 | Settings uses a fixed-offset “Eastern Time” label | Fixed offsets fail DST and the product requires geographical IDs. | Show `America/New_York` (with a friendly label optionally), never store only `UTC-05:00`. |
-| “Dark mode” toggle only | Explicit Light and Dark are required. | Use a two-choice segmented/radio control; optional System is third. |
+| “Dark mode” toggle only | System, Light, and Dark choices are required. | Use a three-choice radio group. System is selected by default and follows the device; Light and Dark remain enabled as explicit overrides. |
 | Export default appears as “Connected Google Sheet” | Connection state and default destination are distinct. | Separate destination choice from account/spreadsheet connection status and controls. |
 | Client plus/minus and selected row | Minus is ambiguous and rename/archive/restore are absent. | Give each client an overflow/action menu with Rename and Archive; use a distinct Add button and an Archived section. |
 

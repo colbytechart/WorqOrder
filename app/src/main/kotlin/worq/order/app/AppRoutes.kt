@@ -9,6 +9,7 @@ object AppRoutes {
     const val EDIT_TASK_ARGUMENT = "taskId"
     const val EDIT_TASK = "task/{$EDIT_TASK_ARGUMENT}/edit"
     const val SETTINGS = "settings"
+    const val SETTINGS_GOOGLE_SETUP = "settings/google-setup"
     const val CLIENT_MANAGEMENT = "settings/clients"
 
     val destinationPatterns =
@@ -17,6 +18,7 @@ object AppRoutes {
             CREATE_TASK,
             EDIT_TASK,
             SETTINGS,
+            SETTINGS_GOOGLE_SETUP,
             CLIENT_MANAGEMENT,
         )
 

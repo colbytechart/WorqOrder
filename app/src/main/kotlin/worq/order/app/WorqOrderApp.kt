@@ -1,5 +1,6 @@
 package worq.order.app
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -8,11 +9,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import java.time.LocalDate
+import worq.order.data.ThemeMode
+import worq.order.ui.settings.ApplicationSettingsViewModel
+import worq.order.ui.settings.SettingsViewModel
 import worq.order.ui.clients.ClientManagementScreen
 import worq.order.ui.clients.ClientManagementViewModel
 import worq.order.ui.main.MainEffect
@@ -25,6 +30,36 @@ import worq.order.ui.tasks.CreateTaskEffect
 import worq.order.ui.tasks.EditTaskScreen
 import worq.order.ui.tasks.EditTaskEffect
 import worq.order.ui.tasks.EditTaskViewModel
+import worq.order.ui.theme.WorqOrderTheme
+
+@Composable
+fun WorqOrderRoot() {
+    val application =
+        LocalContext.current.applicationContext as WorqOrderApplication
+    val factory =
+        remember(application) {
+            ApplicationSettingsViewModel.Factory(
+                application.container.settingsRepository,
+            )
+        }
+    val viewModel: ApplicationSettingsViewModel = viewModel(factory = factory)
+    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val darkTheme = resolveDarkTheme(themeMode, isSystemInDarkTheme())
+
+    WorqOrderTheme(darkTheme = darkTheme) {
+        WorqOrderApp()
+    }
+}
+
+internal fun resolveDarkTheme(
+    themeMode: ThemeMode,
+    systemInDarkTheme: Boolean,
+): Boolean =
+    when (themeMode) {
+        ThemeMode.SYSTEM -> systemInDarkTheme
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
 
 @Composable
 fun WorqOrderApp() {
@@ -53,6 +88,8 @@ fun WorqOrderApp() {
                             navController.navigate(AppRoutes.editTask(effect.taskId))
                         MainEffect.NavigateToSettings ->
                             navController.navigate(AppRoutes.SETTINGS)
+                        MainEffect.NavigateToGoogleSheetsSettings ->
+                            navController.navigate(AppRoutes.SETTINGS_GOOGLE_SETUP)
                     }
                 }
             }
@@ -143,11 +180,12 @@ fun WorqOrderApp() {
             )
         }
         composable(AppRoutes.SETTINGS) {
-            SettingsScreen(
-                onNavigateBack = navController::popBackStack,
-                onOpenClientManagement = {
-                    navController.navigate(AppRoutes.CLIENT_MANAGEMENT)
-                },
+            SettingsDestination(navController = navController)
+        }
+        composable(AppRoutes.SETTINGS_GOOGLE_SETUP) {
+            SettingsDestination(
+                navController = navController,
+                showGoogleSetupRequired = true,
             )
         }
         composable(AppRoutes.CLIENT_MANAGEMENT) {
@@ -168,4 +206,33 @@ fun WorqOrderApp() {
             )
         }
     }
+}
+
+@Composable
+private fun SettingsDestination(
+    navController: NavHostController,
+    showGoogleSetupRequired: Boolean = false,
+) {
+    val application =
+        LocalContext.current.applicationContext as WorqOrderApplication
+    val factory =
+        remember(application) {
+            SettingsViewModel.Factory(
+                settingsRepository = application.container.settingsRepository,
+                activeTimerRepository =
+                    application.container.activeTimerRepository,
+                zoneIdProvider = application.container.zoneIdProvider,
+            )
+        }
+    val viewModel: SettingsViewModel = viewModel(factory = factory)
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    SettingsScreen(
+        uiState = uiState,
+        onEvent = viewModel::onEvent,
+        onNavigateBack = navController::popBackStack,
+        onOpenClientManagement = {
+            navController.navigate(AppRoutes.CLIENT_MANAGEMENT)
+        },
+        showGoogleSetupRequired = showGoogleSetupRequired,
+    )
 }

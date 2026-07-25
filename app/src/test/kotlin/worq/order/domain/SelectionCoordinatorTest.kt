@@ -134,6 +134,23 @@ class SelectionCoordinatorTest {
         }
 
     @Test
+    fun effectiveZoneChangeRollsEligibleSelectionToSameDateNewZone() =
+        runTest {
+            val fixture = fixture()
+            val source = fixture.addTask(TODAY, NEW_YORK)
+            fixture.selection.select(source.selection(selectedOnDate = TODAY))
+            fixture.zone.current = CHICAGO
+
+            val result = fixture.coordinator().reconcileForToday()
+
+            val copy = (result as SelectionReconciliationResult.RolledOver).task
+            assertEquals(TODAY, copy.workDate)
+            assertEquals(CHICAGO, copy.zoneId)
+            assertEquals(copy.id, fixture.selection.readSelection()?.taskId)
+            assertEquals(source.seriesId, copy.seriesId)
+        }
+
+    @Test
     fun missingSelectedTaskClearsDanglingPersistence() =
         runTest {
             val fixture = fixture()

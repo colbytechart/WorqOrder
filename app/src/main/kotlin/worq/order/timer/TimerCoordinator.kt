@@ -147,6 +147,7 @@ class TimerCoordinator(
 ) {
     suspend fun start(): StartTimerResult =
         operationLock.mutex.withLock {
+            zoneIdProvider.awaitZoneId()
             val selection =
                 selectedTaskRepository.readSelection()
                     ?: return@withLock StartTimerResult.NoSelectedTask

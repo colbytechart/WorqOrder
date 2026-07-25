@@ -19,4 +19,5 @@ object WorqOrderDimens {
     val StatusVerticalPadding = 4.dp
     val InlineProgressSize = 20.dp
     val InlineProgressStrokeWidth = 2.dp
+    val ZoneSelectorMaxHeight = 360.dp
 }

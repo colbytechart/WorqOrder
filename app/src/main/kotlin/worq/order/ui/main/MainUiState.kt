@@ -1,6 +1,7 @@
 package worq.order.ui.main
 
 import java.time.LocalDate
+import worq.order.data.ExportDestination
 
 enum class MainTimerAction {
     START,
@@ -57,6 +58,7 @@ data class MainUiState(
     val openTaskMenuTaskId: String? = null,
     val taskPendingDeletion: MainTaskItemUi? = null,
     val canExport: Boolean = false,
+    val exportDestination: ExportDestination = ExportDestination.CSV,
 ) {
     val isTimerRunning: Boolean
         get() = timerAction == MainTimerAction.STOP
@@ -93,6 +95,8 @@ sealed interface MainEvent {
 
     data object OpenSettings : MainEvent
 
+    data object Export : MainEvent
+
     data class OpenTaskMenu(
         val taskId: String,
     ) : MainEvent
@@ -124,6 +128,8 @@ sealed interface MainEffect {
     ) : MainEffect
 
     data object NavigateToSettings : MainEffect
+
+    data object NavigateToGoogleSheetsSettings : MainEffect
 
     data class NavigateToEditTask(
         val taskId: String,

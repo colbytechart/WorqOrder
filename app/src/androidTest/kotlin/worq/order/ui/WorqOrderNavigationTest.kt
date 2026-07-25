@@ -3,10 +3,13 @@ package worq.order.ui
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -24,7 +27,9 @@ class WorqOrderNavigationTest {
         composeRule.onNodeWithText("WorqOrder").assertIsDisplayed()
         composeRule.onNodeWithText("00:00:00.000").assertIsDisplayed()
         composeRule.onNodeWithText("Tasks").assertIsDisplayed()
-        composeRule.onNodeWithText("Export").assertIsNotEnabled()
+        composeRule
+            .onNodeWithText("Export", substring = true)
+            .assertIsNotEnabled()
         composeRule.onNodeWithText("Add task").assertIsEnabled()
     }
 
@@ -32,7 +37,7 @@ class WorqOrderNavigationTest {
     fun bottomActionsDoNotOverlap() {
         val exportAction =
             composeRule
-                .onNodeWithText("Export")
+                .onNodeWithText("Export", substring = true)
                 .assertIsDisplayed()
                 .assertIsNotEnabled()
         val addTaskAction =
@@ -60,6 +65,13 @@ class WorqOrderNavigationTest {
     fun settingsIconNavigatesToClientManagement() {
         composeRule.onNodeWithContentDescription("Open settings").performClick()
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(
+                hasText(
+                    "Add, rename, remove, or restore clients without changing historical tasks.",
+                ),
+            )
         composeRule
             .onNodeWithText(
                 "Add, rename, remove, or restore clients without changing historical tasks.",

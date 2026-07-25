@@ -17,10 +17,12 @@ import worq.order.timer.ActiveTimerNormalizer
 import worq.order.timer.AndroidMonotonicTimeSource
 import worq.order.timer.CurrentDateProvider
 import worq.order.timer.DeviceZoneIdProvider
+import worq.order.timer.EffectiveZoneIdProvider
 import worq.order.timer.LiveTimerSession
 import worq.order.timer.SystemUtcClock
 import worq.order.timer.TimerCoordinator
 import worq.order.timer.TimerOperationLock
+import worq.order.timer.UtcClock
 
 /**
  * Application-scoped dependency boundary.
@@ -30,6 +32,10 @@ interface ApplicationContainer {
     val taskRepository: TaskRepository
     val activeTimerRepository: ActiveTimerRepository
     val selectedTaskRepository: SelectedTaskRepository
+    val utcClock: UtcClock
+    val zoneIdProvider: EffectiveZoneIdProvider
+    val currentDateProvider: CurrentDateProvider
+    val liveTimerSession: LiveTimerSession
     val selectionCoordinator: SelectionCoordinator
     val timerCoordinator: TimerCoordinator
     val activeTimerNormalizer: ActiveTimerNormalizer
@@ -79,14 +85,18 @@ internal class DefaultApplicationContainer(
         TimerOperationLock()
     }
 
-    private val liveTimerSession by lazy {
+    override val liveTimerSession by lazy {
         LiveTimerSession(AndroidMonotonicTimeSource)
     }
 
-    private val currentDateProvider by lazy {
+    override val utcClock: UtcClock = SystemUtcClock
+
+    override val zoneIdProvider: EffectiveZoneIdProvider = DeviceZoneIdProvider
+
+    override val currentDateProvider by lazy {
         CurrentDateProvider(
-            clock = SystemUtcClock,
-            zoneIdProvider = DeviceZoneIdProvider,
+            clock = utcClock,
+            zoneIdProvider = zoneIdProvider,
         )
     }
 
@@ -96,7 +106,7 @@ internal class DefaultApplicationContainer(
             taskRepository = taskRepository,
             activeTimerRepository = activeTimerRepository,
             currentDateProvider = currentDateProvider,
-            zoneIdProvider = DeviceZoneIdProvider,
+            zoneIdProvider = zoneIdProvider,
         )
     }
 
@@ -105,8 +115,8 @@ internal class DefaultApplicationContainer(
             activeTimerRepository = activeTimerRepository,
             taskRepository = taskRepository,
             selectedTaskRepository = selectedTaskRepository,
-            clock = SystemUtcClock,
-            zoneIdProvider = DeviceZoneIdProvider,
+            clock = utcClock,
+            zoneIdProvider = zoneIdProvider,
             liveTimerSession = liveTimerSession,
             operationLock = timerOperationLock,
         )
@@ -117,7 +127,7 @@ internal class DefaultApplicationContainer(
             activeTimerRepository = activeTimerRepository,
             taskRepository = taskRepository,
             selectedTaskRepository = selectedTaskRepository,
-            clock = SystemUtcClock,
+            clock = utcClock,
             liveTimerSession = liveTimerSession,
             operationLock = timerOperationLock,
         )

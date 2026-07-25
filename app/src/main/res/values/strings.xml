@@ -5,20 +5,46 @@
     <string name="open_settings">Open settings</string>
 
     <string name="tracked_time">Tracked time</string>
-    <string name="timer_zero">00:00:00.000</string>
     <string name="start">Start</string>
+    <string name="stop">Stop</string>
+    <string name="timer_running_semantics">Tracked time %1$s. Timer running.</string>
+    <string name="timer_stopped_semantics">Tracked time %1$s. Timer stopped.</string>
 
     <string name="work_date">Work date</string>
-    <string name="date_preview">Today (preview)</string>
+    <string name="today">Today</string>
+    <string name="today_with_date">Today · %1$s</string>
+    <string name="return_to_today">Return to today</string>
     <string name="previous_day">Previous day</string>
     <string name="next_day">Next day</string>
     <string name="choose_date">Choose date</string>
 
     <string name="task_list">Tasks</string>
-    <string name="empty_task_list">No tasks yet</string>
-    <string name="empty_task_list_supporting">Task behavior will be added in a later milestone.</string>
+    <string name="empty_task_list">No tasks for this date</string>
+    <string name="empty_task_list_supporting">Add a task to begin tracking work for this date.</string>
+    <string name="task_load_failed">Tasks could not be loaded.</string>
+    <string name="retry">Retry</string>
+    <string name="task_selected_state">Selected</string>
+    <string name="task_not_selected_state">Not selected</string>
+    <string name="running">Running</string>
+    <string name="archived">Archived client</string>
+    <string name="task_options">Options for %1$s</string>
+    <string name="edit_task_deferred">Edit task (available later)</string>
+    <string name="delete_task_deferred">Delete task (available later)</string>
+    <string name="timer_still_running">Timer is still running</string>
+    <string name="running_task_summary">%1$s · %2$s · %3$s</string>
     <string name="add_task">Add task</string>
     <string name="export">Export</string>
+    <string name="dismiss_message">Dismiss message</string>
+
+    <string name="select_task_first">Select a task before starting the timer.</string>
+    <string name="live_timing_today_only">Live timing is available only for a task assigned to today in the current time zone.</string>
+    <string name="timer_already_running">A timer is already running. Stop it before starting another.</string>
+    <string name="stop_before_switching">Stop the running timer before selecting another task.</string>
+    <string name="selected_task_missing">The selected task is no longer available.</string>
+    <string name="no_active_timer">There is no active timer to stop.</string>
+    <string name="clock_changed">The device clock changed unexpectedly. The timer remains open; review the time before trying again.</string>
+    <string name="data_unavailable">Local data is temporarily unavailable. Try again.</string>
+    <string name="task_actions_deferred">Task editing and deletion will be added in a later milestone.</string>
 
     <string name="create_task">Create task</string>
     <string name="create_task_placeholder">The task form will be implemented in the local task workflow milestone.</string>

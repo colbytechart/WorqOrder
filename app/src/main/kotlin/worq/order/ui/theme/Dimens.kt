@@ -13,4 +13,10 @@ object WorqOrderDimens {
     val ActionButtonHeight = 48.dp
     val BottomActionSpacing = 12.dp
     val BottomActionVerticalPadding = 8.dp
+    val ItemPadding = 12.dp
+    val TaskTextSpacing = 4.dp
+    val StatusHorizontalPadding = 8.dp
+    val StatusVerticalPadding = 4.dp
+    val InlineProgressSize = 20.dp
+    val InlineProgressStrokeWidth = 2.dp
 }

@@ -6,6 +6,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -67,12 +68,13 @@ class FakeSelectedTaskRepository(
 class FakeTaskRepository : TaskRepository {
     private val mutex = Mutex()
     private val taskState = MutableStateFlow<Map<String, DailyTask>>(emptyMap())
+    private val intervalRevision = MutableStateFlow(0L)
     private val intervals = mutableMapOf<String, MutableList<WorkInterval>>()
     private var taskId = 0
     private var intervalId = 0
 
     override fun observeTasksForDate(workDate: LocalDate): Flow<List<TaskListItem>> =
-        taskState.map { tasks ->
+        combine(taskState, intervalRevision) { tasks, _ ->
             tasks.values
                 .filter { it.workDate == workDate }
                 .sortedWith(compareBy(DailyTask::createdAt, DailyTask::id))
@@ -224,6 +226,7 @@ class FakeTaskRepository : TaskRepository {
     suspend fun addInterval(interval: WorkInterval) {
         mutex.withLock {
             intervals.getOrPut(interval.taskId, ::mutableListOf).add(interval)
+            intervalRevision.value += 1L
         }
     }
 
@@ -236,6 +239,7 @@ class FakeTaskRepository : TaskRepository {
             } else {
                 taskIntervals += interval
             }
+            intervalRevision.value += 1L
         }
     }
 

@@ -228,13 +228,27 @@ selection rollover and midnight continuation, and included in both export destin
 
 Consequences: Milestone 6 owns the form/repository/domain integration and an explicit Room
 version-1-to-version-2 migration that gives existing tasks an empty purchases value. Milestones 8
-and 11 include the field in their shared logical export schema. No implementation is performed as
-part of this documentation decision.
+and 11 include the field in their shared logical export schema. Milestone 6 implemented the field,
+migration, daily rollover/midnight copying, and create/edit validation.
+
+### D-041 — Manual interval entry precision and DST choice
+
+Milestone 6 includes manual interval addition as well as editing and deletion. The Material time
+picker accepts hour-and-minute input on the task's fixed stored work date. Confirming a changed
+endpoint sets that endpoint's seconds and milliseconds to zero; an untouched endpoint retains its
+persisted instant. Interval display continues to show seconds and the resolved UTC offset.
+
+Spring-forward gap times are rejected. A fall-back time with two valid offsets requires the user to
+choose the earlier or later occurrence explicitly; editing an existing ambiguous boundary
+preselects the occurrence represented by its persisted instant.
+
+Consequences: add and edit share the same domain validator and transactional overlap/running-task
+guards. Manual intervals remain millisecond-precise in storage even though new picker input is
+minute-granular.
 
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.
-- Manual interval addition; editing/deletion are required, addition is optional and can be added if it does not delay correctness.
 - Restored-client UI placement; restoration capability is planned, but it may be an Archived subsection or separate route.
 - System theme mode; explicit Light/Dark ship first.
 - Multiple connected spreadsheets, background automatic export, imports, synchronization, XLSX, and foreground timer service are outside MVP.

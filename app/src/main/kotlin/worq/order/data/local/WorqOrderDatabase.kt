@@ -12,7 +12,7 @@ import androidx.room.RoomDatabase
         WorkIntervalEntity::class,
         ActiveTimerEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class WorqOrderDatabase : RoomDatabase() {
@@ -32,6 +32,7 @@ abstract class WorqOrderDatabase : RoomDatabase() {
                 context.applicationContext,
                 WorqOrderDatabase::class.java,
                 DATABASE_NAME,
-            ).build()
+            ).addMigrations(*WorqOrderMigrations.ALL)
+                .build()
     }
 }

@@ -30,6 +30,7 @@ internal fun DailyTaskEntity.toModel(): DailyTask =
         seriesId = seriesId,
         clientId = clientId,
         description = description,
+        hardwareSoftwarePurchases = hardwareSoftwarePurchases,
         workDate = LocalDate.ofEpochDay(workDateEpochDay),
         zoneId = ZoneId.of(zoneId),
         createdAt = Instant.ofEpochMilli(createdAtEpochMs),

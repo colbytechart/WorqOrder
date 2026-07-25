@@ -150,9 +150,11 @@ Inputs before task day start, after day end, or spanning the boundary are reject
 
 Manual edit/delete of the active interval and material edit of its task are rejected at both UI and transaction layers.
 
-### INT-07 Manual add (if included)
+### INT-07 Manual add
 
-Given a valid stopped task interval, Add assigns `maxOrdinal + 1`, a stable ID, manual flag, and updates totals. If manual add is deferred, no misleading action is shown.
+Given a valid stopped task interval, Add assigns `maxOrdinal + 1`, a stable ID, manual flag, and
+updates totals. The editor exposes Add Interval and applies the same date-boundary, overlap, and DST
+validation used by interval edits.
 
 ### INT-08 DST gap editor
 

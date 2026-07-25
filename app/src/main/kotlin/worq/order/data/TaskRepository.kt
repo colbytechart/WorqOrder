@@ -10,20 +10,67 @@ import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 
-const val MAX_TASK_DESCRIPTION_CODE_POINTS = 200
-
 data class NewDailyTask(
     val clientId: String,
     val description: String,
+    val hardwareSoftwarePurchases: String = "",
     val workDate: LocalDate,
     val zoneId: ZoneId,
     val seriesId: String? = null,
 )
 
+sealed interface CreateDailyTaskResult {
+    data class Created(
+        val task: DailyTask,
+    ) : CreateDailyTaskResult
+
+    data object ClientUnavailable : CreateDailyTaskResult
+}
+
+sealed interface UpdateTaskMetadataResult {
+    data class Updated(
+        val task: DailyTask,
+    ) : UpdateTaskMetadataResult
+
+    data object TaskNotFound : UpdateTaskMetadataResult
+
+    data object ClientUnavailable : UpdateTaskMetadataResult
+
+    data object RunningTask : UpdateTaskMetadataResult
+}
+
+sealed interface DeleteTaskResult {
+    data object Deleted : DeleteTaskResult
+
+    data object TaskNotFound : DeleteTaskResult
+
+    data object RunningTask : DeleteTaskResult
+}
+
+sealed interface ManualIntervalPersistenceResult {
+    data class Saved(
+        val interval: WorkInterval,
+    ) : ManualIntervalPersistenceResult
+
+    data object Deleted : ManualIntervalPersistenceResult
+
+    data object TaskNotFound : ManualIntervalPersistenceResult
+
+    data object IntervalNotFound : ManualIntervalPersistenceResult
+
+    data object RunningTask : ManualIntervalPersistenceResult
+
+    data object RunningInterval : ManualIntervalPersistenceResult
+
+    data object Overlap : ManualIntervalPersistenceResult
+}
+
 interface TaskRepository {
     fun observeTasksForDate(workDate: LocalDate): Flow<List<TaskListItem>>
 
     fun observeTask(taskId: String): Flow<DailyTask?>
+
+    fun observeTaskWithIntervals(taskId: String): Flow<TaskWithIntervals?>
 
     suspend fun readTaskWithClient(taskId: String): TaskWithClient?
 
@@ -36,6 +83,8 @@ interface TaskRepository {
     ): DailyTask?
 
     suspend fun insertDailyTask(newTask: NewDailyTask): DailyTask
+
+    suspend fun createDailyTask(newTask: NewDailyTask): CreateDailyTaskResult
 
     /**
      * Finds or atomically creates the exact series/date/zone copy of [sourceTaskId].
@@ -53,9 +102,10 @@ interface TaskRepository {
         taskId: String,
         clientId: String,
         description: String,
-    ): Boolean
+        hardwareSoftwarePurchases: String,
+    ): UpdateTaskMetadataResult
 
-    suspend fun deleteTask(taskId: String): Boolean
+    suspend fun deleteTask(taskId: String): DeleteTaskResult
 
     suspend fun insertCompletedInterval(
         taskId: String,
@@ -63,6 +113,24 @@ interface TaskRepository {
         stop: Instant,
         wasManuallyEdited: Boolean,
     ): WorkInterval
+
+    suspend fun addManualInterval(
+        taskId: String,
+        start: Instant,
+        stop: Instant,
+    ): ManualIntervalPersistenceResult
+
+    suspend fun updateManualInterval(
+        taskId: String,
+        intervalId: String,
+        start: Instant,
+        stop: Instant,
+    ): ManualIntervalPersistenceResult
+
+    suspend fun deleteManualInterval(
+        taskId: String,
+        intervalId: String,
+    ): ManualIntervalPersistenceResult
 
     suspend fun readIntervalsForOverlapValidation(taskId: String): List<WorkInterval>
 

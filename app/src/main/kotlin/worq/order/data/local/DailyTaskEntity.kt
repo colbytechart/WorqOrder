@@ -43,6 +43,11 @@ data class DailyTaskEntity(
     val clientId: String,
     @ColumnInfo(name = "description")
     val description: String,
+    @ColumnInfo(
+        name = "hardware_software_purchases",
+        defaultValue = "''",
+    )
+    val hardwareSoftwarePurchases: String = "",
     @ColumnInfo(name = "work_date_epoch_day")
     val workDateEpochDay: Long,
     @ColumnInfo(name = "zone_id")

@@ -13,6 +13,7 @@ import worq.order.data.local.WorqOrderDatabase
 import worq.order.data.preferences.PreferencesSelectedTaskRepository
 import worq.order.data.preferences.worqOrderPreferencesDataStore
 import worq.order.domain.SelectionCoordinator
+import worq.order.domain.TaskMutationCoordinator
 import worq.order.timer.ActiveTimerNormalizer
 import worq.order.timer.AndroidMonotonicTimeSource
 import worq.order.timer.CurrentDateProvider
@@ -37,6 +38,7 @@ interface ApplicationContainer {
     val currentDateProvider: CurrentDateProvider
     val liveTimerSession: LiveTimerSession
     val selectionCoordinator: SelectionCoordinator
+    val taskMutationCoordinator: TaskMutationCoordinator
     val timerCoordinator: TimerCoordinator
     val activeTimerNormalizer: ActiveTimerNormalizer
 }
@@ -105,6 +107,15 @@ internal class DefaultApplicationContainer(
             selectedTaskRepository = selectedTaskRepository,
             taskRepository = taskRepository,
             activeTimerRepository = activeTimerRepository,
+            currentDateProvider = currentDateProvider,
+            zoneIdProvider = zoneIdProvider,
+        )
+    }
+
+    override val taskMutationCoordinator: TaskMutationCoordinator by lazy {
+        TaskMutationCoordinator(
+            taskRepository = taskRepository,
+            selectionCoordinator = selectionCoordinator,
             currentDateProvider = currentDateProvider,
             zoneIdProvider = zoneIdProvider,
         )

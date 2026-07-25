@@ -3,9 +3,12 @@ package worq.order.ui.tasks
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import java.time.LocalDate
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -16,6 +19,10 @@ import worq.order.data.ClientMutationResult
 import worq.order.data.ClientNameValidationResult
 import worq.order.data.ClientNameNormalizer
 import worq.order.data.ClientRepository
+import worq.order.data.TaskMetadataValidationResult
+import worq.order.data.TaskMetadataValidator
+import worq.order.domain.CreateTaskOperationResult
+import worq.order.domain.TaskMutationCoordinator
 import worq.order.model.Client
 import worq.order.ui.clients.ArchivedClientRestoreOffer
 import worq.order.ui.clients.ClientEditorMode
@@ -26,10 +33,15 @@ import worq.order.ui.clients.toFieldError
 
 class CreateTaskViewModel(
     private val clientRepository: ClientRepository,
+    private val taskMutationCoordinator: TaskMutationCoordinator,
+    workDate: LocalDate,
 ) : ViewModel() {
-    private val mutableUiState = MutableStateFlow(CreateTaskUiState())
+    private val mutableUiState = MutableStateFlow(CreateTaskUiState(workDate = workDate))
     val uiState: StateFlow<CreateTaskUiState> = mutableUiState
+    private val mutableEffects = MutableSharedFlow<CreateTaskEffect>(extraBufferCapacity = 1)
+    val effects = mutableEffects.asSharedFlow()
     private var clientObservationJob: Job? = null
+    private var createInFlight = false
 
     init {
         observeActiveClients()
@@ -49,6 +61,32 @@ class CreateTaskViewModel(
                 mutableUiState.update { it.copy(isClientMenuExpanded = false) }
             is CreateTaskEvent.SelectClient ->
                 selectClient(event.clientId)
+            is CreateTaskEvent.EditDescription ->
+                mutableUiState.update {
+                    it.copy(
+                        description = event.description,
+                        metadataErrors = emptySet(),
+                        hasUnsavedTaskChanges = true,
+                        message = null,
+                    )
+                }
+            is CreateTaskEvent.EditHardwareSoftwarePurchases ->
+                mutableUiState.update {
+                    it.copy(
+                        hardwareSoftwarePurchases = event.value,
+                        metadataErrors = emptySet(),
+                        hasUnsavedTaskChanges = true,
+                        message = null,
+                    )
+                }
+            CreateTaskEvent.CreateTask -> createTask()
+            CreateTaskEvent.RequestClose -> requestClose()
+            CreateTaskEvent.ConfirmDiscard -> {
+                mutableUiState.update { it.copy(showDiscardConfirmation = false) }
+                mutableEffects.tryEmit(CreateTaskEffect.NavigateBack)
+            }
+            CreateTaskEvent.DismissDiscard ->
+                mutableUiState.update { it.copy(showDiscardConfirmation = false) }
             CreateTaskEvent.OpenAddClient ->
                 mutableUiState.update {
                     it.copy(
@@ -104,6 +142,15 @@ class CreateTaskViewModel(
                             hasClientLoadError = false,
                             activeClients = activeClients,
                             selectedClientId = retainedSelection,
+                            message =
+                                if (
+                                    state.selectedClientId != null &&
+                                    retainedSelection == null
+                                ) {
+                                    CreateTaskMessage.CLIENT_ARCHIVED
+                                } else {
+                                    state.message
+                                },
                         )
                     }
                 }.catch {
@@ -124,6 +171,7 @@ class CreateTaskViewModel(
             it.copy(
                 selectedClientId = clientId,
                 isClientMenuExpanded = false,
+                hasUnsavedTaskChanges = true,
                 message = null,
             )
         }
@@ -267,13 +315,121 @@ class CreateTaskViewModel(
         }
     }
 
+    private fun createTask() {
+        val state = mutableUiState.value
+        if (state.isSavingTask || createInFlight) {
+            return
+        }
+        val clientId = state.selectedClientId
+        val validation =
+            TaskMetadataValidator.validate(
+                description = state.description,
+                hardwareSoftwarePurchases = state.hardwareSoftwarePurchases,
+            )
+        val metadataErrors =
+            (validation as? TaskMetadataValidationResult.Invalid)
+                ?.errors
+                .orEmpty()
+        if (clientId == null || metadataErrors.isNotEmpty()) {
+            mutableUiState.update {
+                it.copy(
+                    metadataErrors = metadataErrors,
+                    message =
+                        if (clientId == null) {
+                            CreateTaskMessage.CLIENT_REQUIRED
+                        } else {
+                            null
+                        },
+                )
+            }
+            return
+        }
+        createInFlight = true
+        viewModelScope.launch {
+            mutableUiState.update {
+                it.copy(
+                    isSavingTask = true,
+                    message = null,
+                )
+            }
+            val result =
+                runCatching {
+                    taskMutationCoordinator.createTask(
+                        clientId = clientId,
+                        description = state.description,
+                        hardwareSoftwarePurchases =
+                            state.hardwareSoftwarePurchases,
+                        workDate = state.workDate,
+                    )
+                }.getOrElse {
+                    createInFlight = false
+                    mutableUiState.update {
+                        it.copy(
+                            isSavingTask = false,
+                            message = CreateTaskMessage.DATA_UNAVAILABLE,
+                        )
+                    }
+                    return@launch
+                }
+            when (result) {
+                is CreateTaskOperationResult.Created -> {
+                    createInFlight = false
+                    mutableUiState.update {
+                        it.copy(
+                            isSavingTask = false,
+                            hasUnsavedTaskChanges = false,
+                        )
+                    }
+                    mutableEffects.emit(CreateTaskEffect.NavigateBack)
+                }
+                is CreateTaskOperationResult.InvalidMetadata -> {
+                    createInFlight = false
+                    mutableUiState.update {
+                        it.copy(
+                            isSavingTask = false,
+                            metadataErrors = result.errors,
+                        )
+                    }
+                }
+                CreateTaskOperationResult.ClientUnavailable -> {
+                    createInFlight = false
+                    mutableUiState.update {
+                        it.copy(
+                            isSavingTask = false,
+                            selectedClientId = null,
+                            message = CreateTaskMessage.CLIENT_ARCHIVED,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun requestClose() {
+        val state = mutableUiState.value
+        if (state.isSavingTask) {
+            return
+        }
+        if (state.hasUnsavedTaskChanges) {
+            mutableUiState.update { it.copy(showDiscardConfirmation = true) }
+        } else {
+            mutableEffects.tryEmit(CreateTaskEffect.NavigateBack)
+        }
+    }
+
     class Factory(
         private val clientRepository: ClientRepository,
+        private val taskMutationCoordinator: TaskMutationCoordinator,
+        private val workDate: LocalDate,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(CreateTaskViewModel::class.java))
-            return CreateTaskViewModel(clientRepository) as T
+            return CreateTaskViewModel(
+                clientRepository = clientRepository,
+                taskMutationCoordinator = taskMutationCoordinator,
+                workDate = workDate,
+            ) as T
         }
     }
 }

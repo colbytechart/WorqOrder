@@ -169,6 +169,8 @@ Entry: Main presentation accepted.
 
 Entry: client management accepted.
 
+Status: implemented; awaiting owner acceptance.
+
 ### Scope
 
 - Task creation for the displayed date, client selector, inline Add Client through the

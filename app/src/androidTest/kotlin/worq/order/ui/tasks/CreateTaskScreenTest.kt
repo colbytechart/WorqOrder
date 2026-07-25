@@ -4,9 +4,12 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,7 +39,7 @@ class CreateTaskScreenTest {
             .assertIsDisplayed()
         composeRule.onNodeWithText("Add client").performClick()
         composeRule
-            .onNodeWithText("Create (available in Milestone 6)")
+            .onNodeWithText("Create")
             .assertIsNotEnabled()
 
         assertEquals(listOf(CreateTaskEvent.OpenAddClient), events)
@@ -68,6 +71,38 @@ class CreateTaskScreenTest {
         )
     }
 
+    @Test
+    fun taskFieldsAndCreateActionEmitFormEvents() {
+        val events = mutableListOf<CreateTaskEvent>()
+        setContent(
+            state =
+                CreateTaskUiState(
+                    isLoadingClients = false,
+                    activeClients = listOf(ClientItemUi("client", "Client")),
+                    selectedClientId = "client",
+                ),
+            onEvent = events::add,
+        )
+
+        composeRule
+            .onNodeWithTag(CreateTaskScreenTestTags.DESCRIPTION)
+            .performTextInput("Task")
+        composeRule
+            .onNodeWithTag(CreateTaskScreenTestTags.PURCHASES)
+            .performTextInput("Laptop")
+        composeRule
+            .onNodeWithTag(CreateTaskScreenTestTags.CREATE)
+            .performClick()
+
+        assertTrue(events.contains(CreateTaskEvent.EditDescription("Task")))
+        assertTrue(
+            events.contains(
+                CreateTaskEvent.EditHardwareSoftwarePurchases("Laptop"),
+            ),
+        )
+        assertTrue(events.contains(CreateTaskEvent.CreateTask))
+    }
+
     private fun setContent(
         state: CreateTaskUiState,
         onEvent: (CreateTaskEvent) -> Unit = {},
@@ -77,7 +112,6 @@ class CreateTaskScreenTest {
                 CreateTaskScreen(
                     uiState = state,
                     onEvent = onEvent,
-                    onNavigateBack = {},
                 )
             }
         }

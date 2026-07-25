@@ -53,6 +53,10 @@ class SelectionCoordinatorTest {
             assertEquals(source.seriesId, copy.seriesId)
             assertEquals(source.clientId, copy.clientId)
             assertEquals(source.description, copy.description)
+            assertEquals(
+                source.hardwareSoftwarePurchases,
+                copy.hardwareSoftwarePurchases,
+            )
             assertEquals(TODAY, copy.workDate)
             assertEquals(NEW_YORK, copy.zoneId)
             assertEquals(copy.id, fixture.selection.readSelection()?.taskId)
@@ -220,6 +224,7 @@ class SelectionCoordinatorTest {
                 NewDailyTask(
                     clientId = "client-1",
                     description = "Current description",
+                    hardwareSoftwarePurchases = "Current purchases",
                     workDate = date,
                     zoneId = zoneId,
                     seriesId = seriesId,

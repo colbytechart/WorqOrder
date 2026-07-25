@@ -185,6 +185,12 @@ For create/edit/delete requests:
 
 Deleting an interval recalculates totals by observation; it does not renumber other intervals.
 
+The Milestone 6 Material time picker accepts hour-and-minute input on the task's fixed work date.
+Confirming a changed endpoint sets seconds and milliseconds to zero. Reopening an existing interval
+derives its displayed local time and any fall-back offset choice from the persisted instant; an
+endpoint left unchanged retains that instant. Spring-forward gaps remain invalid, and fall-back
+overlaps require an explicit earlier/later offset selection before saving.
+
 ## 12. Clock anomalies
 
 The product requires wall-clock UTC persistence and monotonic live display, which cannot both hide every manual/system clock correction. Policy:

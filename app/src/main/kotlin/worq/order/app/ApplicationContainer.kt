@@ -19,6 +19,9 @@ import worq.order.data.preferences.PreferencesSettingsRepository
 import worq.order.data.preferences.worqOrderPreferencesDataStore
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
+import worq.order.export.CsvExportCoordinator
+import worq.order.export.csv.AndroidDocumentOutputDestination
+import worq.order.export.csv.DocumentOutputDestination
 import worq.order.timer.ActiveTimerNormalizer
 import worq.order.timer.AndroidDeviceZoneIdSource
 import worq.order.timer.AndroidMonotonicTimeSource
@@ -49,6 +52,8 @@ interface ApplicationContainer {
     val taskMutationCoordinator: TaskMutationCoordinator
     val timerCoordinator: TimerCoordinator
     val activeTimerNormalizer: ActiveTimerNormalizer
+    val csvExportCoordinator: CsvExportCoordinator
+    val documentOutputDestination: DocumentOutputDestination
 }
 
 internal class DefaultApplicationContainer(
@@ -171,5 +176,18 @@ internal class DefaultApplicationContainer(
             liveTimerSession = liveTimerSession,
             operationLock = timerOperationLock,
         )
+    }
+
+    override val csvExportCoordinator: CsvExportCoordinator by lazy {
+        CsvExportCoordinator(
+            taskRepository = taskRepository,
+            activeTimerNormalizer = activeTimerNormalizer,
+            clock = utcClock,
+            timerOperationLock = timerOperationLock,
+        )
+    }
+
+    override val documentOutputDestination: DocumentOutputDestination by lazy {
+        AndroidDocumentOutputDestination(applicationContext.contentResolver)
     }
 }

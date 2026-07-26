@@ -5,8 +5,11 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import java.io.IOException
+import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -16,6 +19,9 @@ import kotlinx.coroutines.sync.withLock
 import worq.order.data.ActiveTimerRepository
 import worq.order.data.AppSettings
 import worq.order.data.ExportDestination
+import worq.order.data.ExportAttemptOutcome
+import worq.order.data.ExportErrorCategory
+import worq.order.data.LastExportAttempt
 import worq.order.data.SettingsRepository
 import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
@@ -90,6 +96,21 @@ class PreferencesSettingsRepository(
         }
     }
 
+    override suspend fun recordLastExportAttempt(attempt: LastExportAttempt) {
+        dataStore.edit { preferences ->
+            preferences[LAST_EXPORT_DESTINATION] = attempt.destination.name
+            preferences[LAST_EXPORT_WORK_DATE] = attempt.workDate.toEpochDay()
+            preferences[LAST_EXPORT_ATTEMPTED_AT] = attempt.attemptedAt.toEpochMilli()
+            preferences[LAST_EXPORT_OUTCOME] = attempt.outcome.name
+            if (attempt.errorCategory == null) {
+                preferences.remove(LAST_EXPORT_ERROR_CATEGORY)
+            } else {
+                preferences[LAST_EXPORT_ERROR_CATEGORY] =
+                    attempt.errorCategory.name
+            }
+        }
+    }
+
     private fun settingsFromPreferences(preferences: Preferences): AppSettings {
         val themeMode =
             preferences[THEME_MODE]
@@ -110,11 +131,54 @@ class PreferencesSettingsRepository(
         val exportDestination =
             preferences[DEFAULT_EXPORT_DESTINATION]
                 .enumOrDefault(ExportDestination.CSV)
+        val lastExportAttempt = preferences.lastExportAttemptOrNull()
         return AppSettings(
             themeMode = themeMode,
             timeZoneMode = timeZoneMode,
             manualZoneId = manualZoneId,
             defaultExportDestination = exportDestination,
+            lastExportAttempt = lastExportAttempt,
+        )
+    }
+
+    private fun Preferences.lastExportAttemptOrNull(): LastExportAttempt? {
+        val destination =
+            this[LAST_EXPORT_DESTINATION]
+                ?.let { stored ->
+                    enumValues<ExportDestination>().firstOrNull {
+                        it.name == stored
+                    }
+                } ?: return null
+        val workDate =
+            this[LAST_EXPORT_WORK_DATE]
+                ?.let { epochDay ->
+                    runCatching { LocalDate.ofEpochDay(epochDay) }.getOrNull()
+                } ?: return null
+        val attemptedAt =
+            this[LAST_EXPORT_ATTEMPTED_AT]
+                ?.let { epochMillis ->
+                    runCatching { Instant.ofEpochMilli(epochMillis) }.getOrNull()
+                } ?: return null
+        val outcome =
+            this[LAST_EXPORT_OUTCOME]
+                ?.let { stored ->
+                    enumValues<ExportAttemptOutcome>().firstOrNull {
+                        it.name == stored
+                    }
+                } ?: return null
+        val errorCategory =
+            this[LAST_EXPORT_ERROR_CATEGORY]
+                ?.let { stored ->
+                    enumValues<ExportErrorCategory>().firstOrNull {
+                        it.name == stored
+                    }
+                }
+        return LastExportAttempt(
+            destination = destination,
+            workDate = workDate,
+            attemptedAt = attemptedAt,
+            outcome = outcome,
+            errorCategory = errorCategory,
         )
     }
 
@@ -129,5 +193,15 @@ class PreferencesSettingsRepository(
         val MANUAL_ZONE_ID = stringPreferencesKey("manual_zone_id")
         val DEFAULT_EXPORT_DESTINATION =
             stringPreferencesKey("default_export_destination")
+        val LAST_EXPORT_DESTINATION =
+            stringPreferencesKey("last_export_destination")
+        val LAST_EXPORT_WORK_DATE =
+            longPreferencesKey("last_export_work_date_epoch_day")
+        val LAST_EXPORT_ATTEMPTED_AT =
+            longPreferencesKey("last_export_attempted_at_epoch_ms")
+        val LAST_EXPORT_OUTCOME =
+            stringPreferencesKey("last_export_outcome")
+        val LAST_EXPORT_ERROR_CATEGORY =
+            stringPreferencesKey("last_export_error_category")
     }
 }

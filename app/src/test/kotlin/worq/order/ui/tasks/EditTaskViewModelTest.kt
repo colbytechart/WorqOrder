@@ -39,6 +39,10 @@ class EditTaskViewModelTest {
     fun savesClientDescriptionAndPurchasesForDailyTask() =
         runTest(mainDispatcherRule.dispatcher) {
             val fixture = fixture()
+            val effects = mutableListOf<EditTaskEffect>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                fixture.viewModel.effects.collect(effects::add)
+            }
 
             fixture.viewModel.onEvent(EditTaskEvent.SelectClient("client-2"))
             fixture.viewModel.onEvent(EditTaskEvent.EditDescription(" Updated "))
@@ -54,6 +58,7 @@ class EditTaskViewModelTest {
             assertEquals("Updated", changed.description)
             assertEquals("Software license", changed.hardwareSoftwarePurchases)
             assertFalse(fixture.viewModel.uiState.value.hasUnsavedMetadataChanges)
+            assertEquals(listOf(EditTaskEffect.NavigateBack), effects)
         }
 
     @Test
@@ -66,6 +71,8 @@ class EditTaskViewModelTest {
             runCurrent()
             val interval = fixture.viewModel.uiState.value.intervals.single()
             assertEquals("01:00:00.000", fixture.viewModel.uiState.value.totalDuration)
+            assertFalse(interval.startText.contains("-04:00"))
+            assertFalse(interval.stopText.contains("-04:00"))
 
             fixture.viewModel.onEvent(EditTaskEvent.OpenEditInterval(interval.id))
             fixture.viewModel.onEvent(

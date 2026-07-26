@@ -127,6 +127,11 @@ Archive, not delete, removes a client from new-task selectors. The retained clie
 
 A task-edit screen changes the daily task's client, short description, and **Hardware / Software Purchases** text and lists intervals chronologically. It supports manually adding an interval, editing a completed interval's start/stop, and deleting a completed interval through the same validation path.
 
+Routine interval cards show the task-zone local start and stop clock times without an appended UTC
+offset. The interval editor still exposes earlier/later occurrence choices when a fall-back overlap
+makes the offset materially necessary. Successfully saving task metadata returns to the main
+screen; validation or persistence failure keeps the editor open.
+
 Validation rejects:
 
 - blank or over-400-character short descriptions;

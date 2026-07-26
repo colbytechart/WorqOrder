@@ -18,6 +18,7 @@ import worq.order.data.DeleteTaskResult
 import worq.order.data.ManualIntervalPersistenceResult
 import worq.order.data.NewDailyTask
 import worq.order.data.ExportDestination
+import worq.order.data.LastExportAttempt
 import worq.order.data.SelectedTaskRepository
 import worq.order.data.SelectedTaskState
 import worq.order.data.SettingsRepository
@@ -27,6 +28,8 @@ import worq.order.data.TimeZoneSettingResult
 import worq.order.data.TaskRepository
 import worq.order.data.TimerSplitBoundary
 import worq.order.data.UpdateTaskMetadataResult
+import worq.order.export.csv.DocumentOutputDestination
+import worq.order.export.csv.DocumentWriteResult
 import worq.order.model.ActiveTimer
 import worq.order.model.ActiveTimerSnapshot
 import worq.order.model.Client
@@ -49,6 +52,25 @@ class FakeMonotonicTimeSource(
     var nanos: Long = 0,
 ) : MonotonicTimeSource {
     override fun elapsedRealtimeNanos(): Long = nanos
+}
+
+class FakeDocumentOutputDestination(
+    var result: DocumentWriteResult = DocumentWriteResult.Success,
+) : DocumentOutputDestination {
+    data class Write(
+        val documentUri: String,
+        val contents: String,
+    )
+
+    val writes = mutableListOf<Write>()
+
+    override suspend fun write(
+        documentUri: String,
+        contents: String,
+    ): DocumentWriteResult {
+        writes += Write(documentUri, contents)
+        return result
+    }
 }
 
 class FakeZoneIdProvider(
@@ -107,6 +129,10 @@ class FakeSettingsRepository(
     ) {
         state.value =
             state.value.copy(defaultExportDestination = destination)
+    }
+
+    override suspend fun recordLastExportAttempt(attempt: LastExportAttempt) {
+        state.value = state.value.copy(lastExportAttempt = attempt)
     }
 }
 
@@ -187,6 +213,30 @@ class FakeTaskRepository : TaskRepository {
                 intervals = intervals[taskId].orEmpty().sortedBy(WorkInterval::start),
             )
         }
+
+    override suspend fun readTasksWithIntervalsForDate(
+        workDate: LocalDate,
+    ): List<TaskWithIntervals> =
+        taskState.value.values
+            .filter { it.workDate == workDate }
+            .sortedWith(compareBy(DailyTask::createdAt, DailyTask::id))
+            .map { task ->
+                TaskWithIntervals(
+                    taskWithClient =
+                        TaskWithClient(
+                            task = task,
+                            client = CLIENT.copy(id = task.clientId),
+                        ),
+                    intervals =
+                        intervals[task.id]
+                            .orEmpty()
+                            .sortedWith(
+                                compareBy<WorkInterval> { it.start }
+                                    .thenBy { it.ordinal }
+                                    .thenBy { it.id },
+                            ),
+                )
+            }
 
     override suspend fun findCorrespondingTask(
         seriesId: String,

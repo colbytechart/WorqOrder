@@ -114,14 +114,17 @@ The visible ticker runs only while collected and an interval is active. It emits
 ### Repositories
 
 - `ClientRepository`: implemented in Milestone 2 with active/all-client `Flow` observations and add, rename, archive, and restore operations using one canonical-name validator. It returns typed invalid-name, duplicate-active-name, and not-found outcomes.
-- `TaskRepository`: observes dates/tasks, fetches joined/detail models, atomically finds or creates
+- `TaskRepository`: observes dates/tasks, fetches joined/detail models, reads one transactional
+  joined task/client/ordered-interval snapshot for a requested export date, and atomically finds or creates
   an exact `(series, date, zone)` copy from current source metadata (client, short description, and
   hardware/software-purchases text), creates/updates/deletes daily tasks, inserts completed
   intervals, and exposes ordered validation history and completed totals.
 - `ActiveTimerRepository`: observes/reads the singleton and delegates atomic open, multi-boundary
   continuation, retarget, and final close operations to `ActiveTimerDao`. Eligibility and boundary
   calculation remain outside the DAO.
-- `SettingsRepository`: implemented typed Flow access to theme, zone mode/manual ID, and default export. Spreadsheet metadata and last export status extend it in later export/Google milestones.
+- `SettingsRepository`: provides typed Flow access to theme, zone mode/manual ID, default export,
+  and the safe last CSV attempt (destination/date/instant/outcome/category). Spreadsheet metadata
+  extends it in the later Google milestones.
 - `SelectedTaskRepository`: implemented in Preferences DataStore with task/series hints plus the
   effective selection date/zone needed to distinguish real daily carryover from intentional
   historical browsing. It stores no task or interval truth.
@@ -141,8 +144,13 @@ The visible ticker runs only while collected and an interval is active. It emits
   selected-task cleanup after daily-task deletion.
 - `DurationMath`, `MidnightBoundaryCalculator`, and `LiveTimerSession`: pure accumulated duration,
   real-zone boundary, and process-local monotonic/recovery models.
-- `ExportRowBuilder`: takes a consistent Room snapshot and emits stable logical rows.
-- `ExportCoordinator`: normalize, snapshot, route by destination, record outcome, and never modify task data as part of delivery.
+- `ExportRowBuilder`: implemented in Milestone 8; takes a consistent Room snapshot and emits the
+  exact schema-version 1 rows, including active and zero-interval rows.
+- `CsvExportCoordinator`: captures one instant under the timer-operation lock, normalizes crossed
+  boundaries, reads the transactional Room snapshot, deterministically builds rows, and fully
+  serializes the pending CSV before the picker opens.
+- A later destination-neutral `ExportCoordinator` may reuse the same logical rows for Google; no
+  Google gateway exists in Milestone 8.
 
 ## 7. Concurrency and transaction model
 
@@ -193,14 +201,20 @@ Detailed algorithms and anomaly policy are in `TIMER_AND_DATE_RULES.md`.
 
 DataStore stores atomic timing-selection preferences (task ID, series ID, effective selection date,
 and selection ZoneId) plus typed theme, time-zone mode/manual ID, and export-default values.
-Spreadsheet metadata and last export outcome remain later milestones. Domain operations that can
+The safe last CSV attempt is implemented in Milestone 8. Spreadsheet metadata remains a later
+milestone. Domain operations that can
 create daily copies or intervals wait for the first persisted effective-zone emission. DataStore
 does not contain task rows, active-timer state, passwords, service-account material, raw access
 tokens, or refresh tokens.
 
 ### File output
 
-Use Android user-mediated/scoped storage. A `DocumentOutputDestination` wraps `ContentResolver` operations so cancellation, output failure, encoding, and unit/instrumentation tests can be isolated. The open CSV bytes are fully serialized before requesting/committing output where practical; close streams deterministically.
+Milestone 8 uses Android user-mediated/scoped storage. Compose launches
+`ActivityResultContracts.CreateDocument("text/csv")`; no storage permission is requested. A
+`DocumentOutputDestination` wraps `ContentResolver` operations so output failure, UTF-8 encoding,
+best-effort deletion of partial provider documents, and unit tests remain isolated. Cancellation
+occurs before this adapter is called. The complete CSV string is serialized before the picker
+opens, and output streams close deterministically.
 
 ## 10. Google boundary
 

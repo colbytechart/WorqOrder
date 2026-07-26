@@ -277,6 +277,28 @@ unknown-value fallback; while selected, it follows the device configuration with
 two explicit overrides. Client Management is the first normal Settings item, followed by
 Appearance, Time zone, export default, and Google connection status.
 
+### D-044 — Milestone 8 CSV snapshot and document delivery
+
+CSV uses the exact 24-column schema-version 1 contract in `EXPORT_SPEC.md`. Under the shared
+timer-operation lock, one UTC instant is captured, the running timer is normalized through that
+instant, and a date-filtered Room transaction reads retained clients, daily tasks, and ordered
+intervals. The entire UTF-8/CRLF CSV payload is serialized before the standard
+`CreateDocument("text/csv")` picker opens.
+
+Running export follows D-023: it remains available, has blank Stop fields and `RUNNING` state, and
+uses the one captured instant for interval and task durations without stopping the timer. Picker
+cancellation is neutral. Output failure attempts to delete only the returned provider URI and
+warns when a partial document may remain. CSV delivery and repeat attempts never mark, delete, or
+rewrite Room task data.
+
+### D-045 — Edit-task interval display and successful Save behavior
+
+Routine interval cards show local start/stop clock times without appending their UTC offsets. DST
+overlap occurrence controls remain explicit inside the interval editor where the distinction is
+needed. A successful **Save task changes** operation persists client, description, and purchases
+metadata and immediately navigates back to Main; validation or persistence failure remains on the
+editor with an actionable state.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.

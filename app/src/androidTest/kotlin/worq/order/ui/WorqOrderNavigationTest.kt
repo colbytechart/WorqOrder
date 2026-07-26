@@ -2,7 +2,6 @@ package worq.order.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -29,7 +28,7 @@ class WorqOrderNavigationTest {
         composeRule.onNodeWithText("Tasks").assertIsDisplayed()
         composeRule
             .onNodeWithText("Export", substring = true)
-            .assertIsNotEnabled()
+            .assertIsEnabled()
         composeRule.onNodeWithText("Add task").assertIsEnabled()
     }
 
@@ -39,7 +38,7 @@ class WorqOrderNavigationTest {
             composeRule
                 .onNodeWithText("Export", substring = true)
                 .assertIsDisplayed()
-                .assertIsNotEnabled()
+                .assertIsEnabled()
         val addTaskAction =
             composeRule
                 .onNodeWithText("Add task")

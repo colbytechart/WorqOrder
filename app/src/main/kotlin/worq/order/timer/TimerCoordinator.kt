@@ -82,58 +82,70 @@ class ActiveTimerNormalizer(
         evaluationInstant: Instant = clock.now(),
     ): NormalizeTimerResult =
         operationLock.mutex.withLock {
-            val current =
-                activeTimerRepository.readActiveTimerSnapshot()
-                    ?: return@withLock NormalizeTimerResult.NoActiveTimer
-            if (evaluationInstant.isBefore(current.interval.start)) {
-                return@withLock NormalizeTimerResult.ClockChanged(
-                    intervalStart = current.interval.start,
-                    evaluationInstant = evaluationInstant,
-                )
-            }
+            normalizeWhileLocked(evaluationInstant)
+        }
 
-            val boundaries =
-                MidnightBoundaryCalculator.boundaries(
-                    segmentStart = current.interval.start,
-                    endpoint = evaluationInstant,
-                    zoneId = current.activeTimer.boundaryZoneId,
-                    includeEndpoint = true,
-                )
-            if (boundaries.isEmpty()) {
-                return@withLock NormalizeTimerResult.NoChange
-            }
-
-            val normalized =
-                activeTimerRepository.normalizeActiveInterval(
-                    expectedIntervalId = current.interval.id,
-                    boundaries = boundaries,
-                ) ?: return@withLock NormalizeTimerResult.ActiveTimerChanged
-            val task =
-                taskRepository.readTaskWithClient(normalized.interval.taskId)?.task
-                    ?: return@withLock NormalizeTimerResult.ActiveTimerChanged
-            selectedTaskRepository.select(
-                SelectedTaskState(
-                    taskId = task.id,
-                    seriesId = task.seriesId,
-                    selectedOnDate = task.workDate,
-                    selectedInZone = normalized.activeTimer.boundaryZoneId,
-                ),
-            )
-            val completedTotal =
-                Duration.ofMillis(
-                    taskRepository.readCompletedDurationMillis(task.id),
-                )
-            liveTimerSession.recover(
-                intervalId = normalized.interval.id,
-                completedTotal = completedTotal,
-                intervalStart = normalized.interval.start,
-                wallNow = evaluationInstant,
-            )
-            NormalizeTimerResult.Normalized(
-                snapshot = normalized,
-                splitCount = boundaries.size,
+    /**
+     * Normalizes while the caller already owns [TimerOperationLock.mutex].
+     *
+     * This is used by export so no Start or Stop can race between the captured export instant,
+     * midnight normalization, and the authoritative Room snapshot read.
+     */
+    internal suspend fun normalizeWhileLocked(
+        evaluationInstant: Instant,
+    ): NormalizeTimerResult {
+        val current =
+            activeTimerRepository.readActiveTimerSnapshot()
+                ?: return NormalizeTimerResult.NoActiveTimer
+        if (evaluationInstant.isBefore(current.interval.start)) {
+            return NormalizeTimerResult.ClockChanged(
+                intervalStart = current.interval.start,
+                evaluationInstant = evaluationInstant,
             )
         }
+
+        val boundaries =
+            MidnightBoundaryCalculator.boundaries(
+                segmentStart = current.interval.start,
+                endpoint = evaluationInstant,
+                zoneId = current.activeTimer.boundaryZoneId,
+                includeEndpoint = true,
+            )
+        if (boundaries.isEmpty()) {
+            return NormalizeTimerResult.NoChange
+        }
+
+        val normalized =
+            activeTimerRepository.normalizeActiveInterval(
+                expectedIntervalId = current.interval.id,
+                boundaries = boundaries,
+            ) ?: return NormalizeTimerResult.ActiveTimerChanged
+        val task =
+            taskRepository.readTaskWithClient(normalized.interval.taskId)?.task
+                ?: return NormalizeTimerResult.ActiveTimerChanged
+        selectedTaskRepository.select(
+            SelectedTaskState(
+                taskId = task.id,
+                seriesId = task.seriesId,
+                selectedOnDate = task.workDate,
+                selectedInZone = normalized.activeTimer.boundaryZoneId,
+            ),
+        )
+        val completedTotal =
+            Duration.ofMillis(
+                taskRepository.readCompletedDurationMillis(task.id),
+            )
+        liveTimerSession.recover(
+            intervalId = normalized.interval.id,
+            completedTotal = completedTotal,
+            intervalStart = normalized.interval.start,
+            wallNow = evaluationInstant,
+        )
+        return NormalizeTimerResult.Normalized(
+            snapshot = normalized,
+            splitCount = boundaries.size,
+        )
+    }
 }
 
 class TimerCoordinator(

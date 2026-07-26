@@ -194,6 +194,55 @@ class MainScreenTest {
     }
 
     @Test
+    fun csvExportShowsDateProgressAndSuccessState() {
+        var state by
+            mutableStateOf(
+                MainUiState
+                    .ready()
+                    .copy(
+                        canExport = true,
+                        exportDestination = ExportDestination.CSV,
+                    ),
+            )
+        composeRule.setContent {
+            WorqOrderTheme(darkTheme = true) {
+                MainScreen(
+                    uiState = state,
+                    onEvent = { event ->
+                        if (event == MainEvent.Export) {
+                            state =
+                                state.copy(
+                                    canExport = false,
+                                    exportProgress = MainExportProgress.PREPARING,
+                                )
+                        }
+                    },
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText("Export Jul 24 as CSV")
+            .assertIsEnabled()
+            .performClick()
+        composeRule.onNodeWithText("Preparing CSV…").assertIsNotEnabled()
+
+        state =
+            state.copy(
+                exportProgress = null,
+                canExport = true,
+                exportFeedback =
+                    MainExportFeedback(
+                        workDate = TODAY,
+                        outcome = MainExportOutcome.SUCCESS,
+                    ),
+            )
+        composeRule
+            .onNodeWithText("Exported Jul 24, 2026 as CSV.")
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun overflowMenuOffersEditAndDeleteEvents() {
         val events = mutableListOf<MainEvent>()
         var state by

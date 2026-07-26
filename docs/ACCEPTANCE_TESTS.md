@@ -367,6 +367,13 @@ Repeating export is allowed and never changes Room. A serialization/provider fai
 
 The merged manifest requests no broad storage permission for CSV; dependency/build inspection finds no XLSX/POI generation.
 
+### CSV-10 Immutable picker payload and progress
+
+The full Room snapshot and CSV string exist before the create-document picker opens. Editing the
+task after that point does not change the pending file. Main disables repeat submission while
+preparing/choosing/writing, identifies the displayed export date, and distinguishes success,
+neutral cancellation, retryable failure, and possible partial output.
+
 ## 9. Google Sheets
 
 ### GS-01 Connection validation

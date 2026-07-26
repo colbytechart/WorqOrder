@@ -24,6 +24,12 @@
 
 An empty date still exports the schema/header with no data rows. A task without intervals emits one row. A running interval emits a row with blank stop, state `RUNNING`, and duration through `Exported At UTC`; export does not stop it.
 
+Milestone 8 implements this for CSV as follows: one shared timer-operation lock covers capture of
+`exportInstant`, boundary normalization, and the Room snapshot read. The DAO loads every joined
+task/client and its ordered intervals for the displayed date inside one Room transaction. The row
+builder and serializer then produce one immutable in-memory CSV string before the create-document
+picker opens. Changes made after the picker opens cannot change that pending payload.
+
 ## 3. Stable schema version 1
 
 Columns appear in this exact order:
@@ -73,7 +79,37 @@ Rows sort by task creation instant, task ID, interval start (null last), interva
 - On output failure after creation, close the stream, attempt deletion only through the granted document API when supported, and report that a partial provider document may remain if deletion is unsupported.
 - Repeating export is permitted. `ACTION_CREATE_DOCUMENT` may disambiguate an existing filename; do not overwrite unrelated files silently.
 
+The Android adapter uses `ActivityResultContracts.CreateDocument("text/csv")`, which creates the
+standard `ACTION_CREATE_DOCUMENT` intent with `CATEGORY_OPENABLE` and the suggested filename. After
+a URI is returned, `ContentResolver.openOutputStream(uri, "wt")` writes the already serialized
+payload as UTF-8. Provider failure triggers a best-effort `ContentResolver.delete` of that exact
+granted URI. The UI distinguishes success, neutral cancellation, retryable write failure, and the
+case where a partial provider document could not be removed.
+
 CSV faithfully preserves client, description, and hardware/software-purchases text. Some spreadsheet programs interpret cells beginning with `=`, `+`, `-`, or `@` as formulas when opening CSV. RFC quoting does not prevent that behavior. Silently prefixing text would change exported data, so formula-injection transformation is not part of schema version 1; flag it in release security review and document safe import behavior.
+
+### Schema-version 1 examples
+
+The first record is always the following exact header:
+
+```csv
+Schema Version,Exported At UTC,Work Date,Time Zone,Client ID,Client Name,Task ID,Task Series ID,Description,Hardware / Software Purchases,Interval ID,Interval Number,Interval State,Start Local,Stop Local,Start UTC,Stop UTC,Interval Duration Milliseconds,Interval Duration Formatted,Task Total Duration Milliseconds,Task Total Duration Formatted,Task Created UTC,Task Updated UTC,Interval Manually Edited
+```
+
+A completed interval may serialize as:
+
+```csv
+1,2026-07-24T20:00:00Z,2026-07-24,America/New_York,client-1,"Acme, Inc.",task-1,series-1,"Repair ""north"" unit",Laptop,interval-1,1,COMPLETED,2026-07-24T09:00:00-04:00[America/New_York],2026-07-24T10:00:00-04:00[America/New_York],2026-07-24T13:00:00Z,2026-07-24T14:00:00Z,3600000,01:00:00.000,3600000,01:00:00.000,2026-07-24T12:00:00Z,2026-07-24T14:00:00Z,false
+```
+
+A task without intervals emits one `NO_INTERVAL` row. Its interval ID, number, timestamps,
+durations, and manually-edited flag are empty, while its task total is zero:
+
+```csv
+1,2026-07-24T20:00:00Z,2026-07-24,America/New_York,client-2,Example Client,task-2,series-2,Planning,,,,NO_INTERVAL,,,,,,,0,00:00:00.000,2026-07-24T15:00:00Z,2026-07-24T15:00:00Z,
+```
+
+The examples are shown with line breaks for readability; the file record terminator is CRLF.
 
 ## 5. CSV destination resolution
 

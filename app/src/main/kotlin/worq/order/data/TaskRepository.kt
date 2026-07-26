@@ -76,6 +76,13 @@ interface TaskRepository {
 
     suspend fun readTaskWithIntervals(taskId: String): TaskWithIntervals?
 
+    /**
+     * Reads one internally consistent Room snapshot for an export date.
+     */
+    suspend fun readTasksWithIntervalsForDate(
+        workDate: LocalDate,
+    ): List<TaskWithIntervals>
+
     suspend fun findCorrespondingTask(
         seriesId: String,
         workDate: LocalDate,

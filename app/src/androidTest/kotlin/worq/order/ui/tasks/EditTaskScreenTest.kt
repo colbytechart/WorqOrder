@@ -1,9 +1,11 @@
 package worq.order.ui.tasks
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -41,6 +43,8 @@ class EditTaskScreenTest {
         composeRule.onNodeWithText("Hardware / Software Purchases").assertIsDisplayed()
         composeRule.onNodeWithText("Task total: 02:00:00.000").assertIsDisplayed()
         composeRule.onNodeWithText("Interval 1").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Start: 9:00:00 AM").assertCountEquals(2)
+        composeRule.onAllNodesWithText("Stop: 10:00:00 AM").assertCountEquals(2)
         composeRule
             .onNodeWithText("Interval 2")
             .performScrollTo()
@@ -103,8 +107,8 @@ class EditTaskScreenTest {
     ) = IntervalItemUi(
         id = id,
         ordinal = ordinal,
-        startText = "9:00:00 AM -04:00",
-        stopText = "10:00:00 AM -04:00",
+        startText = "9:00:00 AM",
+        stopText = "10:00:00 AM",
         durationText = "01:00:00.000",
         isRunning = false,
     )

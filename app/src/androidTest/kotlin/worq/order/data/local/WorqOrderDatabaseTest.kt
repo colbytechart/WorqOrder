@@ -239,6 +239,46 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
+    fun exportSnapshotReadIsDateFilteredJoinedAndIntervalOrdered() =
+        runBlocking {
+            insertClient(id = "client-1", name = "Export Client")
+            insertTask(id = "task-export", clientId = "client-1")
+            insertTask(
+                id = "task-other-date",
+                clientId = "client-1",
+                seriesId = "series-other",
+                workDateEpochDay = TEST_DATE.plusDays(1).toEpochDay(),
+            )
+            insertCompletedInterval(
+                id = "later",
+                taskId = "task-export",
+                startEpochMs = 3_000,
+                stopEpochMs = 4_000,
+            )
+            insertCompletedInterval(
+                id = "earlier",
+                taskId = "task-export",
+                startEpochMs = 1_000,
+                stopEpochMs = 2_000,
+            )
+
+            val snapshot =
+                database
+                    .taskDao()
+                    .readTasksWithOrderedIntervalsForWorkDate(
+                        TEST_DATE.toEpochDay(),
+                    )
+
+            assertEquals(1, snapshot.size)
+            assertEquals("task-export", snapshot.single().taskWithClient.task.id)
+            assertEquals("Export Client", snapshot.single().taskWithClient.clientName)
+            assertEquals(
+                listOf("earlier", "later"),
+                snapshot.single().intervals.map(WorkIntervalEntity::id),
+            )
+        }
+
+    @Test
     fun clientRenameAndArchiveDoNotDisturbRelatedRunningTimer() =
         runBlocking {
             insertClient(id = "client-1", name = "Running Client")

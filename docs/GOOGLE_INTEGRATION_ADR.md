@@ -1,0 +1,510 @@
+# ADR: Google Identity, Authorization, Picker, and Sheets Access
+
+Status: accepted for Milestones 10 and 11  
+Decision date: 2026-07-26  
+Official guidance reviewed: 2026-07-26
+
+## 1. Context
+
+WorqOrder is local and offline first. Room remains authoritative, and Google Sheets is a
+one-way export destination. Google access is optional and must not introduce Firebase, a
+custom backend, a service account, embedded credentials, or manually persisted OAuth
+tokens.
+
+The product connects exactly one existing Google spreadsheet. The user signs in, enters
+or pastes a Sheets URL or spreadsheet ID, proves that the selected account can edit that
+file, and confirms it as the connected spreadsheet. Later exports write one marked
+worksheet tab per displayed date.
+
+The owner has fixed a permanent project policy: WorqOrder remains free and open source
+under GPLv3, is distributed directly rather than through Google Play, and must not
+require billing, paid API quota, Google Workspace/organization membership, a custom
+domain, or verified OAuth branding. CSV remains the no-network fallback if Google's
+no-cost policy later changes.
+
+Authentication and authorization are separate:
+
+- authentication identifies the Google account selected in the UI; and
+- authorization grants access to Google-hosted data for a specific operation.
+
+Google's current Android guidance explicitly recommends Credential Manager for
+authentication and `AuthorizationClient` for authorization.
+
+## 2. Decision summary
+
+Use the following design:
+
+1. Use an explicit **Sign in with Google** button backed by AndroidX Credential Manager
+   and the Google ID library.
+2. Use Google Identity Services `AuthorizationClient` from Google Play services for
+   Google data authorization.
+3. Request only:
+
+   ```text
+   https://www.googleapis.com/auth/drive.file
+   ```
+
+4. During spreadsheet connection, launch the current Android Google Picker authorization
+   flow, filtered to Google Sheets and to the locally parsed pasted spreadsheet ID.
+5. Accept the connection only when the Picker response contains that exact ID and
+   subsequent Drive and Sheets metadata checks prove it is an editable Google
+   spreadsheet.
+6. Use direct HTTPS/JSON REST adapters for Drive v3 and Sheets v4 rather than the
+   generated Google Java API client.
+7. Obtain a short-lived access token from `AuthorizationClient` for each explicit
+   validate/export operation. Keep it only in memory for that operation.
+8. Do not request offline access, do not obtain a refresh token, and do not store raw
+   access, refresh, ID, or authorization-code tokens in DataStore or Room.
+9. Use only no-additional-cost standard API quota. Never attach billing or request a
+   paid quota increase; report quota failure and preserve CSV.
+10. Use the debug signing identity for Milestones 10–14. Create the permanent
+    direct-release identity in Milestone 15; do not create a Google Play client.
+
+This replaces the earlier provisional plan to request the sensitive
+`https://www.googleapis.com/auth/spreadsheets` scope.
+
+## 3. Why `drive.file` now satisfies the workflow
+
+Google classifies `drive.file` as a recommended, non-sensitive, per-file scope. It lets
+an app work only with files the user opens or shares with that app. A pasted ID alone
+does not grant per-file access, so paste-only validation is not sufficient.
+
+Current official Google Picker guidance for Android supplies the missing grant step:
+
+- `AuthorizationRequest.ResourceParameter.PICKER_OAUTH_TRIGGER` starts Picker
+  authorization;
+- `PICKER_FILE_IDS` can filter the Picker to the parsed pasted ID;
+- `PICKER_MIMETYPES` can restrict the UI to
+  `application/vnd.google-apps.spreadsheet`;
+- `AuthorizationResult.getTokenResponseParams()` returns `picked_file_ids`; and
+- Sheets `spreadsheets.get`, `spreadsheets.batchUpdate`, and values APIs all accept a
+  `drive.file` token for a file granted to the app.
+
+The user still enters or pastes the spreadsheet URL/ID. Google then asks the user to
+confirm sharing that exact spreadsheet with WorqOrder. This is a deliberate security
+confirmation, not a replacement for the input field.
+
+The connection request must:
+
+- request only `drive.file`;
+- call `setOptOutIncludingGrantedScopes(true)`;
+- set prompt to `CONSENT`;
+- optionally combine `SELECT_ACCOUNT` when an explicit account switch is needed;
+- disallow multiple selection;
+- filter to the Google Sheets MIME type;
+- filter to the parsed spreadsheet ID; and
+- reject cancellation, an empty result, multiple IDs, or a returned ID that differs
+  from the input.
+
+Normal export authorization does not relaunch Picker when the existing grant remains
+valid. It makes a normal `authorize()` request for `drive.file`; Google can return a
+token without interaction. If the grant was removed, the user must reconnect or
+reauthorize the spreadsheet through Picker.
+
+## 4. Rejected scope alternatives
+
+### Sensitive Sheets-wide scope
+
+`https://www.googleapis.com/auth/spreadsheets` supports a paste-only workflow and can
+read and edit every spreadsheet accessible to the consenting user. It is not a fallback
+under the accepted no-cost/no-domain policy.
+
+It is not selected because:
+
+- its authority is much broader than one connected file;
+- Google classifies it as sensitive;
+- public distribution requires sensitive-scope verification;
+- an unverified app can show warnings and be subject to user limits; and
+- the current stable Picker design makes broader access unnecessary.
+
+If the Picker flow later becomes unusable, stop Google integration work and request a
+new owner decision. Do not broaden the scope, enable billing, add a backend, or weaken
+CSV while waiting.
+
+### `drive.file` without Picker
+
+A raw pasted ID does not itself make an existing file app-authorized. This option is
+unreliable and is rejected.
+
+### App-created spreadsheet
+
+Creating a spreadsheet would work with `drive.file`, but conflicts with the required
+workflow of connecting one existing user-selected spreadsheet. WorqOrder does not
+create a new spreadsheet document during connection or export.
+
+### Broader Drive scopes
+
+`drive`, `drive.readonly`, and metadata-wide scopes are unnecessary. Some are
+restricted and carry substantially greater review/security obligations. They are
+prohibited for this workflow.
+
+## 5. Authentication design
+
+Use an explicit Settings action backed by:
+
+- `CredentialManager`;
+- `GetSignInWithGoogleOption`; and
+- `GoogleIdTokenCredential`.
+
+Do not trigger sign-in on application startup. Local task tracking remains fully
+available without a Google account.
+
+Credential Manager requires a Web OAuth client ID. That client ID is a public
+identifier, not a client secret. The app must never contain a Web client secret.
+
+WorqOrder has no backend, so it cannot perform the server-side ID-token verification
+required before treating an ID token as an application security assertion. Therefore:
+
+- the raw ID token is transient and immediately discarded;
+- no ID token is stored or logged;
+- an email/name/subject-derived value may be retained only as a non-secret UI hint;
+- the hint is not proof of current authorization and is never used to authorize Sheets;
+- Google API access is authorized solely by a fresh `AuthorizationClient` result; and
+- Room/local functionality never trusts Google identity.
+
+Credential Manager sign-in also establishes the user's default Google account for the
+subsequent authorization request. An account change begins with
+`CredentialManager.clearCredentialState()` and another explicit sign-in.
+
+## 6. Authorization and token lifecycle
+
+Use `Identity.getAuthorizationClient(activity)` and an
+`AuthorizationRequest` containing exactly one `Scope` for `drive.file`.
+
+For each validation or export:
+
+1. Request authorization for `drive.file`.
+2. If the result has a resolution, launch its `PendingIntent` and treat cancellation
+   neutrally.
+3. If authorized, pass the returned access token directly to the gateway.
+4. Send it only in the HTTPS `Authorization: Bearer` header.
+5. Discard it when the operation finishes.
+
+Access tokens are short lived. The app does not refresh them itself. A later explicit
+operation calls `authorize()` again; while the grant remains, Google can provide a
+usable token without user interaction.
+
+On an HTTP 401 or an invalid-token condition:
+
+1. call `AuthorizationClient.clearToken()` for that exact in-memory token;
+2. discard it;
+3. mark authorization as requiring renewal; and
+4. allow one user-directed reauthorization/retry.
+
+Do not create retry loops. A 403 must be classified separately because it can mean
+read-only access, Workspace policy, or another permission problem rather than token
+expiry.
+
+Do not call offline-access APIs, request a server authorization code, exchange codes in
+the APK, or store a refresh token. Google's current guidance discourages storing refresh
+tokens on a device and reserves them for a backend, which WorqOrder intentionally does
+not have.
+
+## 7. Spreadsheet connection and validation
+
+### Input parsing
+
+Accept:
+
+- a canonical spreadsheet ID; or
+- a supported `https://docs.google.com/spreadsheets/d/{id}/...` URL.
+
+Trim surrounding whitespace, reject unsupported hosts/schemes, reject query/fragment
+text as an ID, impose a documented maximum input length, and allow only the character
+set used by Google file IDs. Parsing is local and performs no network call.
+
+### Per-file grant
+
+After parsing:
+
+1. launch the Picker authorization request described in section 3;
+2. require exactly the parsed ID in `picked_file_ids`; and
+3. keep the returned access token only for validation.
+
+### Read/edit validation
+
+Use the same `drive.file` token for:
+
+1. Drive v3 `files.get` with a narrow field mask:
+
+   ```text
+   id,name,mimeType,trashed,capabilities(canEdit,canModifyContent)
+   ```
+
+2. Verify:
+   - returned ID matches;
+   - MIME type is `application/vnd.google-apps.spreadsheet`;
+   - file is not trashed;
+   - `capabilities.canEdit` is true; and
+   - `capabilities.canModifyContent` is true when populated.
+3. Sheets v4 `spreadsheets.get` with a narrow field mask:
+
+   ```text
+   spreadsheetId,properties(title),sheets(properties(sheetId,title))
+   ```
+
+4. Verify the Sheets response ID matches and retain the canonical Sheets title.
+
+This is read-only validation. It does not create a spreadsheet, worksheet, marker,
+revision, or test cell.
+
+Store the connection only after all checks succeed. A later export still handles
+permission changes and remote deletion safely.
+
+## 8. Sheets API transport
+
+Use small, fakeable REST adapters over platform HTTPS:
+
+- `https://www.googleapis.com/drive/v3`
+- `https://sheets.googleapis.com/v4`
+
+Use `HttpsURLConnection` (or the platform URL connection returned for an HTTPS URL),
+Android's JSON facilities, explicit UTF-8, bounded connect/read timeouts, exact field
+masks, and typed HTTP/error parsing. Do not allow redirects to a non-HTTPS scheme.
+
+The official generated Google API Java client is not selected because its Android
+support is documented as `@Beta`, it brings a substantially larger dependency graph,
+and the app needs only a small set of REST endpoints. Google documents Sheets as
+HTTP/JSON and permits a standard HTTP client.
+
+The gateway must:
+
+- never log authorization headers, tokens, spreadsheet IDs, task text, or response
+  bodies containing user data;
+- close streams deterministically;
+- cap error-body reads;
+- sanitize user-visible error details;
+- use `ValueInputOption.RAW` for user text;
+- return typed retryable/non-retryable outcomes; and
+- never mutate Room in response to network success or failure.
+
+No API key authorizes a private spreadsheet. This design does not require or use an API
+key for Sheets, Drive metadata, or the Android Picker authorization flow.
+
+Google requests occur only during explicit foreground operations, use batching/field
+masks, and have bounded retry. Standard-quota exhaustion returns a safe typed failure;
+the app never opts into paid capacity or runs background traffic to work around quota.
+
+## 9. Sign-out versus spreadsheet disconnect
+
+### Disconnect spreadsheet
+
+Disconnect:
+
+- clears spreadsheet ID, title, validation/account hint, and connection timestamps from
+  DataStore;
+- leaves Credential Manager identity state and the Google OAuth grant intact;
+- does not revoke account access;
+- does not delete or edit the spreadsheet; and
+- does not alter Room.
+
+### Sign out
+
+Sign out:
+
+1. immediately makes Google export unavailable;
+2. attempts `AuthorizationClient.revokeAccess()` for the selected account;
+3. clears any in-memory token;
+4. calls `CredentialManager.clearCredentialState()`;
+5. clears the local Google account hint; and
+6. preserves spreadsheet ID/title as stale metadata unless the user also chooses
+   Disconnect.
+
+`revokeAccess()` revokes all Google scopes granted to this application for the account,
+not merely the scope listed in the revoke request. WorqOrder requests only
+`drive.file`, which bounds that consequence.
+
+If remote revocation cannot be confirmed, the UI must not claim it succeeded. It may
+complete local sign-out, explain how to retry or revoke WorqOrder from the Google
+Account third-party connections page, and keep export unavailable. Signing in again,
+especially with another account, requires the stored spreadsheet to be Picker-granted
+and revalidated before export.
+
+## 10. Local storage classification
+
+Preferences DataStore may store:
+
+- connected spreadsheet ID;
+- connected spreadsheet title;
+- validation timestamp;
+- non-secret Google account display hint;
+- connection state/version;
+- last safe Google operation outcome/category; and
+- the chosen export destination.
+
+DataStore and Room must not store:
+
+- raw access tokens;
+- refresh tokens;
+- ID tokens;
+- authorization codes;
+- authorization headers;
+- passwords;
+- OAuth client secrets;
+- service-account credentials;
+- Picker callback payloads beyond the validated file ID; or
+- raw Google error/response bodies.
+
+The credential provider and Google Play services manage their own credential/token
+state outside WorqOrder's DataStore. An OAuth client ID and signing-certificate
+fingerprint are identifiers, not secrets, but environment-specific values still follow
+the configuration and review process in `GOOGLE_SHEETS_SETUP.md`.
+
+## 11. Proposed stable dependencies
+
+Do not add these until Milestone 10 is explicitly authorized:
+
+| Purpose | Artifact | Proposed stable version |
+| --- | --- | --- |
+| Credential Manager | `androidx.credentials:credentials` | `1.6.0` |
+| Pre-Android-14 Google provider bridge | `androidx.credentials:credentials-play-services-auth` | `1.6.0` |
+| Sign in with Google credential types | `com.google.android.libraries.identity.googleid:googleid` | `1.2.0` |
+| AuthorizationClient and Android Picker parameters | `com.google.android.gms:play-services-auth` | `21.6.0` |
+| Coroutine bridge for Google `Task` | `org.jetbrains.kotlinx:kotlinx-coroutines-play-services` | `1.10.2` |
+
+All are stable releases as of the decision date. The current Android documentation
+shows `androidx.credentials:1.7.0-alpha02` in some examples, but the official AndroidX
+stable channel lists `1.6.0`; WorqOrder selects `1.6.0` to preserve the stable-only
+rule. The Google ID release notes list `1.2.0`, and Google Play services release notes
+list `play-services-auth:21.6.0`.
+
+No generated Sheets library, Google services Gradle plugin, Firebase BOM, Firebase Auth,
+Drive client library, general networking stack, or JSON code-generation plugin is
+proposed.
+
+Milestone 10 must prove dependency resolution and compile/minimum-SDK compatibility
+before implementation. If the project-local offline cache lacks these artifacts, pause
+and let the owner populate the cache under the established repository guardrails.
+
+## 12. Error model
+
+Identity/authorization outcomes:
+
+- `SignedIn`
+- `SignInCanceled`
+- `NoCredential`
+- `CredentialProviderUnavailable`
+- `AuthorizationRequired`
+- `AuthorizationCanceled`
+- `AuthorizationRevoked`
+- `PlayServicesUnavailableOrOutdated`
+- `SignOutPartiallyCompleted`
+
+Connection/gateway outcomes:
+
+- `InvalidSpreadsheetInput`
+- `PickerCanceled`
+- `PickerReturnedDifferentFile`
+- `NotFoundOrNotGranted`
+- `NotGoogleSpreadsheet`
+- `ReadOnly`
+- `ContentModificationRestricted`
+- `Offline`
+- `Timeout`
+- `Unauthorized`
+- `WorkspacePolicyBlocked`
+- `RateLimited(retryAfter)`
+- `ServerFailure`
+- `MalformedResponse`
+- `Success`
+
+Do not expose raw HTTP bodies, OAuth tokens, or account internals in user messages.
+Because Google can intentionally return not-found for inaccessible resources, avoid
+claiming whether a private file exists.
+
+## 13. Test strategy for Milestones 10 and 11
+
+Use interfaces around identity, authorization, token delivery, Picker launch/result,
+Drive metadata, and Sheets requests.
+
+Tests must cover:
+
+- sign-in success, cancellation, no credential, and clear-credential-state;
+- account change and default-account handoff;
+- Picker request has only `drive.file`, opts out of granted-scope inclusion, and uses
+  exact MIME/file-ID filters;
+- Picker cancellation, wrong/multiple/missing IDs;
+- no API call before per-file grant;
+- editable, read-only, trashed, wrong-MIME, missing, and shared-drive spreadsheets;
+- Drive and Sheets field masks;
+- only safe metadata reaches DataStore;
+- no token reaches DataStore, Room, logs, saved state, or exceptions;
+- 401 token clearing and user-directed reauthorization;
+- external revocation and a different signed-in account;
+- disconnect versus sign-out semantics;
+- offline, timeout, 403, 404, 429, 5xx, and malformed JSON;
+- fake gateway ViewModel and Compose flows;
+- no Firebase, service-account, API-key authorization, broader scope, or cleartext
+  network configuration; and
+- later idempotent marked-tab export behavior from `EXPORT_SPEC.md`.
+
+Controlled integration testing must use test accounts and test spreadsheets, never
+production customer data.
+
+## 14. Distribution and verification consequences
+
+`drive.file` is currently non-sensitive and recommended. It avoids sensitive- or
+restricted-scope verification and does not require the restricted-scope security
+assessment. Google states that verification is not mandatory for an app using only
+non-sensitive scopes; brand verification is required only to display a verified app
+name/logo. WorqOrder does not make that branding path a dependency.
+
+While an External OAuth app is in Testing:
+
+- only listed test users can authorize non-identity scopes;
+- the project supports at most 100 listed test users; and
+- grants that include `drive.file` can expire after seven days, so reauthorization
+  during development is expected.
+
+The selected small-use path is:
+
+1. an individual developer-controlled Google Cloud project;
+2. External/Testing during Milestones 10 and 11 with named test users;
+3. External/In Production when the direct-release build is ready, avoiding the
+   seven-day Testing expiration;
+4. no Google Workspace/Cloud organization, custom domain, verified brand, Google Play
+   distribution, or paid service; and
+5. fewer than 100 Google-authorized users unless Google later provides another
+   compatible no-cost/no-domain path.
+
+The project accepts that consent may show unverified or less-polished project identity.
+It still keeps support contact information current and supplies accurate privacy/user
+documentation in the open-source repository.
+
+The developer's Android OAuth identity covers only APKs signed by the registered debug
+or direct-release certificate. Independent GPLv3 builders/forks use their own Google
+Cloud project, signing fingerprint, OAuth clients, and local Web client ID; no universal
+secret or paid shared service is distributed with the source.
+
+If a future change requests the sensitive `spreadsheets` scope, sensitive-scope
+verification and updated consent/privacy materials would be required, so implementation
+must stop for a new owner decision rather than proceed.
+
+Google currently provides standard Sheets API use at no additional cost and is
+introducing paid usage only above standard thresholds later in 2026. WorqOrder does not
+attach a billing account or request increased quota. No external provider can guarantee
+unchanged terms forever; any policy change is handled by disabling/failing Google
+export safely while retaining CSV until the owner revisits the decision.
+
+## 15. Official references
+
+- [Authorize access to Google user data](https://developer.android.com/identity/authorization)
+- [About Sign in with Google and Credential Manager](https://developer.android.com/identity/sign-in/credential-manager-siwg)
+- [Implement Sign in with Google](https://developer.android.com/identity/sign-in/credential-manager-siwg-implementation)
+- [AndroidX Credentials releases](https://developer.android.com/jetpack/androidx/releases/credentials)
+- [Google ID SDK release notes](https://developers.google.com/identity/android-credential-manager/releases)
+- [Google Play services release notes](https://developers.google.com/android/guides/releases)
+- [AuthorizationClient reference](https://developers.google.com/android/reference/com/google/android/gms/auth/api/identity/AuthorizationClient)
+- [Choose Google Sheets API scopes](https://developers.google.com/workspace/sheets/api/scopes)
+- [Choose Google Drive API scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)
+- [Google Picker for desktop and mobile apps](https://developers.google.com/workspace/drive/picker/guides/desktop-mobile-picker)
+- [Drive `files.get`](https://developers.google.com/workspace/drive/api/reference/rest/v3/files/get)
+- [Drive file capabilities](https://developers.google.com/workspace/drive/api/reference/rest/v3/files)
+- [Sheets REST API](https://developers.google.com/workspace/sheets/api/reference/rest)
+- [Sheets `spreadsheets.batchUpdate`](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/batchUpdate)
+- [OAuth app verification](https://support.google.com/cloud/answer/13463073)
+- [When OAuth verification is not needed](https://support.google.com/cloud/answer/13464323)
+- [Manage OAuth app audience](https://support.google.com/cloud/answer/15549945)
+- [Sheets API limits and pricing](https://developers.google.com/workspace/sheets/api/limits)
+- [Google Workspace standardized API model](https://developers.google.com/workspace/tools-safety)
+- [OAuth production policy compliance](https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance)

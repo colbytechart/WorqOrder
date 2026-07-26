@@ -6,6 +6,14 @@
 - Keep Room as the authoritative source of task, client, and interval data. Google Sheets and CSV are one-way exports, not databases or synchronization systems.
 - CSV and Google Sheets are the only export destinations. Do not add native XLSX export, Apache POI, or another Excel-generation dependency.
 - Do not add Firebase, a custom backend, a web wrapper, embedded credentials, service-account keys, passwords, OAuth client secrets, or unrestricted API credentials.
+- WorqOrder must remain free and open source under GPLv3. Do not add billing, paid API tiers, paid
+  quota increases, subscriptions, or a Google Workspace/organization requirement.
+- Do not prepare Google Play distribution or Play app-signing configuration. The supported release
+  path is direct distribution signed by the owner's permanent release key, which is deferred until
+  Milestone 15.
+- Google export must stay within no-cost standard quotas and fail closed without automatic retries
+  or charges. If Google's free `drive.file`/Picker/API policy changes, stop Google integration work
+  for a new owner decision; CSV must remain available.
 - Do not request broad storage permissions. Use Android user-mediated or scoped storage APIs.
 - Do not use destructive Room migrations in release builds. Export Room schemas and add versioned migration tests from database version 1.
 - Do not persist the changing stopwatch display or write the database on UI refresh ticks. Persist UTC interval boundaries and calculate display values.

@@ -39,6 +39,13 @@ a time.
 5. CSV delivery uses the standard `ACTION_CREATE_DOCUMENT` save flow.
 6. Daily-task identity is unique by `(task series ID, work date, ZoneId)`.
 7. Room is authoritative; CSV and Google Sheets remain one-way export destinations.
+8. WorqOrder remains free and open source under GPLv3. No supported milestone may introduce
+   billing, a paid API tier, paid quota, Google Workspace/organization membership, or a custom
+   domain requirement.
+9. Distribution is direct, not through Google Play. Debug Google OAuth identity is sufficient
+   through Milestone 14; permanent direct-release signing is deferred to Milestone 15.
+10. Google export uses no-cost standard quota and fails closed to CSV if Google's policy or
+    available quota no longer permits that path.
 
 ## 4. Milestone 1 — Android project scaffold
 
@@ -250,6 +257,8 @@ Entry: local data and export-default settings accepted.
 Entry: CSV logical row model stable. The owner supplies Google Cloud ownership and
 signing inputs when this milestone begins.
 
+Status: research and design completed; awaiting owner acceptance.
+
 ### Mandatory discovery gate
 
 - With explicit internet permission, re-read current official Google Identity Android
@@ -264,23 +273,34 @@ signing inputs when this milestone begins.
 
 ### Deliverables
 
-- Approved authentication and Sheets gateway design, dependency/version proposal,
-  scope rationale, token-handling model, error taxonomy, test strategy, and updated
-  Google Cloud setup guide.
+- Credential Manager `1.6.0`/Google ID `1.2.0` account-choice design,
+  `AuthorizationClient` from `play-services-auth:21.6.0`, and
+  `kotlinx-coroutines-play-services:1.10.2`.
+- Per-file `drive.file` grant through the official Android Google Picker flow filtered
+  to the pasted spreadsheet ID, followed by Drive edit-capability and Sheets metadata
+  validation.
+- Small fakeable HTTPS/JSON Drive v3 and Sheets v4 gateway design, token/sign-out
+  model, error taxonomy, test strategy, ADR, and Google Cloud setup guide.
 - No account UI, authorization code, or network call is required in this planning
   milestone.
 
 ## 13. Milestone 10 — Google account and spreadsheet connection settings
 
-Entry: Milestone 9 integration plan approved and Google Cloud configuration available.
+Entry: Milestone 9 integration plan approved; personal Google Cloud project, three APIs, External
+Testing audience/test accounts, debug Android OAuth client, Web OAuth client ID, and test
+spreadsheets are available. Release signing and any release OAuth client remain deferred.
 
 ### Scope
 
-- Supported account sign-in/authorization, sign-out, expiry recovery, and cancellation.
-- Spreadsheet URL/ID parsing, validation, title/ID display, exactly-one connection,
-  disconnect, and Google Sheets default-destination selection.
+- Stable Credential Manager account choice, per-file Picker authorization, sign-out,
+  grant-revocation reporting, expiry recovery, and cancellation.
+- Spreadsheet URL/ID parsing, exact-ID Picker filtering, Drive edit-capability plus
+  Sheets metadata validation, title/ID display, exactly-one connection, disconnect,
+  and Google Sheets default-destination selection.
 - No Firebase, service account, embedded secret, raw token in DataStore, Drive-wide
   authorization, or spreadsheet creation.
+- No Google Play configuration, billing account, paid quota, Workspace organization, custom
+  domain, or verified-brand dependency.
 
 ### Verification gate
 
@@ -303,6 +323,8 @@ Entry: account and spreadsheet connection accepted.
   snapshot.
 - Preserve all other tabs, never import to Room, never create a spreadsheet, and expose
   useful retryable offline/auth/network/ambiguous-response states.
+- Use bounded explicit-operation traffic within standard no-cost quotas; quota exhaustion never
+  triggers billing, paid capacity, background work, or an unbounded retry.
 
 ### Verification gate
 
@@ -345,6 +367,16 @@ Entry: all primary workflows function.
 - Automated accessibility/UI coverage plus documented manual device, font-scale,
   TalkBack, theme, and error-recovery checks.
 
+### Owner reminder after Milestone 13
+
+After Milestone 13 is completed, remind the owner to decide whether to:
+
+1. stop showing neutral export-cancellation status on the Main screen; and
+2. drastically reduce the task data/columns exported to CSV.
+
+Do not implement either change without explicit approval. If the CSV schema changes, review schema
+versioning and whether the later Google Sheets export should retain the shared logical row model.
+
 ## 17. Milestone 14 — Full specification audit, regression testing, and security review
 
 Entry: feature and refinement milestones accepted.
@@ -356,7 +388,8 @@ Entry: feature and refinement milestones accepted.
 - Run the full unit, coroutine, Room/migration, ViewModel, Compose, lifecycle, CSV, fake
   Google, and controlled integration suites.
 - Audit permissions, logs, credentials, OAuth scopes, storage, spreadsheet ownership,
-  CSV formula risk, dependency licenses, migration policy, and prohibited technology.
+  CSV formula risk, dependency licenses, migration policy, no-billing/no-Play policy, standard
+  quota behavior, and prohibited technology.
 - Resolve specification drift through explicit decisions and documentation updates.
 
 ### Verification gate
@@ -373,8 +406,13 @@ Entry: Milestone 14 audit accepted.
 - Final API/device and populated-database upgrade matrix, performance check, and
   debug/release build verification.
 - Versioning, signing and release configuration through the owner's secure process.
-- Google consent/verification readiness, privacy/user documentation, setup/runbook,
-  backup limitations, known limitations, and maintenance guidance.
+- Create the permanent direct-release keystore/fingerprint and matching Android OAuth client through
+  the owner's secure process; do not create Google Play signing configuration.
+- Move the External OAuth audience to In Production for small ongoing use, document the
+  unverified/personal-use consent limitations, and retain repository-hosted privacy/user guidance
+  without making a custom domain or paid brand verification a release dependency.
+- Document no-cost standard quota behavior, CSV fallback, backup limitations, known limitations,
+  and maintenance guidance.
 - Update README and produce a release candidate without committing signing material,
   credentials, tokens, `local.properties`, or generated local state.
 
@@ -405,9 +443,11 @@ deferred until the mandatory Milestone 9 discovery gate.
 | Risk | Impact | Mitigation/gate |
 | --- | --- | --- |
 | `ACTION_CREATE_DOCUMENT` cannot force a Downloads subfolder | The system picker may save outside `Downloads/WorqOrder` | Accepted D-030 gives final location control to the user; do not add a storage-permission workaround |
-| OAuth configuration differs from app identity | Google authorization fails | Register exact `worq.order` package with each required signing fingerprint |
-| Google Android auth APIs evolve | Integration churn or conflict with stable-only rule | Mandatory official-doc and stable-library gate in Milestone 9 |
-| Sheets scope is sensitive | Consent/verification burden | Request the narrowest supported scope and document arbitrary-ID need; no Drive-wide scope without approval |
+| OAuth configuration differs from app identity | Google authorization fails | Register exact `worq.order` plus debug SHA-1 now and direct-release SHA-1 only in Milestone 15; no Play identity |
+| Google Android auth APIs evolve | Integration churn or conflict with stable-only rule | Milestone 9 selected current stable versions; recheck official releases at Milestone 10 implementation |
+| Picker grant does not match pasted spreadsheet ID | Wrong file connected or per-file access unavailable | Filter Picker by exact ID/MIME type, require exact `picked_file_ids` match, and validate Drive edit capability plus Sheets metadata |
+| OAuth project remains in Testing | `drive.file` grants expire after seven days | Use External Testing during development, then move the small personal-use project to In Production without making verified branding/custom domain a dependency |
+| Google standard quota or policy changes | Google export could fail or invite paid capacity | Never attach billing or buy quota; use bounded explicit calls, show a useful failure, keep CSV available, and require a new owner decision |
 | Collaborative sheet changes race an export | Possible remote conflict | Marker, narrow reads, atomic batch, raw values, idempotent retry; never change Room |
 | Wall-clock correction while timer runs | Live and persisted elapsed can disagree | Monotonic live view, UTC persistence, non-negative clamp, explicit anomaly result |
 | DST/zone changes and midnight transitions | Misassigned dates or intervals | Stored/pinned ZoneIds, `atStartOfDay`, three-part uniqueness, real-zone tests |

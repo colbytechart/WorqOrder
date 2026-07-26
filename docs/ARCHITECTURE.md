@@ -222,13 +222,34 @@ Google support is a replaceable gateway outside the offline core.
 
 - Do not add Firebase.
 - Do not use service accounts in an APK.
-- Use Google-supported Android account authorization, with Google Play services managing authorization credentials. Do not persist raw tokens in DataStore.
-- Treat authentication/account identity separately from authorization to call Sheets.
-- Request only the Sheets scope required for user-entered arbitrary spreadsheet IDs and document why; no Drive-wide scope.
-- Use the Sheets API v4 through a stable supported client or a small REST adapter, selected after an implementation-time official-doc review.
+- Use stable AndroidX Credential Manager/Google ID for account choice and Google Identity Services
+  `AuthorizationClient` for Google-data authorization. Do not persist raw tokens in DataStore.
+- Treat authentication/account choice separately from authorization to call Drive/Sheets. Because
+  there is no backend, a Credential Manager ID token is not a verified application identity and is
+  discarded after the sign-in result.
+- Request only `drive.file`, then use the official Android Google Picker authorization flow
+  filtered to the user-pasted spreadsheet ID and the Google Sheets MIME type. Do not request a
+  Drive-wide, profile, email, or all-spreadsheets scope.
+- Validate the selected file through a narrow Drive v3 edit-capability read and Sheets v4 metadata
+  read, then use small, fakeable HTTPS/JSON REST gateways for later export.
 - Gateway operations are suspendable and return typed outcomes: offline, authorization required/expired, permission denied, not found, marker conflict, rate limited, server failure, validation failure, canceled, and success.
+- Google calls are explicit user actions, use bounded/no automatic retry, and stay within the
+  no-cost standard tier. Do not attach billing, request a paid quota increase, or implement a path
+  that can generate charges. Quota exhaustion is a safe failure and CSV remains available.
+- The supported distribution is direct APK delivery, not Google Play. Debug OAuth identity is used
+  through Milestone 14; the permanent direct-release signing identity and OAuth client are created
+  only in Milestone 15.
 
-The planning review (2026-07-22) found current official guidance directing Android apps to Credential Manager for Sign in with Google and to the Google Identity authorization API for access to Google data. Official samples can mention alpha dependencies even when stable-only policy forbids them; therefore Milestone 9 must select a stable supported path or document an explicit exception for approval. See `EXPORT_SPEC.md` for the setup and verification gate.
+The Milestone 9 official-document review on 2026-07-26 selected stable Credential Manager `1.6.0`,
+Google ID `1.2.0`, `play-services-auth:21.6.0`, and
+`kotlinx-coroutines-play-services:1.10.2`. Detailed rationale and setup are in
+`GOOGLE_INTEGRATION_ADR.md` and `GOOGLE_SHEETS_SETUP.md`.
+
+The owner requires WorqOrder to remain GPLv3, free, and open source without Google Workspace,
+organization membership, a custom domain, or paid Google services. Development uses an External
+Testing audience; a small personal-use project may move to External/In Production for non-expiring
+Testing grants without seeking verified branding. If Google's policy later removes that no-cost
+path, do not broaden scope or enable billing—stop and revisit the Google feature.
 
 ## 11. Security and privacy
 

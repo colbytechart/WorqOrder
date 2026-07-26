@@ -24,6 +24,8 @@ Task tracking, editing, client management, timer recovery, and CSV row generatio
 - UTF-8 CSV export through an Android scoped/user-mediated storage flow.
 - One connected Google spreadsheet, with one application-owned worksheet tab per date.
 - Local settings and meaningful export status/error presentation.
+- Free and open-source distribution under GPLv3, with no paid service required for any supported
+  workflow.
 
 ### Excluded
 
@@ -32,6 +34,8 @@ Task tracking, editing, client management, timer recovery, and CSV row generatio
 - Google Sheets synchronization, conflict merging, or cross-device task synchronization.
 - Firebase, a custom backend, web application, web wrapper, Flutter, or React Native.
 - Concurrent timers, background location, billing, accounts for local use, or team collaboration.
+- Google Play distribution, Google Play App Signing, paid Google API quota, a billing account,
+  Google Workspace/Cloud organization membership, or a custom-domain requirement.
 - A foreground service in the initial MVP.
 - A promise that app-private data survives uninstall or clearing application storage.
 
@@ -199,10 +203,20 @@ Additional visual requirements for implementation are Material 3 semantics, 48 d
 
 1. **Google re-export:** the early append-and-sort wording conflicts with the later marker-and-replace rule. Marker-validated replacement is authoritative because it is idempotent and reflects local edits/deletions. Rows are generated in stable sorted order.
 2. **CSV folder versus create-document:** use `ACTION_CREATE_DOCUMENT` for every export. The system picker/user owns the final location, so the app may suggest but cannot force or silently create `Downloads/WorqOrder`. No broad storage permissions or directory-tree grant are used.
-3. **Google authorization scope:** arbitrary spreadsheet URL/ID entry normally requires the Sheets scope, which can access all spreadsheets and is classified as sensitive. The plan requests only `spreadsheets`, documents why, and requires official-doc revalidation before implementation. A future per-file picker could allow `drive.file`, but is not assumed.
+3. **Google authorization scope:** the user still pastes a spreadsheet URL/ID, then confirms that
+   exact file through the official Android Google Picker resource-authorization flow. Request only
+   the non-sensitive per-file `drive.file` scope and verify the returned picked ID before validating
+   edit capability. Do not fall back to the sensitive all-spreadsheets scope. If Google's
+   no-cost `drive.file`/Picker workflow stops supporting the product, pause Google export changes
+   for a new owner decision and retain CSV.
 4. **Device zone changes during timing:** the zone captured at Start is pinned for that active session's splitting. The new effective device zone applies after Stop. This prevents a device-setting change from rewriting an interval's date semantics mid-run.
 5. **Manual wall-clock changes:** live display stays monotonic while the process is alive, but persisted boundaries remain wall-clock UTC as required. Large anomalies are surfaced for correction rather than hidden.
 
 ## 12. Product completion criteria
 
-The MVP is complete only when all acceptance tests in `ACCEPTANCE_TESTS.md` pass on the supported API range, release migrations are non-destructive, offline core behavior is proven, exported schemas are stable, no prohibited permissions/credentials/dependencies are present, and the Google setup guide has been exercised with debug and release signing fingerprints.
+The MVP is complete only when all acceptance tests in `ACCEPTANCE_TESTS.md` pass on the supported
+API range, release migrations are non-destructive, offline core behavior is proven, exported
+schemas are stable, no prohibited permissions/credentials/dependencies are present, and the Google
+setup guide has been exercised with the debug signing fingerprint. The permanent direct-release
+fingerprint and release OAuth client are deliberately deferred to Milestone 15. Google Play
+signing is not part of completion.

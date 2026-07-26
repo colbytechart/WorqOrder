@@ -80,9 +80,21 @@ Rationale: this later, precise rule resolves the earlier append-only wording and
 
 Use a fakeable Google gateway, current stable Google-supported Android identity/authorization APIs, Sheets API v4, and typed retryable failures. No Firebase/service account/API-key authorization/raw token storage.
 
-### D-018 — Google Sheets scope for arbitrary IDs
+### D-018 — Per-file Google Sheets authorization for pasted IDs
 
-Plan to request only `https://www.googleapis.com/auth/spreadsheets`. It is broader than per-file `drive.file` but is needed for the required arbitrary existing spreadsheet URL/ID workflow; no Drive-wide/profile/email scopes are planned. Revalidate official guidance immediately before the Google milestone.
+Request only `https://www.googleapis.com/auth/drive.file` for Google data access. After the user
+pastes a spreadsheet URL/ID, launch the official Android Google Picker authorization flow filtered
+to that exact ID and the Google Sheets MIME type. Accept the connection only when
+`picked_file_ids` confirms that ID and Drive/Sheets validation proves it is an editable Google
+spreadsheet.
+
+This supersedes the provisional `spreadsheets`-scope plan after the Milestone 9 official-doc
+review found Google's current Android Picker resource-parameter flow. The chosen scope is
+non-sensitive and per-file; it preserves pasted-ID input at the cost of one explicit Google Picker
+confirmation. The sensitive all-spreadsheets scope is not an implementation fallback because it
+conflicts with the no-cost/no-domain policy. Do not request Drive-wide, profile, or email data
+scopes for Sheets authorization. If the selected flow becomes unavailable, stop for a new owner
+decision and preserve CSV.
 
 ### D-019 — Restrained architecture/manual DI
 
@@ -299,6 +311,57 @@ needed. A successful **Save task changes** operation persists client, descriptio
 metadata and immediately navigates back to Main; validation or persistence failure remains on the
 editor with an actionable state.
 
+### D-046 — Google identity and authorization stack
+
+Authentication and Google-data authorization are separate. Use stable AndroidX Credential Manager
+`1.6.0` plus Google ID `1.2.0` for account choice, and Google Identity Services
+`AuthorizationClient` from `play-services-auth:21.6.0` for `drive.file` consent, Picker, token
+acquisition, token clearing, and grant revocation. `kotlinx-coroutines-play-services:1.10.2` may
+bridge Google Task results.
+
+WorqOrder has no backend, so it cannot treat Credential Manager's Google ID token as a verified
+application identity. Discard the raw token after the account-choice result; any locally retained
+display hint is non-secret and non-authoritative. Request a fresh short-lived access token for each
+explicit connection/validation/export operation, hold it only in memory, and never request or
+manually persist a refresh token.
+
+Use small, fakeable HTTPS/JSON Drive v3 and Sheets v4 gateways rather than the generated Google API
+Java client, whose documented Android support remains Beta. No Firebase, Google services Gradle
+plugin, API-key authorization, backend, or service account is introduced.
+
+### D-047 — Google connection, disconnect, and sign-out semantics
+
+Connecting stores only non-secret spreadsheet ID, title, validation status/time, and an optional
+account display hint in DataStore. It does not store access/refresh tokens and does not write a test
+cell. Validation requires an exact Picker grant, Drive edit/content-modification capability, and a
+successful narrow Sheets metadata read.
+
+**Disconnect** clears the local spreadsheet association but leaves the selected Google account and
+grant unchanged. **Sign out** immediately makes Google export unavailable, attempts to revoke the
+app's Google data grant, clears Credential Manager state and in-memory credentials, and clears the
+account hint. It may preserve spreadsheet ID/title as stale convenience metadata, but a later
+sign-in must Picker-grant and revalidate the file before export. A failed remote revocation is
+reported instead of falsely claiming complete revocation.
+
+### D-048 — Permanent free/open-source and no-paid-Google policy
+
+WorqOrder remains free and open source under GPLv3. Supported workflows must not require a Google
+Workspace subscription, Cloud/Workspace organization, custom domain, billing account, paid API
+tier, quota purchase, or another paid service. Google export uses only standard no-additional-cost
+quota and explicit foreground user actions. Do not enable billing or request increased paid quota;
+when standard quota is unavailable, return a useful failure and retain CSV.
+
+The Google Auth project uses an individual developer-controlled account and External audience:
+Testing during development, then In Production for small ongoing personal/open-source use. Do not
+seek verified name/logo branding when it would introduce a domain requirement. This intentionally
+accepts less-polished or unverified consent presentation and a small-user policy boundary.
+
+Google Play distribution and Play App Signing are out of scope. Milestones 10 and 11 use the debug
+signing SHA-1 and debug Android OAuth client. A permanent direct-release key/fingerprint and matching
+Android OAuth client are created only through the secure Milestone 15 release process. If Google
+changes the free API, quota, OAuth, or Picker policy, do not silently add cost, broader access, or a
+backend; stop for a new owner decision.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.
@@ -307,4 +370,8 @@ editor with an actionable state.
 
 ## Implementation inputs still needed
 
-- Publisher-owned Google Cloud project, consent/verification details, and release signing fingerprints before Google integration testing. These are external setup inputs, not reasons to delay the offline core.
+- Developer-controlled personal Google Cloud project, External test audience, debug SHA-1/debug
+  Android OAuth client, Web OAuth client ID, and disposable test spreadsheets before Milestone 10
+  integration testing.
+- Permanent direct-release key/fingerprint and release Android OAuth client are deferred to
+  Milestone 15. No Google Play signing input is required.

@@ -378,7 +378,11 @@ neutral cancellation, retryable failure, and possible partial output.
 
 ### GS-01 Connection validation
 
-Given authorized access and valid URL/ID, validation stores/displays the exact spreadsheet ID/title and does not create a spreadsheet. Malformed, missing, read-only, or unauthorized sheets give distinct safe errors.
+Given a valid URL/ID, the app filters the official Android Google Picker authorization flow to that
+exact ID and the Google Sheets MIME type. Only an exact returned `picked_file_ids` match followed by
+successful Drive edit-capability and Sheets metadata validation stores/displays the spreadsheet
+ID/title. No spreadsheet or test cell is created. Malformed, Picker-mismatched, missing, read-only,
+trashed, or unauthorized sheets give distinct safe errors.
 
 ### GS-02 One connection
 
@@ -435,11 +439,31 @@ Rate limit/server/ambiguous response yields a typed retryable state. Retrying co
 
 ### GS-15 Sign-out/disconnect
 
-Sign-out uses supported identity APIs and makes Google export unavailable; Disconnect clears local spreadsheet metadata. Neither changes Room or deletes external content.
+Disconnect clears local spreadsheet metadata but leaves account/grant state intact. Sign-out makes
+Google export unavailable, attempts grant revocation, clears Credential Manager/in-memory state,
+and reports incomplete remote revocation if it fails. Neither changes Room or deletes external
+content.
 
 ### GS-16 Credentials/scopes
 
-Static/release inspection finds no password, raw token persistence, OAuth client secret, service-account key, Firebase, Drive-wide scope, or unrestricted credential. The documented Sheets scope matches the implemented consent.
+Static/release inspection finds no password, raw token persistence, OAuth client secret,
+service-account key, Firebase, Drive-wide/all-spreadsheets/profile/email scope, or unrestricted
+credential. Consent requests only `drive.file`, and every connected ID was explicitly returned by
+the Picker resource grant.
+
+### GS-17 Free/open-source and distribution policy
+
+Static configuration and release review find no Google Cloud billing account dependency, paid
+quota path, subscription, Workspace/organization requirement, custom-domain requirement, Google
+Play client, or Play App Signing configuration. Debug builds use the registered debug SHA-1; the
+direct-release identity is added only in Milestone 15. The repository remains GPLv3.
+
+### GS-18 Quota and future-policy failure
+
+Google requests occur only during explicit user operations and use bounded retry. Standard-quota
+exhaustion does not trigger paid capacity or background retry, does not mutate Room, and leaves CSV
+available. If `drive.file`/Picker policy no longer supports the workflow, the app does not silently
+request a broader scope.
 
 ## 10. Room and build quality
 

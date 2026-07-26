@@ -70,6 +70,26 @@ abstract class TaskDao {
             client.archived_at_epoch_ms AS joined_client_archived_at_epoch_ms
         FROM daily_tasks AS task
         INNER JOIN clients AS client ON client.id = task.client_id
+        WHERE task.work_date_epoch_day = :workDateEpochDay
+        ORDER BY task.created_at_epoch_ms ASC, task.id ASC
+        """,
+    )
+    protected abstract suspend fun readTasksWithClientsForWorkDate(
+        workDateEpochDay: Long,
+    ): List<TaskWithClientEntity>
+
+    @Query(
+        """
+        SELECT
+            task.*,
+            client.name AS joined_client_name,
+            client.canonical_name AS joined_client_canonical_name,
+            client.is_active AS joined_client_is_active,
+            client.created_at_epoch_ms AS joined_client_created_at_epoch_ms,
+            client.updated_at_epoch_ms AS joined_client_updated_at_epoch_ms,
+            client.archived_at_epoch_ms AS joined_client_archived_at_epoch_ms
+        FROM daily_tasks AS task
+        INNER JOIN clients AS client ON client.id = task.client_id
         WHERE task.id = :taskId
         LIMIT 1
         """,
@@ -254,4 +274,15 @@ abstract class TaskDao {
             intervals = readOrderedIntervals(taskId),
         )
     }
+
+    @Transaction
+    open suspend fun readTasksWithOrderedIntervalsForWorkDate(
+        workDateEpochDay: Long,
+    ): List<TaskWithOrderedIntervalsEntity> =
+        readTasksWithClientsForWorkDate(workDateEpochDay).map { taskWithClient ->
+            TaskWithOrderedIntervalsEntity(
+                taskWithClient = taskWithClient,
+                intervals = readOrderedIntervals(taskWithClient.task.id),
+            )
+        }
 }

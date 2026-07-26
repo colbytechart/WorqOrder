@@ -138,7 +138,7 @@ Preferences are version-tolerant typed values with safe defaults:
 
 | Preference | Value/default |
 | --- | --- |
-| `theme_mode` | `DARK` by default; explicit `LIGHT` supported; optional `SYSTEM` |
+| `theme_mode` | `SYSTEM` by default; explicit `LIGHT` and `DARK` overrides |
 | `time_zone_mode` | `DEVICE` by default |
 | `manual_zone_id` | valid ZoneId string; ignored in device mode |
 | `default_export_destination` | `CSV` by default |
@@ -147,10 +147,13 @@ Preferences are version-tolerant typed values with safe defaults:
 | `connected_spreadsheet_id` | nullable validated ID |
 | `connected_spreadsheet_title` | nullable last validated title |
 | `connected_google_account_hint` | nullable non-secret display identifier if supported/necessary |
-| `last_export_*` | destination, work date, attempt instant, outcome/error category and safe message |
-| `csv_destination_uri` | nullable persistable tree/document hint only if the final CSV flow uses it |
+| `last_export_*` | CSV destination, work date, attempt instant, outcome, and optional safe error category |
 
 Spreadsheet metadata is cleared on Disconnect. Account tokens, refresh tokens, passwords, service-account data, and OAuth client secrets are prohibited.
+
+Milestone 8 persists no CSV document URI, payload, provider detail, task row, or exception text.
+Every CSV attempt uses a fresh create-document flow; its safe last-attempt metadata is presentation
+history only and never becomes task or timer truth.
 
 ## 9. Selection and rollover data rules
 

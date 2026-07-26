@@ -158,6 +158,7 @@ fun MainScreen(
             MainBottomActions(
                 canExport = uiState.canExport,
                 exportDestination = uiState.exportDestination,
+                exportProgress = uiState.exportProgress,
                 displayedDate = uiState.displayedDate,
                 onExport = { onEvent(MainEvent.Export) },
                 onCreateTask = { onEvent(MainEvent.OpenCreateTask) },
@@ -211,6 +212,12 @@ private fun MainContent(
                 onDismiss = { onEvent(MainEvent.DismissMessage) },
             )
         }
+        uiState.exportFeedback?.let { feedback ->
+            MainExportFeedbackBanner(
+                feedback = feedback,
+                onDismiss = { onEvent(MainEvent.DismissExportFeedback) },
+            )
+        }
         TaskList(
             uiState = uiState,
             onSelectTask = { onEvent(MainEvent.SelectTask(it)) },
@@ -231,6 +238,7 @@ private fun MainContent(
 private fun MainBottomActions(
     canExport: Boolean,
     exportDestination: ExportDestination,
+    exportProgress: MainExportProgress?,
     displayedDate: LocalDate,
     onExport: () -> Unit,
     onCreateTask: () -> Unit,
@@ -254,23 +262,46 @@ private fun MainBottomActions(
                 DateTimeFormatter
                     .ofPattern("MMM d")
                     .format(displayedDate)
-            Text(
-                text =
-                    when (exportDestination) {
-                        ExportDestination.CSV ->
-                            stringResource(
-                                R.string.export_date_as_csv,
-                                formattedDate,
-                            )
-                        ExportDestination.GOOGLE_SHEETS ->
-                            stringResource(
-                                R.string.setup_google_sheets_for_date,
-                                formattedDate,
-                            )
-                    },
-                maxLines = 2,
-                textAlign = TextAlign.Center,
-            )
+            if (exportProgress != null) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(WorqOrderDimens.InlineProgressSize),
+                    strokeWidth = WorqOrderDimens.InlineProgressStrokeWidth,
+                )
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                Text(
+                    text =
+                        stringResource(
+                            when (exportProgress) {
+                                MainExportProgress.PREPARING ->
+                                    R.string.preparing_csv
+                                MainExportProgress.CHOOSING_DESTINATION ->
+                                    R.string.choosing_csv_destination
+                                MainExportProgress.WRITING ->
+                                    R.string.writing_csv
+                            },
+                        ),
+                    maxLines = 2,
+                    textAlign = TextAlign.Center,
+                )
+            } else {
+                Text(
+                    text =
+                        when (exportDestination) {
+                            ExportDestination.CSV ->
+                                stringResource(
+                                    R.string.export_date_as_csv,
+                                    formattedDate,
+                                )
+                            ExportDestination.GOOGLE_SHEETS ->
+                                stringResource(
+                                    R.string.setup_google_sheets_for_date,
+                                    formattedDate,
+                                )
+                        },
+                    maxLines = 2,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
         Spacer(Modifier.width(WorqOrderDimens.BottomActionSpacing))
         Button(
@@ -523,6 +554,75 @@ private fun MainMessageBanner(
         ) {
             Text(
                 text = stringResource(message.stringResource()),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.dismiss_message),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainExportFeedbackBanner(
+    feedback: MainExportFeedback,
+    onDismiss: () -> Unit,
+) {
+    val isFailure =
+        feedback.outcome !in
+            setOf(
+                MainExportOutcome.SUCCESS,
+                MainExportOutcome.CANCELED,
+            )
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color =
+            if (isFailure) {
+                MaterialTheme.colorScheme.errorContainer
+            } else {
+                MaterialTheme.colorScheme.secondaryContainer
+            },
+        contentColor =
+            if (isFailure) {
+                MaterialTheme.colorScheme.onErrorContainer
+            } else {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            },
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Row(
+            modifier = Modifier.padding(WorqOrderDimens.ItemPadding),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val formattedDate =
+                DateTimeFormatter
+                    .ofLocalizedDate(FormatStyle.MEDIUM)
+                    .format(feedback.workDate)
+            Text(
+                text =
+                    stringResource(
+                        when (feedback.outcome) {
+                            MainExportOutcome.SUCCESS ->
+                                R.string.csv_export_succeeded
+                            MainExportOutcome.CANCELED ->
+                                R.string.csv_export_canceled
+                            MainExportOutcome.PREPARATION_FAILED ->
+                                R.string.csv_export_preparation_failed
+                            MainExportOutcome.CLOCK_CHANGED ->
+                                R.string.csv_export_clock_changed
+                            MainExportOutcome.ACTIVE_TIMER_CHANGED ->
+                                R.string.csv_export_timer_changed
+                            MainExportOutcome.OUTPUT_FAILED ->
+                                R.string.csv_export_output_failed
+                            MainExportOutcome.PARTIAL_OUTPUT_MAY_REMAIN ->
+                                R.string.csv_export_partial_output
+                        },
+                        formattedDate,
+                    ),
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium,
             )

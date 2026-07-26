@@ -56,6 +56,13 @@ class RoomTaskRepository(
     override suspend fun readTaskWithIntervals(taskId: String): TaskWithIntervals? =
         taskDao.readTaskWithOrderedIntervals(taskId)?.toModel()
 
+    override suspend fun readTasksWithIntervalsForDate(
+        workDate: LocalDate,
+    ): List<TaskWithIntervals> =
+        taskDao
+            .readTasksWithOrderedIntervalsForWorkDate(workDate.toEpochDay())
+            .map(TaskWithOrderedIntervalsEntity::toModel)
+
     override suspend fun findCorrespondingTask(
         seriesId: String,
         workDate: LocalDate,

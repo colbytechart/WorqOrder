@@ -15,15 +15,20 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import worq.order.data.NewDailyTask
 import worq.order.data.ExportDestination
+import worq.order.data.ExportAttemptOutcome
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
+import worq.order.export.CsvExportCoordinator
+import worq.order.export.csv.DocumentWriteResult
 import worq.order.model.DailyTask
 import worq.order.testing.FakeActiveTimerRepository
+import worq.order.testing.FakeDocumentOutputDestination
 import worq.order.testing.FakeMonotonicTimeSource
 import worq.order.testing.FakeSelectedTaskRepository
 import worq.order.testing.FakeSettingsRepository
@@ -247,7 +252,7 @@ class MainViewModelTest {
                 ExportDestination.CSV,
                 viewModel.uiState.value.exportDestination,
             )
-            assertFalse(viewModel.uiState.value.canExport)
+            assertTrue(viewModel.uiState.value.canExport)
 
             fixture.settings.setDefaultExportDestination(
                 ExportDestination.GOOGLE_SHEETS,
@@ -266,6 +271,112 @@ class MainViewModelTest {
             assertEquals(
                 MainEffect.NavigateToGoogleSheetsSettings,
                 effect.await(),
+            )
+        }
+
+    @Test
+    fun csvPickerCancellationIsNeutralAndWritesNothing() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            val effect = async { viewModel.effects.first() }
+            runCurrent()
+            viewModel.onEvent(MainEvent.Export)
+            runCurrent()
+
+            assertEquals(
+                MainEffect.LaunchCsvDocument("worqorder_2026-07-24.csv"),
+                effect.await(),
+            )
+            assertEquals(
+                MainExportProgress.CHOOSING_DESTINATION,
+                viewModel.uiState.value.exportProgress,
+            )
+
+            viewModel.onEvent(MainEvent.CsvDocumentSelected(null))
+            runCurrent()
+
+            assertTrue(fixture.document.writes.isEmpty())
+            assertNull(viewModel.uiState.value.exportProgress)
+            assertEquals(
+                MainExportOutcome.CANCELED,
+                viewModel.uiState.value.exportFeedback?.outcome,
+            )
+            assertEquals(
+                ExportAttemptOutcome.CANCELED,
+                fixture.settings.readSettings().lastExportAttempt?.outcome,
+            )
+        }
+
+    @Test
+    fun csvSnapshotRemainsStableWhilePickerIsOpenAndSuccessIsRecorded() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY, description = "Original description")
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            val effect = async { viewModel.effects.first() }
+            runCurrent()
+            viewModel.onEvent(MainEvent.Export)
+            runCurrent()
+            effect.await()
+
+            fixture.tasks.updateTaskMetadata(
+                taskId = task.id,
+                clientId = task.clientId,
+                description = "Changed after picker opened",
+                hardwareSoftwarePurchases = "",
+            )
+            viewModel.onEvent(
+                MainEvent.CsvDocumentSelected("content://documents/export.csv"),
+            )
+            runCurrent()
+
+            val write = fixture.document.writes.single()
+            assertTrue(write.contents.contains("Original description"))
+            assertFalse(write.contents.contains("Changed after picker opened"))
+            assertEquals(
+                MainExportOutcome.SUCCESS,
+                viewModel.uiState.value.exportFeedback?.outcome,
+            )
+            assertEquals(
+                ExportAttemptOutcome.SUCCESS,
+                fixture.settings.readSettings().lastExportAttempt?.outcome,
+            )
+        }
+
+    @Test
+    fun csvOutputFailureIsActionableAndDoesNotClaimSuccess() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.document.result =
+                DocumentWriteResult.Failed(partialDocumentMayRemain = false)
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            val effect = async { viewModel.effects.first() }
+            runCurrent()
+            viewModel.onEvent(MainEvent.Export)
+            runCurrent()
+            effect.await()
+            viewModel.onEvent(
+                MainEvent.CsvDocumentSelected("content://documents/failure.csv"),
+            )
+            runCurrent()
+
+            assertEquals(
+                MainExportOutcome.OUTPUT_FAILED,
+                viewModel.uiState.value.exportFeedback?.outcome,
+            )
+            assertEquals(
+                ExportAttemptOutcome.FAILED,
+                fixture.settings.readSettings().lastExportAttempt?.outcome,
             )
         }
 
@@ -395,6 +506,14 @@ class MainViewModelTest {
                 liveTimerSession = liveTimerSession,
                 operationLock = operationLock,
             )
+        private val csvExportCoordinator =
+            CsvExportCoordinator(
+                taskRepository = tasks,
+                activeTimerNormalizer = normalizer,
+                clock = clock,
+                timerOperationLock = operationLock,
+            )
+        val document = FakeDocumentOutputDestination()
         private val taskMutationCoordinator =
             TaskMutationCoordinator(
                 taskRepository = tasks,
@@ -416,6 +535,8 @@ class MainViewModelTest {
                 currentDateProvider = currentDateProvider,
                 taskMutationCoordinator = taskMutationCoordinator,
                 settingsRepository = settings,
+                csvExportCoordinator = csvExportCoordinator,
+                documentOutputDestination = document,
             )
 
         suspend fun addTask(

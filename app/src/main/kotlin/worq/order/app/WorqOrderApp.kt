@@ -1,6 +1,8 @@
 package worq.order.app
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,6 +33,7 @@ import worq.order.ui.tasks.EditTaskScreen
 import worq.order.ui.tasks.EditTaskEffect
 import worq.order.ui.tasks.EditTaskViewModel
 import worq.order.ui.theme.WorqOrderTheme
+import worq.order.export.CsvExportCoordinator
 
 @Composable
 fun WorqOrderRoot() {
@@ -78,6 +81,18 @@ fun WorqOrderApp() {
                 }
             val viewModel: MainViewModel = viewModel(factory = factory)
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            val csvDocumentLauncher =
+                rememberLauncherForActivityResult(
+                    ActivityResultContracts.CreateDocument(
+                        CsvExportCoordinator.MIME_TYPE,
+                    ),
+                ) { documentUri ->
+                    viewModel.onEvent(
+                        worq.order.ui.main.MainEvent.CsvDocumentSelected(
+                            documentUri?.toString(),
+                        ),
+                    )
+                }
 
             LaunchedEffect(viewModel, navController) {
                 viewModel.effects.collect { effect ->
@@ -90,6 +105,8 @@ fun WorqOrderApp() {
                             navController.navigate(AppRoutes.SETTINGS)
                         MainEffect.NavigateToGoogleSheetsSettings ->
                             navController.navigate(AppRoutes.SETTINGS_GOOGLE_SETUP)
+                        is MainEffect.LaunchCsvDocument ->
+                            csvDocumentLauncher.launch(effect.suggestedFileName)
                     }
                 }
             }

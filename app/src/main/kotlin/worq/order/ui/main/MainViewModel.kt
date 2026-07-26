@@ -32,13 +32,21 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import worq.order.app.ApplicationContainer
 import worq.order.data.ActiveTimerRepository
+import worq.order.data.ExportAttemptOutcome
 import worq.order.data.ExportDestination
+import worq.order.data.ExportErrorCategory
+import worq.order.data.LastExportAttempt
 import worq.order.data.SettingsRepository
 import worq.order.data.TaskRepository
 import worq.order.domain.SelectTaskResult
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.DeleteTaskOperationResult
 import worq.order.domain.TaskMutationCoordinator
+import worq.order.export.CsvExportCoordinator
+import worq.order.export.PrepareCsvExportResult
+import worq.order.export.PreparedCsvExport
+import worq.order.export.csv.DocumentOutputDestination
+import worq.order.export.csv.DocumentWriteResult
 import worq.order.model.ActiveTimerSnapshot
 import worq.order.model.DailyTask
 import worq.order.model.TaskListItem
@@ -82,6 +90,8 @@ private data class MainRawState(
     val openTaskMenuTaskId: String? = null,
     val taskPendingDeletionId: String? = null,
     val exportDestination: ExportDestination = ExportDestination.CSV,
+    val exportProgress: MainExportProgress? = null,
+    val exportFeedback: MainExportFeedback? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -97,6 +107,8 @@ class MainViewModel(
     private val currentDateProvider: CurrentDateProvider,
     private val taskMutationCoordinator: TaskMutationCoordinator,
     private val settingsRepository: SettingsRepository,
+    private val csvExportCoordinator: CsvExportCoordinator,
+    private val documentOutputDestination: DocumentOutputDestination,
 ) : ViewModel() {
     private val initialToday = currentDateProvider.today()
     private val rawState =
@@ -110,6 +122,7 @@ class MainViewModel(
     private val reloadGeneration = MutableStateFlow(0L)
     private val lifecycleRefreshMutex = Mutex()
     private val mutableEffects = MutableSharedFlow<MainEffect>(extraBufferCapacity = 2)
+    private var pendingCsvExport: PreparedCsvExport? = null
 
     val effects = mutableEffects.asSharedFlow()
 
@@ -185,11 +198,11 @@ class MainViewModel(
                 )
             MainEvent.OpenSettings ->
                 mutableEffects.tryEmit(MainEffect.NavigateToSettings)
-            MainEvent.Export -> {
-                if (rawState.value.exportDestination == ExportDestination.GOOGLE_SHEETS) {
-                    mutableEffects.tryEmit(MainEffect.NavigateToGoogleSheetsSettings)
-                }
-            }
+            MainEvent.Export -> export()
+            is MainEvent.CsvDocumentSelected ->
+                handleCsvDocumentSelected(event.documentUri)
+            MainEvent.DismissExportFeedback ->
+                rawState.update { it.copy(exportFeedback = null) }
             is MainEvent.OpenTaskMenu ->
                 rawState.update {
                     it.copy(
@@ -563,6 +576,207 @@ class MainViewModel(
         }
     }
 
+    private fun export() {
+        val state = rawState.value
+        if (state.exportProgress != null || state.tasks !is MainLoad.Value) {
+            return
+        }
+        if (state.exportDestination == ExportDestination.GOOGLE_SHEETS) {
+            mutableEffects.tryEmit(MainEffect.NavigateToGoogleSheetsSettings)
+            return
+        }
+        val workDate = state.displayedDate
+        viewModelScope.launch {
+            rawState.update {
+                it.copy(
+                    exportProgress = MainExportProgress.PREPARING,
+                    exportFeedback = null,
+                )
+            }
+            val result =
+                runCatching {
+                    csvExportCoordinator.prepare(workDate)
+                }.getOrElse {
+                    finishExportFailure(
+                        workDate = workDate,
+                        outcome = MainExportOutcome.PREPARATION_FAILED,
+                        category = ExportErrorCategory.PREPARATION,
+                        attemptedAt = utcClock.now(),
+                    )
+                    return@launch
+                }
+            when (result) {
+                is PrepareCsvExportResult.Ready -> {
+                    pendingCsvExport = result.export
+                    rawState.update {
+                        it.copy(
+                            exportProgress =
+                                MainExportProgress.CHOOSING_DESTINATION,
+                        )
+                    }
+                    mutableEffects.emit(
+                        MainEffect.LaunchCsvDocument(
+                            result.export.suggestedFileName,
+                        ),
+                    )
+                }
+                PrepareCsvExportResult.ClockChanged ->
+                    finishExportFailure(
+                        workDate = workDate,
+                        outcome = MainExportOutcome.CLOCK_CHANGED,
+                        category = ExportErrorCategory.CLOCK_CHANGED,
+                        attemptedAt = utcClock.now(),
+                    )
+                PrepareCsvExportResult.ActiveTimerChanged ->
+                    finishExportFailure(
+                        workDate = workDate,
+                        outcome = MainExportOutcome.ACTIVE_TIMER_CHANGED,
+                        category = ExportErrorCategory.ACTIVE_TIMER_CHANGED,
+                        attemptedAt = utcClock.now(),
+                    )
+            }
+        }
+    }
+
+    private fun handleCsvDocumentSelected(documentUri: String?) {
+        val export = pendingCsvExport ?: return
+        if (rawState.value.exportProgress != MainExportProgress.CHOOSING_DESTINATION) {
+            return
+        }
+        if (documentUri == null) {
+            pendingCsvExport = null
+            rawState.update {
+                it.copy(
+                    exportProgress = null,
+                    exportFeedback =
+                        MainExportFeedback(
+                            workDate = export.workDate,
+                            outcome = MainExportOutcome.CANCELED,
+                        ),
+                )
+            }
+            recordExportAttempt(
+                export = export,
+                outcome = ExportAttemptOutcome.CANCELED,
+            )
+            return
+        }
+        viewModelScope.launch {
+            rawState.update {
+                it.copy(exportProgress = MainExportProgress.WRITING)
+            }
+            val result =
+                runCatching {
+                    documentOutputDestination.write(
+                        documentUri = documentUri,
+                        contents = export.contents,
+                    )
+                }.getOrElse {
+                    DocumentWriteResult.Failed(
+                        partialDocumentMayRemain = true,
+                    )
+                }
+            pendingCsvExport = null
+            when (result) {
+                DocumentWriteResult.Success -> {
+                    rawState.update {
+                        it.copy(
+                            exportProgress = null,
+                            exportFeedback =
+                                MainExportFeedback(
+                                    workDate = export.workDate,
+                                    outcome = MainExportOutcome.SUCCESS,
+                                ),
+                        )
+                    }
+                    recordExportAttempt(
+                        export = export,
+                        outcome = ExportAttemptOutcome.SUCCESS,
+                    )
+                }
+                is DocumentWriteResult.Failed -> {
+                    val partial = result.partialDocumentMayRemain
+                    rawState.update {
+                        it.copy(
+                            exportProgress = null,
+                            exportFeedback =
+                                MainExportFeedback(
+                                    workDate = export.workDate,
+                                    outcome =
+                                        if (partial) {
+                                            MainExportOutcome
+                                                .PARTIAL_OUTPUT_MAY_REMAIN
+                                        } else {
+                                            MainExportOutcome.OUTPUT_FAILED
+                                        },
+                                ),
+                        )
+                    }
+                    recordExportAttempt(
+                        export = export,
+                        outcome = ExportAttemptOutcome.FAILED,
+                        errorCategory =
+                            if (partial) {
+                                ExportErrorCategory.PARTIAL_OUTPUT
+                            } else {
+                                ExportErrorCategory.OUTPUT
+                            },
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun finishExportFailure(
+        workDate: LocalDate,
+        outcome: MainExportOutcome,
+        category: ExportErrorCategory,
+        attemptedAt: java.time.Instant,
+    ) {
+        pendingCsvExport = null
+        rawState.update {
+            it.copy(
+                exportProgress = null,
+                exportFeedback =
+                    MainExportFeedback(
+                        workDate = workDate,
+                        outcome = outcome,
+                    ),
+            )
+        }
+        runCatching {
+            settingsRepository.recordLastExportAttempt(
+                LastExportAttempt(
+                    destination = ExportDestination.CSV,
+                    workDate = workDate,
+                    attemptedAt = attemptedAt,
+                    outcome = ExportAttemptOutcome.FAILED,
+                    errorCategory = category,
+                ),
+            )
+        }
+    }
+
+    private fun recordExportAttempt(
+        export: PreparedCsvExport,
+        outcome: ExportAttemptOutcome,
+        errorCategory: ExportErrorCategory? = null,
+    ) {
+        viewModelScope.launch {
+            runCatching {
+                settingsRepository.recordLastExportAttempt(
+                    LastExportAttempt(
+                        destination = ExportDestination.CSV,
+                        workDate = export.workDate,
+                        attemptedAt = export.exportedAt,
+                        outcome = outcome,
+                        errorCategory = errorCategory,
+                    ),
+                )
+            }
+        }
+    }
+
     private fun MainRawState.toUiState(): MainUiState {
         val loadedTasks =
             (tasks as? MainLoad.Value<List<TaskListItem>>)
@@ -677,8 +891,12 @@ class MainViewModel(
             openTaskMenuTaskId = openTaskMenuTaskId,
             taskPendingDeletion =
                 taskItems.firstOrNull { it.id == taskPendingDeletionId },
-            canExport = exportDestination == ExportDestination.GOOGLE_SHEETS,
+            canExport =
+                tasks is MainLoad.Value &&
+                    exportProgress == null,
             exportDestination = exportDestination,
+            exportProgress = exportProgress,
+            exportFeedback = exportFeedback,
         )
     }
 
@@ -714,6 +932,8 @@ class MainViewModel(
                 currentDateProvider = container.currentDateProvider,
                 taskMutationCoordinator = container.taskMutationCoordinator,
                 settingsRepository = container.settingsRepository,
+                csvExportCoordinator = container.csvExportCoordinator,
+                documentOutputDestination = container.documentOutputDestination,
             ) as T
         }
     }

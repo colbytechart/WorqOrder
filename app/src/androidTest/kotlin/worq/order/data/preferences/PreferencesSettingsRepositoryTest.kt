@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,8 @@ import worq.order.data.ActiveTimerRepository
 import worq.order.data.AppSettings
 import worq.order.data.CreateActiveIntervalResult
 import worq.order.data.ExportDestination
+import worq.order.data.ExportAttemptOutcome
+import worq.order.data.LastExportAttempt
 import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
 import worq.order.data.TimeZoneSettingResult
@@ -59,6 +62,14 @@ class PreferencesSettingsRepositoryTest {
             repository.setDefaultExportDestination(
                 ExportDestination.GOOGLE_SHEETS,
             )
+            val exportAttempt =
+                LastExportAttempt(
+                    destination = ExportDestination.CSV,
+                    workDate = LocalDate.of(2026, 7, 24),
+                    attemptedAt = Instant.parse("2026-07-24T20:00:00Z"),
+                    outcome = ExportAttemptOutcome.SUCCESS,
+                )
+            repository.recordLastExportAttempt(exportAttempt)
             scope.cancel()
             scope.coroutineContext.job.join()
 
@@ -85,6 +96,7 @@ class PreferencesSettingsRepositoryTest {
                 ExportDestination.GOOGLE_SHEETS,
                 restored.defaultExportDestination,
             )
+            assertEquals(exportAttempt, restored.lastExportAttempt)
 
             repository.setThemeMode(ThemeMode.DARK)
             repository.setTimeZoneMode(TimeZoneMode.DEVICE)

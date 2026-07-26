@@ -278,38 +278,48 @@ class EditTaskViewModel(
                     }
                     return@launch
                 }
-            mutableUiState.update {
-                when (result) {
-                    is UpdateTaskOperationResult.Updated ->
+            when (result) {
+                is UpdateTaskOperationResult.Updated -> {
+                    mutableUiState.update {
                         it.copy(
                             isSavingMetadata = false,
                             hasUnsavedMetadataChanges = false,
                             metadataErrors = emptySet(),
                         )
-                    is UpdateTaskOperationResult.InvalidMetadata ->
+                    }
+                    mutableEffects.tryEmit(EditTaskEffect.NavigateBack)
+                }
+                is UpdateTaskOperationResult.InvalidMetadata ->
+                    mutableUiState.update {
                         it.copy(
                             isSavingMetadata = false,
                             metadataErrors = result.errors,
                         )
-                    UpdateTaskOperationResult.TaskNotFound ->
+                    }
+                UpdateTaskOperationResult.TaskNotFound ->
+                    mutableUiState.update {
                         it.copy(
                             isSavingMetadata = false,
                             taskMissing = true,
                             message = EditTaskMessage.TASK_NOT_FOUND,
                         )
-                    UpdateTaskOperationResult.ClientUnavailable ->
+                    }
+                UpdateTaskOperationResult.ClientUnavailable ->
+                    mutableUiState.update {
                         it.copy(
                             isSavingMetadata = false,
                             selectedClientId = null,
                             message = EditTaskMessage.CLIENT_UNAVAILABLE,
                         )
-                    UpdateTaskOperationResult.RunningTask ->
+                    }
+                UpdateTaskOperationResult.RunningTask ->
+                    mutableUiState.update {
                         it.copy(
                             isSavingMetadata = false,
                             isRunning = true,
                             message = EditTaskMessage.RUNNING_TASK,
                         )
-                }
+                    }
             }
         }
     }
@@ -635,11 +645,8 @@ private fun WorkInterval.toItem(zoneId: java.time.ZoneId): IntervalItemUi {
     return IntervalItemUi(
         id = id,
         ordinal = ordinal,
-        startText = "${timeFormatter.format(startZoned)} ${startZoned.offset.id}",
-        stopText =
-            stopZoned?.let {
-                "${timeFormatter.format(it)} ${it.offset.id}"
-            }.orEmpty(),
+        startText = timeFormatter.format(startZoned),
+        stopText = stopZoned?.let(timeFormatter::format).orEmpty(),
         durationText = DurationMath.formatAccumulated(duration),
         isRunning = stop == null,
     )

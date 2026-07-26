@@ -8,6 +8,27 @@ enum class MainTimerAction {
     STOP,
 }
 
+enum class MainExportProgress {
+    PREPARING,
+    CHOOSING_DESTINATION,
+    WRITING,
+}
+
+enum class MainExportOutcome {
+    SUCCESS,
+    CANCELED,
+    PREPARATION_FAILED,
+    CLOCK_CHANGED,
+    ACTIVE_TIMER_CHANGED,
+    OUTPUT_FAILED,
+    PARTIAL_OUTPUT_MAY_REMAIN,
+}
+
+data class MainExportFeedback(
+    val workDate: LocalDate,
+    val outcome: MainExportOutcome,
+)
+
 enum class MainMessage {
     SELECT_A_TASK_FIRST,
     LIVE_TIMING_TODAY_ONLY,
@@ -59,6 +80,8 @@ data class MainUiState(
     val taskPendingDeletion: MainTaskItemUi? = null,
     val canExport: Boolean = false,
     val exportDestination: ExportDestination = ExportDestination.CSV,
+    val exportProgress: MainExportProgress? = null,
+    val exportFeedback: MainExportFeedback? = null,
 ) {
     val isTimerRunning: Boolean
         get() = timerAction == MainTimerAction.STOP
@@ -97,6 +120,12 @@ sealed interface MainEvent {
 
     data object Export : MainEvent
 
+    data class CsvDocumentSelected(
+        val documentUri: String?,
+    ) : MainEvent
+
+    data object DismissExportFeedback : MainEvent
+
     data class OpenTaskMenu(
         val taskId: String,
     ) : MainEvent
@@ -130,6 +159,10 @@ sealed interface MainEffect {
     data object NavigateToSettings : MainEffect
 
     data object NavigateToGoogleSheetsSettings : MainEffect
+
+    data class LaunchCsvDocument(
+        val suggestedFileName: String,
+    ) : MainEffect
 
     data class NavigateToEditTask(
         val taskId: String,

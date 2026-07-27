@@ -42,6 +42,7 @@ import worq.order.ui.tasks.EditTaskEffect
 import worq.order.ui.tasks.EditTaskViewModel
 import worq.order.ui.theme.WorqOrderTheme
 import worq.order.export.CsvExportCoordinator
+import worq.order.export.XlsxExportCoordinator
 
 @Composable
 fun WorqOrderRoot() {
@@ -110,6 +111,18 @@ fun WorqOrderApp() {
                         ),
                     )
                 }
+            val xlsxDocumentLauncher =
+                rememberLauncherForActivityResult(
+                    ActivityResultContracts.CreateDocument(
+                        XlsxExportCoordinator.MIME_TYPE,
+                    ),
+                ) { documentUri ->
+                    viewModel.onEvent(
+                        worq.order.ui.main.MainEvent.XlsxDocumentSelected(
+                            documentUri?.toString(),
+                        ),
+                    )
+                }
 
             LaunchedEffect(
                 viewModel,
@@ -128,6 +141,8 @@ fun WorqOrderApp() {
                             navController.navigate(AppRoutes.SETTINGS_GOOGLE_SETUP)
                         is MainEffect.LaunchCsvDocument ->
                             csvDocumentLauncher.launch(effect.suggestedFileName)
+                        is MainEffect.LaunchXlsxDocument ->
+                            xlsxDocumentLauncher.launch(effect.suggestedFileName)
                         is MainEffect.ExportToGoogleSheets -> {
                             val result =
                                 try {

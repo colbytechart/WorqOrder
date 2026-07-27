@@ -24,12 +24,15 @@ import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
 import worq.order.export.ExportSnapshotCoordinator
+import worq.order.export.XlsxExportCoordinator
 import worq.order.export.csv.AndroidDocumentOutputDestination
 import worq.order.export.csv.DocumentOutputDestination
 import worq.order.export.google.AndroidGoogleAccountAuthorizer
 import worq.order.export.google.GoogleConnectionCoordinator
 import worq.order.export.google.GoogleSheetsExportCoordinator
 import worq.order.export.google.RestGoogleSheetsGateway
+import worq.order.export.xlsx.AndroidBinaryDocumentOutputDestination
+import worq.order.export.xlsx.BinaryDocumentOutputDestination
 import worq.order.timer.ActiveTimerNormalizer
 import worq.order.timer.AndroidDeviceZoneIdSource
 import worq.order.timer.AndroidMonotonicTimeSource
@@ -63,7 +66,9 @@ interface ApplicationContainer {
     val activeTimerNormalizer: ActiveTimerNormalizer
     val exportSnapshotCoordinator: ExportSnapshotCoordinator
     val csvExportCoordinator: CsvExportCoordinator
+    val xlsxExportCoordinator: XlsxExportCoordinator
     val documentOutputDestination: DocumentOutputDestination
+    val binaryDocumentOutputDestination: BinaryDocumentOutputDestination
 
     fun createGoogleConnectionCoordinator(
         activity: ComponentActivity,
@@ -215,8 +220,16 @@ internal class DefaultApplicationContainer(
         CsvExportCoordinator(exportSnapshotCoordinator)
     }
 
+    override val xlsxExportCoordinator: XlsxExportCoordinator by lazy {
+        XlsxExportCoordinator(exportSnapshotCoordinator)
+    }
+
     override val documentOutputDestination: DocumentOutputDestination by lazy {
         AndroidDocumentOutputDestination(applicationContext.contentResolver)
+    }
+
+    override val binaryDocumentOutputDestination: BinaryDocumentOutputDestination by lazy {
+        AndroidBinaryDocumentOutputDestination(applicationContext.contentResolver)
     }
 
     private val googleSheetsGateway: RestGoogleSheetsGateway by lazy {

@@ -34,11 +34,15 @@
     <string name="running_task_summary">%1$s · %2$s · %3$s</string>
     <string name="add_task">Add task</string>
     <string name="export_date_as_csv">Export %1$s as CSV</string>
+    <string name="export_date_as_xlsx">Export %1$s as XLSX</string>
     <string name="setup_google_sheets_for_date">Set up Google Sheets for %1$s</string>
     <string name="submit_date_to_google_sheets">Submit %1$s to Google Sheets</string>
     <string name="preparing_csv">Preparing CSV…</string>
     <string name="choosing_csv_destination">Choose save location…</string>
     <string name="writing_csv">Writing CSV…</string>
+    <string name="preparing_xlsx">Preparing XLSX…</string>
+    <string name="choosing_xlsx_destination">Choose save location…</string>
+    <string name="writing_xlsx">Writing XLSX…</string>
     <string name="exporting_google_sheets">Exporting to Google Sheets…</string>
     <string name="csv_export_succeeded">Exported %1$s as CSV.</string>
     <string name="csv_export_canceled">CSV export for %1$s was canceled.</string>
@@ -47,6 +51,13 @@
     <string name="csv_export_timer_changed">The running timer changed while preparing %1$s. Try exporting again.</string>
     <string name="csv_export_output_failed">Couldn’t write the CSV for %1$s. Choose another location or try again.</string>
     <string name="csv_export_partial_output">Couldn’t finish writing the CSV for %1$s. A partial document may remain at the selected location; remove it before retrying.</string>
+    <string name="xlsx_export_succeeded">Exported %1$s as XLSX.</string>
+    <string name="xlsx_export_canceled">XLSX export for %1$s was canceled.</string>
+    <string name="xlsx_export_preparation_failed">Couldn’t prepare the XLSX workbook for %1$s. Review the local data and try again.</string>
+    <string name="xlsx_export_clock_changed">Couldn’t export %1$s because the device clock conflicts with the running interval. Review the timer and try again.</string>
+    <string name="xlsx_export_timer_changed">The running timer changed while preparing %1$s. Try exporting again.</string>
+    <string name="xlsx_export_output_failed">Couldn’t write the XLSX workbook for %1$s. Choose another location or try again.</string>
+    <string name="xlsx_export_partial_output">Couldn’t finish writing the XLSX workbook for %1$s. A partial document may remain at the selected location; remove it before retrying.</string>
     <string name="google_export_succeeded">Submitted %1$s to Google Sheets.</string>
     <string name="google_export_canceled">Google Sheets export for %1$s was canceled. Local data was not changed.</string>
     <string name="google_export_preparation_failed">Couldn’t prepare %1$s for Google Sheets. Local data was not changed.</string>
@@ -152,6 +163,7 @@
     <string name="settings_data_unavailable">Settings are temporarily unavailable. Try again.</string>
     <string name="export_default">Export Destination</string>
     <string name="csv">CSV</string>
+    <string name="xlsx">XLSX</string>
     <string name="google_sheets">Google Sheets</string>
     <string name="google_sheets_not_connected">No spreadsheet is connected.</string>
     <string name="google_sheets_connection">Google Sheets Connection</string>

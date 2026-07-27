@@ -151,14 +151,11 @@ Preferences are version-tolerant typed values with safe defaults:
 | `connected_spreadsheet_id` | nullable validated ID |
 | `connected_spreadsheet_title` | nullable last validated title |
 | `connected_google_account_hint` | nullable non-secret display identifier if supported/necessary |
-| `connected_xlsx_document_uri` | nullable SAF URI string for the one persistent workbook; valid only with retained user grant |
-| `connected_xlsx_document_name` | nullable non-secret display name |
-| `connected_xlsx_connection_version` | version/status used to fail closed on incomplete metadata |
 | `last_export_*` | destination, work date, attempt instant, outcome, and optional safe error category |
 
-Spreadsheet/XLSX metadata is cleared on its respective Disconnect. XLSX disconnect also releases
-the persistable URI permission when safe and does not delete the workbook. Account tokens, refresh
-tokens, passwords, service-account data, and OAuth client secrets are prohibited.
+Spreadsheet metadata is cleared on Disconnect. XLSX stores no document connection metadata or
+persistable URI permission because every export creates a new user-selected file. Account tokens,
+refresh tokens, passwords, service-account data, and OAuth client secrets are prohibited.
 
 Milestone 8 persists no CSV document URI, payload, provider detail, task row, or exception text.
 Every CSV attempt uses a fresh create-document flow; its safe last-attempt metadata is presentation
@@ -186,7 +183,7 @@ state that could create or lose task/timer data.
 | Delete daily task | confirmation; block if active; cascade its intervals; retain client and sibling dates |
 | Delete interval | block active interval; delete only interval; totals derive automatically |
 | Disconnect Google | clear local connection metadata; external sheet untouched |
-| Disconnect XLSX | clear URI/name metadata and release app access; external workbook untouched |
+| Export XLSX | use a transient create-document URI for one write; retain no URI or workbook state |
 | Delete app/clear storage | outside durability guarantee; local database/preferences can be lost |
 
 ## 11. Migration policy

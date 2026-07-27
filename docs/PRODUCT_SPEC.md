@@ -115,7 +115,7 @@ Create validates and writes one daily task. If its work date is today, it become
 
 ### Export
 
-The bottom action always identifies both date and destination, for example **Export Jul 22 as CSV**, **Export Jul 22 to XLSX**, or **Submit Jul 22 to Google Sheets**. It exports the displayed date, not implicitly “today.” If Google Sheets lacks authorization/a validated spreadsheet, or XLSX lacks a valid connected workbook, navigate to/focus the relevant settings section and explain what is required.
+The bottom action always identifies both date and destination, for example **Export Jul 22 as CSV**, **Export Jul 22 as XLSX**, or **Submit Jul 22 to Google Sheets**. It exports the displayed date, not implicitly “today.” Google Sheets without authorization/a validated spreadsheet navigates to and focuses the relevant settings section. CSV and XLSX launch their respective create-document pickers directly.
 
 The app may export while a timer is running. The exporter first normalizes midnight boundaries and takes one consistent snapshot instant. An open interval has a blank stop, a `RUNNING` state, and snapshot-based duration fields; export does not stop it. This behavior must be visible in export documentation and tested.
 
@@ -166,9 +166,6 @@ Settings contains:
 - **Time zone:** device-zone mode or manual geographical `ZoneId`, searchable/navigable selector, and effective ID display. Device mode is the first-launch default. Mode/zone changes are blocked during timing. Historical stored dates and zone IDs never move.
 - **Export Destination:** CSV, XLSX, or Google Sheets, with CSV as the first-launch and corrupt-value
   fallback after the XLSX milestone.
-- **XLSX workbook:** create/select exactly one persistent workbook, show its name/status,
-  replace/disconnect it, and recover a missing/moved/revoked document through a user-mediated
-  create-document flow.
 - **Google Sheets:** show the complete **Google Sheets Connection** section only while Google Sheets
   is the selected export destination. It contains authorization/sign-in state, sign-out,
   spreadsheet URL/ID input, Validate and Connect, connected title/ID, and Disconnect. Once a
@@ -186,8 +183,8 @@ and does not alter Room.
 - Room is created on first need and reopened thereafter; it is never cleared or reseeded on normal startup.
 - Clients, daily tasks, intervals, and the singleton active-timer pointer survive supported lifecycle/process/device restart events.
 - Preferences DataStore holds preferences and selection hints, not task records or raw OAuth/access/refresh tokens.
-- After Milestone 12, DataStore may retain non-secret metadata for the one connected XLSX document
-  plus its user-granted persistable SAF URI permission. The external workbook is not authoritative.
+- XLSX exports retain no document URI or workbook connection metadata. Every XLSX export uses a
+  fresh user-mediated create-document result.
 - Versioned, non-destructive migrations and Room schema exports begin at database version 1.
 - Selection persists as a preferred task-series ID plus the last concrete daily-task ID and the date/zone context in which that task was selected. Invalid references are repaired safely. The displayed date is not persisted; normal startup displays today.
 - When the effective local date or geographical zone changes, an eligible timing selection lazily finds or creates its new daily task using `(series ID, work date, assignment ZoneId)` uniqueness, copies the prior daily task's current client, short description, and hardware/software-purchases text, and becomes selected. A task intentionally selected outside its own stored date/zone context remains view-only instead of being rolled. The zone context prevents a task assigned under a different zone from being silently repurposed.
@@ -209,21 +206,20 @@ and does not alter Room.
   Formatted, and Task Total Duration Formatted. Destination adapters do not independently select
   or format fields.
 - CSV is UTF-8, RFC-style quoted, repeatable, and one row per interval; zero-interval tasks still emit one row.
-- XLSX uses exactly one connected persistent standards-compliant, unencrypted OOXML workbook. A
-  missing date creates `WorqOrder_YYYY-MM-DD`; re-export replaces that marked date table and
-  preserves unrelated tabs. If the document becomes unavailable, prompt the user to create a
-  fresh workbook containing the requested date rather than crashing.
+- Every XLSX export creates one new standards-compliant, unencrypted OOXML workbook through
+  `ACTION_CREATE_DOCUMENT`. It contains one `WorqOrder_YYYY-MM-DD` worksheet for the displayed
+  date and never opens, reads, or updates an existing workbook.
 - Exactly one Google spreadsheet can be connected. Its per-date tab is
   `WorqOrder_YYYY-MM-DD`.
-- In persistent XLSX and Google Sheets, a marked WorqOrder tab is replaced from the current
-  authoritative date snapshot on re-export. An unmarked same-name tab is a conflict and is not
-  overwritten. Repeated exports never append duplicate rows.
+- In Google Sheets, a marked WorqOrder tab is replaced from the current authoritative date
+  snapshot on re-export. An unmarked same-name tab is a conflict and is not overwritten. Repeated
+  XLSX exports intentionally create independent files, each containing one complete snapshot.
 - No export modifies or deletes local data. Failures and cancellation do not claim success.
 - App-private data is encrypted at rest after the production hardening milestone. User-selected
   CSV/XLSX files and readable Google Sheets cells are intentionally outside that boundary and are
   not end-to-end encrypted by WorqOrder.
-- One-off versus persistent XLSX choice and optional automatic local-midnight export to
-  Google/persistent XLSX are deferred to optional Milestone 18 and require separate owner
+- Persistent versus one-off XLSX choice and optional automatic local-midnight export to
+  Google/future persistent XLSX are deferred to optional Milestone 18 and require separate owner
   authorization.
 
 ## 10. Concept-image review

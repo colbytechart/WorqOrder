@@ -7,9 +7,10 @@
 - CSV, XLSX, and Google Sheets are the only export destinations. XLSX must use a focused, reviewed implementation; do not add Apache POI or another broad Excel stack without explicit owner approval.
 - All three destinations must consume the same immutable canonical export dataset. Do not select,
   order, or format exported task fields independently inside a destination adapter.
-- Production XLSX uses one user-connected persistent workbook with one marked tab per date.
-  One-off XLSX mode and automatic midnight export belong only to optional Milestone 18 and require
-  explicit owner permission.
+- Production XLSX creates one new user-selected workbook per export through
+  `ACTION_CREATE_DOCUMENT`; it never opens or updates an existing workbook. Persistent-workbook
+  mode and automatic midnight export belong only to optional Milestone 18 and require explicit
+  owner permission.
 - Do not add Firebase, a custom backend, a web wrapper, embedded credentials, service-account keys, passwords, OAuth client secrets, or unrestricted API credentials.
 - WorqOrder must remain free and open source under GPLv3. Do not add billing, paid API tiers, paid
   quota increases, subscriptions, or a Google Workspace/organization requirement.

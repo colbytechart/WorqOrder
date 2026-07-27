@@ -392,7 +392,7 @@ neutral cancellation, retryable failure, and possible partial output.
 ### CSV-11 Shared snapshot boundary
 
 `ExportSnapshotCoordinator` performs normalization/read/build once and returns the immutable
-nine-column dataset. CSV serialization changes no field/order/value. Future XLSX/Google adapters
+nine-column dataset. CSV serialization changes no field/order/value. XLSX/Google adapters
 consume the same object rather than rebuilding destination-specific rows.
 
 ## 9. Google Sheets
@@ -528,20 +528,19 @@ does not silently request a broader scope.
 
 ## 10. XLSX
 
-### XLSX-01 Persistent connection and default
+### XLSX-01 One-off create-document flow and default
 
-Settings creates/selects exactly one persistent XLSX workbook through SAF, retains only the
-user-granted URI plus non-secret display/status metadata, and supports replace/disconnect without
-deleting the document. The suggested initial/replacement name is `worqorder.xlsx`. Settings accepts
-exactly CSV, XLSX, and Google Sheets after migration; CSV remains the default/fallback.
+Settings accepts exactly CSV, XLSX, and Google Sheets after migration; CSV remains the
+default/fallback. XLSX has no connection UI or retained URI metadata. Every export launches
+`ACTION_CREATE_DOCUMENT` with the official XLSX MIME type and suggested
+`worqorder_YYYY-MM-DD.xlsx` filename.
 
 ### XLSX-02 Shared schema and ordering
 
-Exporting Jul 22 reuses/renames the original first worksheet when the connected workbook is
-confirmed completely blank. If any workbook data exists, every existing worksheet is preserved
-and export adds one visible `WorqOrder_2026-07-22` worksheet when absent. It has the exact
-nine-column header at row 1 and rows identical in content/order to CSV and Google Sheets for the
-same captured snapshot. Exporting Jul 23 adds a separate date tab. An empty date has only the
+Exporting Jul 22 creates a new workbook containing exactly one visible
+`WorqOrder_2026-07-22` worksheet. It has the exact nine-column header at row 1 and rows identical
+in content/order to CSV and Google Sheets for the same captured snapshot. Exporting Jul 23 creates
+another independent workbook containing only `WorqOrder_2026-07-23`. An empty date has only the
 header; a zero-interval task has one blank-interval row.
 
 ### XLSX-03 Cell safety and fidelity
@@ -552,32 +551,31 @@ independent-reader round trip and open correctly in Microsoft Excel and LibreOff
 
 ### XLSX-04 Package safety
 
-The OOXML ZIP contains only required reviewed parts plus non-visible WorqOrder
-marker/schema/date-tab metadata; it has no macro project, formula, external link, hidden
+The OOXML ZIP contains only required reviewed package, workbook, relationship, style, and
+single-worksheet parts. It has no ownership marker, macro project, formula, external link, hidden
 worksheet/content, credential, key material, path traversal entry, or unnecessary identifying
 metadata.
 
 ### XLSX-05 Running/repeat/no mutation
 
 A running interval uses the same one-instant snapshot policy as the other destinations. Re-export
-of a marked date replaces the whole table, clears obsolete rows, creates no duplicates, and
-preserves unrelated tabs. No success, cancellation, or failure changes Room or timer state.
+creates another independent file containing one complete current snapshot; it never appends within
+a workbook. No success, cancellation, or failure changes Room or timer state.
 
 ### XLSX-06 SAF cancellation and failure
 
-The official spreadsheet MIME type and user-mediated SAF create/open flows are used without broad
-storage permission. If the connected URI is moved, deleted, revoked, malformed, or unwritable,
-WorqOrder invalidates it without crashing and launches create-document. After the user chooses a
-destination, a fresh workbook starts with the requested date. Cancellation leaves XLSX
-disconnected, writes nothing, and never changes Room.
+The official spreadsheet MIME type and user-mediated SAF create-document flow are used without
+broad storage permission. No open-document flow or persistable URI grant exists. Cancellation
+writes nothing and never changes Room. Output failure attempts to delete a partial provider
+document and reports when a partial document might remain.
 
 ### XLSX-07 Compatibility and efficiency
 
 Representative generated workbooks parse with an independent reader and open in current Excel and
-LibreOffice. Interrupted read/modify/rewrite preserves the last valid workbook; unrelated tabs and
-metadata survive. Large-workbook tests stay within recorded memory/time limits on minimum and
-target API devices. Dependency inspection proves stable/API-26/GPLv3 compatibility and no Apache
-POI absent a separate owner decision.
+LibreOffice. The minimal package contains one visible sheet and no formulas, macros, external
+links, credentials, hidden content, or unnecessary metadata. Large-snapshot tests stay within
+recorded memory/time limits on minimum and target API devices. Dependency inspection proves the
+focused writer adds no XLSX library and no Apache POI.
 
 ## 11. Local data protection and encryption
 
@@ -724,9 +722,10 @@ enabled.
 
 ### OPTIONAL-EXPORT-01 XLSX mode choice
 
-If separately authorized, users can choose persistent-workbook or one-off XLSX mode. Both consume
-the same nine-column snapshot and produce equivalent date-tab content; switching/migration,
-create-document cancellation, missing persistent URI, and unrelated tabs are safe.
+If separately authorized, users can choose the production one-off XLSX mode or a future connected
+persistent-workbook mode. Both consume the same nine-column snapshot and produce equivalent
+date-tab content; switching/migration, create-document cancellation, missing persistent URI, and
+unrelated tabs are safe.
 
 ### OPTIONAL-EXPORT-02 Midnight automation eligibility
 
@@ -745,3 +744,10 @@ Automation uses approved Android background work rather than a foreground servic
 midnight. A background run cannot launch a destination picker or silently choose storage; it
 records a safe pending failure until the user can repair the destination. No notification/log
 exposes task content.
+
+### OPTIONAL-UI-01 Interval clock-time display
+
+If separately authorized, routine Task interval cards display completed Start and Stop values as
+task-zone `HH:mm` without seconds. Persisted UTC instants, stored task ZoneId, duration and
+date-boundary behavior, edit precision, and explicit fall-back occurrence disambiguation remain
+unchanged.

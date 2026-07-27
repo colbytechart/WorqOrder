@@ -1,9 +1,11 @@
 package worq.order.ui.main
 
+import java.io.ByteArrayInputStream
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.zip.ZipInputStream
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.collect
@@ -26,12 +28,14 @@ import worq.order.data.GoogleAccountHint
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
+import worq.order.export.XlsxExportCoordinator
 import worq.order.export.csv.DocumentWriteResult
 import worq.order.export.google.GoogleSheetExportReceipt
 import worq.order.export.google.GoogleSheetsExportFailure
 import worq.order.export.google.GoogleSheetsExportOperationResult
 import worq.order.model.DailyTask
 import worq.order.testing.FakeActiveTimerRepository
+import worq.order.testing.FakeBinaryDocumentOutputDestination
 import worq.order.testing.FakeDocumentOutputDestination
 import worq.order.testing.FakeMonotonicTimeSource
 import worq.order.testing.FakeSelectedTaskRepository
@@ -476,6 +480,124 @@ class MainViewModelTest {
         }
 
     @Test
+    fun xlsxUsesFreshDocumentFlowAndStablePreparedSnapshot() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.settings.setDefaultExportDestination(ExportDestination.XLSX)
+            val task = fixture.addTask(TODAY, description = "Original description")
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            val effect = async { viewModel.effects.first() }
+            runCurrent()
+            viewModel.onEvent(MainEvent.Export)
+            runCurrent()
+
+            assertEquals(
+                MainEffect.LaunchXlsxDocument(
+                    "worqorder_2026-07-24.xlsx",
+                ),
+                effect.await(),
+            )
+            fixture.tasks.updateTaskMetadata(
+                taskId = task.id,
+                clientId = task.clientId,
+                description = "Changed after picker opened",
+                hardwareSoftwarePurchases = "",
+            )
+            viewModel.onEvent(
+                MainEvent.XlsxDocumentSelected(
+                    "content://documents/export.xlsx",
+                ),
+            )
+            runCurrent()
+
+            val write = fixture.binaryDocument.writes.single()
+            val worksheet =
+                zipEntryText(
+                    bytes = write.contents,
+                    entryName = "xl/worksheets/sheet1.xml",
+                )
+            assertTrue(worksheet.contains("Original description"))
+            assertFalse(worksheet.contains("Changed after picker opened"))
+            assertEquals(
+                ExportDestination.XLSX,
+                viewModel.uiState.value.exportFeedback?.destination,
+            )
+            assertEquals(
+                MainExportOutcome.SUCCESS,
+                viewModel.uiState.value.exportFeedback?.outcome,
+            )
+            assertEquals(
+                ExportDestination.XLSX,
+                fixture.settings.readSettings().lastExportAttempt?.destination,
+            )
+        }
+
+    @Test
+    fun xlsxPickerCancellationWritesNothing() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.settings.setDefaultExportDestination(ExportDestination.XLSX)
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            val effect = async { viewModel.effects.first() }
+            runCurrent()
+            viewModel.onEvent(MainEvent.Export)
+            runCurrent()
+            effect.await()
+            viewModel.onEvent(MainEvent.XlsxDocumentSelected(null))
+            runCurrent()
+
+            assertTrue(fixture.binaryDocument.writes.isEmpty())
+            assertNull(viewModel.uiState.value.exportProgress)
+            assertEquals(
+                MainExportOutcome.CANCELED,
+                viewModel.uiState.value.exportFeedback?.outcome,
+            )
+            assertEquals(
+                ExportAttemptOutcome.CANCELED,
+                fixture.settings.readSettings().lastExportAttempt?.outcome,
+            )
+        }
+
+    @Test
+    fun xlsxOutputFailureIsActionableAndDoesNotClaimSuccess() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.settings.setDefaultExportDestination(ExportDestination.XLSX)
+            fixture.binaryDocument.result =
+                DocumentWriteResult.Failed(partialDocumentMayRemain = true)
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            val effect = async { viewModel.effects.first() }
+            runCurrent()
+            viewModel.onEvent(MainEvent.Export)
+            runCurrent()
+            effect.await()
+            viewModel.onEvent(
+                MainEvent.XlsxDocumentSelected(
+                    "content://documents/failure.xlsx",
+                ),
+            )
+            runCurrent()
+
+            assertEquals(
+                MainExportOutcome.PARTIAL_OUTPUT_MAY_REMAIN,
+                viewModel.uiState.value.exportFeedback?.outcome,
+            )
+            assertEquals(
+                ExportAttemptOutcome.FAILED,
+                fixture.settings.readSettings().lastExportAttempt?.outcome,
+            )
+        }
+
+    @Test
     fun csvOutputFailureIsActionableAndDoesNotClaimSuccess() =
         runTest(mainDispatcherRule.dispatcher) {
             val fixture = Fixture()
@@ -593,6 +715,22 @@ class MainViewModelTest {
         }
     }
 
+    private fun zipEntryText(
+        bytes: ByteArray,
+        entryName: String,
+    ): String =
+        ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                if (entry.name == entryName) {
+                    return@use zip.readBytes().toString(Charsets.UTF_8)
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+            error("Missing ZIP entry $entryName")
+        }
+
     private class Fixture {
         val tasks = FakeTaskRepository()
         val selection = FakeSelectedTaskRepository()
@@ -639,7 +777,18 @@ class MainViewModelTest {
                 clock = clock,
                 timerOperationLock = operationLock,
             )
+        private val xlsxExportCoordinator =
+            XlsxExportCoordinator(
+                snapshotCoordinator =
+                    worq.order.export.ExportSnapshotCoordinator(
+                        taskRepository = tasks,
+                        activeTimerNormalizer = normalizer,
+                        clock = clock,
+                        timerOperationLock = operationLock,
+                    ),
+            )
         val document = FakeDocumentOutputDestination()
+        val binaryDocument = FakeBinaryDocumentOutputDestination()
         private val taskMutationCoordinator =
             TaskMutationCoordinator(
                 taskRepository = tasks,
@@ -663,7 +812,9 @@ class MainViewModelTest {
                 settingsRepository = settings,
                 googleConnectionRepository = google,
                 csvExportCoordinator = csvExportCoordinator,
+                xlsxExportCoordinator = xlsxExportCoordinator,
                 documentOutputDestination = document,
+                binaryDocumentOutputDestination = binaryDocument,
             )
 
         suspend fun addTask(

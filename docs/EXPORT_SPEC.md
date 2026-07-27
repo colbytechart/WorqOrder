@@ -6,8 +6,8 @@
 - Build one immutable logical snapshot from Room, the authoritative source.
 - Use the same logical columns, row ordering, and value semantics for CSV, XLSX, and Google Sheets.
 - Export is one-way. It never imports, marks tasks exported, deletes local records, or resolves changes made in an external copy.
-- A retry is safe. Google Sheets and persistent-XLSX re-export replace the existing date tab
-  idempotently; CSV may intentionally create another file.
+- A retry is safe. Google Sheets re-export replaces the existing date tab idempotently; CSV and
+  XLSX intentionally create independent user-selected files.
 - XLSX is an approved focused destination after Google Sheets export. Do not use Apache POI or
   another broad Excel stack without explicit owner approval. Firebase, service accounts, custom
   backends, broad storage permissions, and embedded secrets remain prohibited.
@@ -39,7 +39,7 @@ Milestone 8 implements this as follows: one shared timer-operation lock covers c
 task/client and its ordered intervals for the displayed date inside one Room transaction. The row
 builder produces one immutable destination-neutral dataset. The CSV adapter serializes that
 dataset into one in-memory string before the create-document picker opens. Changes made after the
-picker opens cannot change that pending payload. Future XLSX and Google adapters consume the same
+picker opens cannot change that pending payload. XLSX and Google adapters consume the same
 dataset object.
 
 ## 3. Canonical export schema version 2
@@ -146,58 +146,58 @@ Official Android storage guidance reviewed for this plan: [Access documents and 
 
 ## 6. XLSX workbook and delivery contract
 
-XLSX is implemented only in Milestone 12, after the Google Sheets milestones. Until then it is a
-documented destination, not an available action. Production uses exactly one connected persistent
-workbook at a time; one-off XLSX files are deferred to optional Milestone 18.
+Milestone 12 implements XLSX as a one-off file export parallel to CSV. Every export uses a fresh
+system create-document flow; WorqOrder never opens, selects, connects, reads, or updates an
+existing workbook.
 
 - MIME type:
   `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
-- Suggested initial workbook name: `worqorder.xlsx`.
-- Connection: create a workbook through `ACTION_CREATE_DOCUMENT` or select an existing `.xlsx`
-  document through the appropriate SAF open-document flow, retain only the user-granted
-  persistable URI permission, validate the OOXML package, and show its display name/status in
-  Settings. Disconnect clears local URI metadata and never deletes the external file.
-- Workbook: one visible worksheet named `WorqOrder_YYYY-MM-DD` for every exported date. Each tab
-  begins at row 1 with the exact nine headers followed by the same canonical rows used by CSV and
-  Google Sheets.
-- User text, dates, times, interval numbers, and durations are literal text cells. Formula-like values
-  beginning with `=`, `+`, `-`, or `@` must not become formulas. Duration milliseconds may be
-  retained internally but are not workbook columns; formatted durations remain text so
-  accumulated hours do not wrap at 24.
-- The workbook contains no macros, external links, hidden worksheets, credentials, account
-  metadata, or application-private encryption keys.
-- Store the WorqOrder marker, internal schema version, and owned-date-tab mapping in reviewed
-  non-visible workbook/package metadata rather than visible cells. If a same-named worksheet lacks
-  the expected marker, report a conflict and do not overwrite it.
-- Before the first WorqOrder export into a connected workbook, inspect the workbook rather than
-  assuming its original first worksheet is disposable. If the workbook is completely blank,
-  rename and reuse its original first worksheet for the requested `WorqOrder_YYYY-MM-DD` tab. If
-  any cell or other workbook content exists, preserve every existing worksheet and add the date
-  tab. If blankness cannot be established safely, treat the workbook as nonblank.
-- If a date tab is otherwise absent, add it. If a correctly marked date tab exists, replace its
-  entire application-owned table with the current authoritative snapshot, removing obsolete rows.
-  Never append/merge interval rows; unchanged re-export produces no duplicates.
-- Build the output with a focused, deterministic, Android-compatible OOXML writer. Dependency
-  choice is a Milestone 12 gate covering stable status, GPLv3 compatibility, transitive size,
-  minimum API, memory, and security. Apache POI remains prohibited absent a new owner decision.
-- The implementation gate must prove a provider-safe read/modify/rewrite strategy that preserves
-  unrelated worksheets and the last valid workbook if a write is interrupted. Do not stage an
-  unencrypted workbook in an app-private temporary file.
-- If the connected URI is moved, deleted, revoked, malformed, or no longer writable, invalidate
-  the stale connection without crashing and launch `ACTION_CREATE_DOCUMENT`. Once the user selects
-  a destination, create a fresh workbook containing the currently requested date tab. Cancellation
-  leaves XLSX safely disconnected and does not claim export success or modify Room. Android cannot
-  silently choose an arbitrary replacement location without this user-mediated step.
+- Suggested filename: `worqorder_YYYY-MM-DD.xlsx`.
+- Android launches `ActivityResultContracts.CreateDocument` for every export. It stores no
+  document URI, persistable grant, workbook name, or connection status.
+- Each new workbook contains exactly one visible worksheet named
+  `WorqOrder_YYYY-MM-DD`. Row 1 contains the exact nine canonical headers and row 2 onward contains
+  the same canonical rows used by CSV and Google Sheets.
+- User text, dates, times, interval numbers, and durations are literal inline-string cells.
+  Formula-like values beginning with `=`, `+`, `-`, or `@` never become formulas. Formatted
+  durations remain text so accumulated hours do not wrap at 24.
+- The focused internal writer emits a deterministic, minimal OOXML ZIP package with no macros,
+  formulas, external links, hidden worksheets, credentials, account metadata, or
+  application-private encryption keys. Apache POI and other Excel-generation dependencies are not
+  used.
+- The complete package is built in memory from the immutable snapshot before the picker opens.
+  Cancellation therefore writes nothing and reports no success. After a URI is returned, output
+  is written once and closed deterministically; failure triggers best-effort deletion of the
+  partial provider document and never modifies Room.
+- Repeated exports intentionally create independent workbooks. Each contains exactly one complete
+  authoritative snapshot, so there is no within-workbook append, duplicate-row, ownership-marker,
+  tab-conflict, or existing-content preservation behavior.
 - XLSX output is an unencrypted user-controlled file. Local Keystore-backed encryption ends at the
   document handoff; protecting, sharing, or deleting that external file is the user's
   responsibility.
 
-Milestone 12 verification must parse every generated workbook with an independent test reader and
-manually open representative outputs in Microsoft Excel and LibreOffice. Golden tests cover the
-unified schema, empty/zero/multiple/running intervals, stable order, clock-only local values,
-long durations, Unicode and multiline/formula-prefixed text, package integrity, preservation of
-unrelated tabs, stale/missing/revoked URI recovery, interrupted rewrite, large-workbook
-performance, picker cancellation/failure, repeated date replacement, and no Room mutation.
+The implemented package contains these fixed parts in deterministic order:
+
+1. `[Content_Types].xml`
+2. `_rels/.rels`
+3. `xl/workbook.xml`
+4. `xl/_rels/workbook.xml.rels`
+5. `xl/styles.xml`
+6. `xl/worksheets/sheet1.xml`
+
+`sheet1.xml` declares `A1:I<last-row>`, writes the header with the package's bold text style, and
+writes every canonical value as an `inlineStr` cell with `xml:space="preserve"`. SpreadsheetML
+escape sequences preserve carriage returns and otherwise-illegal XML control characters; literal
+user text that already resembles `_xHHHH_` is escaped so it is not misinterpreted. ZIP entry names
+are fixed, entry timestamps are deterministic, and no task/client/account value appears in package
+metadata.
+
+Milestone 12 verification parses every generated workbook with an independent test reader and
+manually opens representative outputs in Microsoft Excel and LibreOffice. Golden tests cover the
+unified schema, exact single-sheet name, empty/zero/multiple/running intervals, stable order,
+clock-only local values, long durations, Unicode, commas, quotes, CR/LF, formula-prefixed text,
+package integrity, large-snapshot memory/time, picker cancellation/output failure, repeated
+independent exports, and no Room mutation.
 
 ## 7. Google connection model
 
@@ -439,7 +439,7 @@ Tests must prove:
 - unmarked tab and incompatible marker are untouched;
 - Google/XLSX date tabs have equivalent visible headers/rows and no destination-specific field
   selection or formatting;
-- persistent XLSX connection, unrelated-tab preservation, stale/missing/revoked URI recovery
-  through user-mediated replacement creation, and repeated date-tab replacement;
+- one-off XLSX launches a fresh create-document flow for each export, contains exactly one date
+  tab, retains no URI metadata, and never reads an existing workbook;
 - offline, auth expiration, permission, rate-limit, server, and ambiguous-response states are useful/retryable; and
 - all failures leave Room task data unchanged.

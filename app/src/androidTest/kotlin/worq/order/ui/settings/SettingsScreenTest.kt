@@ -207,6 +207,34 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun xlsxIsAOneOffDestinationWithoutConnectionSection() {
+        val events = mutableListOf<SettingsEvent>()
+        setContent(
+            state =
+                SettingsUiState(
+                    effectiveZoneId = ZoneId.of("America/New_York"),
+                    defaultExportDestination =
+                        worq.order.data.ExportDestination.CSV,
+                ),
+            onEvent = events::add,
+        )
+
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(hasText("XLSX"))
+        composeRule.onNodeWithText("XLSX").performClick()
+
+        assertTrue(
+            SettingsEvent.SelectExportDestination(
+                worq.order.data.ExportDestination.XLSX,
+            ) in events,
+        )
+        composeRule
+            .onAllNodesWithText("Google Sheets Connection")
+            .assertCountEquals(0)
+    }
+
+    @Test
     fun selectingGoogleSheetsAutoScrollsToConnectionSection() {
         var state by
             mutableStateOf(

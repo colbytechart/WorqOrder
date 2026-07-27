@@ -102,6 +102,9 @@ class PreferencesGoogleConnectionRepository(
         dataStore.edit { preferences ->
             preferences.remove(ACCOUNT_ID)
             preferences.remove(ACCOUNT_DISPLAY_NAME)
+            preferences.remove(SPREADSHEET_ID)
+            preferences.remove(SPREADSHEET_TITLE)
+            preferences.remove(VALIDATED_AT_EPOCH_MILLIS)
             preferences[IS_VALIDATED_FOR_CURRENT_ACCOUNT] = false
             preferences[STATE_VERSION] =
                 GoogleSpreadsheetConnection.CURRENT_STATE_VERSION

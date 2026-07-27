@@ -164,14 +164,22 @@ Settings contains:
 - **Clients:** active list with add/rename/archive and optional archived list with restore. Client Management is the first normal Settings item so the most frequent local-data administration workflow is immediately reachable.
 - **Appearance:** explicit System, Light, and Dark choices, with System as the first-launch default. System follows the device appearance while Light and Dark remain enabled as immediately selectable overrides. Changes are persisted in Preferences DataStore and apply immediately without recreating navigation or timer state.
 - **Time zone:** device-zone mode or manual geographical `ZoneId`, searchable/navigable selector, and effective ID display. Device mode is the first-launch default. Mode/zone changes are blocked during timing. Historical stored dates and zone IDs never move.
-- **Export default:** CSV, XLSX, or Google Sheets, with CSV as the first-launch and corrupt-value
+- **Export Destination:** CSV, XLSX, or Google Sheets, with CSV as the first-launch and corrupt-value
   fallback after the XLSX milestone.
 - **XLSX workbook:** create/select exactly one persistent workbook, show its name/status,
   replace/disconnect it, and recover a missing/moved/revoked document through a user-mediated
   create-document flow.
-- **Google Sheets:** authorization/sign-in state, sign-out, spreadsheet URL/ID input, Validate/Connect, connected title and ID, and Disconnect.
+- **Google Sheets:** show the complete **Google Sheets Connection** section only while Google Sheets
+  is the selected export destination. It contains authorization/sign-in state, sign-out,
+  spreadsheet URL/ID input, Validate and Connect, connected title/ID, and Disconnect. Once a
+  spreadsheet is connected, hide the URL/ID input and Validate and Connect action until it is
+  disconnected. When the user changes Export Destination to Google Sheets, automatically scroll
+  the Settings list to reveal this section.
 
-Disconnecting a spreadsheet clears its ID/title association but does not delete the spreadsheet or revoke unrelated account access. Sign-out clears the app's Google identity/authorization session through supported Google APIs and marks Google export unavailable; it does not alter Room.
+Disconnecting a spreadsheet clears its ID/title association but does not delete the spreadsheet or
+revoke unrelated account access. Sign-out clears the app's Google identity/authorization session
+and connected-spreadsheet metadata through supported Google APIs, marks Google export unavailable,
+and does not alter Room.
 
 ## 8. Persistence and recovery
 

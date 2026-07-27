@@ -27,6 +27,9 @@ import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
 import worq.order.export.csv.DocumentWriteResult
+import worq.order.export.google.GoogleSheetExportReceipt
+import worq.order.export.google.GoogleSheetsExportFailure
+import worq.order.export.google.GoogleSheetsExportOperationResult
 import worq.order.model.DailyTask
 import worq.order.testing.FakeActiveTimerRepository
 import worq.order.testing.FakeDocumentOutputDestination
@@ -277,7 +280,7 @@ class MainViewModelTest {
         }
 
     @Test
-    fun connectedGoogleDestinationIsRecognizedWithoutExportingRowsYet() =
+    fun connectedGoogleDestinationEmitsExportAndRecordsSuccess() =
         runTest(mainDispatcherRule.dispatcher) {
             val fixture = Fixture()
             fixture.settings.setDefaultExportDestination(
@@ -300,11 +303,98 @@ class MainViewModelTest {
                 MainGoogleExportState.CONNECTED,
                 viewModel.uiState.value.googleExportState,
             )
+            val effect = async { viewModel.effects.first() }
+            runCurrent()
             viewModel.onEvent(MainEvent.Export)
             runCurrent()
             assertEquals(
-                MainMessage.GOOGLE_EXPORT_NOT_AVAILABLE,
-                viewModel.uiState.value.message,
+                MainEffect.ExportToGoogleSheets(TODAY),
+                effect.await(),
+            )
+            assertEquals(
+                MainExportProgress.PREPARING,
+                viewModel.uiState.value.exportProgress,
+            )
+            viewModel.onGoogleSheetsExportResult(
+                GoogleSheetsExportOperationResult.Success(
+                    GoogleSheetExportReceipt(
+                        workDate = TODAY,
+                        exportedAt = NOW,
+                        spreadsheetId =
+                            "1AbCdEfGhIjKlMnOpQrStUvWxYz_123456789",
+                        spreadsheetTitle = "Work Log",
+                        tabName = "WorqOrder_2026-07-24",
+                        dataRowCount = 0,
+                    ),
+                ),
+            )
+            runCurrent()
+
+            assertEquals(
+                MainExportOutcome.SUCCESS,
+                viewModel.uiState.value.exportFeedback?.outcome,
+            )
+            assertEquals(
+                ExportDestination.GOOGLE_SHEETS,
+                viewModel.uiState.value.exportFeedback?.destination,
+            )
+            assertEquals(
+                ExportDestination.GOOGLE_SHEETS,
+                fixture.settings
+                    .readSettings()
+                    .lastExportAttempt
+                    ?.destination,
+            )
+            assertEquals(
+                ExportAttemptOutcome.SUCCESS,
+                fixture.settings.readSettings().lastExportAttempt?.outcome,
+            )
+            assertTrue(fixture.document.writes.isEmpty())
+        }
+
+    @Test
+    fun googleFailureClearsProgressAndRecordsTypedDiagnostic() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.settings.setDefaultExportDestination(
+                ExportDestination.GOOGLE_SHEETS,
+            )
+            fixture.google.saveSignedInAccount(
+                GoogleAccountHint("person@example.com", "Person"),
+            )
+            fixture.google.saveConnectedSpreadsheet(
+                spreadsheetId =
+                    "1AbCdEfGhIjKlMnOpQrStUvWxYz_123456789",
+                spreadsheetTitle = "Work Log",
+                validatedAt = NOW,
+            )
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+            val effect = async { viewModel.effects.first() }
+            runCurrent()
+            viewModel.onEvent(MainEvent.Export)
+            runCurrent()
+            effect.await()
+
+            viewModel.onGoogleSheetsExportResult(
+                GoogleSheetsExportOperationResult.Failed(
+                    GoogleSheetsExportFailure.OFFLINE,
+                ),
+            )
+            runCurrent()
+
+            assertNull(viewModel.uiState.value.exportProgress)
+            assertEquals(
+                MainExportOutcome.OFFLINE,
+                viewModel.uiState.value.exportFeedback?.outcome,
+            )
+            assertEquals(
+                worq.order.data.ExportErrorCategory.GOOGLE_OFFLINE,
+                fixture.settings
+                    .readSettings()
+                    .lastExportAttempt
+                    ?.errorCategory,
             )
             assertTrue(fixture.document.writes.isEmpty())
         }

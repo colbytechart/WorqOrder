@@ -62,9 +62,11 @@ interface GoogleAccountAuthorizer {
         spreadsheetId: String,
     ): GoogleAuthorizationResult
 
+    suspend fun authorizeConnectedSpreadsheet(): GoogleAuthorizationResult
+
     suspend fun clearToken(accessToken: GoogleAccessToken)
 
-    suspend fun signOut(): GoogleSignOutResult
+    suspend fun signOut(accountId: String?): GoogleSignOutResult
 }
 
 data class ValidatedGoogleSpreadsheet(

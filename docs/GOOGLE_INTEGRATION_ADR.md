@@ -46,9 +46,10 @@ Use the following design:
 
 4. During spreadsheet connection, launch the current Android Google Picker authorization
    flow, filtered to Google Sheets and to the locally parsed pasted spreadsheet ID.
-5. Accept the connection only when the Picker response contains that exact ID and
-   subsequent Drive and Sheets metadata checks prove it is an editable Google
-   spreadsheet.
+5. When the Picker response contains IDs, require exactly the requested ID. If a
+   previously retained per-file grant is reused and Google returns no Picker IDs,
+   require the same exact-ID Drive and Sheets metadata checks before accepting the
+   connection. Never accept a nonempty mismatch.
 6. Use direct HTTPS/JSON REST adapters for Drive v3 and Sheets v4 rather than the
    generated Google Java API client.
 7. Obtain a short-lived access token from `AuthorizationClient` for each explicit
@@ -93,8 +94,12 @@ The connection request must:
 - disallow multiple selection;
 - filter to the Google Sheets MIME type;
 - filter to the parsed spreadsheet ID; and
-- reject cancellation, an empty result, multiple IDs, or a returned ID that differs
-  from the input.
+- reject cancellation, multiple IDs, or a returned ID that differs from the input.
+
+Disconnect intentionally leaves the per-file grant intact. On a later reconnect,
+Google may return a valid `drive.file` token without repeating `picked_file_ids`.
+WorqOrder treats that empty set only as possible retained-grant reuse; it provides no
+connection proof until the exact parsed ID passes both Drive and Sheets validation.
 
 Normal export authorization does not relaunch Picker when the existing grant remains
 valid. It makes a normal `authorize()` request for `drive.file`; Google can return a
@@ -219,8 +224,11 @@ and performs no network call.
 After parsing:
 
 1. launch the Picker authorization request described in section 3;
-2. require exactly the parsed ID in `picked_file_ids`; and
-3. keep the returned access token only for validation.
+2. require exactly the parsed ID when `picked_file_ids` is nonempty;
+3. reject any nonempty mismatch before a network validation call;
+4. allow an empty ID set only to continue through exact-ID retained-grant validation;
+   and
+5. keep the returned access token only for validation.
 
 ### Read/edit validation
 
@@ -299,6 +307,10 @@ Disconnect:
 - does not delete or edit the spreadsheet; and
 - does not alter Room.
 
+Because the grant remains, reconnecting the same spreadsheet may return no repeated
+Picker-ID payload. The exact pasted ID must still pass Drive and Sheets validation
+before connection metadata is restored.
+
 ### Sign out
 
 Sign out:
@@ -308,18 +320,18 @@ Sign out:
 3. clears any in-memory token;
 4. calls `CredentialManager.clearCredentialState()`;
 5. clears the local Google account hint; and
-6. preserves spreadsheet ID/title as stale metadata unless the user also chooses
-   Disconnect.
+6. clears spreadsheet ID, title, validation state, and connection timestamp.
 
 `revokeAccess()` revokes all Google scopes granted to this application for the account,
 not merely the scope listed in the revoke request. WorqOrder requests only
 `drive.file`, which bounds that consequence.
 
 If remote revocation cannot be confirmed, the UI must not claim it succeeded. It may
-complete local sign-out, explain how to retry or revoke WorqOrder from the Google
-Account third-party connections page, and keep export unavailable. Signing in again,
-especially with another account, requires the stored spreadsheet to be Picker-granted
-and revalidated before export.
+complete local sign-out, explain how to remove WorqOrder from the Google Account
+third-party connections page, and keep export unavailable. Local account and
+spreadsheet metadata are cleared even in this partial-revocation state. Signing in
+again, especially with another account, requires a spreadsheet to be explicitly
+connected, Picker-granted, and revalidated before export.
 
 ## 10. Local storage classification
 
@@ -424,7 +436,7 @@ Tests must cover:
 - account change and default-account handoff;
 - Picker request has only `drive.file`, opts out of granted-scope inclusion, and uses
   exact MIME/file-ID filters;
-- Picker cancellation, wrong/multiple/missing IDs;
+- Picker cancellation, wrong/multiple IDs, and empty-ID retained-grant reconnect;
 - no API call before per-file grant;
 - editable, read-only, trashed, wrong-MIME, missing, and shared-drive spreadsheets;
 - Drive and Sheets field masks;

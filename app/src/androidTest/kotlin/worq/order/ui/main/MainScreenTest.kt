@@ -34,7 +34,7 @@ class MainScreenTest {
         setMainContent(MainUiState.ready())
 
         composeRule.onNodeWithText("00:00:00.000").assertIsDisplayed()
-        composeRule.onNodeWithText("No tasks for this date").assertIsDisplayed()
+        composeRule.onNodeWithText("No Tasks for This Date").assertIsDisplayed()
         composeRule
             .onNodeWithTag(MainScreenTestTags.TIMER_ACTION)
             .assertIsNotEnabled()
@@ -243,6 +243,92 @@ class MainScreenTest {
     }
 
     @Test
+    fun googleExportShowsProgressSuccessAndRetryableFailure() {
+        val events = mutableListOf<MainEvent>()
+        var state by
+            mutableStateOf(
+                MainUiState
+                    .ready()
+                    .copy(
+                        canExport = false,
+                        exportDestination = ExportDestination.GOOGLE_SHEETS,
+                        googleExportState = MainGoogleExportState.CONNECTED,
+                        exportProgress = MainExportProgress.PREPARING,
+                    ),
+            )
+        composeRule.setContent {
+            WorqOrderTheme(darkTheme = true) {
+                MainScreen(
+                    uiState = state,
+                    onEvent = events::add,
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText("Exporting to Google Sheets…")
+            .assertIsNotEnabled()
+
+        state =
+            state.copy(
+                canExport = true,
+                exportProgress = null,
+                exportFeedback =
+                    MainExportFeedback(
+                        workDate = TODAY,
+                        outcome = MainExportOutcome.SUCCESS,
+                        destination = ExportDestination.GOOGLE_SHEETS,
+                        tabName = "WorqOrder_2026-07-24",
+                    ),
+            )
+        composeRule
+            .onNodeWithText("Submitted Jul 24, 2026 to Google Sheets.")
+            .assertIsDisplayed()
+
+        state =
+            state.copy(
+                exportFeedback =
+                    MainExportFeedback(
+                        workDate = TODAY,
+                        outcome = MainExportOutcome.OFFLINE,
+                        destination = ExportDestination.GOOGLE_SHEETS,
+                    ),
+            )
+        composeRule.onNodeWithText("Retry").performClick()
+        assertTrue(events.contains(MainEvent.Export))
+    }
+
+    @Test
+    fun googleOwnershipConflictNamesTabWithoutOfferingRetry() {
+        setMainContent(
+            state =
+                MainUiState
+                    .ready()
+                    .copy(
+                        exportDestination = ExportDestination.GOOGLE_SHEETS,
+                        googleExportState = MainGoogleExportState.CONNECTED,
+                        exportFeedback =
+                            MainExportFeedback(
+                                workDate = TODAY,
+                                outcome =
+                                    MainExportOutcome.TAB_NAME_CONFLICT,
+                                destination =
+                                    ExportDestination.GOOGLE_SHEETS,
+                                tabName = "WorqOrder_2026-07-24",
+                            ),
+                    ),
+        )
+
+        composeRule
+            .onNodeWithText(
+                "The worksheet “WorqOrder_2026-07-24” already exists " +
+                    "but is not owned by WorqOrder. Rename that worksheet, " +
+                    "then retry.",
+            ).assertIsDisplayed()
+        composeRule.onAllNodesWithText("Retry").assertCountEquals(0)
+    }
+
+    @Test
     fun overflowMenuOffersEditAndDeleteEvents() {
         val events = mutableListOf<MainEvent>()
         var state by
@@ -298,7 +384,7 @@ class MainScreenTest {
                 )
         setMainContent(state)
 
-        composeRule.onNodeWithText("Timer is still running").assertIsDisplayed()
+        composeRule.onNodeWithText("Timer Is Still Running").assertIsDisplayed()
         composeRule
             .onNodeWithText("Northwind · Current work · Jul 24, 2026")
             .assertIsDisplayed()

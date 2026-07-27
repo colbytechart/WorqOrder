@@ -81,6 +81,8 @@ object MainScreenTestTags {
     const val TIMER = "main_timer"
     const val TIMER_ACTION = "main_timer_action"
     const val TASK_LIST = "main_task_list"
+    const val EXPORT_ACTION = "main_export_action"
+    const val ADD_TASK_ACTION = "main_add_task_action"
 
     fun taskRow(taskId: String): String = "main_task_$taskId"
 }
@@ -217,6 +219,7 @@ private fun MainContent(
             MainExportFeedbackBanner(
                 feedback = feedback,
                 onDismiss = { onEvent(MainEvent.DismissExportFeedback) },
+                onRetry = { onEvent(MainEvent.Export) },
             )
         }
         TaskList(
@@ -258,6 +261,7 @@ private fun MainBottomActions(
             modifier =
                 Modifier
                     .weight(1f)
+                    .testTag(MainScreenTestTags.EXPORT_ACTION)
                     .heightIn(min = WorqOrderDimens.ActionButtonHeight),
         ) {
             val formattedDate =
@@ -273,13 +277,18 @@ private fun MainBottomActions(
                 Text(
                     text =
                         stringResource(
-                            when (exportProgress) {
-                                MainExportProgress.PREPARING ->
-                                    R.string.preparing_csv
-                                MainExportProgress.CHOOSING_DESTINATION ->
-                                    R.string.choosing_csv_destination
-                                MainExportProgress.WRITING ->
-                                    R.string.writing_csv
+                            when (exportDestination) {
+                                ExportDestination.CSV ->
+                                    when (exportProgress) {
+                                        MainExportProgress.PREPARING ->
+                                            R.string.preparing_csv
+                                        MainExportProgress.CHOOSING_DESTINATION ->
+                                            R.string.choosing_csv_destination
+                                        MainExportProgress.WRITING ->
+                                            R.string.writing_csv
+                                    }
+                                ExportDestination.GOOGLE_SHEETS ->
+                                    R.string.exporting_google_sheets
                             },
                         ),
                     maxLines = 2,
@@ -318,6 +327,7 @@ private fun MainBottomActions(
             modifier =
                 Modifier
                     .weight(1f)
+                    .testTag(MainScreenTestTags.ADD_TASK_ACTION)
                     .heightIn(min = WorqOrderDimens.ActionButtonHeight),
         ) {
             Icon(
@@ -580,6 +590,7 @@ private fun MainMessageBanner(
 private fun MainExportFeedbackBanner(
     feedback: MainExportFeedback,
     onDismiss: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     val isFailure =
         feedback.outcome !in
@@ -612,29 +623,15 @@ private fun MainExportFeedbackBanner(
                     .ofLocalizedDate(FormatStyle.MEDIUM)
                     .format(feedback.workDate)
             Text(
-                text =
-                    stringResource(
-                        when (feedback.outcome) {
-                            MainExportOutcome.SUCCESS ->
-                                R.string.csv_export_succeeded
-                            MainExportOutcome.CANCELED ->
-                                R.string.csv_export_canceled
-                            MainExportOutcome.PREPARATION_FAILED ->
-                                R.string.csv_export_preparation_failed
-                            MainExportOutcome.CLOCK_CHANGED ->
-                                R.string.csv_export_clock_changed
-                            MainExportOutcome.ACTIVE_TIMER_CHANGED ->
-                                R.string.csv_export_timer_changed
-                            MainExportOutcome.OUTPUT_FAILED ->
-                                R.string.csv_export_output_failed
-                            MainExportOutcome.PARTIAL_OUTPUT_MAY_REMAIN ->
-                                R.string.csv_export_partial_output
-                        },
-                        formattedDate,
-                    ),
+                text = exportFeedbackText(feedback, formattedDate),
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium,
             )
+            if (feedback.outcome.isRetryableGoogleFailure()) {
+                TextButton(onClick = onRetry) {
+                    Text(stringResource(R.string.retry))
+                }
+            }
             IconButton(onClick = onDismiss) {
                 Icon(
                     imageVector = Icons.Default.Close,
@@ -644,6 +641,118 @@ private fun MainExportFeedbackBanner(
         }
     }
 }
+
+@Composable
+private fun exportFeedbackText(
+    feedback: MainExportFeedback,
+    formattedDate: String,
+): String =
+    if (feedback.destination == ExportDestination.CSV) {
+        stringResource(
+            when (feedback.outcome) {
+                MainExportOutcome.SUCCESS ->
+                    R.string.csv_export_succeeded
+                MainExportOutcome.CANCELED ->
+                    R.string.csv_export_canceled
+                MainExportOutcome.PREPARATION_FAILED ->
+                    R.string.csv_export_preparation_failed
+                MainExportOutcome.CLOCK_CHANGED ->
+                    R.string.csv_export_clock_changed
+                MainExportOutcome.ACTIVE_TIMER_CHANGED ->
+                    R.string.csv_export_timer_changed
+                MainExportOutcome.OUTPUT_FAILED ->
+                    R.string.csv_export_output_failed
+                MainExportOutcome.PARTIAL_OUTPUT_MAY_REMAIN ->
+                    R.string.csv_export_partial_output
+                else -> R.string.csv_export_preparation_failed
+            },
+            formattedDate,
+        )
+    } else {
+        when (feedback.outcome) {
+            MainExportOutcome.SUCCESS ->
+                stringResource(
+                    R.string.google_export_succeeded,
+                    formattedDate,
+                )
+            MainExportOutcome.CANCELED ->
+                stringResource(
+                    R.string.google_export_canceled,
+                    formattedDate,
+                )
+            MainExportOutcome.PREPARATION_FAILED ->
+                stringResource(
+                    R.string.google_export_preparation_failed,
+                    formattedDate,
+                )
+            MainExportOutcome.CLOCK_CHANGED ->
+                stringResource(
+                    R.string.google_export_clock_changed,
+                    formattedDate,
+                )
+            MainExportOutcome.ACTIVE_TIMER_CHANGED ->
+                stringResource(
+                    R.string.google_export_timer_changed,
+                    formattedDate,
+                )
+            MainExportOutcome.AUTHORIZATION_REQUIRED ->
+                stringResource(
+                    R.string.google_export_authorization_required,
+                    formattedDate,
+                )
+            MainExportOutcome.PLAY_SERVICES_UNAVAILABLE ->
+                stringResource(R.string.google_export_play_services)
+            MainExportOutcome.TAB_NAME_CONFLICT ->
+                stringResource(
+                    R.string.google_export_tab_conflict,
+                    feedback.tabName.orEmpty(),
+                )
+            MainExportOutcome.SCHEMA_CONFLICT ->
+                stringResource(
+                    R.string.google_export_schema_conflict,
+                    feedback.tabName.orEmpty(),
+                )
+            MainExportOutcome.OFFLINE ->
+                stringResource(
+                    R.string.google_export_offline,
+                    formattedDate,
+                )
+            MainExportOutcome.TIMEOUT ->
+                stringResource(
+                    R.string.google_export_timeout,
+                    formattedDate,
+                )
+            MainExportOutcome.NOT_FOUND_OR_NOT_GRANTED ->
+                stringResource(R.string.google_export_not_found)
+            MainExportOutcome.PERMISSION_DENIED ->
+                stringResource(R.string.google_export_permission_denied)
+            MainExportOutcome.RATE_LIMITED ->
+                stringResource(R.string.google_export_rate_limited)
+            MainExportOutcome.SERVER_FAILURE ->
+                stringResource(R.string.google_export_server_failure)
+            MainExportOutcome.MALFORMED_RESPONSE ->
+                stringResource(R.string.google_export_malformed_response)
+            MainExportOutcome.AMBIGUOUS_REMOTE_RESULT ->
+                stringResource(R.string.google_export_ambiguous_result)
+            MainExportOutcome.OUTPUT_FAILED,
+            MainExportOutcome.PARTIAL_OUTPUT_MAY_REMAIN,
+            -> stringResource(
+                R.string.google_export_preparation_failed,
+                formattedDate,
+            )
+        }
+    }
+
+private fun MainExportOutcome.isRetryableGoogleFailure(): Boolean =
+    this in
+        setOf(
+            MainExportOutcome.AUTHORIZATION_REQUIRED,
+            MainExportOutcome.OFFLINE,
+            MainExportOutcome.TIMEOUT,
+            MainExportOutcome.RATE_LIMITED,
+            MainExportOutcome.SERVER_FAILURE,
+            MainExportOutcome.AMBIGUOUS_REMOTE_RESULT,
+        )
 
 @Composable
 private fun TaskList(
@@ -984,8 +1093,6 @@ private fun MainMessage.stringResource(): Int =
         MainMessage.DATA_UNAVAILABLE -> R.string.data_unavailable
         MainMessage.TASK_NOT_FOUND -> R.string.task_no_longer_exists
         MainMessage.RUNNING_TASK_LOCKED -> R.string.running_task_edit_blocked
-        MainMessage.GOOGLE_EXPORT_NOT_AVAILABLE ->
-            R.string.google_export_next_milestone
     }
 
 @Preview(showBackground = true)

@@ -481,9 +481,9 @@ private fun IntervalEditorDialog(
             Text(
                 stringResource(
                     if (editor.intervalId == null) {
-                        R.string.add_interval
+                        R.string.add_interval_title
                     } else {
-                        R.string.edit_interval
+                        R.string.edit_interval_title
                     },
                 ),
             )

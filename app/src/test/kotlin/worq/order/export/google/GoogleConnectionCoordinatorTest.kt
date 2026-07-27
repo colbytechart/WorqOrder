@@ -39,7 +39,7 @@ class GoogleConnectionCoordinatorTest {
         }
 
     @Test
-    fun pickerMustReturnExactlyThePastedSpreadsheet() =
+    fun nonemptyPickerResultMustReturnExactlyThePastedSpreadsheet() =
         runTest {
             val fixture = Fixture()
             fixture.coordinator.signIn()
@@ -56,6 +56,23 @@ class GoogleConnectionCoordinatorTest {
             )
             assertEquals(0, fixture.gateway.callCount)
             assertFalse(fixture.repository.readConnection().isConnected)
+        }
+
+    @Test
+    fun reconnectAcceptsReusedGrantWithoutRepeatedPickerIds() =
+        runTest {
+            val fixture = Fixture()
+            fixture.coordinator.signIn()
+            fixture.coordinator.validateAndConnect(SPREADSHEET_ID)
+            fixture.coordinator.disconnectSpreadsheet()
+            fixture.authorizer.pickedIds = emptySet()
+
+            val result =
+                fixture.coordinator.validateAndConnect(SPREADSHEET_ID)
+
+            assertTrue(result is GoogleConnectionOperationResult.Connected)
+            assertEquals(SPREADSHEET_ID, fixture.gateway.lastSpreadsheetId)
+            assertTrue(fixture.repository.readConnection().isConnected)
         }
 
     @Test
@@ -116,7 +133,7 @@ class GoogleConnectionCoordinatorTest {
         }
 
     @Test
-    fun disconnectPreservesAccountAndSignOutPreservesStaleSpreadsheet() =
+    fun disconnectPreservesAccountAndSignOutDisconnectsSpreadsheet() =
         runTest {
             val fixture = Fixture()
             fixture.coordinator.signIn()
@@ -138,8 +155,15 @@ class GoogleConnectionCoordinatorTest {
             )
             val signedOut = fixture.repository.readConnection()
             assertFalse(signedOut.hasAccountHint)
-            assertTrue(signedOut.hasSpreadsheetMetadata)
+            assertFalse(signedOut.hasSpreadsheetMetadata)
+            assertNull(signedOut.spreadsheetId)
+            assertNull(signedOut.spreadsheetTitle)
+            assertNull(signedOut.validatedAt)
             assertFalse(signedOut.isConnected)
+            assertEquals(
+                "person@example.com",
+                fixture.authorizer.signedOutAccountId,
+            )
         }
 
     @Test
@@ -147,6 +171,7 @@ class GoogleConnectionCoordinatorTest {
         runTest {
             val fixture = Fixture()
             fixture.coordinator.signIn()
+            fixture.coordinator.validateAndConnect(SPREADSHEET_ID)
             fixture.authorizer.signOutResult =
                 GoogleSignOutResult.RevocationFailed
 
@@ -154,7 +179,9 @@ class GoogleConnectionCoordinatorTest {
                 GoogleConnectionOperationResult.SignOutPartiallyCompleted,
                 fixture.coordinator.signOut(),
             )
-            assertFalse(fixture.repository.readConnection().hasAccountHint)
+            val signedOut = fixture.repository.readConnection()
+            assertFalse(signedOut.hasAccountHint)
+            assertFalse(signedOut.hasSpreadsheetMetadata)
         }
 
     private class Fixture {
@@ -175,6 +202,7 @@ class GoogleConnectionCoordinatorTest {
         var pickedIds: Set<String> = setOf(SPREADSHEET_ID)
         var clearedTokens = 0
         var signOutResult: GoogleSignOutResult = GoogleSignOutResult.Complete
+        var signedOutAccountId: String? = null
 
         override suspend fun signIn(): GoogleSignInResult =
             GoogleSignInResult.SignedIn(
@@ -189,12 +217,21 @@ class GoogleConnectionCoordinatorTest {
         ): GoogleAuthorizationResult =
             GoogleAuthorizationResult.Authorized(token, pickedIds)
 
+        override suspend fun authorizeConnectedSpreadsheet():
+            GoogleAuthorizationResult =
+            GoogleAuthorizationResult.Authorized(token, emptySet())
+
         override suspend fun clearToken(accessToken: GoogleAccessToken) {
             assertTrue(accessToken === token)
             clearedTokens += 1
         }
 
-        override suspend fun signOut(): GoogleSignOutResult = signOutResult
+        override suspend fun signOut(
+            accountId: String?,
+        ): GoogleSignOutResult {
+            signedOutAccountId = accountId
+            return signOutResult
+        }
     }
 
     private class FakeGateway : GoogleSheetsGateway {
@@ -203,12 +240,14 @@ class GoogleConnectionCoordinatorTest {
                 ValidatedGoogleSpreadsheet(SPREADSHEET_ID, "Work Log"),
             )
         var callCount = 0
+        var lastSpreadsheetId: String? = null
 
         override suspend fun validateEditableSpreadsheet(
             accessToken: GoogleAccessToken,
             spreadsheetId: String,
         ): GoogleSpreadsheetValidationResult {
             callCount += 1
+            lastSpreadsheetId = spreadsheetId
             return result
         }
     }

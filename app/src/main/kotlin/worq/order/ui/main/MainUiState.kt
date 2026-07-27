@@ -28,11 +28,25 @@ enum class MainExportOutcome {
     ACTIVE_TIMER_CHANGED,
     OUTPUT_FAILED,
     PARTIAL_OUTPUT_MAY_REMAIN,
+    AUTHORIZATION_REQUIRED,
+    PLAY_SERVICES_UNAVAILABLE,
+    TAB_NAME_CONFLICT,
+    SCHEMA_CONFLICT,
+    OFFLINE,
+    TIMEOUT,
+    NOT_FOUND_OR_NOT_GRANTED,
+    PERMISSION_DENIED,
+    RATE_LIMITED,
+    SERVER_FAILURE,
+    MALFORMED_RESPONSE,
+    AMBIGUOUS_REMOTE_RESULT,
 }
 
 data class MainExportFeedback(
     val workDate: LocalDate,
     val outcome: MainExportOutcome,
+    val destination: ExportDestination = ExportDestination.CSV,
+    val tabName: String? = null,
 )
 
 enum class MainMessage {
@@ -46,7 +60,6 @@ enum class MainMessage {
     DATA_UNAVAILABLE,
     TASK_NOT_FOUND,
     RUNNING_TASK_LOCKED,
-    GOOGLE_EXPORT_NOT_AVAILABLE,
 }
 
 data class MainTaskItemUi(
@@ -171,6 +184,10 @@ sealed interface MainEffect {
 
     data class LaunchCsvDocument(
         val suggestedFileName: String,
+    ) : MainEffect
+
+    data class ExportToGoogleSheets(
+        val workDate: LocalDate,
     ) : MainEffect
 
     data class NavigateToEditTask(

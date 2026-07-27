@@ -323,8 +323,8 @@ After Milestone 10 implements the connection UI:
 9. Restart the app and verify only safe metadata persists; the app obtains authorization
    again through supported APIs rather than a stored token.
 10. Disconnect the spreadsheet and verify the external file remains unchanged.
-11. Reconnect, sign out, and verify export is unavailable and another account can be
-    selected.
+11. Reconnect, sign out, and verify the spreadsheet is automatically disconnected,
+    export is unavailable, and another account can be selected.
 
 Repeat with:
 
@@ -342,7 +342,9 @@ Repeat with:
 
 Expected connection behavior:
 
-- exactly one Picker-returned ID must match the parsed input;
+- every nonempty Picker-returned ID set must exactly match the parsed input; after
+  Disconnect, an empty set may represent reuse of the retained grant, but exact-ID
+  Drive/Sheets validation must still succeed before reconnect;
 - Drive metadata must identify an editable, modifiable, non-trashed Google spreadsheet;
 - Sheets metadata must return the same ID and its title;
 - no test write occurs during validation;
@@ -350,7 +352,40 @@ Expected connection behavior:
 - failures leave Room and prior spreadsheet metadata unchanged unless the user explicitly
   disconnects.
 
-## 11. Direct-release and no-cost checklist
+## 11. Google Sheets export testing procedure
+
+Use only the disposable marked-test and conflict spreadsheets from section 9:
+
+1. Connect the clean marked-test spreadsheet, set Google Sheets as the default, create local test
+   tasks for one date, stop any test timer if desired, and export that displayed date.
+2. With a completely blank test spreadsheet, verify its original first tab is renamed/reused as
+   `WorqOrder_YYYY-MM-DD`; no unused blank default tab remains. With a separate spreadsheet that
+   has any existing content, verify that content/tab is preserved and a new date tab is added.
+   Row 1 must contain the exact nine schema-version-2 headers and row 2 onward must match a CSV
+   captured from the same unchanged local data.
+3. Export the unchanged date again. Verify the existing marked tab is recognized, no ownership
+   conflict is shown, and no second tab or duplicate row appears.
+4. Edit/delete/add local task or interval data and re-export. Verify the marked table is completely
+   replaced, obsolete rows disappear, and unrelated spreadsheet tabs remain unchanged.
+5. Export an empty date and a date containing a zero-interval task. Verify header-only and
+   blank-interval-row behavior respectively.
+6. Include Unicode, multiline, and formula-prefixed client/task text. Verify the Google cell type
+   is literal text and no formula executes.
+7. Start a timer and export its date. Verify Stop Local is blank and durations use one snapshot
+   instant without stopping or otherwise changing the timer.
+8. Connect the conflict spreadsheet and export the date matching its manually created unmarked
+   tab. Verify WorqOrder names the conflict, creates no suffix tab, and changes nothing remotely.
+9. Remove Editor access, delete/revoke the connected file, disable networking, and revoke the
+   Google grant in separate tests. Verify permission, not-found, offline, and authorization
+   recovery states remain distinct and Room never changes.
+10. When simulating an interrupted/unknown batch result, retry explicitly and verify the final
+    marked date table has one authoritative copy with no duplicate rows.
+
+The implementation performs one narrow `spreadsheets.get` structure/metadata read and one atomic
+`spreadsheets.batchUpdate` per successful explicit export. It never lists Drive files, creates a
+spreadsheet document, retries automatically, uses paid quota, or stores a token.
+
+## 12. Direct-release and no-cost checklist
 
 Before direct production distribution:
 

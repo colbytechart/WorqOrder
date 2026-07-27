@@ -156,12 +156,14 @@ class SettingsViewModel(
                     )
                 GoogleConnectionOperationResult.SignedOut ->
                     editor.copy(
+                        spreadsheetInput = "",
                         googleOperationStatus = null,
                         googleStatusOverride = null,
                         googleMessage = null,
                     )
                 GoogleConnectionOperationResult.SignOutPartiallyCompleted ->
                     editor.copy(
+                        spreadsheetInput = "",
                         googleOperationStatus = null,
                         googleStatusOverride = null,
                         googleMessage = GoogleSettingsMessage.SIGN_OUT_PARTIAL,
@@ -254,6 +256,12 @@ class SettingsViewModel(
     }
 
     private fun requestSpreadsheetValidation() {
+        if (
+            uiState.value.googleStatus ==
+            GoogleConnectionUiStatus.CONNECTED
+        ) {
+            return
+        }
         val input =
             editorState.value.spreadsheetInput
                 .trim()

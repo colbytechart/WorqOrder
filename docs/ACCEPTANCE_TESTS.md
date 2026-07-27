@@ -295,7 +295,13 @@ ZoneIds.
 
 ### SET-01 Immediate appearance modes
 
-Client Management is the first normal Settings item, followed by Appearance, Time zone, export default, and Google connection status. System is selected by default and follows device Light/Dark configuration changes. Selecting explicit Light or Dark overrides the device while all three radio choices remain enabled. Every change updates the whole Compose tree immediately and persists through recreation/process/device restart.
+Client Management is the first normal Settings item, followed by Appearance, Time Zone, and Export
+Destination. Google Sheets Connection is visible only when Google Sheets is selected. System is
+selected by default and follows device Light/Dark configuration changes. Selecting explicit Light
+or Dark overrides the device while all three radio choices remain enabled. Screen, section, card,
+empty-state, and dialog headers use title capitalization without rewriting body/action copy. Every
+change updates the whole Compose tree immediately and persists through
+recreation/process/device restart.
 
 ### SET-02 Settings durability
 
@@ -394,14 +400,20 @@ consume the same object rather than rebuilding destination-specific rows.
 ### GS-01 Connection validation
 
 Given a valid URL/ID, the app filters the official Android Google Picker authorization flow to that
-exact ID and the Google Sheets MIME type. Only an exact returned `picked_file_ids` match followed by
-successful Drive edit-capability and Sheets metadata validation stores/displays the spreadsheet
-ID/title. No spreadsheet or test cell is created. Malformed, Picker-mismatched, missing, read-only,
-trashed, or unauthorized sheets give distinct safe errors.
+exact ID and the Google Sheets MIME type. A nonempty returned `picked_file_ids` set must exactly
+match. If Disconnect retained a prior per-file grant and Google returns an empty Picker-ID set,
+reconnect may continue only through successful exact-ID Drive edit-capability and Sheets metadata
+validation. A nonempty mismatch is rejected before API validation. Only successful validation
+stores/displays the spreadsheet ID/title. No spreadsheet or test cell is created. Malformed,
+Picker-mismatched, missing, read-only, trashed, or unauthorized sheets give distinct safe errors.
 
 ### GS-02 One connection
 
-Connecting B replaces/disconnects local association to A only after confirmation/success; exports use B, and neither external document is deleted.
+Connecting B replaces/disconnects local association to A only after confirmation/success; exports
+use B, and neither external document is deleted. While a spreadsheet is connected, the URL/ID
+field and Validate and Connect action are absent; Disconnect must occur before choosing another
+spreadsheet. Changing Export Destination from CSV or XLSX to Google Sheets automatically scrolls
+the Settings list until the newly revealed Google Sheets Connection section is visible.
 
 ### GS-03 Missing connection routing
 
@@ -409,14 +421,22 @@ With Google default but missing/invalid authorization or spreadsheet, main expor
 
 ### GS-04 New date tab
 
-If `WorqOrder_2026-07-22` is absent, export creates it inside the connected spreadsheet with exactly
-nine columns and the required row count, writes sheet-scoped marker/schema/date developer metadata
-plus the exact visible header/data, and creates no new spreadsheet document.
+If a connected spreadsheet is confirmed completely blank, its original first sheet is renamed to
+`WorqOrder_2026-07-22`, right-sized, and populated; no unused blank default tab remains. If any
+user-entered cell/sheet content exists, or blankness is indeterminate, every existing tab is
+preserved and export creates the absent date tab. In either case the date tab has exactly nine
+columns and the required row count, writes the exact `PROJECT`-visible sheet metadata
+`worqorder_export_marker=WORQORDER_EXPORT`, `worqorder_export_schema=2`, and
+`worqorder_export_work_date=2026-07-22` plus the exact visible header/data, and creates no new
+spreadsheet document. One atomic batch contains either first-sheet rename/resize or Add Sheet,
+all marker requests, and the complete literal cell table.
 
 ### GS-05 Idempotent re-export
 
 Given a correctly marked date tab, unchanged re-export replaces application-owned content and
-creates no duplicate rows. The visible table remains identical.
+creates no duplicate rows. The visible table remains identical. The production response parser
+recognizes metadata returned under `sheets[].developerMetadata`; it does not misclassify its own
+previously exported tab as unowned.
 
 ### GS-06 Authoritative replacement
 
@@ -438,7 +458,7 @@ Export/re-export never modifies other tabs. Within a marked tab, documented app-
 ### GS-10 Raw values
 
 Client, description, and hardware/software-purchases values starting with formula characters are
-written as literal/raw strings, not executable formulas.
+written as `UpdateCellsRequest.userEnteredValue.stringValue`, not executable formulas.
 
 ### GS-10A Shared visible table and capacity
 
@@ -463,12 +483,27 @@ Canceling account selection/consent does not claim sign-in, connection, or expor
 
 Rate limit/server/ambiguous response yields a typed retryable state. Retrying converges to the authoritative content without duplicates.
 
+### GS-14A Confirmed success and diagnostic history
+
+The app claims success only after a 2xx batch response confirms the connected spreadsheet ID.
+The generic typed `last_export_*` DataStore entry may record destination/date/time/outcome/safe
+category, but no export-history Room table, spreadsheet ID, row data, token, or API response is
+persisted.
+
+### GS-14B Main-screen state
+
+While an explicit export is active, the date-specific Google button is disabled and shows progress.
+Success, ownership/schema conflict, authorization, offline, timeout, permission, not-found, quota,
+server, malformed, and ambiguous-result states remain usable and actionable. Retry is offered only
+where repeating the idempotent operation is useful; repeated taps cannot start parallel exports.
+
 ### GS-15 Sign-out/disconnect
 
 Disconnect clears local spreadsheet metadata but leaves account/grant state intact. Sign-out makes
 Google export unavailable, attempts grant revocation, clears Credential Manager/in-memory state,
-and reports incomplete remote revocation if it fails. Neither changes Room or deletes external
-content.
+clears account and connected-spreadsheet metadata, and reports incomplete remote revocation if it
+fails. Local metadata is still cleared after incomplete remote revocation. Neither operation
+changes Room or deletes external content.
 
 ### GS-16 Credentials/scopes
 
@@ -486,10 +521,10 @@ direct-release identity is added only in Milestone 17. The repository remains GP
 
 ### GS-18 Quota and future-policy failure
 
-Google requests occur only during explicit user operations and use bounded retry. Standard-quota
-exhaustion does not trigger paid capacity or background retry, does not mutate Room, and leaves CSV
-available. If `drive.file`/Picker policy no longer supports the workflow, the app does not silently
-request a broader scope.
+Google requests occur only during explicit user operations and do not retry automatically.
+Standard-quota exhaustion does not trigger paid capacity or background retry, does not mutate Room,
+and leaves CSV available. If `drive.file`/Picker policy no longer supports the workflow, the app
+does not silently request a broader scope.
 
 ## 10. XLSX
 
@@ -502,7 +537,9 @@ exactly CSV, XLSX, and Google Sheets after migration; CSV remains the default/fa
 
 ### XLSX-02 Shared schema and ordering
 
-Exporting Jul 22 adds one visible `WorqOrder_2026-07-22` worksheet when absent. It has the exact
+Exporting Jul 22 reuses/renames the original first worksheet when the connected workbook is
+confirmed completely blank. If any workbook data exists, every existing worksheet is preserved
+and export adds one visible `WorqOrder_2026-07-22` worksheet when absent. It has the exact
 nine-column header at row 1 and rows identical in content/order to CSV and Google Sheets for the
 same captured snapshot. Exporting Jul 23 adds a separate date tab. An empty date has only the
 header; a zero-interval task has one blank-interval row.

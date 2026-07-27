@@ -18,6 +18,10 @@ sealed interface PrepareExportSnapshotResult {
     data object ActiveTimerChanged : PrepareExportSnapshotResult
 }
 
+fun interface ExportSnapshotProvider {
+    suspend fun prepare(workDate: LocalDate): PrepareExportSnapshotResult
+}
+
 /**
  * Captures the one authoritative, destination-neutral dataset consumed by every exporter.
  *
@@ -30,8 +34,8 @@ class ExportSnapshotCoordinator(
     private val clock: UtcClock,
     private val timerOperationLock: TimerOperationLock,
     private val rowBuilder: ExportRowBuilder = ExportRowBuilder(),
-) {
-    suspend fun prepare(workDate: LocalDate): PrepareExportSnapshotResult =
+) : ExportSnapshotProvider {
+    override suspend fun prepare(workDate: LocalDate): PrepareExportSnapshotResult =
         timerOperationLock.mutex.withLock {
             val exportedAt = clock.now()
             when (activeTimerNormalizer.normalizeWhileLocked(exportedAt)) {

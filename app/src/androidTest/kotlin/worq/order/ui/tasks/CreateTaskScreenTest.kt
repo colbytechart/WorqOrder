@@ -33,7 +33,7 @@ class CreateTaskScreenTest {
             onEvent = events::add,
         )
 
-        composeRule.onNodeWithText("No active clients").assertIsDisplayed()
+        composeRule.onNodeWithText("No Active Clients").assertIsDisplayed()
         composeRule
             .onNodeWithText("Add a client before creating a task.")
             .assertIsDisplayed()

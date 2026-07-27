@@ -334,7 +334,10 @@ Given Jul 22 is displayed while today is Jul 23, CSV uses only Jul 22 rows and s
 
 ### CSV-02 Exact schema
 
-Header and each row use schema version 1 columns in the exact documented order. A date with no tasks has only a header; a zero-interval task has one row with blank interval fields and zero task total.
+Header and each row use schema version 2's exact nine visible columns and canonical strings in the
+documented order. Internal schema/snapshot metadata is not a visible column. A date with no tasks
+has only a header; a zero-interval task has one row with blank interval number/start/stop/duration
+and `00:00:00` task total.
 
 ### CSV-03 One row per interval
 
@@ -349,11 +352,15 @@ records use CRLF.
 
 ### CSV-05 Durations/timestamps
 
-Longer-than-23-hour task totals are not wrapped; UTC/local timestamps and DST offsets follow schema; numeric fields are locale independent.
+Longer-than-23-hour task totals are not wrapped. Start/Stop are converted through the task's stored
+ZoneId and exported only as 24-hour `HH:mm`; complete instants remain internal. Durations are
+`HH:MM:SS`, truncate rather than round sub-second remainder, and are locale independent.
 
 ### CSV-06 Running snapshot
 
-Given today's active interval, all rows share one export instant, its stop is blank/state RUNNING, and interval/task duration uses that instant without stopping the timer.
+Given today's active interval, all rows share one internal export instant, Stop Local is blank, and
+interval/task duration uses that instant without stopping the timer. Running state and snapshot
+instant are retained internally but are not visible columns.
 
 ### CSV-07 Picker cancellation
 
@@ -363,9 +370,11 @@ Canceling before destination URI produces no output and a non-error canceled sta
 
 Repeating export is allowed and never changes Room. A serialization/provider failure does not claim success; any partial document is deleted when the provider supports it or clearly reported otherwise.
 
-### CSV-09 No broad permission/XLSX
+### CSV-09 No broad permission or unintended Excel stack
 
-The merged manifest requests no broad storage permission for CSV; dependency/build inspection finds no XLSX/POI generation.
+The merged manifest requests no broad storage permission for CSV. Before Milestone 12 there is no
+XLSX implementation; after Milestone 12, dependency/build inspection finds no Apache POI or other
+unapproved broad Excel stack.
 
 ### CSV-10 Immutable picker payload and progress
 
@@ -373,6 +382,12 @@ The full Room snapshot and CSV string exist before the create-document picker op
 task after that point does not change the pending file. Main disables repeat submission while
 preparing/choosing/writing, identifies the displayed export date, and distinguishes success,
 neutral cancellation, retryable failure, and possible partial output.
+
+### CSV-11 Shared snapshot boundary
+
+`ExportSnapshotCoordinator` performs normalization/read/build once and returns the immutable
+nine-column dataset. CSV serialization changes no field/order/value. Future XLSX/Google adapters
+consume the same object rather than rebuilding destination-specific rows.
 
 ## 9. Google Sheets
 
@@ -394,11 +409,14 @@ With Google default but missing/invalid authorization or spreadsheet, main expor
 
 ### GS-04 New date tab
 
-If `WorqOrder_2026-07-22` is absent, export creates it inside the connected spreadsheet, writes exact marker/schema/date/header/data, and creates no new spreadsheet document.
+If `WorqOrder_2026-07-22` is absent, export creates it inside the connected spreadsheet with exactly
+nine columns and the required row count, writes sheet-scoped marker/schema/date developer metadata
+plus the exact visible header/data, and creates no new spreadsheet document.
 
 ### GS-05 Idempotent re-export
 
-Given a correctly marked date tab, unchanged re-export replaces application-owned content and creates no duplicate rows. Export timestamp may update.
+Given a correctly marked date tab, unchanged re-export replaces application-owned content and
+creates no duplicate rows. The visible table remains identical.
 
 ### GS-06 Authoritative replacement
 
@@ -410,7 +428,8 @@ Given same-named tab without the exact marker, export fails with conflict, leave
 
 ### GS-08 Schema/date conflict
 
-Given marker with unsupported schema or mismatched date, export does not overwrite and reports compatibility conflict.
+Given developer metadata with unsupported schema or mismatched date, export does not overwrite and
+reports compatibility conflict.
 
 ### GS-09 Other content untouched
 
@@ -420,6 +439,13 @@ Export/re-export never modifies other tabs. Within a marked tab, documented app-
 
 Client, description, and hardware/software-purchases values starting with formula characters are
 written as literal/raw strings, not executable formulas.
+
+### GS-10A Shared visible table and capacity
+
+Row 1 and every visible row exactly match CSV/XLSX headers, order, and canonical strings. Marker
+metadata is not visible. Re-export clears stale rows and right-sizes the grid to nine columns and
+required rows so unused allocation does not unnecessarily consume the official 10-million-cell
+spreadsheet limit.
 
 ### GS-11 Offline
 
@@ -456,7 +482,7 @@ the Picker resource grant.
 Static configuration and release review find no Google Cloud billing account dependency, paid
 quota path, subscription, Workspace/organization requirement, custom-domain requirement, Google
 Play client, or Play App Signing configuration. Debug builds use the registered debug SHA-1; the
-direct-release identity is added only in Milestone 15. The repository remains GPLv3.
+direct-release identity is added only in Milestone 17. The repository remains GPLv3.
 
 ### GS-18 Quota and future-policy failure
 
@@ -465,7 +491,110 @@ exhaustion does not trigger paid capacity or background retry, does not mutate R
 available. If `drive.file`/Picker policy no longer supports the workflow, the app does not silently
 request a broader scope.
 
-## 10. Room and build quality
+## 10. XLSX
+
+### XLSX-01 Persistent connection and default
+
+Settings creates/selects exactly one persistent XLSX workbook through SAF, retains only the
+user-granted URI plus non-secret display/status metadata, and supports replace/disconnect without
+deleting the document. The suggested initial/replacement name is `worqorder.xlsx`. Settings accepts
+exactly CSV, XLSX, and Google Sheets after migration; CSV remains the default/fallback.
+
+### XLSX-02 Shared schema and ordering
+
+Exporting Jul 22 adds one visible `WorqOrder_2026-07-22` worksheet when absent. It has the exact
+nine-column header at row 1 and rows identical in content/order to CSV and Google Sheets for the
+same captured snapshot. Exporting Jul 23 adds a separate date tab. An empty date has only the
+header; a zero-interval task has one blank-interval row.
+
+### XLSX-03 Cell safety and fidelity
+
+All nine canonical values are literal text cells. Formula-prefixed text is not executable.
+Unicode, commas, quotes, CR/LF, task-zone `HH:mm`, and accumulated `HH:MM:SS` survive an
+independent-reader round trip and open correctly in Microsoft Excel and LibreOffice.
+
+### XLSX-04 Package safety
+
+The OOXML ZIP contains only required reviewed parts plus non-visible WorqOrder
+marker/schema/date-tab metadata; it has no macro project, formula, external link, hidden
+worksheet/content, credential, key material, path traversal entry, or unnecessary identifying
+metadata.
+
+### XLSX-05 Running/repeat/no mutation
+
+A running interval uses the same one-instant snapshot policy as the other destinations. Re-export
+of a marked date replaces the whole table, clears obsolete rows, creates no duplicates, and
+preserves unrelated tabs. No success, cancellation, or failure changes Room or timer state.
+
+### XLSX-06 SAF cancellation and failure
+
+The official spreadsheet MIME type and user-mediated SAF create/open flows are used without broad
+storage permission. If the connected URI is moved, deleted, revoked, malformed, or unwritable,
+WorqOrder invalidates it without crashing and launches create-document. After the user chooses a
+destination, a fresh workbook starts with the requested date. Cancellation leaves XLSX
+disconnected, writes nothing, and never changes Room.
+
+### XLSX-07 Compatibility and efficiency
+
+Representative generated workbooks parse with an independent reader and open in current Excel and
+LibreOffice. Interrupted read/modify/rewrite preserves the last valid workbook; unrelated tabs and
+metadata survive. Large-workbook tests stay within recorded memory/time limits on minimum and
+target API devices. Dependency inspection proves stable/API-26/GPLv3 compatibility and no Apache
+POI absent a separate owner decision.
+
+## 11. Local data protection and encryption
+
+### ENC-01 Fresh encrypted storage
+
+A fresh production install creates protected app-private Room and sensitive DataStore storage
+anchored by non-exportable Android Keystore material. Seeded sensitive canaries do not appear in
+database, WAL, SHM, DataStore, cache, backup artifacts, logs, or crash output at rest.
+
+### ENC-02 Non-destructive plaintext upgrade
+
+A populated pre-encryption installation upgrades with every client/task/interval/active-timer row,
+ID, timestamp, relationship, selection hint, and setting intact. Reopen after process death and
+reboot preserves behavior and the prior plaintext artifacts are not left recoverable.
+
+### ENC-03 Interrupted migration and resource failures
+
+Interruption at each durable migration phase plus low-storage/write failure is recoverable and
+non-destructive. The app never clears, reseeds, or partially substitutes authoritative data and
+does not run against an ambiguous mixed plaintext/encrypted state.
+
+### ENC-04 Key and ciphertext failures
+
+Missing, invalidated, wrong-version, or rotated keys and corrupted ciphertext fail closed with a
+safe actionable state. Key loss never triggers destructive database creation. Nonce reuse and
+wrong-purpose key use are rejected/tested.
+
+### ENC-05 Backup and extraction boundary
+
+Release manifest/data-extraction rules disable backup for protected app data or exclude it under
+the approved encrypted-backup design. A backup cannot expose plaintext or restore ciphertext
+without its usable key.
+
+### ENC-06 Regression and performance
+
+Room constraints/migrations, Start/Stop/midnight/recovery, selection/settings, CSV/XLSX/Google
+snapshots, account authorization, and UI workflows pass through the encrypted storage adapters.
+Startup, query, timer mutation, migration, file growth, memory, and battery stay within recorded
+approved regressions on API 26 and the current target API.
+
+### ENC-07 Explicit external boundary
+
+The app states that user-selected CSV/XLSX files are unencrypted external documents and readable
+Google Sheets cells rely on TLS/Google access controls rather than WorqOrder end-to-end
+encryption. No biometric, device-credential, app PIN, or WorqOrder login prompt is introduced by
+this required milestone.
+
+### ENC-08 Sensitive-data handling
+
+Static/runtime inspection finds no protected task/client/export content in logs, exceptions,
+analytics, notifications, clipboard, recent temporary files, or credentials. Plaintext export
+snapshots exist only as needed in process memory and are not staged to app-private disk.
+
+## 12. Room and build quality
 
 ### DB-01 Fresh creation/reuse
 
@@ -508,7 +637,7 @@ boundaries. Instrumentation tests cover DataStore recreation, atomic Room contin
 chains, idempotence, and concurrent global Start protection. Lifecycle/UI presentation remains
 deferred to its owning milestones.
 
-## 11. Accessibility and resilience
+## 13. Accessibility and resilience
 
 ### A11Y-01 Semantics/touch
 
@@ -521,3 +650,61 @@ At supported large font scales and narrow screens, timer/date/actions remain und
 ### A11Y-03 State communication
 
 Selected, running, disabled, validation, success, and failure are conveyed through semantics/text/icons in addition to color; transient messages needed to recover are not snackbar-only.
+
+## 14. Optional post-project application-access security
+
+These tests are inactive unless the owner explicitly authorizes optional Milestone 18 after the
+required project is complete.
+
+### ACCESS-01 Opt-in and no remote account
+
+App locking is disabled by default and can be enabled/disabled only through an authenticated local
+flow. It adds no WorqOrder cloud account, backend, remote password store, or Google-account
+requirement.
+
+### ACCESS-02 Prompt and recovery states
+
+Successful, failed, canceled, locked-out, biometric-enrollment-changed, and device-credential
+fallback paths are deterministic, accessible, and do not expose protected content or silently
+delete/replace encryption keys or Room data.
+
+### ACCESS-03 Lifecycle locking
+
+Configured lock-on-launch/background-timeout/screen-off behavior survives rotation, navigation,
+process death, and reboot. Timing continues authoritatively while UI access is locked; unlocking
+does not stop, duplicate, or lose an interval or midnight continuation.
+
+### ACCESS-04 Bypass and privacy review
+
+Deep links, exported components, restored navigation state, notifications, screenshots, and
+recent-app previews cannot reveal or bypass protected screens under the approved policy.
+
+### ACCESS-05 Full regression
+
+Room/encryption migrations, key failure handling, timer/date/recovery, all three exports, Google
+authorization, accessibility, and debug/release suites pass with app locking both disabled and
+enabled.
+
+### OPTIONAL-EXPORT-01 XLSX mode choice
+
+If separately authorized, users can choose persistent-workbook or one-off XLSX mode. Both consume
+the same nine-column snapshot and produce equivalent date-tab content; switching/migration,
+create-document cancellation, missing persistent URI, and unrelated tabs are safe.
+
+### OPTIONAL-EXPORT-02 Midnight automation eligibility
+
+Automatic local-midnight export can be enabled only for Google Sheets or a valid persistent XLSX
+workbook. It never runs for CSV or one-off XLSX and disabling it cancels future scheduled work.
+
+### OPTIONAL-EXPORT-03 Midnight correctness and idempotence
+
+Ordinary, spring-forward, fall-back, manual/device-zone-change, Doze, reboot, missed-run,
+offline/auth-expired, invalid-XLSX-URI, and concurrent manual-export tests prove that each completed
+date converges to one duplicate-free tab without changing Room or using unbounded retry.
+
+### OPTIONAL-EXPORT-04 Background safety
+
+Automation uses approved Android background work rather than a foreground service waiting for
+midnight. A background run cannot launch a destination picker or silently choose storage; it
+records a safe pending failure until the user can repair the destination. No notification/log
+exposes task content.

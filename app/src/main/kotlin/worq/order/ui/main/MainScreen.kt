@@ -158,6 +158,7 @@ fun MainScreen(
             MainBottomActions(
                 canExport = uiState.canExport,
                 exportDestination = uiState.exportDestination,
+                googleExportState = uiState.googleExportState,
                 exportProgress = uiState.exportProgress,
                 displayedDate = uiState.displayedDate,
                 onExport = { onEvent(MainEvent.Export) },
@@ -238,6 +239,7 @@ private fun MainContent(
 private fun MainBottomActions(
     canExport: Boolean,
     exportDestination: ExportDestination,
+    googleExportState: MainGoogleExportState,
     exportProgress: MainExportProgress?,
     displayedDate: LocalDate,
     onExport: () -> Unit,
@@ -294,7 +296,14 @@ private fun MainBottomActions(
                                 )
                             ExportDestination.GOOGLE_SHEETS ->
                                 stringResource(
-                                    R.string.setup_google_sheets_for_date,
+                                    if (
+                                        googleExportState ==
+                                        MainGoogleExportState.CONNECTED
+                                    ) {
+                                        R.string.submit_date_to_google_sheets
+                                    } else {
+                                        R.string.setup_google_sheets_for_date
+                                    },
                                     formattedDate,
                                 )
                         },
@@ -975,6 +984,8 @@ private fun MainMessage.stringResource(): Int =
         MainMessage.DATA_UNAVAILABLE -> R.string.data_unavailable
         MainMessage.TASK_NOT_FOUND -> R.string.task_no_longer_exists
         MainMessage.RUNNING_TASK_LOCKED -> R.string.running_task_edit_blocked
+        MainMessage.GOOGLE_EXPORT_NOT_AVAILABLE ->
+            R.string.google_export_next_milestone
     }
 
 @Preview(showBackground = true)

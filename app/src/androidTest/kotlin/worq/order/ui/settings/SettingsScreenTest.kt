@@ -133,6 +133,43 @@ class SettingsScreenTest {
             .assertIsDisplayed()
     }
 
+    @Test
+    fun googleConnectionSectionShowsAccountSpreadsheetAndActions() {
+        val events = mutableListOf<SettingsEvent>()
+        setContent(
+            state =
+                SettingsUiState(
+                    effectiveZoneId = ZoneId.of("America/New_York"),
+                    googleStatus = GoogleConnectionUiStatus.CONNECTED,
+                    googleAccountId = "person@example.com",
+                    googleAccountDisplayName = "Person",
+                    spreadsheetInput = SPREADSHEET_ID,
+                    connectedSpreadsheetId = SPREADSHEET_ID,
+                    connectedSpreadsheetTitle = "Work Log",
+                ),
+            onEvent = events::add,
+        )
+
+        composeRule
+            .onAllNodes(hasScrollAction())[0]
+            .performScrollToNode(hasText("Spreadsheet: Work Log"))
+        composeRule.onNodeWithText("Spreadsheet: Work Log").assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Signed in as Person")
+            .assertIsDisplayed()
+        composeRule
+            .onAllNodes(hasScrollAction())[0]
+            .performScrollToNode(hasText("Disconnect spreadsheet"))
+        composeRule.onNodeWithText("Disconnect spreadsheet").performClick()
+        composeRule
+            .onAllNodes(hasScrollAction())[0]
+            .performScrollToNode(hasText("Sign out"))
+        composeRule.onNodeWithText("Sign out").performClick()
+
+        assertTrue(SettingsEvent.DisconnectSpreadsheet in events)
+        assertTrue(SettingsEvent.SignOutOfGoogle in events)
+    }
+
     private fun setContent(
         state: SettingsUiState,
         onEvent: (SettingsEvent) -> Unit = {},
@@ -150,5 +187,10 @@ class SettingsScreenTest {
                 )
             }
         }
+    }
+
+    private companion object {
+        const val SPREADSHEET_ID =
+            "1AbCdEfGhIjKlMnOpQrStUvWxYz_123456789"
     }
 }

@@ -36,6 +36,7 @@ import worq.order.data.ExportAttemptOutcome
 import worq.order.data.ExportDestination
 import worq.order.data.ExportErrorCategory
 import worq.order.data.LastExportAttempt
+import worq.order.data.GoogleConnectionRepository
 import worq.order.data.SettingsRepository
 import worq.order.data.TaskRepository
 import worq.order.domain.SelectTaskResult
@@ -90,6 +91,8 @@ private data class MainRawState(
     val openTaskMenuTaskId: String? = null,
     val taskPendingDeletionId: String? = null,
     val exportDestination: ExportDestination = ExportDestination.CSV,
+    val googleExportState: MainGoogleExportState =
+        MainGoogleExportState.SETUP_REQUIRED,
     val exportProgress: MainExportProgress? = null,
     val exportFeedback: MainExportFeedback? = null,
 )
@@ -107,6 +110,7 @@ class MainViewModel(
     private val currentDateProvider: CurrentDateProvider,
     private val taskMutationCoordinator: TaskMutationCoordinator,
     private val settingsRepository: SettingsRepository,
+    private val googleConnectionRepository: GoogleConnectionRepository,
     private val csvExportCoordinator: CsvExportCoordinator,
     private val documentOutputDestination: DocumentOutputDestination,
 ) : ViewModel() {
@@ -166,6 +170,7 @@ class MainViewModel(
         observeSelection()
         observeActiveTimer()
         observeSettings()
+        observeGoogleConnection()
         observeEffectiveZoneId()
         refreshLifecycleState()
     }
@@ -319,6 +324,26 @@ class MainViewModel(
             .onEach { destination ->
                 rawState.update {
                     it.copy(exportDestination = destination)
+                }
+            }.launchIn(viewModelScope)
+    }
+
+    private fun observeGoogleConnection() {
+        googleConnectionRepository
+            .observeConnection()
+            .map { connection ->
+                when {
+                    connection.isConnected ->
+                        MainGoogleExportState.CONNECTED
+                    connection.hasAccountHint &&
+                        connection.hasSpreadsheetMetadata ->
+                        MainGoogleExportState.AUTHORIZATION_REQUIRED
+                    else -> MainGoogleExportState.SETUP_REQUIRED
+                }
+            }.distinctUntilChanged()
+            .onEach { googleExportState ->
+                rawState.update {
+                    it.copy(googleExportState = googleExportState)
                 }
             }.launchIn(viewModelScope)
     }
@@ -582,7 +607,13 @@ class MainViewModel(
             return
         }
         if (state.exportDestination == ExportDestination.GOOGLE_SHEETS) {
-            mutableEffects.tryEmit(MainEffect.NavigateToGoogleSheetsSettings)
+            if (state.googleExportState == MainGoogleExportState.CONNECTED) {
+                rawState.update {
+                    it.copy(message = MainMessage.GOOGLE_EXPORT_NOT_AVAILABLE)
+                }
+            } else {
+                mutableEffects.tryEmit(MainEffect.NavigateToGoogleSheetsSettings)
+            }
             return
         }
         val workDate = state.displayedDate
@@ -895,6 +926,7 @@ class MainViewModel(
                 tasks is MainLoad.Value &&
                     exportProgress == null,
             exportDestination = exportDestination,
+            googleExportState = googleExportState,
             exportProgress = exportProgress,
             exportFeedback = exportFeedback,
         )
@@ -932,6 +964,8 @@ class MainViewModel(
                 currentDateProvider = container.currentDateProvider,
                 taskMutationCoordinator = container.taskMutationCoordinator,
                 settingsRepository = container.settingsRepository,
+                googleConnectionRepository =
+                    container.googleConnectionRepository,
                 csvExportCoordinator = container.csvExportCoordinator,
                 documentOutputDestination = container.documentOutputDestination,
             ) as T

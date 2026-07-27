@@ -1,4 +1,28 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+
+val localProperties =
+    Properties().apply {
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.isFile) {
+            localPropertiesFile.inputStream().use(::load)
+        }
+    }
+val googleWebClientId =
+    providers
+        .gradleProperty("worqorder.google.webClientId")
+        .orNull
+        ?: localProperties.getProperty("worqorder.google.webClientId")
+        ?: throw GradleException(
+            "Missing worqorder.google.webClientId. See docs/GOOGLE_SHEETS_SETUP.md.",
+        )
+require(
+    googleWebClientId.matches(
+        Regex("""[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com"""),
+    ),
+) {
+    "worqorder.google.webClientId is malformed. See docs/GOOGLE_SHEETS_SETUP.md."
+}
 
 plugins {
     alias(libs.plugins.android.application)
@@ -23,6 +47,11 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField(
+            "String",
+            "GOOGLE_WEB_CLIENT_ID",
+            "\"$googleWebClientId\"",
+        )
     }
 
     buildTypes {
@@ -48,6 +77,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     sourceSets {
@@ -78,6 +108,11 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.google.identity.googleid)
+    implementation(libs.google.play.services.auth)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.foundation)

@@ -3,40 +3,27 @@ package worq.order.export
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.timer.DurationMath
 
 object ExportSchema {
-    const val VERSION = 1
+    const val VERSION = 2
 
     val headers: List<String> =
         listOf(
-            "Schema Version",
-            "Exported At UTC",
             "Work Date",
-            "Time Zone",
-            "Client ID",
             "Client Name",
-            "Task ID",
-            "Task Series ID",
             "Description",
             "Hardware / Software Purchases",
-            "Interval ID",
             "Interval Number",
-            "Interval State",
             "Start Local",
             "Stop Local",
-            "Start UTC",
-            "Stop UTC",
-            "Interval Duration Milliseconds",
             "Interval Duration Formatted",
-            "Task Total Duration Milliseconds",
             "Task Total Duration Formatted",
-            "Task Created UTC",
-            "Task Updated UTC",
-            "Interval Manually Edited",
         )
 }
 
@@ -51,6 +38,7 @@ data class ExportRow(
 }
 
 data class ExportSnapshot(
+    val schemaVersion: Int,
     val workDate: LocalDate,
     val exportedAt: Instant,
     val rows: List<ExportRow>,
@@ -94,7 +82,6 @@ class ExportRowBuilder {
                 if (intervals.isEmpty()) {
                     listOf(
                         detail.row(
-                            exportedAt = exportedAt,
                             interval = null,
                             intervalDuration = null,
                             taskTotal = total,
@@ -110,7 +97,6 @@ class ExportRowBuilder {
                                 evaluationInstant = exportedAt,
                             )
                         detail.row(
-                            exportedAt = exportedAt,
                             interval = interval,
                             intervalDuration = duration,
                             taskTotal = total,
@@ -119,6 +105,7 @@ class ExportRowBuilder {
                 }
             }
         return ExportSnapshot(
+            schemaVersion = ExportSchema.VERSION,
             workDate = workDate,
             exportedAt = exportedAt,
             rows = rows,
@@ -126,7 +113,6 @@ class ExportRowBuilder {
     }
 
     private fun TaskWithIntervals.row(
-        exportedAt: Instant,
         interval: WorkInterval?,
         intervalDuration: Duration?,
         taskTotal: Duration,
@@ -137,43 +123,44 @@ class ExportRowBuilder {
         return ExportRow(
             values =
                 listOf(
-                    ExportSchema.VERSION.toString(),
-                    exportedAt.toString(),
                     task.workDate.toString(),
-                    task.zoneId.id,
-                    client.id,
                     client.name,
-                    task.id,
-                    task.seriesId,
                     task.description,
                     task.hardwareSoftwarePurchases,
-                    interval?.id.orEmpty(),
                     interval?.ordinal?.toString().orEmpty(),
-                    when {
-                        interval == null -> "NO_INTERVAL"
-                        stop == null -> "RUNNING"
-                        else -> "COMPLETED"
-                    },
                     interval?.start?.let {
-                        DateTimeFormatter.ISO_ZONED_DATE_TIME.format(
-                            it.atZone(task.zoneId),
-                        )
+                        ExportValueFormatter.localTime(it, task.zoneId)
                     }.orEmpty(),
                     stop?.let {
-                        DateTimeFormatter.ISO_ZONED_DATE_TIME.format(
-                            it.atZone(task.zoneId),
-                        )
+                        ExportValueFormatter.localTime(it, task.zoneId)
                     }.orEmpty(),
-                    interval?.start?.toString().orEmpty(),
-                    stop?.toString().orEmpty(),
-                    intervalDuration?.toMillis()?.toString().orEmpty(),
-                    intervalDuration?.let(DurationMath::formatAccumulated).orEmpty(),
-                    taskTotal.toMillis().toString(),
-                    DurationMath.formatAccumulated(taskTotal),
-                    task.createdAt.toString(),
-                    task.updatedAt.toString(),
-                    interval?.wasManuallyEdited?.toString().orEmpty(),
+                    intervalDuration?.let(ExportValueFormatter::duration).orEmpty(),
+                    ExportValueFormatter.duration(taskTotal),
                 ),
+        )
+    }
+}
+
+object ExportValueFormatter {
+    private val localTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.ROOT)
+
+    fun localTime(
+        instant: Instant,
+        zoneId: ZoneId,
+    ): String = localTimeFormatter.format(instant.atZone(zoneId))
+
+    fun duration(duration: Duration): String {
+        require(!duration.isNegative) { "Export duration must not be negative" }
+        val totalSeconds = duration.seconds
+        val hours = totalSeconds / 3_600
+        val minutes = (totalSeconds % 3_600) / 60
+        val seconds = totalSeconds % 60
+        return String.format(
+            Locale.ROOT,
+            "%02d:%02d:%02d",
+            hours,
+            minutes,
+            seconds,
         )
     }
 }

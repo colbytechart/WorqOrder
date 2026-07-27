@@ -10,6 +10,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import worq.order.data.NewDailyTask
+import worq.order.export.csv.CsvSerializer
 import worq.order.testing.FakeActiveTimerRepository
 import worq.order.testing.FakeMonotonicTimeSource
 import worq.order.testing.FakeSelectedTaskRepository
@@ -60,10 +61,29 @@ class CsvExportCoordinatorTest {
 
             assertTrue(result is PrepareCsvExportResult.Ready)
             val csv = (result as PrepareCsvExportResult.Ready).export.contents
-            assertTrue(csv.contains(",RUNNING,"))
-            assertTrue(csv.contains(",3600000,01:00:00.000,"))
+            assertTrue(csv.contains(",1,08:00,,01:00:00,01:00:00"))
             assertNotNull(activeAfter)
             assertNull(activeAfter?.interval?.stop)
+        }
+
+    @Test
+    fun csvSerializesTheDestinationNeutralSnapshotWithoutChangingIt() =
+        runTest {
+            val fixture = Fixture()
+            fixture.addTask()
+
+            val snapshotResult = fixture.snapshotCoordinator.prepare(WORK_DATE)
+            val csvResult = fixture.coordinator.prepare(WORK_DATE)
+
+            assertTrue(snapshotResult is PrepareExportSnapshotResult.Ready)
+            assertTrue(csvResult is PrepareCsvExportResult.Ready)
+            val snapshot =
+                (snapshotResult as PrepareExportSnapshotResult.Ready).snapshot
+            assertEquals(2, snapshot.schemaVersion)
+            assertEquals(
+                CsvSerializer().serialize(snapshot),
+                (csvResult as PrepareCsvExportResult.Ready).export.contents,
+            )
         }
 
     private class Fixture {
@@ -81,13 +101,14 @@ class CsvExportCoordinatorTest {
                 liveTimerSession = LiveTimerSession(FakeMonotonicTimeSource()),
                 operationLock = operationLock,
             )
-        val coordinator =
-            CsvExportCoordinator(
+        val snapshotCoordinator =
+            ExportSnapshotCoordinator(
                 taskRepository = tasks,
                 activeTimerNormalizer = normalizer,
                 clock = clock,
                 timerOperationLock = operationLock,
             )
+        val coordinator = CsvExportCoordinator(snapshotCoordinator)
 
         suspend fun addTask() =
             tasks.insertDailyTask(

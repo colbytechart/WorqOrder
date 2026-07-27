@@ -11,12 +11,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -52,6 +56,13 @@ fun SettingsScreen(
     onOpenClientManagement: () -> Unit,
     showGoogleSetupRequired: Boolean = false,
 ) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(showGoogleSetupRequired, uiState.message) {
+        if (showGoogleSetupRequired) {
+            val googleSectionIndex = if (uiState.message == null) 4 else 5
+            listState.scrollToItem(googleSectionIndex)
+        }
+    }
     if (uiState.isZoneSelectorVisible) {
         ZoneSelectorDialog(
             query = uiState.zoneSearchQuery,
@@ -78,6 +89,7 @@ fun SettingsScreen(
         },
     ) { scaffoldPadding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier.padding(scaffoldPadding),
             contentPadding =
                 androidx.compose.foundation.layout.PaddingValues(
@@ -226,7 +238,10 @@ fun SettingsScreen(
                     SettingsChoiceRow(
                         title = stringResource(R.string.google_sheets),
                         supportingText =
-                            stringResource(R.string.google_sheets_not_connected),
+                            uiState.connectedSpreadsheetTitle
+                                ?: stringResource(
+                                    R.string.google_sheets_not_connected,
+                                ),
                         selected =
                             uiState.defaultExportDestination ==
                                 ExportDestination.GOOGLE_SHEETS,
@@ -242,39 +257,286 @@ fun SettingsScreen(
                 }
             }
             item {
-                Card(
+                GoogleSheetsSettingsSection(
+                    uiState = uiState,
+                    onEvent = onEvent,
+                    showSetupRequired = showGoogleSetupRequired,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoogleSheetsSettingsSection(
+    uiState: SettingsUiState,
+    onEvent: (SettingsEvent) -> Unit,
+    showSetupRequired: Boolean,
+) {
+    val operationInProgress =
+        uiState.googleStatus in
+            setOf(
+                GoogleConnectionUiStatus.SIGNING_IN,
+                GoogleConnectionUiStatus.VALIDATING_SPREADSHEET,
+                GoogleConnectionUiStatus.SIGNING_OUT,
+                GoogleConnectionUiStatus.DISCONNECTING,
+            )
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors =
+            if (showSetupRequired) {
+                androidx.compose.material3.CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                )
+            } else {
+                androidx.compose.material3.CardDefaults.cardColors()
+            },
+    ) {
+        Column(
+            modifier = Modifier.padding(WorqOrderDimens.CardPadding),
+            verticalArrangement =
+                Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
+        ) {
+            Text(
+                text =
+                    if (showSetupRequired) {
+                        stringResource(R.string.google_sheets_setup_required)
+                    } else {
+                        stringResource(R.string.google_sheets_connection)
+                    },
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement =
+                    Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
+            ) {
+                if (operationInProgress) {
+                    CircularProgressIndicator(
+                        modifier =
+                            Modifier.sizeIn(
+                                maxWidth = WorqOrderDimens.IconButtonSize,
+                                maxHeight = WorqOrderDimens.IconButtonSize,
+                            ),
+                    )
+                }
+                Text(
+                    text = googleStatusText(uiState.googleStatus),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            uiState.googleAccountId?.let { accountId ->
+                Text(
+                    text =
+                        stringResource(
+                            R.string.google_signed_in_as,
+                            uiState.googleAccountDisplayName ?: accountId,
+                        ),
+                )
+            }
+            if (
+                uiState.connectedSpreadsheetId != null &&
+                uiState.connectedSpreadsheetTitle != null
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            R.string.google_connected_spreadsheet,
+                            uiState.connectedSpreadsheetTitle,
+                        ),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    text =
+                        stringResource(
+                            R.string.google_spreadsheet_id_value,
+                            uiState.connectedSpreadsheetId,
+                        ),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            uiState.googleMessage?.let { message ->
+                GoogleSettingsMessagePanel(
+                    message = message,
+                    onRetry = {
+                        onEvent(
+                            when (message) {
+                                GoogleSettingsMessage.AUTHORIZATION_REQUIRED ->
+                                    SettingsEvent.RetryGoogleAuthorization
+                                GoogleSettingsMessage.SIGN_OUT_PARTIAL ->
+                                    SettingsEvent.SignOutOfGoogle
+                                else ->
+                                    SettingsEvent.RetrySpreadsheetValidation
+                            },
+                        )
+                    },
+                    onDismiss = {
+                        onEvent(SettingsEvent.DismissGoogleMessage)
+                    },
+                )
+            }
+            if (uiState.googleAccountId == null) {
+                Button(
+                    onClick = { onEvent(SettingsEvent.SignInToGoogle) },
+                    enabled = !operationInProgress,
                     modifier = Modifier.fillMaxWidth(),
-                    colors =
-                        if (showGoogleSetupRequired) {
-                            androidx.compose.material3.CardDefaults.cardColors(
-                                containerColor =
-                                    MaterialTheme.colorScheme.primaryContainer,
-                            )
-                        } else {
-                            androidx.compose.material3.CardDefaults.cardColors()
-                        },
                 ) {
-                    Column(
-                        modifier = Modifier.padding(WorqOrderDimens.CardPadding),
-                        verticalArrangement =
-                            Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
-                    ) {
-                        Text(
-                            text =
-                                if (showGoogleSetupRequired) {
-                                    stringResource(R.string.google_sheets_setup_required)
-                                } else {
-                                    stringResource(R.string.google_sheets_connection)
-                                },
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            text =
-                                stringResource(
-                                    R.string.google_sheets_connection_unavailable,
-                                ),
-                        )
+                    Text(stringResource(R.string.google_sign_in))
+                }
+            } else {
+                OutlinedTextField(
+                    value = uiState.spreadsheetInput,
+                    onValueChange = {
+                        onEvent(SettingsEvent.EditSpreadsheetInput(it))
+                    },
+                    label = {
+                        Text(stringResource(R.string.google_spreadsheet_url_or_id))
+                    },
+                    supportingText = {
+                        Text(stringResource(R.string.google_spreadsheet_input_help))
+                    },
+                    isError =
+                        uiState.googleMessage ==
+                            GoogleSettingsMessage.INVALID_SPREADSHEET_INPUT,
+                    enabled = !operationInProgress,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(
+                    onClick = {
+                        onEvent(SettingsEvent.ValidateAndConnectSpreadsheet)
+                    },
+                    enabled = !operationInProgress,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.google_validate_and_connect))
+                }
+            }
+            if (uiState.connectedSpreadsheetId != null) {
+                OutlinedButton(
+                    onClick = { onEvent(SettingsEvent.DisconnectSpreadsheet) },
+                    enabled = !operationInProgress,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.google_disconnect_spreadsheet))
+                }
+            }
+            if (uiState.googleAccountId != null) {
+                TextButton(
+                    onClick = { onEvent(SettingsEvent.SignOutOfGoogle) },
+                    enabled = !operationInProgress,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.google_sign_out))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun googleStatusText(status: GoogleConnectionUiStatus): String =
+    stringResource(
+        when (status) {
+            GoogleConnectionUiStatus.SIGNED_OUT ->
+                R.string.google_status_signed_out
+            GoogleConnectionUiStatus.SIGNING_IN ->
+                R.string.google_status_signing_in
+            GoogleConnectionUiStatus.SIGNED_IN_NO_SPREADSHEET ->
+                R.string.google_status_signed_in_no_spreadsheet
+            GoogleConnectionUiStatus.VALIDATING_SPREADSHEET ->
+                R.string.google_status_validating
+            GoogleConnectionUiStatus.CONNECTED ->
+                R.string.google_status_connected
+            GoogleConnectionUiStatus.AUTHORIZATION_EXPIRED ->
+                R.string.google_status_authorization_required
+            GoogleConnectionUiStatus.OFFLINE_ERROR ->
+                R.string.google_status_offline
+            GoogleConnectionUiStatus.ERROR ->
+                R.string.google_status_error
+            GoogleConnectionUiStatus.SIGNING_OUT ->
+                R.string.google_status_signing_out
+            GoogleConnectionUiStatus.DISCONNECTING ->
+                R.string.google_status_disconnecting
+        },
+    )
+
+@Composable
+private fun GoogleSettingsMessagePanel(
+    message: GoogleSettingsMessage,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Card {
+        Column(
+            modifier = Modifier.padding(WorqOrderDimens.ItemPadding),
+            verticalArrangement =
+                Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
+        ) {
+            Text(
+                text =
+                    stringResource(
+                        when (message) {
+                            GoogleSettingsMessage.INVALID_SPREADSHEET_INPUT ->
+                                R.string.google_error_invalid_input
+                            GoogleSettingsMessage.NO_CREDENTIAL ->
+                                R.string.google_error_no_credential
+                            GoogleSettingsMessage.CREDENTIAL_PROVIDER_UNAVAILABLE ->
+                                R.string.google_error_provider_unavailable
+                            GoogleSettingsMessage.SIGN_IN_FAILED ->
+                                R.string.google_error_sign_in_failed
+                            GoogleSettingsMessage.AUTHORIZATION_REQUIRED ->
+                                R.string.google_error_authorization_required
+                            GoogleSettingsMessage.PLAY_SERVICES_UNAVAILABLE ->
+                                R.string.google_error_play_services
+                            GoogleSettingsMessage.PICKER_RETURNED_DIFFERENT_FILE ->
+                                R.string.google_error_picker_mismatch
+                            GoogleSettingsMessage.NOT_FOUND_OR_NOT_GRANTED ->
+                                R.string.google_error_not_found_or_not_granted
+                            GoogleSettingsMessage.NOT_GOOGLE_SPREADSHEET ->
+                                R.string.google_error_not_spreadsheet
+                            GoogleSettingsMessage.READ_ONLY ->
+                                R.string.google_error_read_only
+                            GoogleSettingsMessage.CONTENT_MODIFICATION_RESTRICTED ->
+                                R.string.google_error_content_restricted
+                            GoogleSettingsMessage.OFFLINE ->
+                                R.string.google_error_offline
+                            GoogleSettingsMessage.TIMEOUT ->
+                                R.string.google_error_timeout
+                            GoogleSettingsMessage.WORKSPACE_POLICY_BLOCKED ->
+                                R.string.google_error_workspace_policy
+                            GoogleSettingsMessage.RATE_LIMITED ->
+                                R.string.google_error_rate_limited
+                            GoogleSettingsMessage.SERVER_FAILURE ->
+                                R.string.google_error_server
+                            GoogleSettingsMessage.MALFORMED_RESPONSE ->
+                                R.string.google_error_malformed_response
+                            GoogleSettingsMessage.LOCAL_STORAGE ->
+                                R.string.google_error_local_storage
+                            GoogleSettingsMessage.SIGN_OUT_PARTIAL ->
+                                R.string.google_error_sign_out_partial
+                        },
+                    ),
+                color = MaterialTheme.colorScheme.error,
+            )
+            Row {
+                if (
+                    message in
+                    setOf(
+                        GoogleSettingsMessage.AUTHORIZATION_REQUIRED,
+                        GoogleSettingsMessage.OFFLINE,
+                        GoogleSettingsMessage.TIMEOUT,
+                        GoogleSettingsMessage.RATE_LIMITED,
+                        GoogleSettingsMessage.SERVER_FAILURE,
+                        GoogleSettingsMessage.SIGN_OUT_PARTIAL,
+                    )
+                ) {
+                    TextButton(onClick = onRetry) {
+                        Text(stringResource(R.string.retry))
                     }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.dismiss))
                 }
             }
         }

@@ -24,7 +24,7 @@ The developer must control:
 - editable and read-only test spreadsheets containing no customer data.
 
 The permanent direct-release signing certificate is deliberately deferred to Milestone
-15. No Google Play signing certificate is required. A second production Cloud project
+17. No Google Play signing certificate is required. A second production Cloud project
 is optional, not a requirement; if one project is used, name every OAuth client clearly.
 
 ## 2. Create or select the Google Cloud project
@@ -80,7 +80,7 @@ During development, leave an External project in **Testing** and add each test a
 under **Test users**. Testing mode is limited and non-identity authorization grants can
 expire after seven days. Treat reauthorization during testing as expected behavior.
 
-Move the audience to **In Production** only in Milestone 15, after the direct-release
+Move the audience to **In Production** only in Milestone 17, after the direct-release
 signing identity, privacy/user documentation, and controlled connection/export tests
 are ready. This avoids Testing's seven-day grant expiration for ongoing small use; it
 does not mean publishing through Google Play or purchasing verified branding.
@@ -135,7 +135,7 @@ report avoids manually exposing a keystore password in shell history.
 
 ### Release fingerprint
 
-Deferred to Milestone 15. Do not create a release keystore or register a release OAuth
+Deferred to Milestone 17. Do not create a release keystore or register a release OAuth
 client during Milestone 10 preparation.
 
 When the owner's permanent direct-release keystore has been created through the secure
@@ -172,7 +172,7 @@ Open **Google Auth Platform > Clients**.
 
 ### Android direct-release client
 
-Do not create one before Milestone 15. At that milestone, create exactly one additional
+Do not create one before Milestone 17. At that milestone, create exactly one additional
 Android client for the permanent directly distributed release APK:
 
 - name: `WorqOrder Android Direct Release`;
@@ -354,7 +354,7 @@ Expected connection behavior:
 
 Before direct production distribution:
 
-- create/back up the permanent direct-release key through the Milestone 15 secure process;
+- create/back up the permanent direct-release key through the Milestone 17 secure process;
 - register its SHA-1 as `WorqOrder Android Direct Release`;
 - move the External audience from Testing to In Production when ready;
 - keep support/developer contacts current;

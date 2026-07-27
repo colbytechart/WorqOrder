@@ -2,11 +2,9 @@ package worq.order.export
 
 import java.time.Instant
 import java.time.LocalDate
-import kotlinx.coroutines.sync.withLock
 import worq.order.data.TaskRepository
 import worq.order.export.csv.CsvSerializer
 import worq.order.timer.ActiveTimerNormalizer
-import worq.order.timer.NormalizeTimerResult
 import worq.order.timer.TimerOperationLock
 import worq.order.timer.UtcClock
 
@@ -30,43 +28,47 @@ sealed interface PrepareCsvExportResult {
 }
 
 class CsvExportCoordinator(
-    private val taskRepository: TaskRepository,
-    private val activeTimerNormalizer: ActiveTimerNormalizer,
-    private val clock: UtcClock,
-    private val timerOperationLock: TimerOperationLock,
-    private val rowBuilder: ExportRowBuilder = ExportRowBuilder(),
+    private val snapshotCoordinator: ExportSnapshotCoordinator,
     private val serializer: CsvSerializer = CsvSerializer(),
 ) {
+    constructor(
+        taskRepository: TaskRepository,
+        activeTimerNormalizer: ActiveTimerNormalizer,
+        clock: UtcClock,
+        timerOperationLock: TimerOperationLock,
+        rowBuilder: ExportRowBuilder = ExportRowBuilder(),
+        serializer: CsvSerializer = CsvSerializer(),
+    ) : this(
+        snapshotCoordinator =
+            ExportSnapshotCoordinator(
+                taskRepository = taskRepository,
+                activeTimerNormalizer = activeTimerNormalizer,
+                clock = clock,
+                timerOperationLock = timerOperationLock,
+                rowBuilder = rowBuilder,
+            ),
+        serializer = serializer,
+    )
+
     suspend fun prepare(workDate: LocalDate): PrepareCsvExportResult =
-        timerOperationLock.mutex.withLock {
-            val exportedAt = clock.now()
-            when (activeTimerNormalizer.normalizeWhileLocked(exportedAt)) {
-                is NormalizeTimerResult.ClockChanged ->
-                    return@withLock PrepareCsvExportResult.ClockChanged
-                NormalizeTimerResult.ActiveTimerChanged ->
-                    return@withLock PrepareCsvExportResult.ActiveTimerChanged
-                NormalizeTimerResult.NoActiveTimer,
-                NormalizeTimerResult.NoChange,
-                is NormalizeTimerResult.Normalized,
-                -> Unit
-            }
-            val tasks = taskRepository.readTasksWithIntervalsForDate(workDate)
-            val snapshot =
-                rowBuilder.build(
-                    workDate = workDate,
-                    exportedAt = exportedAt,
-                    tasks = tasks,
+        when (val result = snapshotCoordinator.prepare(workDate)) {
+            PrepareExportSnapshotResult.ActiveTimerChanged ->
+                PrepareCsvExportResult.ActiveTimerChanged
+            PrepareExportSnapshotResult.ClockChanged ->
+                PrepareCsvExportResult.ClockChanged
+            is PrepareExportSnapshotResult.Ready -> {
+                val snapshot = result.snapshot
+                PrepareCsvExportResult.Ready(
+                    PreparedCsvExport(
+                        workDate = snapshot.workDate,
+                        exportedAt = snapshot.exportedAt,
+                        suggestedFileName = suggestedFileName(snapshot.workDate),
+                        mimeType = MIME_TYPE,
+                        contents = serializer.serialize(snapshot),
+                        dataRowCount = snapshot.rows.size,
+                    ),
                 )
-            PrepareCsvExportResult.Ready(
-                PreparedCsvExport(
-                    workDate = workDate,
-                    exportedAt = exportedAt,
-                    suggestedFileName = suggestedFileName(workDate),
-                    mimeType = MIME_TYPE,
-                    contents = serializer.serialize(snapshot),
-                    dataRowCount = snapshot.rows.size,
-                ),
-            )
+            }
         }
 
     companion object {

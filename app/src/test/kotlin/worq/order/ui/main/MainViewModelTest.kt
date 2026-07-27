@@ -22,6 +22,7 @@ import org.junit.Test
 import worq.order.data.NewDailyTask
 import worq.order.data.ExportDestination
 import worq.order.data.ExportAttemptOutcome
+import worq.order.data.GoogleAccountHint
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
@@ -32,6 +33,7 @@ import worq.order.testing.FakeDocumentOutputDestination
 import worq.order.testing.FakeMonotonicTimeSource
 import worq.order.testing.FakeSelectedTaskRepository
 import worq.order.testing.FakeSettingsRepository
+import worq.order.testing.FakeGoogleConnectionRepository
 import worq.order.testing.FakeTaskRepository
 import worq.order.testing.FakeUtcClock
 import worq.order.testing.FakeZoneIdProvider
@@ -275,6 +277,39 @@ class MainViewModelTest {
         }
 
     @Test
+    fun connectedGoogleDestinationIsRecognizedWithoutExportingRowsYet() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.settings.setDefaultExportDestination(
+                ExportDestination.GOOGLE_SHEETS,
+            )
+            fixture.google.saveSignedInAccount(
+                GoogleAccountHint("person@example.com", "Person"),
+            )
+            fixture.google.saveConnectedSpreadsheet(
+                spreadsheetId =
+                    "1AbCdEfGhIjKlMnOpQrStUvWxYz_123456789",
+                spreadsheetTitle = "Work Log",
+                validatedAt = NOW,
+            )
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            assertEquals(
+                MainGoogleExportState.CONNECTED,
+                viewModel.uiState.value.googleExportState,
+            )
+            viewModel.onEvent(MainEvent.Export)
+            runCurrent()
+            assertEquals(
+                MainMessage.GOOGLE_EXPORT_NOT_AVAILABLE,
+                viewModel.uiState.value.message,
+            )
+            assertTrue(fixture.document.writes.isEmpty())
+        }
+
+    @Test
     fun csvPickerCancellationIsNeutralAndWritesNothing() =
         runTest(mainDispatcherRule.dispatcher) {
             val fixture = Fixture()
@@ -475,6 +510,7 @@ class MainViewModelTest {
         val clock = FakeUtcClock(NOW)
         val zone = FakeZoneIdProvider(NEW_YORK)
         val settings = FakeSettingsRepository()
+        val google = FakeGoogleConnectionRepository()
         val monotonic = FakeMonotonicTimeSource()
         private val currentDateProvider = CurrentDateProvider(clock, zone)
         private val operationLock = TimerOperationLock()
@@ -535,6 +571,7 @@ class MainViewModelTest {
                 currentDateProvider = currentDateProvider,
                 taskMutationCoordinator = taskMutationCoordinator,
                 settingsRepository = settings,
+                googleConnectionRepository = google,
                 csvExportCoordinator = csvExportCoordinator,
                 documentOutputDestination = document,
             )

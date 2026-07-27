@@ -227,4 +227,4 @@ No alarm, wake lock, foreground service, or per-tick persistence is needed.
 
 Milestone 3 implements the pure/coordinating services and transaction operations. Android
 lifecycle trigger wiring, the collected UI ticker, process-launch normalization, and user-facing
-clock-anomaly recovery remain Milestones 4 and 12.
+clock-anomaly recovery remain Milestones 4 and 13.

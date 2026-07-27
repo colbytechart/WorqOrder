@@ -146,6 +146,10 @@ sealed interface MainEvent {
         val documentUri: String?,
     ) : MainEvent
 
+    data class XlsxDocumentSelected(
+        val documentUri: String?,
+    ) : MainEvent
+
     data object DismissExportFeedback : MainEvent
 
     data class OpenTaskMenu(
@@ -183,6 +187,10 @@ sealed interface MainEffect {
     data object NavigateToGoogleSheetsSettings : MainEffect
 
     data class LaunchCsvDocument(
+        val suggestedFileName: String,
+    ) : MainEffect
+
+    data class LaunchXlsxDocument(
         val suggestedFileName: String,
     ) : MainEffect
 

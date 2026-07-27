@@ -54,14 +54,14 @@ class SettingsViewModelTest {
             runCurrent()
             viewModel.onEvent(
                 SettingsEvent.SelectExportDestination(
-                    ExportDestination.GOOGLE_SHEETS,
+                    ExportDestination.XLSX,
                 ),
             )
             runCurrent()
 
             assertEquals(ThemeMode.LIGHT, viewModel.uiState.value.themeMode)
             assertEquals(
-                ExportDestination.GOOGLE_SHEETS,
+                ExportDestination.XLSX,
                 viewModel.uiState.value.defaultExportDestination,
             )
 

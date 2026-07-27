@@ -287,6 +287,15 @@ private fun MainBottomActions(
                                         MainExportProgress.WRITING ->
                                             R.string.writing_csv
                                     }
+                                ExportDestination.XLSX ->
+                                    when (exportProgress) {
+                                        MainExportProgress.PREPARING ->
+                                            R.string.preparing_xlsx
+                                        MainExportProgress.CHOOSING_DESTINATION ->
+                                            R.string.choosing_xlsx_destination
+                                        MainExportProgress.WRITING ->
+                                            R.string.writing_xlsx
+                                    }
                                 ExportDestination.GOOGLE_SHEETS ->
                                     R.string.exporting_google_sheets
                             },
@@ -301,6 +310,11 @@ private fun MainBottomActions(
                             ExportDestination.CSV ->
                                 stringResource(
                                     R.string.export_date_as_csv,
+                                    formattedDate,
+                                )
+                            ExportDestination.XLSX ->
+                                stringResource(
+                                    R.string.export_date_as_xlsx,
                                     formattedDate,
                                 )
                             ExportDestination.GOOGLE_SHEETS ->
@@ -647,29 +661,51 @@ private fun exportFeedbackText(
     feedback: MainExportFeedback,
     formattedDate: String,
 ): String =
-    if (feedback.destination == ExportDestination.CSV) {
-        stringResource(
+    when (feedback.destination) {
+        ExportDestination.CSV ->
+            stringResource(
+                when (feedback.outcome) {
+                    MainExportOutcome.SUCCESS ->
+                        R.string.csv_export_succeeded
+                    MainExportOutcome.CANCELED ->
+                        R.string.csv_export_canceled
+                    MainExportOutcome.PREPARATION_FAILED ->
+                        R.string.csv_export_preparation_failed
+                    MainExportOutcome.CLOCK_CHANGED ->
+                        R.string.csv_export_clock_changed
+                    MainExportOutcome.ACTIVE_TIMER_CHANGED ->
+                        R.string.csv_export_timer_changed
+                    MainExportOutcome.OUTPUT_FAILED ->
+                        R.string.csv_export_output_failed
+                    MainExportOutcome.PARTIAL_OUTPUT_MAY_REMAIN ->
+                        R.string.csv_export_partial_output
+                    else -> R.string.csv_export_preparation_failed
+                },
+                formattedDate,
+            )
+        ExportDestination.XLSX ->
+            stringResource(
+                when (feedback.outcome) {
+                    MainExportOutcome.SUCCESS ->
+                        R.string.xlsx_export_succeeded
+                    MainExportOutcome.CANCELED ->
+                        R.string.xlsx_export_canceled
+                    MainExportOutcome.PREPARATION_FAILED ->
+                        R.string.xlsx_export_preparation_failed
+                    MainExportOutcome.CLOCK_CHANGED ->
+                        R.string.xlsx_export_clock_changed
+                    MainExportOutcome.ACTIVE_TIMER_CHANGED ->
+                        R.string.xlsx_export_timer_changed
+                    MainExportOutcome.OUTPUT_FAILED ->
+                        R.string.xlsx_export_output_failed
+                    MainExportOutcome.PARTIAL_OUTPUT_MAY_REMAIN ->
+                        R.string.xlsx_export_partial_output
+                    else -> R.string.xlsx_export_preparation_failed
+                },
+                formattedDate,
+            )
+        ExportDestination.GOOGLE_SHEETS ->
             when (feedback.outcome) {
-                MainExportOutcome.SUCCESS ->
-                    R.string.csv_export_succeeded
-                MainExportOutcome.CANCELED ->
-                    R.string.csv_export_canceled
-                MainExportOutcome.PREPARATION_FAILED ->
-                    R.string.csv_export_preparation_failed
-                MainExportOutcome.CLOCK_CHANGED ->
-                    R.string.csv_export_clock_changed
-                MainExportOutcome.ACTIVE_TIMER_CHANGED ->
-                    R.string.csv_export_timer_changed
-                MainExportOutcome.OUTPUT_FAILED ->
-                    R.string.csv_export_output_failed
-                MainExportOutcome.PARTIAL_OUTPUT_MAY_REMAIN ->
-                    R.string.csv_export_partial_output
-                else -> R.string.csv_export_preparation_failed
-            },
-            formattedDate,
-        )
-    } else {
-        when (feedback.outcome) {
             MainExportOutcome.SUCCESS ->
                 stringResource(
                     R.string.google_export_succeeded,

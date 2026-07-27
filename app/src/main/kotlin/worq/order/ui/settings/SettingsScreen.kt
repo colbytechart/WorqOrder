@@ -251,6 +251,20 @@ fun SettingsScreen(
                         },
                     )
                     SettingsChoiceRow(
+                        title = stringResource(R.string.xlsx),
+                        selected =
+                            uiState.defaultExportDestination ==
+                                ExportDestination.XLSX,
+                        enabled = !uiState.isSaving,
+                        onClick = {
+                            onEvent(
+                                SettingsEvent.SelectExportDestination(
+                                    ExportDestination.XLSX,
+                                ),
+                            )
+                        },
+                    )
+                    SettingsChoiceRow(
                         title = stringResource(R.string.google_sheets),
                         supportingText =
                             uiState.connectedSpreadsheetTitle

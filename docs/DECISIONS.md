@@ -151,8 +151,9 @@ Interval ordinals are stable and not renumbered after deletion/edit. UI is chron
 
 In a correctly marked WorqOrder date tab, row 1 is the exact shared header and row 2 onward is the
 application-owned table that can be fully replaced. Marker/schema/date ownership metadata is
-non-visible: sheet-scoped Google developer metadata or reviewed XLSX package metadata. Other tabs
-and same-named unmarked conflicts are never changed. Use raw/literal string values.
+non-visible sheet-scoped Google developer metadata. Other tabs and same-named unmarked conflicts
+are never changed. One-off XLSX contains only its newly generated date tab and needs no ownership
+metadata. Use raw/literal string values.
 
 ## Additional accepted decisions
 
@@ -396,25 +397,22 @@ backend; stop for a new owner decision.
 
 ### D-049 — Focused XLSX export is production scope
 
-Add a complete XLSX export milestone directly after Google Sheets export. Production connects
-exactly one persistent XLSX workbook through a user-granted SAF URI. It uses the displayed date
-and the same immutable Room snapshot, nine columns, row order, one-row-per-interval rule, running
-snapshot policy, and no-local-mutation behavior as CSV and Google Sheets.
+Add a complete XLSX export milestone directly after Google Sheets export. Production creates one
+new user-selected workbook for every export through `ACTION_CREATE_DOCUMENT`, parallel to CSV. It
+uses the displayed date and the same immutable Room snapshot, nine columns, row order,
+one-row-per-interval rule, running snapshot policy, and no-local-mutation behavior as CSV and
+Google Sheets.
 
-Each exported date owns one visible `WorqOrder_YYYY-MM-DD` worksheet. A missing date adds a tab;
-re-export replaces the marked tab's entire table and removes obsolete rows, so duplicate rows are
-not possible. Preserve unrelated tabs and reject same-named unmarked conflicts. User text and all
-nine canonical values are literal cells; no macros, external links, hidden worksheets,
-credentials, or app-private keys are written.
+Each workbook contains exactly one visible `WorqOrder_YYYY-MM-DD` worksheet with the complete
+canonical table. WorqOrder does not open, read, connect, or update an existing workbook, and it
+stores no XLSX document URI or connection metadata. Repeated exports intentionally create
+independent files.
 
-If the connected document is deleted, moved, revoked, malformed, or unwritable, invalidate it
-without crashing and launch the standard create-document flow. After the user selects a location,
-create a fresh `worqorder.xlsx` containing the requested date. Android cannot silently select an
-arbitrary replacement location; cancellation leaves XLSX disconnected and Room unchanged.
-
-The implementation must be bounded and Android-compatible. A stable, maintained,
-GPLv3-compatible lightweight writer may be proposed through the dependency gate, but Apache POI
-remains disallowed absent a new explicit owner decision.
+Use a focused internal Android-compatible OOXML writer with no new production dependency. All
+nine canonical values are literal cells; no macros, formulas, external links, hidden worksheets,
+credentials, or app-private keys are written. Apache POI remains disallowed absent a new explicit
+owner decision. Cancellation writes nothing; output failure uses best-effort partial-document
+cleanup and leaves Room unchanged.
 
 ### D-050 — Transparent local data encryption is required production scope
 
@@ -449,10 +447,15 @@ encryption interactions, and full security/regression testing.
 The same optional milestone also revisits two export enhancements that are intentionally excluded
 from production scope until separately authorized:
 
-1. let the user choose between the production persistent XLSX workbook and a one-off XLSX file for
-   each export; and
+1. let the user choose between the production one-off XLSX file and a connected persistent XLSX
+   workbook; and
 2. optionally export the just-completed day automatically at its local midnight when the default
    destination is Google Sheets or a valid persistent XLSX workbook.
+
+It also defers a Task interval-card presentation refinement: show completed Start and Stop clock
+values as task-zone `HH:mm` only. This is display-only. Persisted UTC instants, the task's stored
+ZoneId, edit precision, duration calculations, and explicit fall-back occurrence handling remain
+unchanged.
 
 Automatic midnight export must define Android background-execution behavior, offline/auth/URI
 failure and retry policy, zone changes, reboot/catch-up, duplicate prevention, user controls,
@@ -475,20 +478,22 @@ state, and edit flag remains stored internally and is merely excluded from exter
 
 ### D-053 — One marked worksheet per date without duplicates
 
-Persistent XLSX and the single connected Google spreadsheet use exactly one marked
+The single connected Google spreadsheet uses exactly one marked
 `WorqOrder_YYYY-MM-DD` worksheet per exported date. Row 1 is the shared nine-column header and row
 2 onward contains the canonical rows. Re-export replaces the entire owned table and removes stale
 rows; it never appends or merges, so unchanged or repeated exports create no duplicates.
 
 Google uses sheet-scoped developer metadata for marker/schema/date and right-sizes each sheet to
-nine columns and required rows to respect the spreadsheet's 10-million-cell limit. XLSX uses
-reviewed non-visible workbook/package metadata. A same-named tab without the marker is a conflict,
-not permission to overwrite.
+nine columns and required rows to respect the spreadsheet's 10-million-cell limit. A same-named
+tab without the marker is a conflict, not permission to overwrite.
 
-Before the first WorqOrder export to either persistent destination, a confirmed completely blank
-spreadsheet/workbook reuses and renames its original first worksheet instead of leaving an empty
-default tab. If any user content exists, or blankness cannot be established safely, all existing
-tabs remain untouched and WorqOrder adds the requested date tab.
+Before the first WorqOrder Google export, a confirmed completely blank spreadsheet reuses and
+renames its original first worksheet instead of leaving an empty default tab. If any user content
+exists, or blankness cannot be established safely, all existing tabs remain untouched and Google
+export adds the requested date tab.
+
+One-off XLSX does not participate in this ownership protocol. Every export creates a new workbook
+containing exactly one date-named worksheet, so it needs no marker, replacement, or conflict rule.
 
 ### D-054 — Atomic Google Sheets batch with invisible exact ownership keys
 
@@ -514,8 +519,11 @@ same running-interval one-instant snapshot policy as CSV and does not require St
 - Restored-client UI placement; restoration capability is planned, but it may be an Archived subsection or separate route.
 - Multiple connected spreadsheets, background automatic export, imports, synchronization, and a
   foreground timer service remain outside production scope.
-- One-off XLSX mode and opt-in automatic local-midnight export to Google/persistent XLSX are
-  deferred to optional Milestone 18 under D-051.
+- Persistent XLSX mode and opt-in automatic local-midnight export to Google/future persistent
+  XLSX are deferred to optional Milestone 18 under D-051.
+- Task interval-card Start/Stop values changing from their current second-level display to
+  task-zone `HH:mm` are deferred to optional Milestone 18 under D-051; full stored time metadata
+  remains unchanged.
 - App-access login/biometric/device-credential/PIN gating remains optional post-project scope
   governed by D-051.
 

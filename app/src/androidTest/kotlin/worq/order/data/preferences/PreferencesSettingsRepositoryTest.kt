@@ -60,7 +60,7 @@ class PreferencesSettingsRepositoryTest {
             repository.setThemeMode(ThemeMode.LIGHT)
             repository.setManualZoneId(ZoneId.of("America/Los_Angeles"))
             repository.setDefaultExportDestination(
-                ExportDestination.GOOGLE_SHEETS,
+                ExportDestination.XLSX,
             )
             val exportAttempt =
                 LastExportAttempt(
@@ -93,7 +93,7 @@ class PreferencesSettingsRepositoryTest {
                 restored.manualZoneId,
             )
             assertEquals(
-                ExportDestination.GOOGLE_SHEETS,
+                ExportDestination.XLSX,
                 restored.defaultExportDestination,
             )
             assertEquals(exportAttempt, restored.lastExportAttempt)
@@ -145,7 +145,7 @@ class PreferencesSettingsRepositoryTest {
                 preferences[stringPreferencesKey("time_zone_mode")] = "MANUAL"
                 preferences[stringPreferencesKey("manual_zone_id")] = "UTC"
                 preferences[stringPreferencesKey("default_export_destination")] =
-                    "XLSX"
+                    "LOTUS"
             }
             val repository =
                 PreferencesSettingsRepository(

@@ -141,8 +141,8 @@ The visible ticker runs only while collected and an interval is active. It emits
   continuation, retarget, and final close operations to `ActiveTimerDao`. Eligibility and boundary
   calculation remain outside the DAO.
 - `SettingsRepository`: provides typed Flow access to theme, zone mode/manual ID, default export,
-  and the safe last export attempt (destination/date/instant/outcome/category). Google and
-  persistent-XLSX connection metadata extend typed repositories in their owning milestones.
+  and the safe last export attempt (destination/date/instant/outcome/category). Google connection
+  metadata uses its owning typed repository; one-off XLSX retains no document connection metadata.
 - `SelectedTaskRepository`: implemented in Preferences DataStore with task/series hints plus the
   effective selection date/zone needed to distinguish real daily carryover from intentional
   historical browsing. It stores no task or interval truth.
@@ -169,7 +169,7 @@ The visible ticker runs only while collected and an interval is active. It emits
   accumulated `HH:MM:SS`, zero/running rows, and deterministic internal-key sorting.
 - `CsvExportCoordinator`: consumes the prepared snapshot and only serializes/packages the pending
   UTF-8 CSV before the picker opens.
-- Future XLSX and Google adapters receive the same `ExportSnapshot`; destination adapters may
+- XLSX and Google adapters receive the same `ExportSnapshot`; destination adapters may
   escape/package/transport but never select, reorder, or reformat task fields or become sources of
   task truth.
 
@@ -222,8 +222,8 @@ Detailed algorithms and anomaly policy are in `TIMER_AND_DATE_RULES.md`.
 
 DataStore stores atomic timing-selection preferences (task ID, series ID, effective selection date,
 and selection ZoneId) plus typed theme, time-zone mode/manual ID, and export-default values.
-The safe last CSV attempt is implemented in Milestone 8. Google metadata is implemented in
-Milestone 10; persistent-XLSX URI/display/status metadata is added in Milestone 12. Domain operations that can
+The safe last export attempt is implemented from Milestone 8 onward. Google metadata is implemented
+in Milestone 10; one-off XLSX adds no URI/display/status preference. Domain operations that can
 create daily copies or intervals wait for the first persisted effective-zone emission. DataStore
 does not contain task rows, active-timer state, passwords, service-account material, raw access
 tokens, or refresh tokens.
@@ -241,20 +241,17 @@ best-effort deletion of partial provider documents, and unit tests remain isolat
 occurs before this adapter is called. The complete CSV string is serialized before the picker
 opens, and output streams close deterministically.
 
-Milestone 12 adds one persistent connected-XLSX boundary:
+Milestone 12 adds a one-off XLSX document boundary:
 
-- Settings creates through `ACTION_CREATE_DOCUMENT` or selects through SAF, retains the
-  user-granted URI permission, stores only URI/display/status metadata, and supports
-  replace/disconnect without deleting the workbook.
-- Each exported date owns one marked `WorqOrder_YYYY-MM-DD` worksheet. Re-export replaces the
-  entire shared nine-column table, clears stale rows, and preserves unrelated tabs.
-- The OOXML marker/schema/date mapping is non-visible package metadata so visible rows match
-  CSV/Google exactly.
-- A missing/moved/revoked/malformed/unwritable URI is invalidated without crashing. The app
-  launches create-document and, after user destination selection, creates a fresh workbook
-  containing the requested date. Cancellation leaves it disconnected.
-- The milestone must prove a provider-safe interrupted read/modify/rewrite strategy with bounded
-  memory, preservation of the last valid workbook, and no unencrypted app-private staging.
+- Compose launches `ActivityResultContracts.CreateDocument` with the official XLSX MIME type for
+  every export; no storage permission or retained URI grant is requested.
+- A focused internal OOXML writer packages the already-canonical snapshot into one new workbook
+  containing one `WorqOrder_YYYY-MM-DD` worksheet and the exact shared nine-column table.
+- The writer never opens or modifies an existing workbook, writes formulas, or stages plaintext
+  on app-private disk. Cancellation occurs before output; a failed write uses the same best-effort
+  partial-document cleanup boundary as CSV.
+- The complete package is built in memory before the picker opens, so changes after snapshot
+  preparation cannot change the pending payload.
 
 CSV and XLSX files are unencrypted external artifacts once handed to the user-selected provider.
 

@@ -30,6 +30,7 @@ import worq.order.data.TimerSplitBoundary
 import worq.order.data.UpdateTaskMetadataResult
 import worq.order.export.csv.DocumentOutputDestination
 import worq.order.export.csv.DocumentWriteResult
+import worq.order.export.xlsx.BinaryDocumentOutputDestination
 import worq.order.model.ActiveTimer
 import worq.order.model.ActiveTimerSnapshot
 import worq.order.model.Client
@@ -69,6 +70,25 @@ class FakeDocumentOutputDestination(
         contents: String,
     ): DocumentWriteResult {
         writes += Write(documentUri, contents)
+        return result
+    }
+}
+
+class FakeBinaryDocumentOutputDestination(
+    var result: DocumentWriteResult = DocumentWriteResult.Success,
+) : BinaryDocumentOutputDestination {
+    data class Write(
+        val documentUri: String,
+        val contents: ByteArray,
+    )
+
+    val writes = mutableListOf<Write>()
+
+    override suspend fun write(
+        documentUri: String,
+        contents: ByteArray,
+    ): DocumentWriteResult {
+        writes += Write(documentUri, contents.copyOf())
         return result
     }
 }

@@ -45,11 +45,15 @@ import worq.order.domain.DeleteTaskOperationResult
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
 import worq.order.export.PrepareCsvExportResult
+import worq.order.export.PrepareXlsxExportResult
 import worq.order.export.PreparedCsvExport
+import worq.order.export.PreparedXlsxExport
+import worq.order.export.XlsxExportCoordinator
 import worq.order.export.csv.DocumentOutputDestination
 import worq.order.export.csv.DocumentWriteResult
 import worq.order.export.google.GoogleSheetsExportFailure
 import worq.order.export.google.GoogleSheetsExportOperationResult
+import worq.order.export.xlsx.BinaryDocumentOutputDestination
 import worq.order.model.ActiveTimerSnapshot
 import worq.order.model.DailyTask
 import worq.order.model.TaskListItem
@@ -114,7 +118,9 @@ class MainViewModel(
     private val settingsRepository: SettingsRepository,
     private val googleConnectionRepository: GoogleConnectionRepository,
     private val csvExportCoordinator: CsvExportCoordinator,
+    private val xlsxExportCoordinator: XlsxExportCoordinator,
     private val documentOutputDestination: DocumentOutputDestination,
+    private val binaryDocumentOutputDestination: BinaryDocumentOutputDestination,
 ) : ViewModel() {
     private val initialToday = currentDateProvider.today()
     private val rawState =
@@ -129,6 +135,7 @@ class MainViewModel(
     private val lifecycleRefreshMutex = Mutex()
     private val mutableEffects = MutableSharedFlow<MainEffect>(extraBufferCapacity = 2)
     private var pendingCsvExport: PreparedCsvExport? = null
+    private var pendingXlsxExport: PreparedXlsxExport? = null
     private var pendingGoogleExportDate: LocalDate? = null
 
     val effects = mutableEffects.asSharedFlow()
@@ -209,6 +216,8 @@ class MainViewModel(
             MainEvent.Export -> export()
             is MainEvent.CsvDocumentSelected ->
                 handleCsvDocumentSelected(event.documentUri)
+            is MainEvent.XlsxDocumentSelected ->
+                handleXlsxDocumentSelected(event.documentUri)
             MainEvent.DismissExportFeedback ->
                 rawState.update { it.copy(exportFeedback = null) }
             is MainEvent.OpenTaskMenu ->
@@ -631,6 +640,10 @@ class MainViewModel(
             return
         }
         val workDate = state.displayedDate
+        if (state.exportDestination == ExportDestination.XLSX) {
+            prepareXlsxExport(workDate)
+            return
+        }
         viewModelScope.launch {
             rawState.update {
                 it.copy(
@@ -647,6 +660,7 @@ class MainViewModel(
                         outcome = MainExportOutcome.PREPARATION_FAILED,
                         category = ExportErrorCategory.PREPARATION,
                         attemptedAt = utcClock.now(),
+                        destination = ExportDestination.CSV,
                     )
                     return@launch
                 }
@@ -671,6 +685,7 @@ class MainViewModel(
                         outcome = MainExportOutcome.CLOCK_CHANGED,
                         category = ExportErrorCategory.CLOCK_CHANGED,
                         attemptedAt = utcClock.now(),
+                        destination = ExportDestination.CSV,
                     )
                 PrepareCsvExportResult.ActiveTimerChanged ->
                     finishExportFailure(
@@ -678,6 +693,63 @@ class MainViewModel(
                         outcome = MainExportOutcome.ACTIVE_TIMER_CHANGED,
                         category = ExportErrorCategory.ACTIVE_TIMER_CHANGED,
                         attemptedAt = utcClock.now(),
+                        destination = ExportDestination.CSV,
+                    )
+            }
+        }
+    }
+
+    private fun prepareXlsxExport(workDate: LocalDate) {
+        viewModelScope.launch {
+            rawState.update {
+                it.copy(
+                    exportProgress = MainExportProgress.PREPARING,
+                    exportFeedback = null,
+                )
+            }
+            val result =
+                runCatching {
+                    xlsxExportCoordinator.prepare(workDate)
+                }.getOrElse {
+                    finishExportFailure(
+                        workDate = workDate,
+                        outcome = MainExportOutcome.PREPARATION_FAILED,
+                        category = ExportErrorCategory.PREPARATION,
+                        attemptedAt = utcClock.now(),
+                        destination = ExportDestination.XLSX,
+                    )
+                    return@launch
+                }
+            when (result) {
+                is PrepareXlsxExportResult.Ready -> {
+                    pendingXlsxExport = result.export
+                    rawState.update {
+                        it.copy(
+                            exportProgress =
+                                MainExportProgress.CHOOSING_DESTINATION,
+                        )
+                    }
+                    mutableEffects.emit(
+                        MainEffect.LaunchXlsxDocument(
+                            result.export.suggestedFileName,
+                        ),
+                    )
+                }
+                PrepareXlsxExportResult.ClockChanged ->
+                    finishExportFailure(
+                        workDate = workDate,
+                        outcome = MainExportOutcome.CLOCK_CHANGED,
+                        category = ExportErrorCategory.CLOCK_CHANGED,
+                        attemptedAt = utcClock.now(),
+                        destination = ExportDestination.XLSX,
+                    )
+                PrepareXlsxExportResult.ActiveTimerChanged ->
+                    finishExportFailure(
+                        workDate = workDate,
+                        outcome = MainExportOutcome.ACTIVE_TIMER_CHANGED,
+                        category = ExportErrorCategory.ACTIVE_TIMER_CHANGED,
+                        attemptedAt = utcClock.now(),
+                        destination = ExportDestination.XLSX,
                     )
             }
         }
@@ -916,13 +988,110 @@ class MainViewModel(
         }
     }
 
+    private fun handleXlsxDocumentSelected(documentUri: String?) {
+        val export = pendingXlsxExport ?: return
+        if (rawState.value.exportProgress != MainExportProgress.CHOOSING_DESTINATION) {
+            return
+        }
+        if (documentUri == null) {
+            pendingXlsxExport = null
+            rawState.update {
+                it.copy(
+                    exportProgress = null,
+                    exportFeedback =
+                        MainExportFeedback(
+                            workDate = export.workDate,
+                            outcome = MainExportOutcome.CANCELED,
+                            destination = ExportDestination.XLSX,
+                        ),
+                )
+            }
+            recordExportAttempt(
+                export = export,
+                outcome = ExportAttemptOutcome.CANCELED,
+            )
+            return
+        }
+        viewModelScope.launch {
+            rawState.update {
+                it.copy(exportProgress = MainExportProgress.WRITING)
+            }
+            val result =
+                runCatching {
+                    binaryDocumentOutputDestination.write(
+                        documentUri = documentUri,
+                        contents = export.contents,
+                    )
+                }.getOrElse {
+                    DocumentWriteResult.Failed(
+                        partialDocumentMayRemain = true,
+                    )
+                }
+            pendingXlsxExport = null
+            when (result) {
+                DocumentWriteResult.Success -> {
+                    rawState.update {
+                        it.copy(
+                            exportProgress = null,
+                            exportFeedback =
+                                MainExportFeedback(
+                                    workDate = export.workDate,
+                                    outcome = MainExportOutcome.SUCCESS,
+                                    destination = ExportDestination.XLSX,
+                                ),
+                        )
+                    }
+                    recordExportAttempt(
+                        export = export,
+                        outcome = ExportAttemptOutcome.SUCCESS,
+                    )
+                }
+                is DocumentWriteResult.Failed -> {
+                    val partial = result.partialDocumentMayRemain
+                    rawState.update {
+                        it.copy(
+                            exportProgress = null,
+                            exportFeedback =
+                                MainExportFeedback(
+                                    workDate = export.workDate,
+                                    outcome =
+                                        if (partial) {
+                                            MainExportOutcome
+                                                .PARTIAL_OUTPUT_MAY_REMAIN
+                                        } else {
+                                            MainExportOutcome.OUTPUT_FAILED
+                                        },
+                                    destination = ExportDestination.XLSX,
+                                ),
+                        )
+                    }
+                    recordExportAttempt(
+                        export = export,
+                        outcome = ExportAttemptOutcome.FAILED,
+                        errorCategory =
+                            if (partial) {
+                                ExportErrorCategory.PARTIAL_OUTPUT
+                            } else {
+                                ExportErrorCategory.OUTPUT
+                            },
+                    )
+                }
+            }
+        }
+    }
+
     private suspend fun finishExportFailure(
         workDate: LocalDate,
         outcome: MainExportOutcome,
         category: ExportErrorCategory,
         attemptedAt: java.time.Instant,
+        destination: ExportDestination,
     ) {
-        pendingCsvExport = null
+        when (destination) {
+            ExportDestination.CSV -> pendingCsvExport = null
+            ExportDestination.XLSX -> pendingXlsxExport = null
+            ExportDestination.GOOGLE_SHEETS -> Unit
+        }
         rawState.update {
             it.copy(
                 exportProgress = null,
@@ -930,13 +1099,14 @@ class MainViewModel(
                     MainExportFeedback(
                         workDate = workDate,
                         outcome = outcome,
+                        destination = destination,
                     ),
             )
         }
         runCatching {
             settingsRepository.recordLastExportAttempt(
                 LastExportAttempt(
-                    destination = ExportDestination.CSV,
+                    destination = destination,
                     workDate = workDate,
                     attemptedAt = attemptedAt,
                     outcome = ExportAttemptOutcome.FAILED,
@@ -955,6 +1125,19 @@ class MainViewModel(
             workDate = export.workDate,
             attemptedAt = export.exportedAt,
             destination = ExportDestination.CSV,
+            outcome = outcome,
+            errorCategory = errorCategory,
+        )
+
+    private fun recordExportAttempt(
+        export: PreparedXlsxExport,
+        outcome: ExportAttemptOutcome,
+        errorCategory: ExportErrorCategory? = null,
+    ) =
+        recordExportAttempt(
+            workDate = export.workDate,
+            attemptedAt = export.exportedAt,
+            destination = ExportDestination.XLSX,
             outcome = outcome,
             errorCategory = errorCategory,
         )
@@ -1140,7 +1323,10 @@ class MainViewModel(
                 googleConnectionRepository =
                     container.googleConnectionRepository,
                 csvExportCoordinator = container.csvExportCoordinator,
+                xlsxExportCoordinator = container.xlsxExportCoordinator,
                 documentOutputDestination = container.documentOutputDestination,
+                binaryDocumentOutputDestination =
+                    container.binaryDocumentOutputDestination,
             ) as T
         }
     }

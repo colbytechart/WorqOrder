@@ -364,36 +364,25 @@ approved the final unified export columns.
 ### Scope
 
 - Add XLSX as the third and final export destination alongside CSV and Google Sheets.
-- Let the user create/select and connect exactly one persistent XLSX workbook through SAF,
-  display its status/name, replace/disconnect it without deleting the document, and persist only
-  its non-secret user-granted URI metadata/permission.
+- Create one fresh XLSX workbook per export through `ACTION_CREATE_DOCUMENT`, parallel to CSV.
+  Do not open existing workbooks, retain URI grants, or store workbook connection metadata.
 - Reuse the unified logical snapshot, field semantics, displayed-date rule, deterministic row
   order, zero-interval behavior, and running-interval snapshot policy.
-- Maintain one marked `WorqOrder_YYYY-MM-DD` worksheet per exported date, with the exact shared
-  header at row 1. Add a missing date; replace the complete marked table on re-export, clearing
-  obsolete rows so duplicates cannot occur; preserve unrelated worksheets.
-- If the connected workbook is completely blank, rename/reuse its original first worksheet for
-  the first exported date. If any cell or workbook content exists or blankness is indeterminate,
-  preserve every existing worksheet and add the date worksheet.
-- Create the initial/replacement workbook through `ACTION_CREATE_DOCUMENT` with the official OOXML
-  spreadsheet MIME type and suggested `worqorder.xlsx` name. Request no storage permission.
+- Put exactly one `WorqOrder_YYYY-MM-DD` worksheet in each workbook, with the exact shared header
+  at row 1 and complete canonical rows beginning at row 2.
+- Use the official OOXML spreadsheet MIME type and suggested
+  `worqorder_YYYY-MM-DD.xlsx` filename. Request no storage permission.
 - Write all nine canonical values as literal text cells so formula-like input cannot execute and
   visible content remains equivalent to CSV/Google.
-- Store marker/schema/date mappings as reviewed non-visible workbook/package metadata. Reject a
-  same-named unmarked tab rather than overwriting it.
-- Use a focused implementation with bounded memory and deterministic ZIP/OOXML output. At the
-  milestone start, compare a small maintained Android-compatible writer against a narrow internal
-  OOXML writer, check GPLv3 compatibility and transitive size, and stop for owner approval before
-  adding a dependency. Apache POI remains prohibited unless a separately documented owner
-  decision supersedes that constraint.
+- Use the owner-approved focused internal writer with bounded memory and deterministic minimal
+  ZIP/OOXML output. Add no XLSX dependency; Apache POI remains prohibited unless a separately
+  documented owner decision supersedes that constraint.
 - Expand the typed export-default setting and Main/Settings labels to exactly CSV, XLSX, and
   Google Sheets. Preserve CSV as the first-launch/corrupt-value fallback.
 - Keep XLSX one-way and repeatable. Cancellation/failure must not mutate Room, claim success, or
   leave an app-managed partial file.
-- If the connected URI is deleted, moved, revoked, malformed, or unwritable, invalidate it without
-  crashing and launch create-document. After user destination selection, create a fresh workbook
-  containing the requested date; cancellation leaves XLSX disconnected. Prove a provider-safe
-  interrupted read/modify/rewrite strategy that preserves the last valid workbook.
+- Build the complete workbook package before opening the picker. After selection, write once,
+  close deterministically, and use best-effort deletion if provider output fails.
 
 ### Security and correctness verification gate
 
@@ -402,9 +391,9 @@ approved the final unified export columns.
   Unicode, commas, quotes, CR/LF, and formula-prefixed user strings as literal cells.
 - Parse generated workbooks with an independent test reader and manually open representative
   files in current Microsoft Excel and LibreOffice.
-- Test malformed/write-failure cleanup, picker cancellation, repeated date replacement, unrelated
-  tabs, missing/moved/revoked URI recovery, interrupted rewrite, large-workbook memory/time, no
-  local mutation, no broad storage permission, and no app-private plaintext staging.
+- Test malformed/write-failure cleanup, picker cancellation, repeated independent exports,
+  large-snapshot memory/time, no local mutation, no broad storage permission, and no app-private
+  plaintext staging.
 - Audit the ZIP package for required OOXML parts, path traversal hazards, external links, macros,
   formulas, hidden content, credentials, and unnecessary metadata.
 - Run formatting, lint, unit, instrumentation/UI tests, and applicable debug/release builds.
@@ -582,8 +571,8 @@ the current project.
   explicit usability review.
 - Design recovery and key-binding behavior so enrollment changes, credential removal, or biometric
   lockout never cause silent database deletion. Clearly document any security/recovery tradeoff.
-- Add an explicit XLSX mode choice: use the production single connected persistent workbook or
-  create a separate one-off workbook for each manual export. Both modes consume the same canonical
+- Add an explicit XLSX mode choice: keep the production separate one-off workbook for each manual
+  export or use a connected persistent workbook. Both modes consume the same canonical
   nine-column snapshot and never change Room.
 - Optionally schedule automatic export of the just-completed local date at its ZoneId-aware
   midnight only when the selected destination is Google Sheets or a valid persistent XLSX
@@ -596,6 +585,10 @@ the current project.
 - Automatic XLSX recovery may prompt for a replacement document only while the user is present; a
   background run with an invalid URI records a safe pending failure and cannot silently select a
   filesystem destination.
+- Simplify routine Task interval cards so completed Start and Stop values display only task-zone
+  `HH:mm`. Retain the full persisted UTC instants, stored task ZoneId, and DST occurrence/offset
+  information; the interval editor must still expose occurrence details when a fall-back overlap
+  makes them necessary.
 
 ### Optional security and bug verification gate
 
@@ -615,6 +608,8 @@ the current project.
   repeated delivery. Each successful date must converge to one duplicate-free tab.
 - Test that disabling automation cancels future work, that CSV/one-off XLSX never auto-run, and
   that no background failure mutates Room, creates unbounded retries, or exposes sensitive data.
+- Test that interval cards omit seconds without changing persisted instants, duration calculations,
+  edit precision, date-boundary validation, or explicit DST-overlap disambiguation.
 - Require explicit owner acceptance of every usability/security tradeoff before release.
 
 ## 22. Dependency selection checklist
@@ -647,8 +642,8 @@ added.
 | OAuth project remains in Testing | `drive.file` grants expire after seven days | Use External Testing during development, then move the small personal-use project to In Production without making verified branding/custom domain a dependency |
 | Google standard quota or policy changes | Google export could fail or invite paid capacity | Never attach billing or buy quota; use bounded explicit calls, show a useful failure, keep CSV available, and require a new owner decision |
 | Collaborative sheet changes race an export | Possible remote conflict | Marker, narrow reads, atomic batch, raw values, idempotent retry; never change Room |
-| XLSX writer is too large, incompatible, or unsafe | APK bloat, build failure, malformed workbooks, or formula execution | Milestone 12 dependency/design gate, literal cells, independent-parser/golden tests, Excel/LibreOffice checks, and no Apache POI without explicit approval |
-| Connected XLSX URI is moved, deleted, revoked, or cannot be safely rewritten | Export crash, data loss, or stale connection | Invalidate without crashing, require user-mediated replacement creation, start the fresh workbook with the requested date, preserve Room, and test interrupted provider writes |
+| XLSX writer is incompatible or unsafe | Malformed workbooks or formula execution | Focused internal Milestone 12 writer, literal cells, independent-parser/golden tests, Excel/LibreOffice checks, and no Apache POI |
+| One-off XLSX provider write fails after document creation | A partial external file may remain | Build and validate bytes before the picker, close output deterministically, attempt provider deletion on failure, report partial-output risk, and never change Room |
 | Per-date sheets exhaust Google grid allocation or become unwieldy | Export failure or poor spreadsheet usability | Exactly nine columns, required row counts, resize on replacement, monitor the official 10-million-cell spreadsheet limit, and surface a capacity error before mutation |
 | Plaintext local database/preferences are extracted | Sensitive client/task data disclosed from app-private artifacts | Required Milestone 14 Keystore-backed encryption, canary scans across DB/WAL/SHM/DataStore/backup/logs, and fail-closed migration/key handling |
 | Encryption key is lost or invalidated | Authoritative local data becomes unavailable | Versioned key hierarchy, documented recovery limits, non-destructive failure, interrupted-migration tests, and never silently reset Room |

@@ -18,6 +18,7 @@ enum class TimeZoneMode {
 
 enum class ExportDestination {
     CSV,
+    XLSX,
     GOOGLE_SHEETS,
 }
 

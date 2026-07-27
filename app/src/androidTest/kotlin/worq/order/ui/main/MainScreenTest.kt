@@ -243,6 +243,58 @@ class MainScreenTest {
     }
 
     @Test
+    fun xlsxExportNamesDateAndShowsProgressAndSuccess() {
+        var state by
+            mutableStateOf(
+                MainUiState
+                    .ready()
+                    .copy(
+                        canExport = true,
+                        exportDestination = ExportDestination.XLSX,
+                    ),
+            )
+        composeRule.setContent {
+            WorqOrderTheme(darkTheme = true) {
+                MainScreen(
+                    uiState = state,
+                    onEvent = { event ->
+                        if (event == MainEvent.Export) {
+                            state =
+                                state.copy(
+                                    canExport = false,
+                                    exportProgress = MainExportProgress.PREPARING,
+                                )
+                        }
+                    },
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText("Export Jul 24 as XLSX")
+            .assertIsEnabled()
+            .performClick()
+        composeRule
+            .onNodeWithText("Preparing XLSX…")
+            .assertIsNotEnabled()
+
+        state =
+            state.copy(
+                canExport = true,
+                exportProgress = null,
+                exportFeedback =
+                    MainExportFeedback(
+                        workDate = TODAY,
+                        outcome = MainExportOutcome.SUCCESS,
+                        destination = ExportDestination.XLSX,
+                    ),
+            )
+        composeRule
+            .onNodeWithText("Exported Jul 24, 2026 as XLSX.")
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun googleExportShowsProgressSuccessAndRetryableFailure() {
         val events = mutableListOf<MainEvent>()
         var state by

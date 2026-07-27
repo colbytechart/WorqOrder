@@ -31,7 +31,7 @@ class ClientManagementScreenTest {
             onEvent = events::add,
         )
 
-        composeRule.onNodeWithText("Active clients").assertIsDisplayed()
+        composeRule.onNodeWithText("Active Clients").assertIsDisplayed()
         composeRule.onNodeWithText("Alpha").assertIsDisplayed()
         composeRule
             .onNodeWithContentDescription("Rename Alpha")
@@ -40,7 +40,7 @@ class ClientManagementScreenTest {
             .onNodeWithContentDescription("Remove Alpha from the client list")
             .performClick()
         composeRule
-            .onNodeWithText("Archived clients")
+            .onNodeWithText("Archived Clients")
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithText("Zulu").performScrollTo().assertIsDisplayed()

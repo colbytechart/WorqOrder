@@ -1,5 +1,8 @@
 package worq.order.ui.settings
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -42,7 +45,7 @@ class SettingsScreenTest {
 
         val clientBounds =
             composeRule
-                .onNodeWithText("Client management")
+                .onNodeWithText("Client Management")
                 .assertIsDisplayed()
                 .fetchSemanticsNode()
                 .boundsInRoot
@@ -64,8 +67,8 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Google Sheets").performClick()
         composeRule
             .onNode(hasScrollAction())
-            .performScrollToNode(hasText("Client management"))
-        composeRule.onNodeWithText("Client management").performClick()
+            .performScrollToNode(hasText("Client Management"))
+        composeRule.onNodeWithText("Client Management").performClick()
 
         assertEquals(
             listOf(
@@ -117,6 +120,8 @@ class SettingsScreenTest {
                 SettingsUiState(
                     effectiveZoneId = ZoneId.of("America/New_York"),
                     isTimerRunning = true,
+                    defaultExportDestination =
+                        worq.order.data.ExportDestination.GOOGLE_SHEETS,
                 ),
             showGoogleSetupRequired = true,
         )
@@ -127,9 +132,9 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Use manual time zone").assertIsNotEnabled()
         composeRule
             .onNode(hasScrollAction())
-            .performScrollToNode(hasText("Google Sheets setup required"))
+            .performScrollToNode(hasText("Google Sheets Setup Required"))
         composeRule
-            .onNodeWithText("Google Sheets setup required")
+            .onNodeWithText("Google Sheets Setup Required")
             .assertIsDisplayed()
     }
 
@@ -146,6 +151,8 @@ class SettingsScreenTest {
                     spreadsheetInput = SPREADSHEET_ID,
                     connectedSpreadsheetId = SPREADSHEET_ID,
                     connectedSpreadsheetTitle = "Work Log",
+                    defaultExportDestination =
+                        worq.order.data.ExportDestination.GOOGLE_SHEETS,
                 ),
             onEvent = events::add,
         )
@@ -158,6 +165,12 @@ class SettingsScreenTest {
             .onNodeWithText("Signed in as Person")
             .assertIsDisplayed()
         composeRule
+            .onAllNodesWithText("Spreadsheet URL or ID")
+            .assertCountEquals(0)
+        composeRule
+            .onAllNodesWithText("Validate and connect")
+            .assertCountEquals(0)
+        composeRule
             .onAllNodes(hasScrollAction())[0]
             .performScrollToNode(hasText("Disconnect spreadsheet"))
         composeRule.onNodeWithText("Disconnect spreadsheet").performClick()
@@ -168,6 +181,99 @@ class SettingsScreenTest {
 
         assertTrue(SettingsEvent.DisconnectSpreadsheet in events)
         assertTrue(SettingsEvent.SignOutOfGoogle in events)
+    }
+
+    @Test
+    fun googleConnectionSectionOnlyAppearsForGoogleDestination() {
+        setContent(
+            state =
+                SettingsUiState(
+                    effectiveZoneId = ZoneId.of("America/New_York"),
+                    defaultExportDestination =
+                        worq.order.data.ExportDestination.CSV,
+                ),
+        )
+
+        composeRule
+            .onAllNodesWithText("Google Sheets Connection")
+            .assertCountEquals(0)
+        composeRule
+            .onAllNodesWithText("Sign in with Google")
+            .assertCountEquals(0)
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(hasText("Export Destination"))
+        composeRule.onNodeWithText("Export Destination").assertIsDisplayed()
+    }
+
+    @Test
+    fun selectingGoogleSheetsAutoScrollsToConnectionSection() {
+        var state by
+            mutableStateOf(
+                SettingsUiState(
+                    effectiveZoneId = ZoneId.of("America/New_York"),
+                    defaultExportDestination =
+                        worq.order.data.ExportDestination.CSV,
+                ),
+            )
+        composeRule.setContent {
+            WorqOrderTheme(darkTheme = true) {
+                SettingsScreen(
+                    uiState = state,
+                    onEvent = { event ->
+                        if (
+                            event is SettingsEvent.SelectExportDestination
+                        ) {
+                            state =
+                                state.copy(
+                                    defaultExportDestination =
+                                        event.destination,
+                                )
+                        }
+                    },
+                    onNavigateBack = {},
+                    onOpenClientManagement = {},
+                )
+            }
+        }
+
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(hasText("Google Sheets"))
+        composeRule.onNodeWithText("Google Sheets").performClick()
+        composeRule.waitForIdle()
+
+        composeRule
+            .onNodeWithText("Google Sheets Connection")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun partialSignOutUsesConciseNonRetryableWarning() {
+        setContent(
+            state =
+                SettingsUiState(
+                    effectiveZoneId = ZoneId.of("America/New_York"),
+                    defaultExportDestination =
+                        worq.order.data.ExportDestination.GOOGLE_SHEETS,
+                    googleMessage = GoogleSettingsMessage.SIGN_OUT_PARTIAL,
+                ),
+        )
+
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(
+                hasText(
+                    "Signed out locally. Remove WorqOrder from your " +
+                        "Google Account if access remains.",
+                ),
+            )
+        composeRule
+            .onNodeWithText(
+                "Signed out locally. Remove WorqOrder from your " +
+                    "Google Account if access remains.",
+            ).assertIsDisplayed()
+        composeRule.onAllNodesWithText("Retry").assertCountEquals(0)
     }
 
     private fun setContent(

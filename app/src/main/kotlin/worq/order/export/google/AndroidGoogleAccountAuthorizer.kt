@@ -1,5 +1,6 @@
 package worq.order.export.google
 
+import android.accounts.Account
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.Intent
@@ -15,6 +16,7 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.GetCredentialProviderConfigurationException
 import androidx.credentials.exceptions.NoCredentialException
+import com.google.android.gms.auth.GoogleAuthUtil
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.ClearTokenRequest
 import com.google.android.gms.auth.api.identity.Identity
@@ -90,10 +92,21 @@ class AndroidGoogleAccountAuthorizer(
 
     override suspend fun authorizeSpreadsheet(
         spreadsheetId: String,
-    ): GoogleAuthorizationResult {
-        val request =
+    ): GoogleAuthorizationResult =
+        authorize(
             GoogleAuthorizationRequestFactory
-                .spreadsheetPickerRequest(spreadsheetId)
+                .spreadsheetPickerRequest(spreadsheetId),
+        )
+
+    override suspend fun authorizeConnectedSpreadsheet():
+        GoogleAuthorizationResult =
+        authorize(
+            GoogleAuthorizationRequestFactory.connectedSpreadsheetRequest(),
+        )
+
+    private suspend fun authorize(
+        request: com.google.android.gms.auth.api.identity.AuthorizationRequest,
+    ): GoogleAuthorizationResult {
         return try {
             val initialResult = authorizationClient.authorize(request).await()
             val finalResult =
@@ -138,16 +151,29 @@ class AndroidGoogleAccountAuthorizer(
         }
     }
 
-    override suspend fun signOut(): GoogleSignOutResult {
+    override suspend fun signOut(accountId: String?): GoogleSignOutResult {
+        val revokeRequest =
+            RevokeAccessRequest
+                .builder()
+                .setScopes(listOf(driveFileScope))
+                .apply {
+                    accountId
+                        ?.trim()
+                        ?.takeIf(String::isNotEmpty)
+                        ?.let { id ->
+                            setAccount(
+                                Account(
+                                    id,
+                                    GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE,
+                                ),
+                            )
+                        }
+                }.build()
         val revoked =
             try {
                 authorizationClient
-                    .revokeAccess(
-                        RevokeAccessRequest
-                            .builder()
-                            .setScopes(listOf(driveFileScope))
-                            .build(),
-                    ).await()
+                    .revokeAccess(revokeRequest)
+                    .await()
                 true
             } catch (cancellation: CancellationException) {
                 throw cancellation

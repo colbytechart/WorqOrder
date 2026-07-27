@@ -28,7 +28,7 @@ import worq.order.export.csv.AndroidDocumentOutputDestination
 import worq.order.export.csv.DocumentOutputDestination
 import worq.order.export.google.AndroidGoogleAccountAuthorizer
 import worq.order.export.google.GoogleConnectionCoordinator
-import worq.order.export.google.GoogleSheetsGateway
+import worq.order.export.google.GoogleSheetsExportCoordinator
 import worq.order.export.google.RestGoogleSheetsGateway
 import worq.order.timer.ActiveTimerNormalizer
 import worq.order.timer.AndroidDeviceZoneIdSource
@@ -68,6 +68,10 @@ interface ApplicationContainer {
     fun createGoogleConnectionCoordinator(
         activity: ComponentActivity,
     ): GoogleConnectionCoordinator
+
+    fun createGoogleSheetsExportCoordinator(
+        activity: ComponentActivity,
+    ): GoogleSheetsExportCoordinator
 }
 
 internal class DefaultApplicationContainer(
@@ -215,7 +219,7 @@ internal class DefaultApplicationContainer(
         AndroidDocumentOutputDestination(applicationContext.contentResolver)
     }
 
-    private val googleSheetsGateway: GoogleSheetsGateway by lazy {
+    private val googleSheetsGateway: RestGoogleSheetsGateway by lazy {
         RestGoogleSheetsGateway()
     }
 
@@ -231,5 +235,19 @@ internal class DefaultApplicationContainer(
             sheetsGateway = googleSheetsGateway,
             connectionRepository = googleConnectionRepository,
             now = utcClock::now,
+        )
+
+    override fun createGoogleSheetsExportCoordinator(
+        activity: ComponentActivity,
+    ): GoogleSheetsExportCoordinator =
+        GoogleSheetsExportCoordinator(
+            authorizer =
+                AndroidGoogleAccountAuthorizer(
+                    activity = activity,
+                    webClientId = worq.order.BuildConfig.GOOGLE_WEB_CLIENT_ID,
+                ),
+            gateway = googleSheetsGateway,
+            connectionRepository = googleConnectionRepository,
+            snapshotProvider = exportSnapshotCoordinator,
         )
 }

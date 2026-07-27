@@ -25,7 +25,7 @@ import worq.order.data.GoogleSpreadsheetConnection
 @RunWith(AndroidJUnit4::class)
 class PreferencesGoogleConnectionRepositoryTest {
     @Test
-    fun safeMetadataPersistsAndDisconnectDiffersFromSignOut() {
+    fun safeMetadataPersistsAndSignOutAlsoDisconnectsSpreadsheet() {
         runBlocking {
             val context =
                 InstrumentationRegistry.getInstrumentation().targetContext
@@ -90,8 +90,11 @@ class PreferencesGoogleConnectionRepositoryTest {
             repository.completeLocalSignOut()
             val signedOut = repository.readConnection()
             assertNull(signedOut.accountId)
-            assertTrue(signedOut.hasSpreadsheetMetadata)
+            assertFalse(signedOut.hasSpreadsheetMetadata)
             assertFalse(signedOut.isConnected)
+            assertNull(signedOut.spreadsheetId)
+            assertNull(signedOut.spreadsheetTitle)
+            assertNull(signedOut.validatedAt)
 
             repository.disconnectSpreadsheet()
             val disconnected = repository.readConnection()

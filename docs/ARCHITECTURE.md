@@ -301,6 +301,13 @@ Google support is a replaceable gateway outside the offline core.
 - Validate the selected file through a narrow Drive v3 edit-capability read and Sheets v4 metadata
   read, then use small, fakeable HTTPS/JSON REST gateways for later export.
 - Gateway operations are suspendable and return typed outcomes: offline, authorization required/expired, permission denied, not found, marker conflict, rate limited, server failure, validation failure, canceled, and success.
+- `GoogleSheetsExportCoordinator` captures the shared `ExportSnapshot`, obtains a normal fresh
+  authorization token for the already Picker-granted file, and maps gateway results without
+  exposing Google types to Main UI state. `GoogleSheetsExportPlanner` purely decides create,
+  ownership/schema conflict, or complete replacement. `GoogleSheetsBatchJsonEncoder` converts that
+  plan to one atomic batch, while `RestGoogleSheetsGateway` performs the narrow structure read and
+  confirmed write. No class outside the shared snapshot builder selects or formats exported
+  fields.
 - Google calls are explicit user actions, use bounded/no automatic retry, and stay within the
   no-cost standard tier. Do not attach billing, request a paid quota increase, or implement a path
   that can generate charges. Quota exhaustion is a safe failure and CSV remains available.

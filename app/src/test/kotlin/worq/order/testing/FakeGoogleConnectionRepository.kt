@@ -62,6 +62,9 @@ class FakeGoogleConnectionRepository(
             state.value.copy(
                 accountId = null,
                 accountDisplayName = null,
+                spreadsheetId = null,
+                spreadsheetTitle = null,
+                validatedAt = null,
                 isValidatedForCurrentAccount = false,
             )
     }

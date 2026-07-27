@@ -48,6 +48,8 @@ import worq.order.export.PrepareCsvExportResult
 import worq.order.export.PreparedCsvExport
 import worq.order.export.csv.DocumentOutputDestination
 import worq.order.export.csv.DocumentWriteResult
+import worq.order.export.google.GoogleSheetsExportFailure
+import worq.order.export.google.GoogleSheetsExportOperationResult
 import worq.order.model.ActiveTimerSnapshot
 import worq.order.model.DailyTask
 import worq.order.model.TaskListItem
@@ -127,6 +129,7 @@ class MainViewModel(
     private val lifecycleRefreshMutex = Mutex()
     private val mutableEffects = MutableSharedFlow<MainEffect>(extraBufferCapacity = 2)
     private var pendingCsvExport: PreparedCsvExport? = null
+    private var pendingGoogleExportDate: LocalDate? = null
 
     val effects = mutableEffects.asSharedFlow()
 
@@ -608,8 +611,19 @@ class MainViewModel(
         }
         if (state.exportDestination == ExportDestination.GOOGLE_SHEETS) {
             if (state.googleExportState == MainGoogleExportState.CONNECTED) {
+                val workDate = state.displayedDate
+                pendingGoogleExportDate = workDate
                 rawState.update {
-                    it.copy(message = MainMessage.GOOGLE_EXPORT_NOT_AVAILABLE)
+                    it.copy(
+                        exportProgress = MainExportProgress.PREPARING,
+                        exportFeedback = null,
+                        message = null,
+                    )
+                }
+                viewModelScope.launch {
+                    mutableEffects.emit(
+                        MainEffect.ExportToGoogleSheets(workDate),
+                    )
                 }
             } else {
                 mutableEffects.tryEmit(MainEffect.NavigateToGoogleSheetsSettings)
@@ -667,6 +681,150 @@ class MainViewModel(
                     )
             }
         }
+    }
+
+    fun onGoogleSheetsExportResult(
+        result: GoogleSheetsExportOperationResult,
+    ) {
+        val requestedDate = pendingGoogleExportDate ?: return
+        pendingGoogleExportDate = null
+        when (result) {
+            is GoogleSheetsExportOperationResult.Success -> {
+                val receipt = result.receipt
+                if (receipt.workDate != requestedDate) {
+                    finishGoogleExport(
+                        workDate = requestedDate,
+                        outcome = MainExportOutcome.MALFORMED_RESPONSE,
+                        category =
+                            ExportErrorCategory.GOOGLE_MALFORMED_RESPONSE,
+                    )
+                } else {
+                    finishGoogleExport(
+                        workDate = receipt.workDate,
+                        outcome = MainExportOutcome.SUCCESS,
+                        attemptedAt = receipt.exportedAt,
+                        tabName = receipt.tabName,
+                    )
+                }
+            }
+            GoogleSheetsExportOperationResult.Canceled ->
+                finishGoogleExport(
+                    workDate = requestedDate,
+                    outcome = MainExportOutcome.CANCELED,
+                    attemptOutcome = ExportAttemptOutcome.CANCELED,
+                )
+            GoogleSheetsExportOperationResult.SetupRequired -> {
+                finishGoogleExport(
+                    workDate = requestedDate,
+                    outcome = MainExportOutcome.AUTHORIZATION_REQUIRED,
+                    category = ExportErrorCategory.GOOGLE_SETUP_REQUIRED,
+                )
+                mutableEffects.tryEmit(MainEffect.NavigateToGoogleSheetsSettings)
+            }
+            GoogleSheetsExportOperationResult.AuthorizationRequired ->
+                finishGoogleExport(
+                    workDate = requestedDate,
+                    outcome = MainExportOutcome.AUTHORIZATION_REQUIRED,
+                    category = ExportErrorCategory.GOOGLE_AUTHORIZATION,
+                )
+            GoogleSheetsExportOperationResult.ClockChanged ->
+                finishGoogleExport(
+                    workDate = requestedDate,
+                    outcome = MainExportOutcome.CLOCK_CHANGED,
+                    category = ExportErrorCategory.CLOCK_CHANGED,
+                )
+            GoogleSheetsExportOperationResult.ActiveTimerChanged ->
+                finishGoogleExport(
+                    workDate = requestedDate,
+                    outcome = MainExportOutcome.ACTIVE_TIMER_CHANGED,
+                    category = ExportErrorCategory.ACTIVE_TIMER_CHANGED,
+                )
+            is GoogleSheetsExportOperationResult.Failed -> {
+                val (outcome, category) =
+                    result.reason.toMainExportFailure()
+                finishGoogleExport(
+                    workDate = requestedDate,
+                    outcome = outcome,
+                    category = category,
+                    tabName = result.tabName,
+                )
+            }
+        }
+    }
+
+    private fun GoogleSheetsExportFailure.toMainExportFailure():
+        Pair<MainExportOutcome, ExportErrorCategory> =
+        when (this) {
+            GoogleSheetsExportFailure.LOCAL_STORAGE ->
+                MainExportOutcome.PREPARATION_FAILED to
+                    ExportErrorCategory.PREPARATION
+            GoogleSheetsExportFailure.PLAY_SERVICES_UNAVAILABLE ->
+                MainExportOutcome.PLAY_SERVICES_UNAVAILABLE to
+                    ExportErrorCategory.GOOGLE_PLAY_SERVICES
+            GoogleSheetsExportFailure.OFFLINE ->
+                MainExportOutcome.OFFLINE to
+                    ExportErrorCategory.GOOGLE_OFFLINE
+            GoogleSheetsExportFailure.TIMEOUT ->
+                MainExportOutcome.TIMEOUT to
+                    ExportErrorCategory.GOOGLE_TIMEOUT
+            GoogleSheetsExportFailure.NOT_FOUND_OR_NOT_GRANTED ->
+                MainExportOutcome.NOT_FOUND_OR_NOT_GRANTED to
+                    ExportErrorCategory.GOOGLE_NOT_FOUND
+            GoogleSheetsExportFailure.PERMISSION_DENIED ->
+                MainExportOutcome.PERMISSION_DENIED to
+                    ExportErrorCategory.GOOGLE_PERMISSION
+            GoogleSheetsExportFailure.RATE_LIMITED ->
+                MainExportOutcome.RATE_LIMITED to
+                    ExportErrorCategory.GOOGLE_RATE_LIMIT
+            GoogleSheetsExportFailure.SERVER_FAILURE ->
+                MainExportOutcome.SERVER_FAILURE to
+                    ExportErrorCategory.GOOGLE_SERVER
+            GoogleSheetsExportFailure.MALFORMED_RESPONSE ->
+                MainExportOutcome.MALFORMED_RESPONSE to
+                    ExportErrorCategory.GOOGLE_MALFORMED_RESPONSE
+            GoogleSheetsExportFailure.TAB_NAME_CONFLICT ->
+                MainExportOutcome.TAB_NAME_CONFLICT to
+                    ExportErrorCategory.GOOGLE_CONFLICT
+            GoogleSheetsExportFailure.SCHEMA_CONFLICT ->
+                MainExportOutcome.SCHEMA_CONFLICT to
+                    ExportErrorCategory.GOOGLE_SCHEMA
+            GoogleSheetsExportFailure.AMBIGUOUS_REMOTE_RESULT ->
+                MainExportOutcome.AMBIGUOUS_REMOTE_RESULT to
+                    ExportErrorCategory.GOOGLE_AMBIGUOUS_RESULT
+        }
+
+    private fun finishGoogleExport(
+        workDate: LocalDate,
+        outcome: MainExportOutcome,
+        attemptOutcome: ExportAttemptOutcome =
+            if (outcome == MainExportOutcome.SUCCESS) {
+                ExportAttemptOutcome.SUCCESS
+            } else {
+                ExportAttemptOutcome.FAILED
+            },
+        category: ExportErrorCategory? = null,
+        attemptedAt: java.time.Instant = utcClock.now(),
+        tabName: String? = null,
+    ) {
+        rawState.update {
+            it.copy(
+                exportProgress = null,
+                exportFeedback =
+                    MainExportFeedback(
+                        workDate = workDate,
+                        outcome = outcome,
+                        destination = ExportDestination.GOOGLE_SHEETS,
+                        tabName = tabName,
+                    ),
+            )
+        }
+        recordExportAttempt(
+            workDate = workDate,
+            attemptedAt = attemptedAt,
+            destination = ExportDestination.GOOGLE_SHEETS,
+            outcome = attemptOutcome,
+            errorCategory = category,
+        )
     }
 
     private fun handleCsvDocumentSelected(documentUri: String?) {
@@ -792,14 +950,29 @@ class MainViewModel(
         export: PreparedCsvExport,
         outcome: ExportAttemptOutcome,
         errorCategory: ExportErrorCategory? = null,
+    ) =
+        recordExportAttempt(
+            workDate = export.workDate,
+            attemptedAt = export.exportedAt,
+            destination = ExportDestination.CSV,
+            outcome = outcome,
+            errorCategory = errorCategory,
+        )
+
+    private fun recordExportAttempt(
+        workDate: LocalDate,
+        attemptedAt: java.time.Instant,
+        destination: ExportDestination,
+        outcome: ExportAttemptOutcome,
+        errorCategory: ExportErrorCategory? = null,
     ) {
         viewModelScope.launch {
             runCatching {
                 settingsRepository.recordLastExportAttempt(
                     LastExportAttempt(
-                        destination = ExportDestination.CSV,
-                        workDate = export.workDate,
-                        attemptedAt = export.exportedAt,
+                        destination = destination,
+                        workDate = workDate,
+                        attemptedAt = attemptedAt,
                         outcome = outcome,
                         errorCategory = errorCategory,
                     ),

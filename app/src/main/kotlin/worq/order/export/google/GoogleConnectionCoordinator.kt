@@ -86,7 +86,10 @@ class GoogleConnectionCoordinator(
                         GoogleConnectionFailure.AUTHORIZATION_REQUIRED,
                     )
             }
-        if (authorized.pickedFileIds != setOf(parsed)) {
+        if (
+            authorized.pickedFileIds.isNotEmpty() &&
+            authorized.pickedFileIds != setOf(parsed)
+        ) {
             return GoogleConnectionOperationResult.Failed(
                 GoogleConnectionFailure.PICKER_RETURNED_DIFFERENT_FILE,
             )
@@ -164,7 +167,11 @@ class GoogleConnectionCoordinator(
         )
 
     suspend fun signOut(): GoogleConnectionOperationResult {
-        val remoteResult = authorizer.signOut()
+        val accountId =
+            localResult { connectionRepository.readConnection() }
+                .getOrNull()
+                ?.accountId
+        val remoteResult = authorizer.signOut(accountId)
         val localResult =
             localResult { connectionRepository.completeLocalSignOut() }
         if (localResult.isFailure) {

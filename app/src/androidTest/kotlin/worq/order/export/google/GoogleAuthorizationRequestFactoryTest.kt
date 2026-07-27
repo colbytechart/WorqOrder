@@ -10,6 +10,30 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class GoogleAuthorizationRequestFactoryTest {
     @Test
+    fun connectedSpreadsheetRequestUsesOnlyDriveFileWithoutPickerFilters() {
+        val request =
+            GoogleAuthorizationRequestFactory.connectedSpreadsheetRequest()
+
+        assertEquals(
+            listOf(RestGoogleSheetsGateway.DRIVE_FILE_SCOPE),
+            request.requestedScopes.map { it.scopeUri },
+        )
+        assertTrue(request.optOutIncludingGrantedScopes)
+        assertEquals(
+            null,
+            request.getResourceParameter(
+                AuthorizationRequest.ResourceParameter.PICKER_OAUTH_TRIGGER,
+            ),
+        )
+        assertEquals(
+            null,
+            request.getResourceParameter(
+                AuthorizationRequest.ResourceParameter.PICKER_FILE_IDS,
+            ),
+        )
+    }
+
+    @Test
     fun pickerRequestUsesOnlyDriveFileAndExactFileFilters() {
         val request =
             GoogleAuthorizationRequestFactory

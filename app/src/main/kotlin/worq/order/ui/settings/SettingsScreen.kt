@@ -35,6 +35,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -57,10 +61,21 @@ fun SettingsScreen(
     showGoogleSetupRequired: Boolean = false,
 ) {
     val listState = rememberLazyListState()
-    LaunchedEffect(showGoogleSetupRequired, uiState.message) {
-        if (showGoogleSetupRequired) {
+    var googleScrollRequestId by remember { mutableIntStateOf(0) }
+    LaunchedEffect(
+        showGoogleSetupRequired,
+        uiState.message,
+        uiState.defaultExportDestination,
+        googleScrollRequestId,
+    ) {
+        if (
+            uiState.defaultExportDestination ==
+                ExportDestination.GOOGLE_SHEETS &&
+            (showGoogleSetupRequired || googleScrollRequestId > 0)
+        ) {
             val googleSectionIndex = if (uiState.message == null) 4 else 5
-            listState.scrollToItem(googleSectionIndex)
+            listState.animateScrollToItem(googleSectionIndex)
+            googleScrollRequestId = 0
         }
     }
     if (uiState.isZoneSelectorVisible) {
@@ -247,6 +262,7 @@ fun SettingsScreen(
                                 ExportDestination.GOOGLE_SHEETS,
                         enabled = !uiState.isSaving,
                         onClick = {
+                            googleScrollRequestId += 1
                             onEvent(
                                 SettingsEvent.SelectExportDestination(
                                     ExportDestination.GOOGLE_SHEETS,
@@ -256,12 +272,17 @@ fun SettingsScreen(
                     )
                 }
             }
-            item {
-                GoogleSheetsSettingsSection(
-                    uiState = uiState,
-                    onEvent = onEvent,
-                    showSetupRequired = showGoogleSetupRequired,
-                )
+            if (
+                uiState.defaultExportDestination ==
+                ExportDestination.GOOGLE_SHEETS
+            ) {
+                item {
+                    GoogleSheetsSettingsSection(
+                        uiState = uiState,
+                        onEvent = onEvent,
+                        showSetupRequired = showGoogleSetupRequired,
+                    )
+                }
             }
         }
     }
@@ -383,7 +404,7 @@ private fun GoogleSheetsSettingsSection(
                 ) {
                     Text(stringResource(R.string.google_sign_in))
                 }
-            } else {
+            } else if (uiState.connectedSpreadsheetId == null) {
                 OutlinedTextField(
                     value = uiState.spreadsheetInput,
                     onValueChange = {
@@ -528,7 +549,6 @@ private fun GoogleSettingsMessagePanel(
                         GoogleSettingsMessage.TIMEOUT,
                         GoogleSettingsMessage.RATE_LIMITED,
                         GoogleSettingsMessage.SERVER_FAILURE,
-                        GoogleSettingsMessage.SIGN_OUT_PARTIAL,
                     )
                 ) {
                     TextButton(onClick = onRetry) {
@@ -626,7 +646,7 @@ private fun ZoneSelectorDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.choose_time_zone)) },
+        title = { Text(stringResource(R.string.choose_time_zone_title)) },
         text = {
             Column(
                 verticalArrangement =

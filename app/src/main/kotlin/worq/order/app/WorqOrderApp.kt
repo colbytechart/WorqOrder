@@ -23,6 +23,8 @@ import kotlinx.coroutines.CancellationException
 import worq.order.data.ThemeMode
 import worq.order.export.google.GoogleConnectionFailure
 import worq.order.export.google.GoogleConnectionOperationResult
+import worq.order.export.google.GoogleSheetsExportFailure
+import worq.order.export.google.GoogleSheetsExportOperationResult
 import worq.order.ui.settings.ApplicationSettingsViewModel
 import worq.order.ui.settings.SettingsViewModel
 import worq.order.ui.clients.ClientManagementScreen
@@ -79,6 +81,10 @@ fun WorqOrderApp() {
         startDestination = AppRoutes.MAIN,
     ) {
         composable(AppRoutes.MAIN) {
+            val activity =
+                requireNotNull(LocalActivity.current as? ComponentActivity) {
+                    "Google export requires a ComponentActivity host"
+                }
             val application =
                 LocalContext.current.applicationContext as WorqOrderApplication
             val factory =
@@ -87,6 +93,11 @@ fun WorqOrderApp() {
                 }
             val viewModel: MainViewModel = viewModel(factory = factory)
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            val googleSheetsExportCoordinator =
+                remember(application, activity) {
+                    application.container
+                        .createGoogleSheetsExportCoordinator(activity)
+                }
             val csvDocumentLauncher =
                 rememberLauncherForActivityResult(
                     ActivityResultContracts.CreateDocument(
@@ -100,7 +111,11 @@ fun WorqOrderApp() {
                     )
                 }
 
-            LaunchedEffect(viewModel, navController) {
+            LaunchedEffect(
+                viewModel,
+                navController,
+                googleSheetsExportCoordinator,
+            ) {
                 viewModel.effects.collect { effect ->
                     when (effect) {
                         is MainEffect.NavigateToCreateTask ->
@@ -113,6 +128,25 @@ fun WorqOrderApp() {
                             navController.navigate(AppRoutes.SETTINGS_GOOGLE_SETUP)
                         is MainEffect.LaunchCsvDocument ->
                             csvDocumentLauncher.launch(effect.suggestedFileName)
+                        is MainEffect.ExportToGoogleSheets -> {
+                            val result =
+                                try {
+                                    googleSheetsExportCoordinator.export(
+                                        effect.workDate,
+                                    )
+                                } catch (cancellation: CancellationException) {
+                                    viewModel.onGoogleSheetsExportResult(
+                                        GoogleSheetsExportOperationResult.Canceled,
+                                    )
+                                    throw cancellation
+                                } catch (_: Exception) {
+                                    GoogleSheetsExportOperationResult.Failed(
+                                        GoogleSheetsExportFailure
+                                            .MALFORMED_RESPONSE,
+                                    )
+                                }
+                            viewModel.onGoogleSheetsExportResult(result)
+                        }
                     }
                 }
             }

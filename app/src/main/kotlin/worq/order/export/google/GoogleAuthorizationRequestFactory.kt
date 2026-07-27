@@ -4,6 +4,14 @@ import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.common.api.Scope
 
 internal object GoogleAuthorizationRequestFactory {
+    fun connectedSpreadsheetRequest(): AuthorizationRequest =
+        AuthorizationRequest
+            .builder()
+            .setRequestedScopes(
+                listOf(Scope(RestGoogleSheetsGateway.DRIVE_FILE_SCOPE)),
+            ).setOptOutIncludingGrantedScopes(true)
+            .build()
+
     fun spreadsheetPickerRequest(
         spreadsheetId: String,
     ): AuthorizationRequest =

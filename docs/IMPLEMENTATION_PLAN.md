@@ -322,6 +322,8 @@ spreadsheets are available. Release signing and any release OAuth client remain 
 
 Entry: account and spreadsheet connection accepted.
 
+Status: implemented; awaiting owner acceptance.
+
 ### Scope
 
 - Consume the one immutable destination-neutral schema-version-2 snapshot; do not independently
@@ -330,6 +332,8 @@ Entry: account and spreadsheet connection accepted.
   raw value.
 - Export only to the single connected spreadsheet and one application-owned
   `WorqOrder_YYYY-MM-DD` tab per displayed date.
+- On the first export, reuse/rename the original first tab only after confirming the entire
+  spreadsheet has no user content. Otherwise preserve all tabs and add the date tab.
 - Store marker/schema/date in sheet-scoped developer metadata so row 1 can be the same nine-column
   header as CSV/XLSX. Reject unmarked same-name conflicts and atomically replace application-owned
   date-tab contents with the current authoritative snapshot.
@@ -339,6 +343,12 @@ Entry: account and spreadsheet connection accepted.
   useful retryable offline/auth/network/ambiguous-response states.
 - Use bounded explicit-operation traffic within standard no-cost quotas; quota exhaustion never
   triggers billing, paid capacity, background work, or an unbounded retry.
+- Implementation uses a fresh in-memory `drive.file` token, one narrow spreadsheet structure read,
+  a blank-content inspection only when no prior WorqOrder marker exists and the requested tab is
+  absent, and one atomic `spreadsheets.batchUpdate`. Sheet-nested marker/schema/date parsing,
+  literal `stringValue` cells, confirmed spreadsheet ID, typed ambiguous-result handling, and
+  generic non-sensitive last-attempt metadata are implemented without an export-history Room
+  table.
 
 ### Verification gate
 
@@ -362,6 +372,9 @@ approved the final unified export columns.
 - Maintain one marked `WorqOrder_YYYY-MM-DD` worksheet per exported date, with the exact shared
   header at row 1. Add a missing date; replace the complete marked table on re-export, clearing
   obsolete rows so duplicates cannot occur; preserve unrelated worksheets.
+- If the connected workbook is completely blank, rename/reuse its original first worksheet for
+  the first exported date. If any cell or workbook content exists or blankness is indeterminate,
+  preserve every existing worksheet and add the date worksheet.
 - Create the initial/replacement workbook through `ACTION_CREATE_DOCUMENT` with the official OOXML
   spreadsheet MIME type and suggested `worqorder.xlsx` name. Request no storage permission.
 - Write all nine canonical values as literal text cells so formula-like input cannot execute and
@@ -630,7 +643,7 @@ added.
 | `ACTION_CREATE_DOCUMENT` cannot force a Downloads subfolder | The system picker may save outside `Downloads/WorqOrder` | Accepted D-030 gives final location control to the user; do not add a storage-permission workaround |
 | OAuth configuration differs from app identity | Google authorization fails | Register exact `worq.order` plus debug SHA-1 now and direct-release SHA-1 only in Milestone 17; no Play identity |
 | Google Android auth APIs evolve | Integration churn or conflict with stable-only rule | Milestone 9 selected current stable versions; recheck official releases at Milestone 10 implementation |
-| Picker grant does not match pasted spreadsheet ID | Wrong file connected or per-file access unavailable | Filter Picker by exact ID/MIME type, require exact `picked_file_ids` match, and validate Drive edit capability plus Sheets metadata |
+| Picker grant does not match pasted spreadsheet ID | Wrong file connected or per-file access unavailable | Filter Picker by exact ID/MIME type, reject every nonempty `picked_file_ids` mismatch, and require exact-ID Drive capability plus Sheets metadata validation even when reconnect reuses a retained grant with no repeated Picker IDs |
 | OAuth project remains in Testing | `drive.file` grants expire after seven days | Use External Testing during development, then move the small personal-use project to In Production without making verified branding/custom domain a dependency |
 | Google standard quota or policy changes | Google export could fail or invite paid capacity | Never attach billing or buy quota; use bounded explicit calls, show a useful failure, keep CSV available, and require a new owner decision |
 | Collaborative sheet changes race an export | Possible remote conflict | Marker, narrow reads, atomic batch, raw values, idempotent retry; never change Room |

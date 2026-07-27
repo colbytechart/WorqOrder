@@ -31,7 +31,7 @@ fun ClientEditorDialog(
             Text(
                 stringResource(
                     when (editor.mode) {
-                        ClientEditorMode.ADD -> R.string.add_client
+                        ClientEditorMode.ADD -> R.string.add_client_title
                         ClientEditorMode.RENAME -> R.string.rename_client
                     },
                 ),

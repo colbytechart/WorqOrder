@@ -169,8 +169,13 @@ workbook at a time; one-off XLSX files are deferred to optional Milestone 18.
 - Store the WorqOrder marker, internal schema version, and owned-date-tab mapping in reviewed
   non-visible workbook/package metadata rather than visible cells. If a same-named worksheet lacks
   the expected marker, report a conflict and do not overwrite it.
-- If a date tab is absent, add it. If a correctly marked date tab exists, replace its entire
-  application-owned table with the current authoritative snapshot, removing obsolete rows.
+- Before the first WorqOrder export into a connected workbook, inspect the workbook rather than
+  assuming its original first worksheet is disposable. If the workbook is completely blank,
+  rename and reuse its original first worksheet for the requested `WorqOrder_YYYY-MM-DD` tab. If
+  any cell or other workbook content exists, preserve every existing worksheet and add the date
+  tab. If blankness cannot be established safely, treat the workbook as nonblank.
+- If a date tab is otherwise absent, add it. If a correctly marked date tab exists, replace its
+  entire application-owned table with the current authoritative snapshot, removing obsolete rows.
   Never append/merge interval rows; unchanged re-export produces no duplicates.
 - Build the output with a focused, deterministic, Android-compatible OOXML writer. Dependency
   choice is a Milestone 12 gate covering stable status, GPLv3 compatibility, transitive size,
@@ -207,7 +212,11 @@ Exactly one spreadsheet ID is connected at a time. Connection comprises:
 Accept a canonical spreadsheet ID or a supported Sheets URL and parse the ID locally. Reject
 malformed/oversized inputs. A pasted ID is not itself authorization. Connection launches the
 current Android Google Picker authorization flow filtered to that exact ID and the Google Sheets
-MIME type. The returned `picked_file_ids` must contain exactly the parsed ID.
+MIME type. A nonempty returned `picked_file_ids` set must contain exactly the parsed ID. After
+Disconnect, the per-file grant intentionally remains; Google may therefore return an empty Picker
+ID set when that exact grant is reused. An empty set is never sufficient by itself: the parsed ID
+must still pass the `drive.file`-bounded Drive and Sheets checks below. A nonempty mismatch fails
+without validation or persistence.
 
 Validation then uses the returned `drive.file` token for:
 
@@ -222,10 +231,14 @@ at that moment without performing a test write. It never creates a spreadsheet.
 
 Disconnect clears local ID/title association only and leaves the Google identity/grant intact.
 Sign-out makes export unavailable, attempts `AuthorizationClient.revokeAccess()`, clears
-Credential Manager state, and clears the account hint. Spreadsheet ID/title may remain as stale
-metadata but must be Picker-granted and revalidated after another sign-in. Neither action edits the
-spreadsheet or Room. If permissions later change, the next validation/export reports
-permission/not-found status.
+Credential Manager state, and clears the account hint plus all connected-spreadsheet metadata.
+Neither action edits the spreadsheet or Room. If permissions later change, the next
+validation/export reports permission/not-found status.
+
+Settings renders Google Sheets Connection only when Google Sheets is the selected Export
+Destination. A connected state hides the URL/ID and Validate and Connect controls; the user must
+Disconnect before connecting a different spreadsheet. Selecting Google Sheets automatically
+scrolls Settings to the newly revealed connection section.
 
 ### Authentication and authorization choice
 
@@ -286,11 +299,22 @@ Visible layout:
 | row 1 | the nine exact canonical column headers |
 | row 2 onward | canonical export rows |
 
-The exact marker `WORQORDER_EXPORT`, internal schema version `2`, and work date are stored as
-sheet-scoped developer metadata created by WorqOrder's Google Cloud project, not as visible cells.
-This keeps visible content and row positions equivalent to CSV/XLSX while retaining safe ownership
-checks. The table is application-owned. Users are warned that edits inside a marked tab will be
-replaced on the next export. Other tabs are never touched.
+The ownership values are stored as sheet-scoped, `PROJECT`-visible developer metadata created by
+WorqOrder's Google Cloud project, not as visible cells:
+
+| Metadata key | Required value |
+| --- | --- |
+| `worqorder_export_marker` | `WORQORDER_EXPORT` |
+| `worqorder_export_schema` | `2` |
+| `worqorder_export_work_date` | the tab's `YYYY-MM-DD` date |
+
+All three keys must occur exactly once at that sheet location. A missing/different marker makes a
+same-named tab unowned. A valid marker with missing, duplicate, or incompatible schema/date
+metadata is a schema conflict. This keeps visible content and row positions equivalent to
+CSV/XLSX while retaining safe ownership checks. The export timestamp and task ZoneIds remain
+internal snapshot/model data; they are intentionally not visible cells or ownership keys in
+schema version 2. The table is application-owned. Users are warned that edits inside a marked tab
+will be replaced on the next export. Other tabs are never touched.
 
 Google Sheets has no published fixed sheet-count limit, but the connected spreadsheet has a
 10-million-cell total limit. Add each date sheet with exactly nine columns and only enough rows for
@@ -299,19 +323,38 @@ spreadsheet unnecessarily.
 
 ### First export for a date
 
-1. Fetch spreadsheet metadata and find exact tab name.
-2. If absent, use `AddSheetRequest` with a chosen sheet ID, nine columns, and the required row
-   count; add the sheet-scoped marker/schema/date developer metadata and header/data.
-3. Prefer one atomic `spreadsheets.batchUpdate` containing structural/cell update requests when supported by the selected stable client.
-4. Return success only after Google confirms the update.
+1. Obtain a fresh short-lived `drive.file` token with a normal
+   `AuthorizationClient.authorize()` request. This request does not relaunch Picker while the
+   existing per-file grant remains valid.
+2. Call `GET /v4/spreadsheets/{spreadsheetId}` with `includeGridData=false` and the exact field
+   mask for spreadsheet ID, sheet IDs/titles/grid sizes, and developer metadata nested on each
+   owning sheet (plus spreadsheet-level metadata for defensive compatibility).
+3. If no WorqOrder metadata exists yet and the date tab is absent, inspect user-entered cell and
+   sheet content. A confirmed completely blank spreadsheet reuses its original first sheet; any
+   populated or indeterminate spreadsheet preserves all existing tabs.
+4. Send one `POST
+   /v4/spreadsheets/{spreadsheetId}:batchUpdate` containing, in order:
+   - either an `UpdateSheetPropertiesRequest` that renames/right-sizes the confirmed blank first
+     sheet, or an `AddSheetRequest` with a collision-free non-negative sheet ID, exact title, nine
+     columns, and `1 + dataRowCount` rows;
+   - three `CreateDeveloperMetadataRequest` entries for the exact keys/values above; and
+   - one `UpdateCellsRequest` covering row 1 through the final data row and columns 1 through 9.
+5. Every cell is a `userEnteredValue.stringValue`. This is the `UpdateCellsRequest` equivalent of
+   a raw literal write: formula-like client/task text is not parsed as a formula, and the gateway
+   does not independently format any canonical value.
+6. Return success only for a successful batch response whose confirmed `spreadsheetId` exactly
+   matches the connected spreadsheet.
 
 ### Re-export
 
-1. If exact tab exists, search/read its sheet-scoped marker/schema/date developer metadata.
+1. If the exact tab exists, read its marker/schema/date developer metadata from the sheet resource
+   that owns it.
 2. If marker is absent/different, return `TabNameConflict`; do not clear/write/rename the tab.
 3. If marker is valid but schema/date is incompatible, return a schema conflict; do not overwrite.
-4. Replace the entire nine-column application-owned grid with the current snapshot, clearing
-   obsolete trailing rows/cells and resizing to the required bounds.
+4. Send one atomic `spreadsheets.batchUpdate` containing an `UpdateSheetPropertiesRequest` that
+   right-sizes the owned grid to exactly nine columns and `1 + dataRowCount` rows, followed by an
+   `UpdateCellsRequest` that replaces the complete header/data table. Shrinking removes obsolete
+   trailing rows/cells.
 5. Write rows in the shared stable sort order; do not independently sort or format at the gateway.
 6. Return success only after confirmed update.
 
@@ -320,6 +363,14 @@ Replacement, not append-only merging, is authoritative. This resolves contradict
 Use raw string cell values for all nine canonical fields so client, description, and
 hardware/software-purchases text are not evaluated as formulas and CSV/XLSX/Google content remains
 equivalent. Do not create a new spreadsheet document at export.
+
+Milestone 11 implements the sequence above through `GoogleSheetsExportCoordinator`, the pure
+`GoogleSheetsExportPlanner`, `GoogleSheetsBatchJsonEncoder`, and `RestGoogleSheetsGateway`.
+`ExportSnapshotCoordinator` remains the only source of field selection/order/formatting. The
+gateway performs no automatic retry. An interrupted mutation response is classified as ambiguous
+and never reported as success; retry is safe because the next complete batch replaces the same
+marked date tab. The gateway parses sheet-scoped metadata from each `sheets[].developerMetadata`
+collection; this is required for a subsequent export to recognize the marker it created.
 
 ## 9. Google failure behavior
 
@@ -337,6 +388,15 @@ Typed failures and UI behavior:
 | Partial/ambiguous remote response | do not claim success; re-read marker/table or allow idempotent retry |
 
 Google can be collaboratively edited between read and write. Minimize the window, revalidate marker immediately before mutation where practical, and use an atomic batch. The API cannot make the external document a transactional peer of Room; local data is never rolled back or changed in response.
+
+The current implementation performs one immediate structure/marker read followed by one atomic
+batch. HTTP 401 clears the exact in-memory token and marks authorization stale; 404 maps to
+missing/not-granted; non-quota 403 maps to permission denied; quota-flavored 403 and 429 map to
+rate limited; connection/timeout/5xx/malformed responses remain distinct. No Room export-history
+table exists. The already-approved typed `last_export_*` DataStore metadata records only
+destination, work date, attempt time, success/cancel/failure, and a non-sensitive error category;
+it is diagnostic presentation history and never stores spreadsheet IDs, rows, tokens, or API
+responses.
 
 ## 10. Google Cloud setup guide
 

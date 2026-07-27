@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -193,6 +194,81 @@ class SettingsViewModelTest {
                 GoogleSettingsMessage.OFFLINE,
                 viewModel.uiState.value.googleMessage,
             )
+        }
+
+    @Test
+    fun connectedSpreadsheetCannotBeRedundantlyValidated() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.google.saveSignedInAccount(
+                GoogleAccountHint(
+                    id = "person@example.com",
+                    displayName = "Person",
+                ),
+            )
+            fixture.google.saveConnectedSpreadsheet(
+                spreadsheetId = SPREADSHEET_ID,
+                spreadsheetTitle = "Work Log",
+                validatedAt = Instant.parse("2026-07-26T14:00:00Z"),
+            )
+            val viewModel = fixture.viewModel()
+            val effects = mutableListOf<SettingsEffect>()
+            collectState(viewModel)
+            backgroundScope.launch(
+                UnconfinedTestDispatcher(testScheduler),
+            ) {
+                viewModel.effects.collect(effects::add)
+            }
+            runCurrent()
+
+            viewModel.onEvent(
+                SettingsEvent.ValidateAndConnectSpreadsheet,
+            )
+            runCurrent()
+
+            assertEquals(
+                GoogleConnectionUiStatus.CONNECTED,
+                viewModel.uiState.value.googleStatus,
+            )
+            assertTrue(effects.isEmpty())
+        }
+
+    @Test
+    fun successfulSignOutClearsSpreadsheetConnectionAndEditorInput() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.google.saveSignedInAccount(
+                GoogleAccountHint(
+                    id = "person@example.com",
+                    displayName = "Person",
+                ),
+            )
+            fixture.google.saveConnectedSpreadsheet(
+                spreadsheetId = SPREADSHEET_ID,
+                spreadsheetTitle = "Work Log",
+                validatedAt = Instant.parse("2026-07-26T14:00:00Z"),
+            )
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            viewModel.onEvent(
+                SettingsEvent.EditSpreadsheetInput(SPREADSHEET_ID),
+            )
+            runCurrent()
+
+            fixture.google.completeLocalSignOut()
+            viewModel.onGoogleOperationResult(
+                GoogleConnectionOperationResult.SignedOut,
+            )
+            runCurrent()
+
+            assertEquals(
+                GoogleConnectionUiStatus.SIGNED_OUT,
+                viewModel.uiState.value.googleStatus,
+            )
+            assertEquals("", viewModel.uiState.value.spreadsheetInput)
+            assertNull(viewModel.uiState.value.googleAccountId)
+            assertNull(viewModel.uiState.value.connectedSpreadsheetId)
+            assertNull(viewModel.uiState.value.connectedSpreadsheetTitle)
         }
 
     private fun kotlinx.coroutines.test.TestScope.collectState(

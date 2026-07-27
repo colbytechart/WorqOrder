@@ -92,9 +92,11 @@ Use a fakeable Google gateway, current stable Google-supported Android identity/
 
 Request only `https://www.googleapis.com/auth/drive.file` for Google data access. After the user
 pastes a spreadsheet URL/ID, launch the official Android Google Picker authorization flow filtered
-to that exact ID and the Google Sheets MIME type. Accept the connection only when
-`picked_file_ids` confirms that ID and Drive/Sheets validation proves it is an editable Google
-spreadsheet.
+to that exact ID and the Google Sheets MIME type. A nonempty `picked_file_ids` result must contain
+exactly that ID. Because Disconnect deliberately retains the existing per-file grant, Google may
+return no Picker IDs when that grant is reused during reconnect; in that case only an exact-ID
+Drive capability check plus Sheets metadata validation may establish the connection. A nonempty
+mismatch is always rejected.
 
 This supersedes the provisional `spreadsheets`-scope plan after the Milestone 9 official-doc
 review found Google's current Android Picker resource-parameter flow. The chosen scope is
@@ -302,7 +304,9 @@ network call. Google connection state and APIs remain Milestones 10 and 11.
 System, Light, and Dark are always-enabled radio choices. System is the first-launch and
 unknown-value fallback; while selected, it follows the device configuration without disabling the
 two explicit overrides. Client Management is the first normal Settings item, followed by
-Appearance, Time zone, export default, and Google connection status.
+Appearance, Time Zone, and Export Destination. The Google Sheets Connection section is rendered
+only while Google Sheets is the selected destination. Section and screen headers use title
+capitalization; body, field, and action copy retains its existing sentence-style wording.
 
 ### D-044 — Milestone 8 CSV snapshot and document delivery
 
@@ -349,15 +353,22 @@ plugin, API-key authorization, backend, or service account is introduced.
 
 Connecting stores only non-secret spreadsheet ID, title, validation status/time, and an optional
 account display hint in DataStore. It does not store access/refresh tokens and does not write a test
-cell. Validation requires an exact Picker grant, Drive edit/content-modification capability, and a
-successful narrow Sheets metadata read.
+cell. An initial/nonempty Picker result must exactly match the parsed input. A reconnect may reuse
+the retained grant and return no Picker IDs; exact-ID Drive edit/content-modification capability
+and a successful narrow Sheets metadata read remain mandatory before anything is saved.
 
 **Disconnect** clears the local spreadsheet association but leaves the selected Google account and
 grant unchanged. **Sign out** immediately makes Google export unavailable, attempts to revoke the
 app's Google data grant, clears Credential Manager state and in-memory credentials, and clears the
-account hint. It may preserve spreadsheet ID/title as stale convenience metadata, but a later
-sign-in must Picker-grant and revalidate the file before export. A failed remote revocation is
-reported instead of falsely claiming complete revocation.
+account hint and all connected-spreadsheet metadata. A later sign-in must explicitly connect,
+Picker-grant, and revalidate a spreadsheet before export. A failed remote revocation is reported
+instead of falsely claiming complete revocation; local account and spreadsheet metadata are still
+cleared so Google export remains unavailable.
+
+While a connection exists, Settings shows its title/ID and Disconnect/Sign Out actions but hides
+the spreadsheet URL/ID and Validate and Connect controls. The entire connection card is hidden
+unless Google Sheets is the selected Export Destination. Selecting Google Sheets automatically
+scrolls the Settings list to the newly revealed connection card.
 
 Milestone 10 implements this decision with DataStore keys for the account ID/display
 hint, spreadsheet ID/title, validation timestamp, current-account validation flag, and
@@ -473,6 +484,29 @@ Google uses sheet-scoped developer metadata for marker/schema/date and right-siz
 nine columns and required rows to respect the spreadsheet's 10-million-cell limit. XLSX uses
 reviewed non-visible workbook/package metadata. A same-named tab without the marker is a conflict,
 not permission to overwrite.
+
+Before the first WorqOrder export to either persistent destination, a confirmed completely blank
+spreadsheet/workbook reuses and renames its original first worksheet instead of leaving an empty
+default tab. If any user content exists, or blankness cannot be established safely, all existing
+tabs remain untouched and WorqOrder adds the requested date tab.
+
+### D-054 — Atomic Google Sheets batch with invisible exact ownership keys
+
+Milestone 11 reads spreadsheet structure and developer metadata nested on the sheet that owns it
+immediately before each write, then uses one `spreadsheets.batchUpdate`. A first export also
+inspects workbook content when needed: it renames/right-sizes the original first sheet only when
+the whole spreadsheet is confirmed blank; otherwise a new date batch adds the exact-size sheet.
+The batch creates the three `PROJECT`-visible metadata entries
+`worqorder_export_marker=WORQORDER_EXPORT`, `worqorder_export_schema=2`, and
+`worqorder_export_work_date=YYYY-MM-DD`, and writes the canonical table. An existing owned date
+batch resizes then completely replaces that table. Success requires a 2xx batch response that
+confirms the connected spreadsheet ID.
+
+Cells use `UpdateCellsRequest.userEnteredValue.stringValue`, not destination-specific value
+interpretation, so all canonical strings—including formula-prefixed user text—remain literal. No
+automatic network retry occurs. A mutation response interrupted after transmission is ambiguous,
+never success; explicit retry is safe because replacement is idempotent. Google export uses the
+same running-interval one-instant snapshot policy as CSV and does not require Stop.
 
 ## Deferred decisions
 

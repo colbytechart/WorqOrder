@@ -41,7 +41,7 @@ class EditTaskScreenTest {
 
         composeRule.onNodeWithText("Short description").assertIsDisplayed()
         composeRule.onNodeWithText("Hardware / Software Purchases").assertIsDisplayed()
-        composeRule.onNodeWithText("Task total: 02:00:00.000").assertIsDisplayed()
+        composeRule.onNodeWithText("Task Total: 02:00:00.000").assertIsDisplayed()
         composeRule.onNodeWithText("Interval 1").assertIsDisplayed()
         composeRule.onAllNodesWithText("Start: 9:00:00 AM").assertCountEquals(2)
         composeRule.onAllNodesWithText("Stop: 10:00:00 AM").assertCountEquals(2)

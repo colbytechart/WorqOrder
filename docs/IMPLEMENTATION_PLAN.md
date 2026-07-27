@@ -36,16 +36,23 @@ a time.
    Android SDK path.
 4. Minimum SDK is API 26. The build-proven scaffold uses target API 36 and compile SDK
    API 36.1.
-5. CSV delivery uses the standard `ACTION_CREATE_DOCUMENT` save flow.
+5. CSV and XLSX delivery use the standard `ACTION_CREATE_DOCUMENT` save flow.
 6. Daily-task identity is unique by `(task series ID, work date, ZoneId)`.
-7. Room is authoritative; CSV and Google Sheets remain one-way export destinations.
+7. Room is authoritative; CSV, XLSX, and Google Sheets remain one-way export
+   destinations.
 8. WorqOrder remains free and open source under GPLv3. No supported milestone may introduce
    billing, a paid API tier, paid quota, Google Workspace/organization membership, or a custom
    domain requirement.
 9. Distribution is direct, not through Google Play. Debug Google OAuth identity is sufficient
-   through Milestone 14; permanent direct-release signing is deferred to Milestone 15.
+   through Milestone 16; permanent direct-release signing is deferred to Milestone 17.
 10. Google export uses no-cost standard quota and fails closed to CSV if Google's policy or
     available quota no longer permits that path.
+11. App-private Room and DataStore data receive a production Keystore-backed encryption
+    hardening milestone. User-selected CSV/XLSX files and readable Google Sheets cells are
+    plaintext outside that local boundary.
+12. Biometric, device-credential, PIN, or account-gated access is not part of the production
+    sequence. It is a separately authorized optional milestone after the current project is
+    complete.
 
 ## 4. Milestone 1 — Android project scaffold
 
@@ -234,12 +241,15 @@ Entry: local data and export-default settings accepted.
 
 ### Scope
 
-- Immutable schema-versioned logical export rows built from one authoritative snapshot
-  for the displayed date.
+- Immutable destination-neutral schema-version-2 logical export rows built from one authoritative
+  snapshot for the displayed date.
 - Include **Hardware / Software Purchases** immediately after Description in the shared
   schema, preserving blank values and the same RFC-style handling as other user text.
-- One row per interval, zero-interval rows, deterministic sorting, UTC/local fields,
-  totals, and running-interval snapshot rules.
+- Exactly nine visible string columns shared by every destination: Work Date, Client Name,
+  Description, Hardware / Software Purchases, Interval Number, Start Local, Stop Local, Interval
+  Duration Formatted, and Task Total Duration Formatted.
+- One row per interval, zero-interval rows, deterministic internal sorting, task-zone `HH:mm`
+  clock output, accumulated `HH:MM:SS` duration output, and running-interval snapshot rules.
 - UTF-8 RFC-style CSV serialization with correct Unicode, comma, quote, and line-break
   handling.
 - Standard `ACTION_CREATE_DOCUMENT` delivery with suggested
@@ -249,8 +259,9 @@ Entry: local data and export-default settings accepted.
 
 ### Verification gate
 
-- Golden schema/escaping tests, duration/DST/running snapshots, picker cancellation and
-  provider failure tests, and static checks for no XLSX or storage permission.
+- Golden nine-column schema/escaping tests, clock-only/DST/duration-truncation/running snapshots,
+  picker cancellation and provider failure tests, and static checks for no premature XLSX or
+  storage permission.
 
 ## 12. Milestone 9 — Current Google authentication and Sheets integration plan
 
@@ -313,14 +324,17 @@ Entry: account and spreadsheet connection accepted.
 
 ### Scope
 
-- Reuse the CSV logical row schema and exact column order.
+- Consume the one immutable destination-neutral schema-version-2 snapshot; do not independently
+  select, order, or format fields.
 - Include hardware/software-purchases text through that shared schema and write it as a
   raw value.
 - Export only to the single connected spreadsheet and one application-owned
   `WorqOrder_YYYY-MM-DD` tab per displayed date.
-- Create/verify marker and schema version, reject unmarked same-name conflicts, and
-  atomically replace application-owned date-tab contents with the current authoritative
-  snapshot.
+- Store marker/schema/date in sheet-scoped developer metadata so row 1 can be the same nine-column
+  header as CSV/XLSX. Reject unmarked same-name conflicts and atomically replace application-owned
+  date-tab contents with the current authoritative snapshot.
+- Create each date sheet with exactly nine columns and the required row count, and resize on
+  replacement to avoid unnecessary use of Google Sheets' 10-million-cell spreadsheet limit.
 - Preserve all other tabs, never import to Room, never create a spreadsheet, and expose
   useful retryable offline/auth/network/ambiguous-response states.
 - Use bounded explicit-operation traffic within standard no-cost quotas; quota exhaustion never
@@ -332,9 +346,59 @@ Entry: account and spreadsheet connection accepted.
   correctly; conflict tabs and unrelated tabs remain untouched; failed exports do not
   mutate Room or claim success.
 
-## 15. Milestone 12 — Lifecycle, process-death, reboot, and timer hardening
+## 15. Milestone 12 — Focused XLSX export
 
-Entry: core local and export workflows accepted.
+Entry: the Google Sheets export and shared logical export model are accepted, and the owner has
+approved the final unified export columns.
+
+### Scope
+
+- Add XLSX as the third and final export destination alongside CSV and Google Sheets.
+- Let the user create/select and connect exactly one persistent XLSX workbook through SAF,
+  display its status/name, replace/disconnect it without deleting the document, and persist only
+  its non-secret user-granted URI metadata/permission.
+- Reuse the unified logical snapshot, field semantics, displayed-date rule, deterministic row
+  order, zero-interval behavior, and running-interval snapshot policy.
+- Maintain one marked `WorqOrder_YYYY-MM-DD` worksheet per exported date, with the exact shared
+  header at row 1. Add a missing date; replace the complete marked table on re-export, clearing
+  obsolete rows so duplicates cannot occur; preserve unrelated worksheets.
+- Create the initial/replacement workbook through `ACTION_CREATE_DOCUMENT` with the official OOXML
+  spreadsheet MIME type and suggested `worqorder.xlsx` name. Request no storage permission.
+- Write all nine canonical values as literal text cells so formula-like input cannot execute and
+  visible content remains equivalent to CSV/Google.
+- Store marker/schema/date mappings as reviewed non-visible workbook/package metadata. Reject a
+  same-named unmarked tab rather than overwriting it.
+- Use a focused implementation with bounded memory and deterministic ZIP/OOXML output. At the
+  milestone start, compare a small maintained Android-compatible writer against a narrow internal
+  OOXML writer, check GPLv3 compatibility and transitive size, and stop for owner approval before
+  adding a dependency. Apache POI remains prohibited unless a separately documented owner
+  decision supersedes that constraint.
+- Expand the typed export-default setting and Main/Settings labels to exactly CSV, XLSX, and
+  Google Sheets. Preserve CSV as the first-launch/corrupt-value fallback.
+- Keep XLSX one-way and repeatable. Cancellation/failure must not mutate Room, claim success, or
+  leave an app-managed partial file.
+- If the connected URI is deleted, moved, revoked, malformed, or unwritable, invalidate it without
+  crashing and launch create-document. After user destination selection, create a fresh workbook
+  containing the requested date; cancellation leaves XLSX disconnected. Prove a provider-safe
+  interrupted read/modify/rewrite strategy that preserves the last valid workbook.
+
+### Security and correctness verification gate
+
+- Golden workbook tests cover exact headers, shared row semantics, empty dates, zero/multiple
+  intervals, running snapshots, deterministic ordering, long durations, task-zone clock values,
+  Unicode, commas, quotes, CR/LF, and formula-prefixed user strings as literal cells.
+- Parse generated workbooks with an independent test reader and manually open representative
+  files in current Microsoft Excel and LibreOffice.
+- Test malformed/write-failure cleanup, picker cancellation, repeated date replacement, unrelated
+  tabs, missing/moved/revoked URI recovery, interrupted rewrite, large-workbook memory/time, no
+  local mutation, no broad storage permission, and no app-private plaintext staging.
+- Audit the ZIP package for required OOXML parts, path traversal hazards, external links, macros,
+  formulas, hidden content, credentials, and unnecessary metadata.
+- Run formatting, lint, unit, instrumentation/UI tests, and applicable debug/release builds.
+
+## 16. Milestone 13 — Lifecycle, process-death, reboot, and timer hardening
+
+Entry: core local and all three export workflows accepted.
 
 ### Scope
 
@@ -349,16 +413,77 @@ Entry: core local and export workflows accepted.
 - Instrumented lifecycle/process simulations and manual reboot/background scenarios
   prove persisted open-interval recovery and correct normalization.
 
-## 16. Milestone 13 — Accessibility, usability, and error-state refinement
+## 17. Milestone 14 — Data Protection and Encryption Hardening
 
-Entry: all primary workflows function.
+Entry: lifecycle/recovery behavior and all persistent schemas are stable.
+
+This is a required production milestone. It adds invisible local protection and deliberately does
+not add a login screen, biometric prompt, app PIN, or account requirement.
+
+### Threat model and design gate
+
+- Document assets, trust boundaries, attacker capabilities, and explicit limits before selecting
+  a cryptographic implementation. The protected local assets include Room main/WAL/SHM content,
+  sensitive DataStore values, export snapshots while held by the app, and diagnostic output.
+- Select only stable, maintained, Android/API-26-compatible, GPLv3-compatible components. Prefer
+  Android Keystore non-exportable key material, authenticated encryption such as AES-GCM, and a
+  design that preserves Room transactions, indexes, migrations, and acceptable startup/query
+  performance.
+- Compare whole-database encryption with carefully bounded field/envelope encryption. Choose and
+  record one design after proving it encrypts auxiliary database files and does not weaken
+  normalized-name uniqueness, date/task queries, or migration support.
+- Define key creation, versioning, rotation, device-unlock availability, backup/restore behavior,
+  and fail-closed handling for missing, invalidated, or corrupt keys. Never silently delete or
+  recreate authoritative Room data after a cryptographic failure.
+
+### Implementation scope
+
+- Migrate existing plaintext Room data to encrypted-at-rest storage through a crash-safe,
+  non-destructive, tested upgrade path with rollback/recovery guidance.
+- Encrypt sensitive DataStore-held metadata using the same reviewed key hierarchy or a separate
+  purpose-bound key. Keep raw Google access/refresh/ID tokens prohibited.
+- Disable Android backup for protected app data or define explicit encrypted backup/data-extraction
+  exclusions so ciphertext is never restored without its usable key.
+- Keep sensitive task/client/export content out of logs, crash messages, analytics, notifications,
+  clipboard, previews, and app-private temporary files. Continue using in-memory immutable export
+  snapshots and clear references promptly after delivery.
+- Preserve TLS-only Google transport and Google-managed authorization. Readable Google Sheets
+  cells are not end-to-end encrypted by WorqOrder. User-directed CSV and XLSX documents cross the
+  app boundary as unencrypted files; the save UI and documentation must state that responsibility.
+- Document that plaintext necessarily exists transiently in process memory while the unlocked app
+  displays, edits, or exports it, and that this milestone does not defend against an attacker who
+  controls an already-unlocked device/process.
+
+### Security, migration, and bug verification gate
+
+- Populate a real prior-version plaintext database and preferences, upgrade them, verify every
+  client/task/interval/active-timer/selection/setting, then reopen after process death and reboot.
+- Search the encrypted database, WAL, SHM, DataStore, cache, backup artifacts, logs, and crash
+  output for seeded canary plaintext; no protected canary may be recoverable at rest.
+- Test fresh install, upgrade interruption at each durable phase, low-storage/write failure,
+  corrupted ciphertext, wrong/missing/invalidated key, key-version rotation, concurrent reads and
+  writes, active timer during upgrade gating, and downgrade behavior. Every failure must be
+  explicit and non-destructive.
+- Re-run Room constraints/migrations, timer lifecycle/recovery, all export snapshot/delivery,
+  Google authorization, and UI regression suites to catch encryption integration bugs.
+- Benchmark startup, date-list queries, client normalization/conflict checks, timer Start/Stop,
+  migration time, database growth, memory, and battery against recorded pre-encryption baselines.
+- Audit release manifests, backup/data-extraction rules, dependency licenses/CVEs, random number
+  use, nonce uniqueness, key aliases/purposes, logging, temporary files, and release-build
+  obfuscation behavior.
+- Run formatting, lint, unit, instrumentation/UI/security tests, and debug/release builds on at
+  least API 26 and the current target API.
+
+## 18. Milestone 15 — Accessibility, usability, and error-state refinement
+
+Entry: all primary workflows and production data protection function.
 
 ### Scope
 
 - Accessibility semantics, touch targets, TalkBack order, large font, small-screen and
   adaptive layout, contrast, and Light/Dark review.
 - Refine empty, loading, disabled, validation, conflict, offline, authorization, retry,
-  and destructive-confirmation states without changing approved behavior.
+  encryption/key failure, and destructive-confirmation states without changing approved behavior.
 - Profile long task lists and timer recomposition; fix measured issues without
   architecture expansion.
 
@@ -367,43 +492,42 @@ Entry: all primary workflows function.
 - Automated accessibility/UI coverage plus documented manual device, font-scale,
   TalkBack, theme, and error-recovery checks.
 
-### Owner reminder after Milestone 13
+### Deferred export-status reminder after Milestone 15
 
-After Milestone 13 is completed, remind the owner to decide whether to:
+The owner has resolved the prior column-reduction reminder through schema version 2 before
+Milestone 11. After Milestone 15, remind the owner only about the still-deferred request to stop
+showing neutral export-cancellation status on the Main screen. Do not implement that UI change
+without explicit approval.
 
-1. stop showing neutral export-cancellation status on the Main screen; and
-2. drastically reduce the task data/columns exported to CSV.
+## 19. Milestone 16 — Full specification audit, regression testing, and security review
 
-Do not implement either change without explicit approval. If the CSV schema changes, review schema
-versioning and whether the later Google Sheets export should retain the shared logical row model.
-
-## 17. Milestone 14 — Full specification audit, regression testing, and security review
-
-Entry: feature and refinement milestones accepted.
+Entry: feature, protection, and refinement milestones accepted.
 
 ### Scope
 
 - Map every product requirement and acceptance scenario to implementation and passing
   evidence.
-- Run the full unit, coroutine, Room/migration, ViewModel, Compose, lifecycle, CSV, fake
-  Google, and controlled integration suites.
-- Audit permissions, logs, credentials, OAuth scopes, storage, spreadsheet ownership,
-  CSV formula risk, dependency licenses, migration policy, no-billing/no-Play policy, standard
-  quota behavior, and prohibited technology.
+- Run the full unit, coroutine, Room/migration, ViewModel, Compose, lifecycle, CSV, XLSX, fake
+  Google, encryption, and controlled integration suites.
+- Audit permissions, logs, credentials, OAuth scopes, local encryption/key management, backup
+  behavior, storage, spreadsheet ownership, spreadsheet-formula risk, dependency licenses and
+  vulnerabilities, migration policy, no-billing/no-Play policy, standard quota behavior, and
+  prohibited technology.
 - Resolve specification drift through explicit decisions and documentation updates.
 
 ### Verification gate
 
 - No unmapped required behavior, unexplained test gap, prohibited dependency,
-  permission, credential, destructive migration, or known data-loss path remains.
+  permission, credential, unencrypted protected local artifact, destructive migration, or known
+  data-loss path remains.
 
-## 18. Milestone 15 — Release preparation and developer handoff
+## 20. Milestone 17 — Release preparation and developer handoff
 
-Entry: Milestone 14 audit accepted.
+Entry: Milestone 16 audit accepted.
 
 ### Scope
 
-- Final API/device and populated-database upgrade matrix, performance check, and
+- Final API/device and populated-database/encryption upgrade matrix, performance check, and
   debug/release build verification.
 - Versioning, signing and release configuration through the owner's secure process.
 - Create the permanent direct-release keystore/fingerprint and matching Android OAuth client through
@@ -411,17 +535,76 @@ Entry: Milestone 14 audit accepted.
 - Move the External OAuth audience to In Production for small ongoing use, document the
   unverified/personal-use consent limitations, and retain repository-hosted privacy/user guidance
   without making a custom domain or paid brand verification a release dependency.
-- Document no-cost standard quota behavior, CSV fallback, backup limitations, known limitations,
-  and maintenance guidance.
+- Document no-cost standard quota behavior, CSV fallback, external plaintext-export and local
+  encryption limitations, known limitations, and maintenance guidance.
 - Update README and produce a release candidate without committing signing material,
   credentials, tokens, `local.properties`, or generated local state.
 
 ### Verification gate
 
-- Formatting, lint, all unit/instrumentation/UI/integration tests, migration verification,
-  and applicable release build pass; handoff documentation is complete and reproducible.
+- Formatting, lint, all unit/instrumentation/UI/integration/security tests, migration
+  verification, and applicable release build pass; handoff documentation is complete and
+  reproducible.
 
-## 19. Dependency selection checklist
+## 21. Optional Milestone 18 — Post-project options and application-access security
+
+Entry: the current production project through Milestone 17 is fully completed and accepted, and
+the owner separately gives explicit permission to begin this optional milestone.
+
+This milestone is not required for current production completion. Do not remind the owner about it
+until Milestone 17 is completely finished, and never begin it from a general request to continue
+the current project.
+
+### Optional scope
+
+- Revisit the threat model specifically for unauthorized use of an unlocked or shared device.
+- Offer an opt-in app lock backed by Android BiometricPrompt with device credential where supported;
+  decide whether a local PIN fallback is acceptable without weakening Keystore protection.
+- Define lock-on-launch, background timeout, screen-off, process-death, task-switcher, and
+  sensitive-screen reauthentication behavior without interrupting or corrupting a running timer.
+- Keep core records local and offline. Do not add a WorqOrder cloud account, custom backend,
+  password database, remote recovery service, or Google-account requirement merely to unlock the
+  app.
+- Add privacy-screen controls such as sensitive recent-app previews and screenshots only after
+  explicit usability review.
+- Design recovery and key-binding behavior so enrollment changes, credential removal, or biometric
+  lockout never cause silent database deletion. Clearly document any security/recovery tradeoff.
+- Add an explicit XLSX mode choice: use the production single connected persistent workbook or
+  create a separate one-off workbook for each manual export. Both modes consume the same canonical
+  nine-column snapshot and never change Room.
+- Optionally schedule automatic export of the just-completed local date at its ZoneId-aware
+  midnight only when the selected destination is Google Sheets or a valid persistent XLSX
+  workbook. CSV and one-off XLSX are excluded because they require a user-selected destination.
+- Design automatic export around current Android background-execution guidance without a
+  foreground service merely waiting for midnight. Define reboot/catch-up, Doze, zone changes,
+  offline/auth expiration, missing/revoked XLSX URI, bounded retry, duplicate/idempotent
+  replacement, notification/privacy, enable/disable controls, and battery behavior before
+  implementation.
+- Automatic XLSX recovery may prompt for a replacement document only while the user is present; a
+  background run with an invalid URI records a safe pending failure and cannot silently select a
+  filesystem destination.
+
+### Optional security and bug verification gate
+
+- Test successful/failed/canceled authentication, lockout, device-credential fallback, enrollment
+  changes, background timeout boundaries, screen off/on, rotation, process death, reboot, and
+  concurrent navigation.
+- Test Start/Stop and midnight normalization while UI access is locked; locking must not stop,
+  duplicate, or lose an active interval.
+- Test accessibility of prompts, no sensitive content before unlock, no bypass through deep links,
+  notifications, task-switcher snapshots, exported activities, or restored navigation state.
+- Re-run encryption key-loss/migration, Room, timer, export, lifecycle, Compose, and release
+  regression suites and perform a focused bypass/abuse-case security review.
+- Test persistent/one-off XLSX mode migration and switching, identical rows in both modes,
+  create-document cancellation, unrelated-tab preservation, and stale URI recovery.
+- Test midnight scheduling across ordinary days, spring-forward/fall-back, manual/device ZoneId
+  changes, missed execution, Doze, reboot, offline/auth expiry, concurrent manual export, and
+  repeated delivery. Each successful date must converge to one duplicate-free tab.
+- Test that disabling automation cancels future work, that CSV/one-off XLSX never auto-run, and
+  that no background failure mutates Room, creates unbounded retries, or exposes sensitive data.
+- Require explicit owner acceptance of every usability/security tradeoff before release.
+
+## 22. Dependency selection checklist
 
 At the first milestone that needs a dependency:
 
@@ -435,20 +618,29 @@ At the first milestone that needs a dependency:
    artifacts.
 
 The initial scaffold already includes Compose, Activity, Lifecycle, Navigation,
-coroutines, Room, Preferences DataStore, and AndroidX testing. Google dependencies are
-deferred until the mandatory Milestone 9 discovery gate.
+coroutines, Room, Preferences DataStore, and AndroidX testing. Google dependencies were
+selected through the mandatory Milestone 9 discovery gate. XLSX and local-encryption
+dependencies, if any, must pass this checklist in their owning milestones before being
+added.
 
-## 20. Risk register
+## 23. Risk register
 
 | Risk | Impact | Mitigation/gate |
 | --- | --- | --- |
 | `ACTION_CREATE_DOCUMENT` cannot force a Downloads subfolder | The system picker may save outside `Downloads/WorqOrder` | Accepted D-030 gives final location control to the user; do not add a storage-permission workaround |
-| OAuth configuration differs from app identity | Google authorization fails | Register exact `worq.order` plus debug SHA-1 now and direct-release SHA-1 only in Milestone 15; no Play identity |
+| OAuth configuration differs from app identity | Google authorization fails | Register exact `worq.order` plus debug SHA-1 now and direct-release SHA-1 only in Milestone 17; no Play identity |
 | Google Android auth APIs evolve | Integration churn or conflict with stable-only rule | Milestone 9 selected current stable versions; recheck official releases at Milestone 10 implementation |
 | Picker grant does not match pasted spreadsheet ID | Wrong file connected or per-file access unavailable | Filter Picker by exact ID/MIME type, require exact `picked_file_ids` match, and validate Drive edit capability plus Sheets metadata |
 | OAuth project remains in Testing | `drive.file` grants expire after seven days | Use External Testing during development, then move the small personal-use project to In Production without making verified branding/custom domain a dependency |
 | Google standard quota or policy changes | Google export could fail or invite paid capacity | Never attach billing or buy quota; use bounded explicit calls, show a useful failure, keep CSV available, and require a new owner decision |
 | Collaborative sheet changes race an export | Possible remote conflict | Marker, narrow reads, atomic batch, raw values, idempotent retry; never change Room |
+| XLSX writer is too large, incompatible, or unsafe | APK bloat, build failure, malformed workbooks, or formula execution | Milestone 12 dependency/design gate, literal cells, independent-parser/golden tests, Excel/LibreOffice checks, and no Apache POI without explicit approval |
+| Connected XLSX URI is moved, deleted, revoked, or cannot be safely rewritten | Export crash, data loss, or stale connection | Invalidate without crashing, require user-mediated replacement creation, start the fresh workbook with the requested date, preserve Room, and test interrupted provider writes |
+| Per-date sheets exhaust Google grid allocation or become unwieldy | Export failure or poor spreadsheet usability | Exactly nine columns, required row counts, resize on replacement, monitor the official 10-million-cell spreadsheet limit, and surface a capacity error before mutation |
+| Plaintext local database/preferences are extracted | Sensitive client/task data disclosed from app-private artifacts | Required Milestone 14 Keystore-backed encryption, canary scans across DB/WAL/SHM/DataStore/backup/logs, and fail-closed migration/key handling |
+| Encryption key is lost or invalidated | Authoritative local data becomes unavailable | Versioned key hierarchy, documented recovery limits, non-destructive failure, interrupted-migration tests, and never silently reset Room |
+| Encryption degrades core performance | Slow startup, task lists, or timer mutations | Record pre-encryption baselines and enforce focused startup/query/migration/memory benchmarks |
+| User assumes exported files/Sheets are end-to-end encrypted | Sensitive data is shared outside the protected app boundary | Explicit save/connection guidance: CSV/XLSX are unencrypted user-controlled files and readable Sheets rely on Google/TLS controls |
 | Wall-clock correction while timer runs | Live and persisted elapsed can disagree | Monotonic live view, UTC persistence, non-negative clamp, explicit anomaly result |
 | DST/zone changes and midnight transitions | Misassigned dates or intervals | Stored/pinned ZoneIds, `atStartOfDay`, three-part uniqueness, real-zone tests |
 | Process death during timer mutation | Orphaned/open state | One Room transaction, singleton pointer, structural open-slot constraint, recovery tests |
@@ -457,14 +649,14 @@ deferred until the mandatory Milestone 9 discovery gate.
 | Room migration loss | Irrecoverable local truth | Schema exports from version 1, explicit migrations, populated tests, no destructive release fallback |
 | Frequent timer recomposition | Battery/performance issues | Collection-scoped coarse ticker, derived state, profiling, and no tick writes |
 
-## 21. Traceability
+## 24. Traceability
 
 - Product behavior and concept reconciliation: `PRODUCT_SPEC.md`.
 - Layering, toolchain, security, and test strategy: `ARCHITECTURE.md`.
 - Tables, columns, constraints, preferences, and migrations: `DATA_MODEL.md`.
 - Start/Stop, display, rollover, midnight, DST, and anomalies:
   `TIMER_AND_DATE_RULES.md`.
-- Logical rows, CSV, Google protocol, setup, and failures: `EXPORT_SPEC.md`.
+- Logical rows, CSV, XLSX, Google protocol, setup, and failures: `EXPORT_SPEC.md`.
 - Observable verification: `ACCEPTANCE_TESTS.md`.
 - Fixed choices and unresolved inputs: `DECISIONS.md`.
 

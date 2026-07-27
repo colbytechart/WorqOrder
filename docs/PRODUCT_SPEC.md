@@ -7,9 +7,11 @@ Authoritative data store: local Room database
 
 ## 1. Product intent
 
-WorqOrder is a fast, offline-first Android application for recording daily client tasks and their work intervals in real time. A user selects a daily task, starts and stops one global timer, reviews or corrects historical intervals, and exports the displayed date either as CSV or into one connected Google spreadsheet.
+WorqOrder is a fast, offline-first Android application for recording daily client tasks and their work intervals in real time. A user selects a daily task, starts and stops one global timer, reviews or corrects historical intervals, and exports the displayed date as CSV, as XLSX, or into one connected Google spreadsheet.
 
-Task tracking, editing, client management, timer recovery, and CSV row generation must work without a network, Google account, Firebase, a server, or a custom backend. Room is authoritative. Exports are copies and never feed data back into Room.
+Task tracking, editing, client management, timer recovery, and local export-row generation must
+work without a network, Google account, Firebase, a server, or a custom backend. Room is
+authoritative. Exports are copies and never feed data back into Room.
 
 ## 2. Scope
 
@@ -21,19 +23,24 @@ Task tracking, editing, client management, timer recovery, and CSV row generatio
 - Active and archived client management.
 - Device or manually chosen geographical time zone.
 - Explicit Light and Dark themes, applied immediately.
-- UTF-8 CSV export through an Android scoped/user-mediated storage flow.
+- UTF-8 CSV and focused XLSX export through Android scoped/user-mediated storage flows.
 - One connected Google spreadsheet, with one application-owned worksheet tab per date.
 - Local settings and meaningful export status/error presentation.
+- Keystore-backed encryption of sensitive app-private Room/DataStore content, without requiring
+  the user to log in or complete a biometric prompt.
 - Free and open-source distribution under GPLv3, with no paid service required for any supported
   workflow.
 
 ### Excluded
 
-- XLSX or any other native spreadsheet-file generation.
-- Import from CSV or Google Sheets.
+- Import from CSV, XLSX, or Google Sheets.
 - Google Sheets synchronization, conflict merging, or cross-device task synchronization.
 - Firebase, a custom backend, web application, web wrapper, Flutter, or React Native.
-- Concurrent timers, background location, billing, accounts for local use, or team collaboration.
+- Concurrent timers, background location, billing, required accounts for local use, or team
+  collaboration.
+- Biometric, device-credential, PIN, or account-gated app access in the required production
+  sequence. That capability is reserved for an optional post-project milestone requiring separate
+  owner authorization.
 - Google Play distribution, Google Play App Signing, paid Google API quota, a billing account,
   Google Workspace/Cloud organization membership, or a custom-domain requirement.
 - A foreground service in the initial MVP.
@@ -108,7 +115,7 @@ Create validates and writes one daily task. If its work date is today, it become
 
 ### Export
 
-The bottom action always identifies both date and destination, for example **Export Jul 22 as CSV** or **Submit Jul 22 to Google Sheets**. It exports the displayed date, not implicitly “today.” If Google Sheets is the default and account authorization or a validated spreadsheet is missing, navigate to/focus the Google Sheets settings section and explain what is required.
+The bottom action always identifies both date and destination, for example **Export Jul 22 as CSV**, **Export Jul 22 to XLSX**, or **Submit Jul 22 to Google Sheets**. It exports the displayed date, not implicitly “today.” If Google Sheets lacks authorization/a validated spreadsheet, or XLSX lacks a valid connected workbook, navigate to/focus the relevant settings section and explain what is required.
 
 The app may export while a timer is running. The exporter first normalizes midnight boundaries and takes one consistent snapshot instant. An open interval has a blank stop, a `RUNNING` state, and snapshot-based duration fields; export does not stop it. This behavior must be visible in export documentation and tested.
 
@@ -157,7 +164,11 @@ Settings contains:
 - **Clients:** active list with add/rename/archive and optional archived list with restore. Client Management is the first normal Settings item so the most frequent local-data administration workflow is immediately reachable.
 - **Appearance:** explicit System, Light, and Dark choices, with System as the first-launch default. System follows the device appearance while Light and Dark remain enabled as immediately selectable overrides. Changes are persisted in Preferences DataStore and apply immediately without recreating navigation or timer state.
 - **Time zone:** device-zone mode or manual geographical `ZoneId`, searchable/navigable selector, and effective ID display. Device mode is the first-launch default. Mode/zone changes are blocked during timing. Historical stored dates and zone IDs never move.
-- **Export default:** CSV or Google Sheets, with CSV as the first-launch and corrupt-value fallback.
+- **Export default:** CSV, XLSX, or Google Sheets, with CSV as the first-launch and corrupt-value
+  fallback after the XLSX milestone.
+- **XLSX workbook:** create/select exactly one persistent workbook, show its name/status,
+  replace/disconnect it, and recover a missing/moved/revoked document through a user-mediated
+  create-document flow.
 - **Google Sheets:** authorization/sign-in state, sign-out, spreadsheet URL/ID input, Validate/Connect, connected title and ID, and Disconnect.
 
 Disconnecting a spreadsheet clears its ID/title association but does not delete the spreadsheet or revoke unrelated account access. Sign-out clears the app's Google identity/authorization session through supported Google APIs and marks Google export unavailable; it does not alter Room.
@@ -167,17 +178,45 @@ Disconnecting a spreadsheet clears its ID/title association but does not delete 
 - Room is created on first need and reopened thereafter; it is never cleared or reseeded on normal startup.
 - Clients, daily tasks, intervals, and the singleton active-timer pointer survive supported lifecycle/process/device restart events.
 - Preferences DataStore holds preferences and selection hints, not task records or raw OAuth/access/refresh tokens.
+- After Milestone 12, DataStore may retain non-secret metadata for the one connected XLSX document
+  plus its user-granted persistable SAF URI permission. The external workbook is not authoritative.
 - Versioned, non-destructive migrations and Room schema exports begin at database version 1.
 - Selection persists as a preferred task-series ID plus the last concrete daily-task ID and the date/zone context in which that task was selected. Invalid references are repaired safely. The displayed date is not persisted; normal startup displays today.
 - When the effective local date or geographical zone changes, an eligible timing selection lazily finds or creates its new daily task using `(series ID, work date, assignment ZoneId)` uniqueness, copies the prior daily task's current client, short description, and hardware/software-purchases text, and becomes selected. A task intentionally selected outside its own stored date/zone context remains view-only instead of being rolled. The zone context prevents a task assigned under a different zone from being silently repurposed.
+- The production encryption milestone protects sensitive Room and DataStore content at rest with
+  Android Keystore-backed key material and a non-destructive migration. Database auxiliary files,
+  backup rules, caches, and diagnostics are part of the protected-data audit.
+- Encryption failure is explicit and fail-closed. The app must never silently clear/reseed Room
+  because a key is missing, invalidated, or incompatible.
+- No user login, biometric prompt, device-credential prompt, or app PIN is required by the
+  production sequence. Plaintext is necessarily present transiently in process memory while the
+  unlocked app displays, edits, or exports it.
 
 ## 9. Export behavior summary
 
-- CSV and Google Sheets use the same row model and stable column order defined in `EXPORT_SPEC.md`.
+- CSV, XLSX, and Google Sheets use the same row model and stable column order defined in
+  `EXPORT_SPEC.md`.
+- The shared visible schema has exactly nine columns: Work Date, Client Name, Description,
+  Hardware / Software Purchases, Interval Number, Start Local, Stop Local, Interval Duration
+  Formatted, and Task Total Duration Formatted. Destination adapters do not independently select
+  or format fields.
 - CSV is UTF-8, RFC-style quoted, repeatable, and one row per interval; zero-interval tasks still emit one row.
-- Exactly one spreadsheet can be connected. Its tab is `WorqOrder_YYYY-MM-DD`.
-- A marked WorqOrder tab is replaced from the current authoritative date snapshot on re-export. An unmarked same-name tab is a conflict and is not overwritten.
+- XLSX uses exactly one connected persistent standards-compliant, unencrypted OOXML workbook. A
+  missing date creates `WorqOrder_YYYY-MM-DD`; re-export replaces that marked date table and
+  preserves unrelated tabs. If the document becomes unavailable, prompt the user to create a
+  fresh workbook containing the requested date rather than crashing.
+- Exactly one Google spreadsheet can be connected. Its per-date tab is
+  `WorqOrder_YYYY-MM-DD`.
+- In persistent XLSX and Google Sheets, a marked WorqOrder tab is replaced from the current
+  authoritative date snapshot on re-export. An unmarked same-name tab is a conflict and is not
+  overwritten. Repeated exports never append duplicate rows.
 - No export modifies or deletes local data. Failures and cancellation do not claim success.
+- App-private data is encrypted at rest after the production hardening milestone. User-selected
+  CSV/XLSX files and readable Google Sheets cells are intentionally outside that boundary and are
+  not end-to-end encrypted by WorqOrder.
+- One-off versus persistent XLSX choice and optional automatic local-midnight export to
+  Google/persistent XLSX are deferred to optional Milestone 18 and require separate owner
+  authorization.
 
 ## 10. Concept-image review
 
@@ -194,7 +233,7 @@ The three supplied images are visual concepts, not pixel-perfect requirements. T
 | New-task dialog says “ok,” lacks Add Client, and has no purchases field | Required actions and validation are less clear. | Label **Create**/**Cancel**, add inline **Add client**, and add **Hardware / Software Purchases** as a second text field. Show a character count for each text field with a 400-character limit. |
 | Settings uses a fixed-offset “Eastern Time” label | Fixed offsets fail DST and the product requires geographical IDs. | Show `America/New_York` (with a friendly label optionally), never store only `UTC-05:00`. |
 | “Dark mode” toggle only | System, Light, and Dark choices are required. | Use a three-choice radio group. System is selected by default and follows the device; Light and Dark remain enabled as explicit overrides. |
-| Export default appears as “Connected Google Sheet” | Connection state and default destination are distinct. | Separate destination choice from account/spreadsheet connection status and controls. |
+| Export default appears as “Connected Google Sheet” | Connection state and default destination are distinct. | Separate the CSV/XLSX/Google Sheets destination choice from account/spreadsheet connection status and controls. |
 | Client plus/minus and selected row | Minus is ambiguous and rename/archive/restore are absent. | Give each client an overflow/action menu with Rename and Archive; use a distinct Add button and an Archived section. |
 
 Additional visual requirements for implementation are Material 3 semantics, 48 dp touch targets, scalable text, contrast in both themes, screen-reader labels, and layouts that remain usable under font scaling and small screens. Exact colors and typography remain a design choice for a later UI milestone.
@@ -214,9 +253,11 @@ Additional visual requirements for implementation are Material 3 semantics, 48 d
 
 ## 12. Product completion criteria
 
-The MVP is complete only when all acceptance tests in `ACCEPTANCE_TESTS.md` pass on the supported
+The production project is complete only when all required acceptance tests in
+`ACCEPTANCE_TESTS.md` pass on the supported
 API range, release migrations are non-destructive, offline core behavior is proven, exported
-schemas are stable, no prohibited permissions/credentials/dependencies are present, and the Google
-setup guide has been exercised with the debug signing fingerprint. The permanent direct-release
-fingerprint and release OAuth client are deliberately deferred to Milestone 15. Google Play
-signing is not part of completion.
+schemas are stable across all three destinations, app-private at-rest encryption is proven, no
+prohibited permissions/credentials/dependencies are present, and the Google setup guide has been
+exercised with the debug signing fingerprint. The permanent direct-release fingerprint and release
+OAuth client are deliberately deferred to Milestone 17. Google Play signing is not part of
+completion. Optional Milestone 18 app-access gating is not required for this completion definition.

@@ -1,5 +1,7 @@
 package worq.order.app
 
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,7 +19,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import java.time.LocalDate
+import kotlinx.coroutines.CancellationException
 import worq.order.data.ThemeMode
+import worq.order.export.google.GoogleConnectionFailure
+import worq.order.export.google.GoogleConnectionOperationResult
 import worq.order.ui.settings.ApplicationSettingsViewModel
 import worq.order.ui.settings.SettingsViewModel
 import worq.order.ui.clients.ClientManagementScreen
@@ -26,6 +31,7 @@ import worq.order.ui.main.MainEffect
 import worq.order.ui.main.MainScreen
 import worq.order.ui.main.MainViewModel
 import worq.order.ui.settings.SettingsScreen
+import worq.order.ui.settings.SettingsEffect
 import worq.order.ui.tasks.CreateTaskScreen
 import worq.order.ui.tasks.CreateTaskViewModel
 import worq.order.ui.tasks.CreateTaskEffect
@@ -230,6 +236,10 @@ private fun SettingsDestination(
     navController: NavHostController,
     showGoogleSetupRequired: Boolean = false,
 ) {
+    val activity =
+        requireNotNull(LocalActivity.current as? ComponentActivity) {
+            "Google settings require a ComponentActivity host"
+        }
     val application =
         LocalContext.current.applicationContext as WorqOrderApplication
     val factory =
@@ -239,10 +249,46 @@ private fun SettingsDestination(
                 activeTimerRepository =
                     application.container.activeTimerRepository,
                 zoneIdProvider = application.container.zoneIdProvider,
+                googleConnectionRepository =
+                    application.container.googleConnectionRepository,
             )
         }
     val viewModel: SettingsViewModel = viewModel(factory = factory)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val googleConnectionCoordinator =
+        remember(application, activity) {
+            application.container.createGoogleConnectionCoordinator(activity)
+        }
+    LaunchedEffect(
+        viewModel,
+        googleConnectionCoordinator,
+    ) {
+        viewModel.effects.collect { effect ->
+            val result =
+                try {
+                    when (effect) {
+                        SettingsEffect.SignInToGoogle ->
+                            googleConnectionCoordinator.signIn()
+                        is SettingsEffect.ValidateAndConnectSpreadsheet ->
+                            googleConnectionCoordinator.validateAndConnect(
+                                effect.spreadsheetInput,
+                            )
+                        SettingsEffect.DisconnectSpreadsheet ->
+                            googleConnectionCoordinator.disconnectSpreadsheet()
+                        SettingsEffect.SignOutOfGoogle ->
+                            googleConnectionCoordinator.signOut()
+                    }
+                } catch (cancellation: CancellationException) {
+                    viewModel.onGoogleOperationInterrupted()
+                    throw cancellation
+                } catch (_: Exception) {
+                    GoogleConnectionOperationResult.Failed(
+                        GoogleConnectionFailure.LOCAL_STORAGE,
+                    )
+                }
+            viewModel.onGoogleOperationResult(result)
+        }
+    }
     SettingsScreen(
         uiState = uiState,
         onEvent = viewModel::onEvent,

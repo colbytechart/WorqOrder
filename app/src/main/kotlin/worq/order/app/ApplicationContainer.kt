@@ -1,11 +1,13 @@
 package worq.order.app
 
 import android.content.Context
+import androidx.activity.ComponentActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import worq.order.data.ActiveTimerRepository
 import worq.order.data.ClientRepository
+import worq.order.data.GoogleConnectionRepository
 import worq.order.data.SelectedTaskRepository
 import worq.order.data.SettingsRepository
 import worq.order.data.TaskRepository
@@ -16,12 +18,18 @@ import worq.order.data.local.RoomTaskRepository
 import worq.order.data.local.WorqOrderDatabase
 import worq.order.data.preferences.PreferencesSelectedTaskRepository
 import worq.order.data.preferences.PreferencesSettingsRepository
+import worq.order.data.preferences.PreferencesGoogleConnectionRepository
 import worq.order.data.preferences.worqOrderPreferencesDataStore
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
+import worq.order.export.ExportSnapshotCoordinator
 import worq.order.export.csv.AndroidDocumentOutputDestination
 import worq.order.export.csv.DocumentOutputDestination
+import worq.order.export.google.AndroidGoogleAccountAuthorizer
+import worq.order.export.google.GoogleConnectionCoordinator
+import worq.order.export.google.GoogleSheetsGateway
+import worq.order.export.google.RestGoogleSheetsGateway
 import worq.order.timer.ActiveTimerNormalizer
 import worq.order.timer.AndroidDeviceZoneIdSource
 import worq.order.timer.AndroidMonotonicTimeSource
@@ -44,6 +52,7 @@ interface ApplicationContainer {
     val activeTimerRepository: ActiveTimerRepository
     val selectedTaskRepository: SelectedTaskRepository
     val settingsRepository: SettingsRepository
+    val googleConnectionRepository: GoogleConnectionRepository
     val utcClock: UtcClock
     val zoneIdProvider: EffectiveZoneIdProvider
     val currentDateProvider: CurrentDateProvider
@@ -52,8 +61,13 @@ interface ApplicationContainer {
     val taskMutationCoordinator: TaskMutationCoordinator
     val timerCoordinator: TimerCoordinator
     val activeTimerNormalizer: ActiveTimerNormalizer
+    val exportSnapshotCoordinator: ExportSnapshotCoordinator
     val csvExportCoordinator: CsvExportCoordinator
     val documentOutputDestination: DocumentOutputDestination
+
+    fun createGoogleConnectionCoordinator(
+        activity: ComponentActivity,
+    ): GoogleConnectionCoordinator
 }
 
 internal class DefaultApplicationContainer(
@@ -107,6 +121,12 @@ internal class DefaultApplicationContainer(
             dataStore = applicationContext.worqOrderPreferencesDataStore,
             activeTimerRepository = activeTimerRepository,
             timerOperationLock = timerOperationLock,
+        )
+    }
+
+    override val googleConnectionRepository: GoogleConnectionRepository by lazy {
+        PreferencesGoogleConnectionRepository(
+            dataStore = applicationContext.worqOrderPreferencesDataStore,
         )
     }
 
@@ -178,8 +198,8 @@ internal class DefaultApplicationContainer(
         )
     }
 
-    override val csvExportCoordinator: CsvExportCoordinator by lazy {
-        CsvExportCoordinator(
+    override val exportSnapshotCoordinator: ExportSnapshotCoordinator by lazy {
+        ExportSnapshotCoordinator(
             taskRepository = taskRepository,
             activeTimerNormalizer = activeTimerNormalizer,
             clock = utcClock,
@@ -187,7 +207,29 @@ internal class DefaultApplicationContainer(
         )
     }
 
+    override val csvExportCoordinator: CsvExportCoordinator by lazy {
+        CsvExportCoordinator(exportSnapshotCoordinator)
+    }
+
     override val documentOutputDestination: DocumentOutputDestination by lazy {
         AndroidDocumentOutputDestination(applicationContext.contentResolver)
     }
+
+    private val googleSheetsGateway: GoogleSheetsGateway by lazy {
+        RestGoogleSheetsGateway()
+    }
+
+    override fun createGoogleConnectionCoordinator(
+        activity: ComponentActivity,
+    ): GoogleConnectionCoordinator =
+        GoogleConnectionCoordinator(
+            authorizer =
+                AndroidGoogleAccountAuthorizer(
+                    activity = activity,
+                    webClientId = worq.order.BuildConfig.GOOGLE_WEB_CLIENT_ID,
+                ),
+            sheetsGateway = googleSheetsGateway,
+            connectionRepository = googleConnectionRepository,
+            now = utcClock::now,
+        )
 }

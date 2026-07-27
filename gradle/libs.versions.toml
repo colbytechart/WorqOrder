@@ -9,6 +9,9 @@ navigation = "2.9.8"
 room = "2.8.4"
 datastore = "1.2.1"
 coroutines = "1.10.2"
+credentials = "1.6.0"
+google-id = "1.2.0"
+play-services-auth = "21.6.0"
 compose-bom = "2026.06.00"
 junit = "4.13.2"
 androidx-test-junit = "1.3.0"
@@ -28,6 +31,11 @@ androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref =
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
+androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
+androidx-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
+google-identity-googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "google-id" }
+google-play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "play-services-auth" }
 
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 androidx-compose-foundation = { module = "androidx.compose.foundation:foundation" }

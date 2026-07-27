@@ -26,33 +26,19 @@ class ExportRowBuilderAndCsvSerializerTest {
 
         assertEquals(
             listOf(
-                "Schema Version",
-                "Exported At UTC",
                 "Work Date",
-                "Time Zone",
-                "Client ID",
                 "Client Name",
-                "Task ID",
-                "Task Series ID",
                 "Description",
                 "Hardware / Software Purchases",
-                "Interval ID",
                 "Interval Number",
-                "Interval State",
                 "Start Local",
                 "Stop Local",
-                "Start UTC",
-                "Stop UTC",
-                "Interval Duration Milliseconds",
                 "Interval Duration Formatted",
-                "Task Total Duration Milliseconds",
                 "Task Total Duration Formatted",
-                "Task Created UTC",
-                "Task Updated UTC",
-                "Interval Manually Edited",
             ),
             ExportSchema.headers,
         )
+        assertEquals(2, snapshot.schemaVersion)
         assertEquals(
             ExportSchema.headers.joinToString(",") + "\r\n",
             csv,
@@ -73,11 +59,13 @@ class ExportRowBuilderAndCsvSerializerTest {
         val zero =
             detail(
                 taskId = "zero",
+                description = "Zero",
                 createdAt = Instant.parse("2026-07-24T10:00:00Z"),
             )
         val one =
             detail(
                 taskId = "one",
+                description = "One",
                 createdAt = Instant.parse("2026-07-24T11:00:00Z"),
                 intervals =
                     listOf(
@@ -93,6 +81,7 @@ class ExportRowBuilderAndCsvSerializerTest {
         val multiple =
             detail(
                 taskId = "multiple",
+                description = "Multiple",
                 createdAt = Instant.parse("2026-07-24T12:00:00Z"),
                 intervals =
                     listOf(
@@ -133,16 +122,16 @@ class ExportRowBuilderAndCsvSerializerTest {
 
         assertEquals(4, first.rows.size)
         assertEquals(
-            listOf("zero", "one", "multiple", "multiple"),
-            first.rows.map { it["Task ID"] },
+            listOf("Zero", "One", "Multiple", "Multiple"),
+            first.rows.map { it["Description"] },
         )
         assertEquals(
-            listOf("", "one-interval", "earlier", "later"),
-            first.rows.map { it["Interval ID"] },
+            listOf("", "08:00", "09:00", "11:00"),
+            first.rows.map { it["Start Local"] },
         )
-        assertEquals("NO_INTERVAL", first.rows.first()["Interval State"])
-        assertEquals("", first.rows.first()["Interval Duration Milliseconds"])
-        assertEquals("0", first.rows.first()["Task Total Duration Milliseconds"])
+        assertEquals("", first.rows.first()["Interval Number"])
+        assertEquals("", first.rows.first()["Interval Duration Formatted"])
+        assertEquals("00:00:00", first.rows.first()["Task Total Duration Formatted"])
         assertEquals(
             serializer.serialize(first),
             serializer.serialize(second),
@@ -178,11 +167,12 @@ class ExportRowBuilderAndCsvSerializerTest {
     }
 
     @Test
-    fun longDurationDoesNotWrapAndLocalDstValuesIncludeOffsetAndZone() {
+    fun longDurationDoesNotWrapAndLocalDstValuesUseClockTimeOnly() {
         val zone = ZoneId.of("America/New_York")
         val longTask =
             detail(
                 taskId = "long",
+                description = "Long",
                 workDate = LocalDate.of(2026, 11, 1),
                 zoneId = zone,
                 intervals =
@@ -199,6 +189,7 @@ class ExportRowBuilderAndCsvSerializerTest {
         val repeatedHourTask =
             detail(
                 taskId = "repeated-hour",
+                description = "Repeated",
                 workDate = LocalDate.of(2026, 11, 1),
                 zoneId = zone,
                 createdAt = Instant.parse("2026-11-01T04:01:00Z"),
@@ -220,17 +211,14 @@ class ExportRowBuilderAndCsvSerializerTest {
                 exportedAt = Instant.parse("2026-11-02T06:00:00Z"),
                 tasks = listOf(longTask, repeatedHourTask),
             )
-        val longRow = snapshot.rows.first { it["Task ID"] == "long" }
+        val longRow = snapshot.rows.first { it["Description"] == "Long" }
         val repeatedHourRow =
-            snapshot.rows.first { it["Task ID"] == "repeated-hour" }
+            snapshot.rows.first { it["Description"] == "Repeated" }
 
-        assertEquals("90000000", longRow["Interval Duration Milliseconds"])
-        assertEquals("25:00:00.000", longRow["Task Total Duration Formatted"])
-        assertTrue(repeatedHourRow["Start Local"].contains("-04:00"))
-        assertTrue(repeatedHourRow["Stop Local"].contains("-05:00"))
-        assertTrue(
-            repeatedHourRow["Start Local"].contains("[America/New_York]"),
-        )
+        assertEquals("25:00:00", longRow["Interval Duration Formatted"])
+        assertEquals("25:00:00", longRow["Task Total Duration Formatted"])
+        assertEquals("01:30", repeatedHourRow["Start Local"])
+        assertEquals("01:30", repeatedHourRow["Stop Local"])
     }
 
     @Test
@@ -250,24 +238,45 @@ class ExportRowBuilderAndCsvSerializerTest {
                     ),
             )
 
-        val row =
-            builder
-                .build(
-                    workDate = WORK_DATE,
-                    exportedAt = Instant.parse("2026-07-24T13:30:00Z"),
-                    tasks = listOf(running),
-                ).rows
-                .single()
+        val snapshot =
+            builder.build(
+                workDate = WORK_DATE,
+                exportedAt = Instant.parse("2026-07-24T13:30:00Z"),
+                tasks = listOf(running),
+            )
+        val row = snapshot.rows.single()
 
-        assertEquals("RUNNING", row["Interval State"])
         assertEquals("", row["Stop Local"])
-        assertEquals("", row["Stop UTC"])
-        assertEquals("5400000", row["Interval Duration Milliseconds"])
-        assertEquals("01:30:00.000", row["Task Total Duration Formatted"])
+        assertEquals("01:30:00", row["Interval Duration Formatted"])
+        assertEquals("01:30:00", row["Task Total Duration Formatted"])
         assertEquals(
             "2026-07-24T13:30:00Z",
-            row["Exported At UTC"],
+            snapshot.exportedAt.toString(),
         )
+        assertEquals(2, snapshot.schemaVersion)
+    }
+
+    @Test
+    fun exportedDurationsDropMillisecondsWithoutRounding() {
+        val detail =
+            detail(
+                taskId = "fractional",
+                intervals =
+                    listOf(
+                        interval(
+                            id = "fractional-interval",
+                            taskId = "fractional",
+                            ordinal = 1,
+                            start = Instant.parse("2026-07-24T12:00:00Z"),
+                            stop = Instant.parse("2026-07-24T13:00:00.999Z"),
+                        ),
+                    ),
+            )
+
+        val row = builder.build(WORK_DATE, EXPORTED_AT, listOf(detail)).rows.single()
+
+        assertEquals("01:00:00", row["Interval Duration Formatted"])
+        assertEquals("01:00:00", row["Task Total Duration Formatted"])
     }
 
     private operator fun ExportRow.get(column: String): String =

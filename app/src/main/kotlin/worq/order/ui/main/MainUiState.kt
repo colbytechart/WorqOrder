@@ -14,6 +14,12 @@ enum class MainExportProgress {
     WRITING,
 }
 
+enum class MainGoogleExportState {
+    SETUP_REQUIRED,
+    AUTHORIZATION_REQUIRED,
+    CONNECTED,
+}
+
 enum class MainExportOutcome {
     SUCCESS,
     CANCELED,
@@ -40,6 +46,7 @@ enum class MainMessage {
     DATA_UNAVAILABLE,
     TASK_NOT_FOUND,
     RUNNING_TASK_LOCKED,
+    GOOGLE_EXPORT_NOT_AVAILABLE,
 }
 
 data class MainTaskItemUi(
@@ -80,6 +87,8 @@ data class MainUiState(
     val taskPendingDeletion: MainTaskItemUi? = null,
     val canExport: Boolean = false,
     val exportDestination: ExportDestination = ExportDestination.CSV,
+    val googleExportState: MainGoogleExportState =
+        MainGoogleExportState.SETUP_REQUIRED,
     val exportProgress: MainExportProgress? = null,
     val exportFeedback: MainExportFeedback? = null,
 ) {

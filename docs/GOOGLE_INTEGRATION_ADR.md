@@ -57,8 +57,8 @@ Use the following design:
    access, refresh, ID, or authorization-code tokens in DataStore or Room.
 9. Use only no-additional-cost standard API quota. Never attach billing or request a
    paid quota increase; report quota failure and preserve CSV.
-10. Use the debug signing identity for Milestones 10–14. Create the permanent
-    direct-release identity in Milestone 15; do not create a Google Play client.
+10. Use the debug signing identity for Milestones 10–16. Create the permanent
+    direct-release identity in Milestone 17; do not create a Google Play client.
 
 This replaces the earlier provisional plan to request the sensitive
 `https://www.googleapis.com/auth/spreadsheets` scope.
@@ -210,8 +210,9 @@ Accept:
 - a supported `https://docs.google.com/spreadsheets/d/{id}/...` URL.
 
 Trim surrounding whitespace, reject unsupported hosts/schemes, reject query/fragment
-text as an ID, impose a documented maximum input length, and allow only the character
-set used by Google file IDs. Parsing is local and performs no network call.
+text as an ID, cap the complete input at 500 characters, and allow only ASCII letters,
+digits, underscores, and hyphens in a 20-to-200-character file ID. Parsing is local
+and performs no network call.
 
 ### Per-file grant
 
@@ -350,9 +351,9 @@ state outside WorqOrder's DataStore. An OAuth client ID and signing-certificate
 fingerprint are identifiers, not secrets, but environment-specific values still follow
 the configuration and review process in `GOOGLE_SHEETS_SETUP.md`.
 
-## 11. Proposed stable dependencies
+## 11. Implemented stable dependencies
 
-Do not add these until Milestone 10 is explicitly authorized:
+Milestone 10 uses:
 
 | Purpose | Artifact | Proposed stable version |
 | --- | --- | --- |

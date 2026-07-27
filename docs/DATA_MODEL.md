@@ -22,6 +22,10 @@ Preferences DataStore: theme, zone mode, export default, selection hints,
 connected spreadsheet metadata, last export outcome
 ```
 
+Milestone 14 protects the app-private Room and sensitive DataStore representation at rest. That
+encryption is a storage adapter concern and does not change these logical entities, relationships,
+IDs, UTC/date/ZoneId semantics, or Room's authority.
+
 Daily tasks in a series are intentionally not parented by a separate series table in version 1. The stable `seriesId` plus work date and assignment zone identifies a rollover copy, and each daily copy carries the metadata used for the next rollover.
 
 ## 3. `clients`
@@ -141,19 +145,29 @@ Preferences are version-tolerant typed values with safe defaults:
 | `theme_mode` | `SYSTEM` by default; explicit `LIGHT` and `DARK` overrides |
 | `time_zone_mode` | `DEVICE` by default |
 | `manual_zone_id` | valid ZoneId string; ignored in device mode |
-| `default_export_destination` | `CSV` by default |
+| `default_export_destination` | `CSV` by default; valid values become `CSV`, `XLSX`, and `GOOGLE_SHEETS` in Milestone 12 |
 | `selected_series_id` | nullable UUID hint |
 | `selected_task_id` | nullable UUID hint |
 | `connected_spreadsheet_id` | nullable validated ID |
 | `connected_spreadsheet_title` | nullable last validated title |
 | `connected_google_account_hint` | nullable non-secret display identifier if supported/necessary |
-| `last_export_*` | CSV destination, work date, attempt instant, outcome, and optional safe error category |
+| `connected_xlsx_document_uri` | nullable SAF URI string for the one persistent workbook; valid only with retained user grant |
+| `connected_xlsx_document_name` | nullable non-secret display name |
+| `connected_xlsx_connection_version` | version/status used to fail closed on incomplete metadata |
+| `last_export_*` | destination, work date, attempt instant, outcome, and optional safe error category |
 
-Spreadsheet metadata is cleared on Disconnect. Account tokens, refresh tokens, passwords, service-account data, and OAuth client secrets are prohibited.
+Spreadsheet/XLSX metadata is cleared on its respective Disconnect. XLSX disconnect also releases
+the persistable URI permission when safe and does not delete the workbook. Account tokens, refresh
+tokens, passwords, service-account data, and OAuth client secrets are prohibited.
 
 Milestone 8 persists no CSV document URI, payload, provider detail, task row, or exception text.
 Every CSV attempt uses a fresh create-document flow; its safe last-attempt metadata is presentation
 history only and never becomes task or timer truth.
+
+Milestone 14 encrypts sensitive DataStore-held identifiers/metadata at rest through a reviewed,
+Keystore-backed storage boundary. Preference keys/default recovery remain typed and
+version-tolerant; cryptographic corruption must fail closed rather than silently substituting a
+state that could create or lose task/timer data.
 
 ## 9. Selection and rollover data rules
 
@@ -172,6 +186,7 @@ history only and never becomes task or timer truth.
 | Delete daily task | confirmation; block if active; cascade its intervals; retain client and sibling dates |
 | Delete interval | block active interval; delete only interval; totals derive automatically |
 | Disconnect Google | clear local connection metadata; external sheet untouched |
+| Disconnect XLSX | clear URI/name metadata and release app access; external workbook untouched |
 | Delete app/clear storage | outside durability guarantee; local database/preferences can be lost |
 
 ## 11. Migration policy
@@ -209,10 +224,18 @@ Implemented first schema evolution:
 - a populated `1 -> 2` migration instrumentation test verifies the empty default for existing
   tasks and preservation of every pre-existing relationship and timer invariant.
 
+The Milestone 14 plaintext-to-encrypted-storage transition is a separate non-destructive storage
+migration even when no Room entity version changes. Its tests must populate the previous
+production database/preferences, interrupt every durable transition phase, reopen after process
+death/reboot, and prove all rows, relationships, active-timer state, settings, and selection hints
+survive. Missing/invalidated keys or corrupt ciphertext must never trigger destructive Room
+creation.
+
 ## 12. Deliberate non-models
 
 - No `start1/stop1/...` columns.
 - No stored ticking stopwatch or denormalized task-total column.
 - No remote-ID columns for synchronization.
 - No Google row IDs or export flags are required because Google export replaces a marked date tab from an authoritative snapshot.
-- No XLSX entities, attachments, user table, Firebase IDs, or server queues.
+- No XLSX entities are needed; XLSX remains a transient one-way document projection. There are
+  also no attachments, user table, Firebase IDs, or server queues.

@@ -11,8 +11,23 @@ ViewModels
         ↓
 Repositories and rule-heavy domain services
         ↓
-Room | DataStore | clocks/zones | CSV output | Google Sheets gateway
+Room | DataStore | clocks/zones | CSV/XLSX output | Google Sheets gateway
 ```
+
+Milestone 10 implements the Google boundary with:
+
+- a `GoogleConnectionRepository` that stores only account display hints and
+  connected-spreadsheet metadata in Preferences DataStore;
+- a lifecycle-scoped Android adapter for Credential Manager,
+  `AuthorizationClient`, and the exact-file Picker resolution;
+- a pure `GoogleConnectionCoordinator` that maps identity, authorization,
+  validation, disconnect, and sign-out outcomes;
+- a small fakeable HTTPS/JSON `GoogleSheetsGateway` for Drive v3 and Sheets v4
+  metadata validation; and
+- immutable Settings/Main UI state that contains no Google SDK types or tokens.
+
+The access token remains inside `export.google` for one explicit operation and is
+never returned to a ViewModel, persisted, or logged.
 
 Room owns clients, tasks, intervals, and active-timer truth. DataStore owns preferences and selection hints. UI observes `Flow` state and sends intent-like events; it does not mutate DAOs directly or own authoritative timer state.
 
@@ -56,7 +71,9 @@ domain                 rule-heavy services and domain errors/results
 timer                  normalization, display ticker, clocks
 export                 export row model/builder and orchestration
 export.csv             serializer and document destination
+export.xlsx            focused OOXML workbook writer and document destination
 export.google          authorization and Sheets gateway
+security               Keystore key management and encrypted-storage adapters
 model                   UI/domain models that are not persistence entities
 util                    narrow formatting/parsing helpers
 ```
@@ -74,9 +91,10 @@ realtime adapters, one shared timer-operation mutex, one process-local live time
 
 Later milestones extend the same boundary with:
 
-- export-row builder and CSV serializer;
+- destination-neutral export snapshot coordinator/row builder and CSV serializer;
 - document-output adapter;
 - Google authorization coordinator and `GoogleSheetsGateway`; and
+- focused XLSX writer and Keystore-backed encrypted-storage components; and
 - dispatcher provider where tests require deterministic dispatchers.
 
 ViewModel factories request only their direct dependencies. Android framework types stay in adapters/gateways, not pure domain services. A DI framework is not planned; reconsider only if container wiring becomes demonstrably unsafe or unmaintainable.
@@ -123,8 +141,8 @@ The visible ticker runs only while collected and an interval is active. It emits
   continuation, retarget, and final close operations to `ActiveTimerDao`. Eligibility and boundary
   calculation remain outside the DAO.
 - `SettingsRepository`: provides typed Flow access to theme, zone mode/manual ID, default export,
-  and the safe last CSV attempt (destination/date/instant/outcome/category). Spreadsheet metadata
-  extends it in the later Google milestones.
+  and the safe last export attempt (destination/date/instant/outcome/category). Google and
+  persistent-XLSX connection metadata extend typed repositories in their owning milestones.
 - `SelectedTaskRepository`: implemented in Preferences DataStore with task/series hints plus the
   effective selection date/zone needed to distinguish real daily carryover from intentional
   historical browsing. It stores no task or interval truth.
@@ -144,13 +162,16 @@ The visible ticker runs only while collected and an interval is active. It emits
   selected-task cleanup after daily-task deletion.
 - `DurationMath`, `MidnightBoundaryCalculator`, and `LiveTimerSession`: pure accumulated duration,
   real-zone boundary, and process-local monotonic/recovery models.
-- `ExportRowBuilder`: implemented in Milestone 8; takes a consistent Room snapshot and emits the
-  exact schema-version 1 rows, including active and zero-interval rows.
-- `CsvExportCoordinator`: captures one instant under the timer-operation lock, normalizes crossed
-  boundaries, reads the transactional Room snapshot, deterministically builds rows, and fully
-  serializes the pending CSV before the picker opens.
-- A later destination-neutral `ExportCoordinator` may reuse the same logical rows for Google; no
-  Google gateway exists in Milestone 8.
+- `ExportSnapshotCoordinator`: implemented from the Milestone 8 foundation; captures one instant
+  under the timer-operation lock, normalizes crossed boundaries, reads the transactional Room
+  snapshot, and returns the one immutable destination-neutral dataset.
+- `ExportRowBuilder`: owns schema version 2, the exact nine visible columns, task-zone `HH:mm`,
+  accumulated `HH:MM:SS`, zero/running rows, and deterministic internal-key sorting.
+- `CsvExportCoordinator`: consumes the prepared snapshot and only serializes/packages the pending
+  UTF-8 CSV before the picker opens.
+- Future XLSX and Google adapters receive the same `ExportSnapshot`; destination adapters may
+  escape/package/transport but never select, reorder, or reformat task fields or become sources of
+  task truth.
 
 ## 7. Concurrency and transaction model
 
@@ -201,11 +222,15 @@ Detailed algorithms and anomaly policy are in `TIMER_AND_DATE_RULES.md`.
 
 DataStore stores atomic timing-selection preferences (task ID, series ID, effective selection date,
 and selection ZoneId) plus typed theme, time-zone mode/manual ID, and export-default values.
-The safe last CSV attempt is implemented in Milestone 8. Spreadsheet metadata remains a later
-milestone. Domain operations that can
+The safe last CSV attempt is implemented in Milestone 8. Google metadata is implemented in
+Milestone 10; persistent-XLSX URI/display/status metadata is added in Milestone 12. Domain operations that can
 create daily copies or intervals wait for the first persisted effective-zone emission. DataStore
 does not contain task rows, active-timer state, passwords, service-account material, raw access
 tokens, or refresh tokens.
+
+Milestone 14 adds Keystore-backed at-rest protection to sensitive Room and DataStore content.
+The selected design must preserve typed repository APIs; ViewModels/composables never handle raw
+keys or cryptographic payloads.
 
 ### File output
 
@@ -215,6 +240,49 @@ Milestone 8 uses Android user-mediated/scoped storage. Compose launches
 best-effort deletion of partial provider documents, and unit tests remain isolated. Cancellation
 occurs before this adapter is called. The complete CSV string is serialized before the picker
 opens, and output streams close deterministically.
+
+Milestone 12 adds one persistent connected-XLSX boundary:
+
+- Settings creates through `ACTION_CREATE_DOCUMENT` or selects through SAF, retains the
+  user-granted URI permission, stores only URI/display/status metadata, and supports
+  replace/disconnect without deleting the workbook.
+- Each exported date owns one marked `WorqOrder_YYYY-MM-DD` worksheet. Re-export replaces the
+  entire shared nine-column table, clears stale rows, and preserves unrelated tabs.
+- The OOXML marker/schema/date mapping is non-visible package metadata so visible rows match
+  CSV/Google exactly.
+- A missing/moved/revoked/malformed/unwritable URI is invalidated without crashing. The app
+  launches create-document and, after user destination selection, creates a fresh workbook
+  containing the requested date. Cancellation leaves it disconnected.
+- The milestone must prove a provider-safe interrupted read/modify/rewrite strategy with bounded
+  memory, preservation of the last valid workbook, and no unencrypted app-private staging.
+
+CSV and XLSX files are unencrypted external artifacts once handed to the user-selected provider.
+
+### Encrypted local storage
+
+Milestone 14 is a required production hardening boundary:
+
+- non-exportable Android Keystore material anchors versioned, purpose-bound encryption keys;
+- authenticated encryption protects sensitive app-private Room/DataStore data at rest, including
+  database auxiliary files and backup behavior;
+- a populated plaintext-to-encrypted migration is crash-safe, non-destructive, and never falls
+  back to clearing/reseeding Room;
+- key loss, invalidation, ciphertext corruption, low storage, and interrupted migration fail
+  closed with explicit recovery guidance;
+- plaintext task/client/export content is excluded from logs, crash text, caches, clipboard, and
+  app-private temporary files; and
+- app code continues to receive mapped domain models, so timer/date/export rules do not become
+  coupled to encryption details.
+
+The implementation milestone must compare whole-database encryption with bounded
+field/envelope encryption against Room query/index/migration needs before selecting a stable,
+GPLv3-compatible API-26 solution. Cryptographic details are recorded in `DECISIONS.md` only after
+that proof. No login, biometric, app PIN, or account gate is part of this required layer.
+
+User-directed CSV/XLSX files and readable Google Sheets cells are outside the local encrypted
+boundary. Google traffic uses TLS and Google-managed authorization, but readable Sheets export is
+not end-to-end encrypted by WorqOrder. Plaintext is also necessarily present transiently in
+process memory while an unlocked app displays, edits, or exports data.
 
 ## 10. Google boundary
 
@@ -237,8 +305,8 @@ Google support is a replaceable gateway outside the offline core.
   no-cost standard tier. Do not attach billing, request a paid quota increase, or implement a path
   that can generate charges. Quota exhaustion is a safe failure and CSV remains available.
 - The supported distribution is direct APK delivery, not Google Play. Debug OAuth identity is used
-  through Milestone 14; the permanent direct-release signing identity and OAuth client are created
-  only in Milestone 15.
+  through Milestone 16; the permanent direct-release signing identity and OAuth client are created
+  only in Milestone 17.
 
 The Milestone 9 official-document review on 2026-07-26 selected stable Credential Manager `1.6.0`,
 Google ID `1.2.0`, `play-services-auth:21.6.0`, and
@@ -254,6 +322,8 @@ path, do not broaden scope or enable billing—stop and revisit the Google featu
 ## 11. Security and privacy
 
 - No local account is required for core use.
+- Required production protection is transparent Keystore-backed at-rest encryption; it does not
+  prompt for biometrics, a device credential, an app PIN, or a WorqOrder account.
 - Store only necessary Google spreadsheet metadata; let Google-supported components manage credentials.
 - Never log task descriptions, hardware/software-purchases text, spreadsheet contents,
   authorization headers, IDs unnecessarily, or credential payloads.
@@ -262,22 +332,34 @@ path, do not broaden scope or enable billing—stop and revisit the Google featu
 - CSV preserves field text with RFC quoting. Document that downstream spreadsheet programs can interpret formula-like CSV cells; do not silently alter authoritative text without a product decision.
 - Network security uses platform TLS; no cleartext traffic.
 - No storage permission is expected under the selected SAF/scoped approach.
+- CSV and XLSX are explicitly unencrypted user-selected external files. Readable Google Sheets
+  cells rely on Google account/access controls and are not app-level end-to-end encrypted.
+- Optional user-presence/app-access gating is isolated to post-project Milestone 18 and requires a
+  new explicit owner authorization.
 
 ## 12. Dependency policy
 
-The implementation dependency set should remain limited to Android/Jetpack Compose, lifecycle/navigation, coroutines, Room, DataStore, test libraries, and the smallest stable Google identity/Sheets stack that satisfies the gateway. Avoid date libraries, Excel libraries, DI frameworks, Firebase BOM, reflection-heavy mapping layers, and general-purpose networking stacks unless the Google client choice demonstrably needs one.
+The implementation dependency set should remain limited to Android/Jetpack Compose,
+lifecycle/navigation, coroutines, Room, DataStore, test libraries, the smallest stable Google
+identity/Sheets stack that satisfies the gateway, and focused XLSX/encryption components proven in
+their owning milestone gates. Avoid Apache POI, broad Excel stacks, redundant cryptography
+frameworks, date libraries, DI frameworks, Firebase BOM, reflection-heavy mapping layers, and
+general-purpose networking stacks unless a separately approved decision demonstrates the need.
 
 All versions live in the version catalog. Renovation is a separate reviewed change. A dependency update must pass formatting, lint, unit, Room/migration instrumentation, Compose tests, and builds.
 
 ## 13. Test architecture
 
 - Pure JVM tests own clocks, zones, DST dates, formatting, canonical names, task-metadata
-  validation/copying, interval validation, rollover, splitting, export rows, and CSV serialization.
+  validation/copying, interval validation, rollover, splitting, export rows, CSV serialization,
+  and deterministic XLSX package/cell generation.
 - `kotlinx-coroutines-test` controls dispatchers/tickers.
 - Room instrumentation tests use real SQLite, primarily in-memory databases plus one named reopen fixture, for schema creation, observations, normalization conflicts, foreign keys, unique indexes, cascades/restrictions, ordering, atomic active mutations, reopen persistence, and packaged schema availability. Version 1 has no predecessor migration; every later schema version must add populated migration-path coverage.
 - ViewModel tests combine fake repositories/gateways and deterministic time.
 - Compose UI tests cover the main workflows, disabled states, confirmation, settings, picker/authorization launch effects, and accessibility semantics.
 - Fake `Clock`, monotonic source, zone provider, document destination, and Google gateway are first-class test fixtures.
+- Encryption instrumentation adds populated migration, key lifecycle/failure, DB/WAL/SHM/DataStore
+  plaintext-canary scans, backup configuration, and performance/regression fixtures.
 
 ## 14. Operational behavior
 

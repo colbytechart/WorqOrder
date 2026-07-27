@@ -5,6 +5,8 @@ import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
@@ -15,14 +17,18 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import worq.order.data.ExportDestination
+import worq.order.data.GoogleAccountHint
 import worq.order.data.NewDailyTask
 import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
 import worq.order.testing.FakeActiveTimerRepository
 import worq.order.testing.FakeSettingsRepository
+import worq.order.testing.FakeGoogleConnectionRepository
 import worq.order.testing.FakeTaskRepository
 import worq.order.testing.FakeZoneIdProvider
 import worq.order.testing.MainDispatcherRule
+import worq.order.export.google.GoogleConnectionFailure
+import worq.order.export.google.GoogleConnectionOperationResult
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
@@ -123,6 +129,72 @@ class SettingsViewModelTest {
             assertEquals(TimeZoneMode.DEVICE, viewModel.uiState.value.timeZoneMode)
         }
 
+    @Test
+    fun googleConnectionEventsExposeProgressAndStructuredRecoveryState() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            val signInEffect = async { viewModel.effects.first() }
+            runCurrent()
+            viewModel.onEvent(SettingsEvent.SignInToGoogle)
+            assertEquals(
+                SettingsEffect.SignInToGoogle,
+                signInEffect.await(),
+            )
+            assertEquals(
+                GoogleConnectionUiStatus.SIGNING_IN,
+                viewModel.uiState.value.googleStatus,
+            )
+
+            val account =
+                GoogleAccountHint(
+                    id = "person@example.com",
+                    displayName = "Person",
+                )
+            fixture.google.saveSignedInAccount(account)
+            viewModel.onGoogleOperationResult(
+                GoogleConnectionOperationResult.SignedIn(account),
+            )
+            runCurrent()
+            assertEquals(
+                GoogleConnectionUiStatus.SIGNED_IN_NO_SPREADSHEET,
+                viewModel.uiState.value.googleStatus,
+            )
+
+            viewModel.onEvent(
+                SettingsEvent.EditSpreadsheetInput(SPREADSHEET_ID),
+            )
+            val validationEffect = async { viewModel.effects.first() }
+            runCurrent()
+            viewModel.onEvent(SettingsEvent.ValidateAndConnectSpreadsheet)
+            assertEquals(
+                SettingsEffect.ValidateAndConnectSpreadsheet(SPREADSHEET_ID),
+                validationEffect.await(),
+            )
+            assertEquals(
+                GoogleConnectionUiStatus.VALIDATING_SPREADSHEET,
+                viewModel.uiState.value.googleStatus,
+            )
+
+            viewModel.onGoogleOperationResult(
+                GoogleConnectionOperationResult.Failed(
+                    GoogleConnectionFailure.OFFLINE,
+                ),
+            )
+            runCurrent()
+            assertEquals(
+                GoogleConnectionUiStatus.OFFLINE_ERROR,
+                viewModel.uiState.value.googleStatus,
+            )
+            assertEquals(
+                GoogleSettingsMessage.OFFLINE,
+                viewModel.uiState.value.googleMessage,
+            )
+        }
+
     private fun kotlinx.coroutines.test.TestScope.collectState(
         viewModel: SettingsViewModel,
     ) {
@@ -135,6 +207,7 @@ class SettingsViewModelTest {
         val tasks = FakeTaskRepository()
         val active = FakeActiveTimerRepository(tasks)
         val settings = FakeSettingsRepository()
+        val google = FakeGoogleConnectionRepository()
         val zone = FakeZoneIdProvider(ZoneId.of("America/Chicago"))
 
         fun viewModel() =
@@ -142,6 +215,12 @@ class SettingsViewModelTest {
                 settingsRepository = settings,
                 activeTimerRepository = active,
                 zoneIdProvider = zone,
+                googleConnectionRepository = google,
             )
+    }
+
+    private companion object {
+        const val SPREADSHEET_ID =
+            "1AbCdEfGhIjKlMnOpQrStUvWxYz_123456789"
     }
 }

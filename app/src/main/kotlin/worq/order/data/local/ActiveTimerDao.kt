@@ -190,7 +190,22 @@ abstract class ActiveTimerDao {
 
     @Transaction
     open suspend fun readActiveTimerSnapshot(): ActiveTimerTransactionEntity? {
-        val activeTimer = readActiveTimer() ?: return null
+        val activeTimer = readActiveTimer()
+        val openCandidateCount = countOpenIntervalCandidates()
+        if (activeTimer == null) {
+            if (openCandidateCount != 0) {
+                throw PersistenceInvariantException(
+                    "Found $openCandidateCount open interval candidate(s) without active timer",
+                )
+            }
+            return null
+        }
+        if (openCandidateCount != 1) {
+            throw PersistenceInvariantException(
+                "Active timer requires exactly one open interval candidate; found " +
+                    openCandidateCount,
+            )
+        }
         val interval =
             readIntervalInternal(activeTimer.intervalId)
                 ?: throw PersistenceInvariantException(

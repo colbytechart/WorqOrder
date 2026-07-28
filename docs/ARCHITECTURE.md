@@ -83,10 +83,11 @@ Do not add one “use case” class per repository getter. Add named domain serv
 ## 4. Application container
 
 `WorqOrderApplication` owns one lazily constructed application-scoped container. As of Milestone
-7, the container constructs one retained `WorqOrderDatabase`, Room-backed client/task/active-timer
+13, the container constructs one retained `WorqOrderDatabase`, Room-backed client/task/active-timer
 repositories, typed settings and selection Preferences DataStore repositories, UTC/device/manual-zone/elapsed
 realtime adapters, one shared timer-operation mutex, one process-local live timer session,
-`SelectionCoordinator`, `TimerCoordinator`, `ActiveTimerNormalizer`, and
+`SelectionCoordinator`, `TimerCoordinator`, `ActiveTimerNormalizer`,
+`TimerRecoveryCoordinator`, and
 `TaskMutationCoordinator`.
 
 Later milestones extend the same boundary with:
@@ -152,7 +153,11 @@ The visible ticker runs only while collected and an interval is active. It emits
 - `TimerCoordinator`: typed Start/Stop entry point; validates exact-today eligibility, coordinates
   the shared mutex and Room transaction APIs, and owns clock-anomaly results/live-anchor changes.
 - `ActiveTimerNormalizer`: calculates all crossed boundaries from the pinned session zone, applies
-  one atomic continuation chain, follows the active task selection, and re-anchors display state.
+  one atomic continuation chain, follows the active task selection, and establishes/re-establishes
+  process-local display state without changing persisted boundaries.
+- `TimerRecoveryCoordinator`: application-scoped startup/resume entry point that waits for the
+  effective zone, captures one UTC instant, normalizes Room state, and then reconciles selection.
+  Its own mutex makes duplicate Activity/Main resume signals idempotent.
 - `SelectionCoordinator`: select/clear/observe, active-timer switching lock, dangling repair, and
   exact three-part daily rollover using current source metadata.
 - `ManualIntervalValidator`: pure boundary, ordering, overlap, open/running-state, and explicit
@@ -164,9 +169,10 @@ The visible ticker runs only while collected and an interval is active. It emits
   real-zone boundary, and process-local monotonic/recovery models.
 - `ExportSnapshotCoordinator`: implemented from the Milestone 8 foundation; captures one instant
   under the timer-operation lock, normalizes crossed boundaries, reads the transactional Room
-  snapshot, and returns the one immutable destination-neutral dataset.
+  snapshot, and returns the one immutable destination-neutral dataset. Main permits this workflow
+  only when Room-derived active state is loaded and empty.
 - `ExportRowBuilder`: owns schema version 2, the exact nine visible columns, task-zone `HH:mm`,
-  accumulated `HH:MM:SS`, zero/running rows, and deterministic internal-key sorting.
+  accumulated `HH:MM:SS`, zero-interval rows, and deterministic internal-key sorting.
 - `CsvExportCoordinator`: consumes the prepared snapshot and only serializes/packages the pending
   UTF-8 CSV before the picker opens.
 - XLSX and Google adapters receive the same `ExportSnapshot`; destination adapters may
@@ -183,6 +189,9 @@ The visible ticker runs only while collected and an interval is active. It emits
 - Midnight normalization receives a Kotlin-calculated ordered boundary plan. One Room transaction
   closes each segment, finds or creates the exact three-part daily copy, inserts the continuation,
   retargets the singleton, and either leaves the final interval open or closes/clears it for Stop.
+- Snapshot reads verify that zero active rows means zero open candidates and that one active row
+  means exactly one valid matching open candidate. Orphan/mismatched states fail explicitly; no
+  startup repair discards an interval.
 - Task/client edits use optimistic current-state validation inside their write transaction, not only form validation.
 - Export reads use one Room transaction and one captured `exportInstant` so task totals and interval durations agree.
 - Google/SAF I/O occurs after the Room read transaction ends. Network/file failures never roll back or mutate task records.
@@ -192,11 +201,18 @@ The visible ticker runs only while collected and an interval is active. It emits
 
 Use three distinct concepts:
 
-1. `UtcClock.now(): Instant` for persisted boundaries, creation/update timestamps, recovery, and export snapshots.
-2. `MonotonicTimeSource.elapsedRealtimeNanos()` for the live contribution while a process session remains alive. Android's elapsed realtime source includes device sleep.
+1. `UtcClock.now(): Instant` for Start boundaries, creation/update timestamps, process recovery,
+   and export snapshots.
+2. `MonotonicTimeSource.elapsedRealtimeNanos()` for the live contribution and projected Stop/date
+   normalization while a valid process session remains alive. Android's elapsed realtime source
+   includes device sleep.
 3. `EffectiveZoneIdProvider.zoneId(): ZoneId` from device mode now and validated manual settings later.
 
-At Start/recovery, the UI establishes a base duration and a monotonic anchor. It derives future frames from the monotonic delta. After process death, it reconstructs once from the persisted start instant and current UTC instant, then re-anchors monotonically.
+At Start/recovery, the application establishes a base duration and a monotonic anchor. It derives
+future frames from the monotonic delta. Stop and normalization project an absolute UTC instant from
+the current segment start plus measured monotonic active duration, preventing a wall-clock change
+from replacing the displayed total. After process death, it reconstructs once from the persisted
+start instant and current UTC instant, then re-anchors monotonically.
 
 The `ActiveTimer` captures the geographical boundary zone at Start. Time-zone settings are locked while active, and external device-zone changes do not change the session's splitting zone. Historical tasks always use their stored zone ID.
 
@@ -367,4 +383,4 @@ All versions live in the version catalog. Renovation is a separate reviewed chan
 
 ## 14. Operational behavior
 
-Core failures are represented in UI state and remain retryable. Last export outcome stores destination, displayed date, time, and a safe error category/detail. There is no background auto-sync or scheduled export. Process recovery is triggered on app startup/resume and before Start, Stop, edit, delete, and export operations that depend on normalized timer state.
+Core failures are represented in UI state and remain retryable. Last export outcome stores destination, displayed date, time, and a safe error category/detail. There is no background auto-sync or scheduled export. `MainActivity.onResume` invokes the application-scoped timer recovery coordinator even when Main is not visible; Main initialization/resume, date-change detection, and rule-sensitive operations provide idempotent retries. No boot receiver, alarm, wake lock, WorkManager stopwatch job, or foreground timer service exists.

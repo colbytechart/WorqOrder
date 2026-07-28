@@ -35,6 +35,7 @@
     <string name="add_task">Add task</string>
     <string name="export_date_as_csv">Export %1$s as CSV</string>
     <string name="export_date_as_xlsx">Export %1$s as XLSX</string>
+    <string name="stop_timer_to_export">Stop Timer to Export</string>
     <string name="setup_google_sheets_for_date">Set up Google Sheets for %1$s</string>
     <string name="submit_date_to_google_sheets">Submit %1$s to Google Sheets</string>
     <string name="preparing_csv">Preparing CSV…</string>

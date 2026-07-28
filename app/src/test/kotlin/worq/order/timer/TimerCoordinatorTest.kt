@@ -150,6 +150,7 @@ class TimerCoordinatorTest {
             fixture.select(task)
             assertTrue(fixture.coordinator().start() is StartTimerResult.Started)
             val evaluation = Instant.parse("2026-07-25T05:00:00Z")
+            fixture.advance(Duration.between(fixture.clock.instant, evaluation))
 
             val first = fixture.normalizer().normalize(evaluation)
             val second = fixture.normalizer().normalize(evaluation)
@@ -172,11 +173,10 @@ class TimerCoordinatorTest {
             val task = fixture.addTask(LocalDate.of(2026, 7, 24))
             fixture.select(task)
             fixture.coordinator().start()
+            val evaluation = Instant.parse("2026-07-27T05:00:00Z")
+            fixture.advance(Duration.between(fixture.clock.instant, evaluation))
 
-            val result =
-                fixture.normalizer().normalize(
-                    Instant.parse("2026-07-27T05:00:00Z"),
-                )
+            val result = fixture.normalizer().normalize(evaluation)
 
             assertTrue(result is NormalizeTimerResult.Normalized)
             assertEquals(3, (result as NormalizeTimerResult.Normalized).splitCount)
@@ -203,6 +203,70 @@ class TimerCoordinatorTest {
             assertNull(
                 fixture.active.readActiveTimerSnapshot()?.interval?.stop,
             )
+        }
+
+    @Test
+    fun backwardWallClockChangeStopsAtMonotonicProjectionWithoutDisplayJump() =
+        runTest {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY)
+            fixture.select(task)
+            fixture.coordinator().start()
+            fixture.monotonic.nanos += Duration.ofSeconds(45).toNanos()
+            fixture.clock.instant = NOW.minusSeconds(10)
+
+            val result = fixture.coordinator().stop()
+
+            assertTrue(result is StopTimerResult.Stopped)
+            assertEquals(
+                NOW.plusSeconds(45),
+                (result as StopTimerResult.Stopped).interval.stop,
+            )
+            assertEquals(
+                Duration.ofSeconds(45).toMillis(),
+                fixture.tasks.readCompletedDurationMillis(task.id),
+            )
+        }
+
+    @Test
+    fun forwardWallClockChangeStopsAtMonotonicProjectionWithoutDisplayJump() =
+        runTest {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY)
+            fixture.select(task)
+            fixture.coordinator().start()
+            fixture.monotonic.nanos += Duration.ofSeconds(45).toNanos()
+            fixture.clock.instant = NOW.plusSeconds(65)
+
+            val result = fixture.coordinator().stop()
+
+            assertTrue(result is StopTimerResult.Stopped)
+            assertEquals(
+                NOW.plusSeconds(45),
+                (result as StopTimerResult.Stopped).interval.stop,
+            )
+            assertEquals(
+                Duration.ofSeconds(45).toMillis(),
+                fixture.tasks.readCompletedDurationMillis(task.id),
+            )
+        }
+
+    @Test
+    fun forwardWallJumpCannotCreateFalseMidnightSplitWhileAnchorIsAlive() =
+        runTest {
+            val fixture = Fixture()
+            val start = Instant.parse("2026-07-24T13:00:00Z")
+            fixture.clock.instant = start
+            val task = fixture.addTask(TODAY)
+            fixture.select(task)
+            fixture.coordinator().start()
+            fixture.monotonic.nanos += Duration.ofMinutes(30).toNanos()
+            fixture.clock.instant = start.plus(Duration.ofDays(1))
+
+            val result = fixture.normalizer().normalize()
+
+            assertEquals(NormalizeTimerResult.NoChange, result)
+            assertEquals(1, fixture.allSeriesIntervals(task.seriesId).size)
         }
 
     @Test

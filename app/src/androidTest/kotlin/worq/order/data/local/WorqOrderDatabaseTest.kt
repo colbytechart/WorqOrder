@@ -797,6 +797,110 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
+    fun orphanOpenIntervalIsReportedInsteadOfBeingTreatedAsStopped() =
+        runBlocking {
+            insertClient(id = "client-1")
+            insertTask(id = "task-1", clientId = "client-1")
+            database.openHelper.writableDatabase.execSQL(
+                """
+                INSERT INTO work_intervals (
+                    id,
+                    task_id,
+                    ordinal,
+                    start_epoch_ms,
+                    stop_epoch_ms,
+                    active_slot,
+                    was_manually_edited,
+                    created_at_epoch_ms,
+                    updated_at_epoch_ms
+                ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?)
+                """.trimIndent(),
+                arrayOf<Any?>(
+                    "orphan-open",
+                    "task-1",
+                    1,
+                    TEST_NOW.toEpochMilli(),
+                    WorkIntervalEntity.ACTIVE_SLOT,
+                    0,
+                    TEST_NOW.toEpochMilli(),
+                    TEST_NOW.toEpochMilli(),
+                ),
+            )
+
+            try {
+                database.activeTimerDao().readActiveTimerSnapshot()
+            } catch (error: PersistenceInvariantException) {
+                assertTrue(error.message.orEmpty().contains("without active timer"))
+                return@runBlocking
+            }
+            throw AssertionError("Expected orphan open interval to be reported")
+        }
+
+    @Test
+    fun failedMultiBoundaryNormalizationRollsBackTheWholeChain() =
+        runBlocking {
+            insertClient(id = "client-1")
+            insertTask(
+                id = "task-day-1",
+                clientId = "client-1",
+                workDateEpochDay = LocalDate.of(2026, 7, 24).toEpochDay(),
+            )
+            val repository =
+                RoomActiveTimerRepository(
+                    activeTimerDao = database.activeTimerDao(),
+                    idGenerator =
+                        QueueIdGenerator(
+                            "interval-day-1",
+                            "task-day-2",
+                            "interval-day-2",
+                            "task-day-3",
+                            "interval-day-3",
+                        ),
+                    clock = FixedClock(Instant.parse("2026-07-25T05:00:00Z")),
+                )
+            repository.createActiveInterval(
+                taskId = "task-day-1",
+                boundaryZoneId = TEST_ZONE,
+                start = Instant.parse("2026-07-25T03:30:00Z"),
+            )
+            val duplicatedBoundary = Instant.parse("2026-07-25T04:00:00Z")
+
+            try {
+                repository.normalizeActiveInterval(
+                    expectedIntervalId = "interval-day-1",
+                    boundaries =
+                        listOf(
+                            TimerSplitBoundary(
+                                instant = duplicatedBoundary,
+                                workDate = LocalDate.of(2026, 7, 25),
+                                zoneId = TEST_ZONE,
+                            ),
+                            TimerSplitBoundary(
+                                instant = duplicatedBoundary,
+                                workDate = LocalDate.of(2026, 7, 26),
+                                zoneId = TEST_ZONE,
+                            ),
+                        ),
+                )
+            } catch (_: IllegalArgumentException) {
+                val active =
+                    requireNotNull(
+                        database.activeTimerDao().readActiveTimerSnapshot(),
+                    )
+                assertEquals("interval-day-1", active.interval.id)
+                assertNull(active.interval.stopEpochMs)
+                assertEquals(
+                    WorkIntervalEntity.ACTIVE_SLOT,
+                    active.interval.activeSlot,
+                )
+                assertNull(database.taskDao().readTask("task-day-2"))
+                assertNull(database.workIntervalDao().readInterval("interval-day-2"))
+                return@runBlocking
+            }
+            throw AssertionError("Expected invalid continuation chain to roll back")
+        }
+
+    @Test
     fun stoppingAcrossMultipleMidnightsSplitsAndClearsAtomically() =
         runBlocking {
             insertClient(id = "client-1")

@@ -249,7 +249,7 @@ Entry: local data and export-default settings accepted.
   Description, Hardware / Software Purchases, Interval Number, Start Local, Stop Local, Interval
   Duration Formatted, and Task Total Duration Formatted.
 - One row per interval, zero-interval rows, deterministic internal sorting, task-zone `HH:mm`
-  clock output, accumulated `HH:MM:SS` duration output, and running-interval snapshot rules.
+  clock output, accumulated `HH:MM:SS` duration output, and global running-timer export lockout.
 - UTF-8 RFC-style CSV serialization with correct Unicode, comma, quote, and line-break
   handling.
 - Standard `ACTION_CREATE_DOCUMENT` delivery with suggested
@@ -259,7 +259,7 @@ Entry: local data and export-default settings accepted.
 
 ### Verification gate
 
-- Golden nine-column schema/escaping tests, clock-only/DST/duration-truncation/running snapshots,
+- Golden nine-column schema/escaping tests, clock-only/DST/duration-truncation/running lockout,
   picker cancellation and provider failure tests, and static checks for no premature XLSX or
   storage permission.
 
@@ -367,7 +367,7 @@ approved the final unified export columns.
 - Create one fresh XLSX workbook per export through `ACTION_CREATE_DOCUMENT`, parallel to CSV.
   Do not open existing workbooks, retain URI grants, or store workbook connection metadata.
 - Reuse the unified logical snapshot, field semantics, displayed-date rule, deterministic row
-  order, zero-interval behavior, and running-interval snapshot policy.
+  order, zero-interval behavior, and running-timer export lockout.
 - Put exactly one `WorqOrder_YYYY-MM-DD` worksheet in each workbook, with the exact shared header
   at row 1 and complete canonical rows beginning at row 2.
 - Use the official OOXML spreadsheet MIME type and suggested
@@ -387,7 +387,7 @@ approved the final unified export columns.
 ### Security and correctness verification gate
 
 - Golden workbook tests cover exact headers, shared row semantics, empty dates, zero/multiple
-  intervals, running snapshots, deterministic ordering, long durations, task-zone clock values,
+  intervals, running lockout, deterministic ordering, long durations, task-zone clock values,
   Unicode, commas, quotes, CR/LF, and formula-prefixed user strings as literal cells.
 - Parse generated workbooks with an independent test reader and manually open representative
   files in current Microsoft Excel and LibreOffice.
@@ -401,6 +401,27 @@ approved the final unified export columns.
 ## 16. Milestone 13 — Lifecycle, process-death, reboot, and timer hardening
 
 Entry: core local and all three export workflows accepted.
+
+Status: implemented; awaiting owner acceptance.
+
+### Delivered scope
+
+- An application-scoped recovery coordinator now serializes resume recovery, resolves the
+  effective ZoneId, normalizes Room's authoritative active timer, and reconciles selection.
+- Activity resume triggers recovery regardless of the visible navigation destination; Main also
+  performs an idempotent retry and reconstructs presentation state from persisted data.
+- Live display uses one collection-scoped 50-millisecond monotonic ticker without database tick
+  writes or background execution.
+- Active-timer reads fail closed for orphaned, missing, or multiple open intervals instead of
+  treating structurally inconsistent persistence as a stopped timer.
+- In-process wall-clock anomalies are compared with the monotonic anchor before date-boundary
+  persistence. Owner-directed follow-up D-057 projects normalization and Stop from the valid
+  monotonic anchor, preventing false midnight segments and final-total jumps after wall changes.
+- Recovery, concurrency, process reconstruction, multiple-midnight, time-zone, clock-anomaly,
+  rollback, and UI lifecycle behavior have automated coverage. Device-only scenarios are
+  documented in `LIFECYCLE_TEST_PLAN.md`.
+- No foreground service, alarm, wake lock, boot receiver, WorkManager timer job, or per-tick
+  persistence was added.
 
 ### Scope
 

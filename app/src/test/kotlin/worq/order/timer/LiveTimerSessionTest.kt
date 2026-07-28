@@ -48,6 +48,27 @@ class LiveTimerSessionTest {
     }
 
     @Test
+    fun projectedInstantIgnoresLaterWallClockChanges() {
+        val monotonic = FakeMonotonicTimeSource()
+        val session = LiveTimerSession(monotonic)
+        val start = Instant.parse("2026-07-24T13:00:00Z")
+        session.establishAtStart(
+            intervalId = "interval-1",
+            completedTotal = Duration.ofHours(1),
+            wallStart = start,
+        )
+        monotonic.nanos += Duration.ofSeconds(45).toNanos()
+
+        assertEquals(
+            start.plusSeconds(45),
+            session.projectedInstant(
+                intervalId = "interval-1",
+                intervalStart = start,
+            ),
+        )
+    }
+
+    @Test
     fun negativeRecoveryIsClampedAndSurfaced() {
         val session = LiveTimerSession(FakeMonotonicTimeSource())
         session.recover(
@@ -61,6 +82,13 @@ class LiveTimerSessionTest {
 
         assertEquals(Duration.ofHours(2), state.total)
         assertTrue(state.clockAnomalyDetected)
+        assertEquals(
+            null,
+            session.projectedInstant(
+                intervalId = "interval-1",
+                intervalStart = Instant.parse("2026-07-24T13:00:00Z"),
+            ),
+        )
     }
 
     @Test

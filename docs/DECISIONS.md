@@ -57,7 +57,10 @@ Persist absolute boundaries as UTC epoch milliseconds, work dates as epoch days,
 
 ### D-011 — Derived timer and no foreground service
 
-Do not persist a changing stopwatch or write on display ticks. Use wall-clock UTC instants for persisted history, monotonic elapsed time for a live in-process display, and wall reconstruction after process death. The initial MVP has no foreground service merely to keep a counter running.
+Do not persist a changing stopwatch or write on display ticks. Persist absolute UTC boundaries,
+use monotonic elapsed time for live in-process display and the projected Stop endpoint, and use
+wall reconstruction after process death. The initial MVP has no foreground service merely to keep
+a counter running.
 
 ### D-012 — Midnight normalization
 
@@ -127,9 +130,9 @@ A client is a retained referenced entity, not a name snapshot on each task. Rena
 
 ### D-023 — Exporting a running interval
 
-Export remains available while timing. Normalize date boundaries, capture one internal export
-instant, emit blank Stop Local, and calculate interval/task duration to that snapshot without
-stopping the timer. Running state remains internal and is not a visible schema-version-2 column.
+The initial export design allowed a one-instant snapshot while timing. Manual Milestone 13 device
+testing showed that the resulting blank Stop Local was not useful or reliably understood as a
+completed record. D-056 supersedes this behavior: the user must Stop before exporting.
 
 ### D-024 — Active session pins its zone
 
@@ -228,9 +231,9 @@ that can create/find daily copies, close segments, insert continuations, and ret
 active pointer.
 
 The visible live contribution uses Android elapsed realtime and is never persisted. Recovery
-clamps a negative provisional wall contribution to zero and surfaces an anomaly. Stop returns
-`ClockChanged` without writing when `stop <= start` or when a live wall/monotonic comparison differs
-by more than the initial two-minute diagnostic tolerance.
+clamps a negative provisional wall contribution to zero and surfaces an anomaly. D-057 supersedes
+the initial two-minute live wall/monotonic rejection policy: a valid live anchor now projects the
+UTC Stop endpoint directly, while an untrustworthy negative recovery still returns `ClockChanged`.
 
 Repeated timing always creates separate intervals. The clarified example is authoritative:
 Task 1 has 9:00–10:00 AM and 1:00–2:00 PM intervals (two total hours); Task 2 has a
@@ -319,8 +322,8 @@ intervals. The entire UTF-8/CRLF CSV payload is serialized before the standard
 
 `ExportSnapshotCoordinator` owns capture/normalization/read/build and produces the immutable
 destination-neutral nine-column dataset. `CsvExportCoordinator` only serializes/delivers it; future
-XLSX and Google adapters consume the same object. Running export follows D-023 and uses the one
-captured instant without stopping the timer. Picker cancellation is neutral. Output failure
+XLSX and Google adapters consume the same object. The later D-056 UI policy requires Stop before
+this workflow is dispatched. Picker cancellation is neutral. Output failure
 attempts to delete only the returned provider URI and warns when a partial document may remain.
 CSV delivery and repeat attempts never mark, delete, or rewrite Room task data.
 
@@ -400,7 +403,7 @@ backend; stop for a new owner decision.
 Add a complete XLSX export milestone directly after Google Sheets export. Production creates one
 new user-selected workbook for every export through `ACTION_CREATE_DOCUMENT`, parallel to CSV. It
 uses the displayed date and the same immutable Room snapshot, nine columns, row order,
-one-row-per-interval rule, running snapshot policy, and no-local-mutation behavior as CSV and
+one-row-per-interval rule, stopped-timer export policy, and no-local-mutation behavior as CSV and
 Google Sheets.
 
 Each workbook contains exactly one visible `WorqOrder_YYYY-MM-DD` worksheet with the complete
@@ -511,7 +514,61 @@ Cells use `UpdateCellsRequest.userEnteredValue.stringValue`, not destination-spe
 interpretation, so all canonical strings—including formula-prefixed user text—remain literal. No
 automatic network retry occurs. A mutation response interrupted after transmission is ambiguous,
 never success; explicit retry is safe because replacement is idempotent. Google export uses the
-same running-interval one-instant snapshot policy as CSV and does not require Stop.
+same stopped-timer precondition as CSV and XLSX under D-056.
+
+### D-055 — Lifecycle recovery is Activity-triggered and Room-authoritative
+
+Milestone 13 adds one application-scoped `TimerRecoveryCoordinator`. `MainActivity.onResume`
+invokes it regardless of the visible navigation destination; Main initialization/resume and its
+foreground date-change observer remain idempotent retries. Recovery waits for the effective
+ZoneId, captures one UTC instant, normalizes all crossed boundaries with the Start-pinned zone,
+rebuilds a missing process-local monotonic anchor, and reconciles selection. Concurrent recovery
+signals are serialized and timer writes remain protected by the existing timer-operation mutex
+and Room transactions.
+
+The UI ticker remains a shared 50 ms presentation flow and stops when Main is no longer collected.
+No background ticking, foreground service, alarm, wake lock, boot receiver, or WorkManager timer
+job is added. Background, screen-off, process-death, Recents-removal, and reboot correctness comes
+from the persisted UTC open interval and singleton pointer when the user next resumes the app.
+
+Room snapshot reads now reject orphan open intervals and any singleton/open-candidate mismatch
+instead of presenting inconsistent data as stopped or silently deleting it. Negative
+process-recovery duration is clamped only for provisional display, remains a visible clock anomaly,
+and can be re-anchored after wall time is corrected without rewriting interval history. When a
+valid live monotonic anchor exists, normalization checks it before persisting wall-derived
+midnight splits, so a manual wall jump cannot invent daily segments.
+
+### D-056 — Stop is required before every export
+
+Owner-directed Milestone 13 device testing supersedes D-023's running-snapshot workflow. Whenever
+Room-derived active-timer state is present, Main disables its single export action for CSV, XLSX,
+and Google Sheets and labels it **Stop Timer to Export**. The event handler repeats the guard so a
+programmatic event while active state is loaded cannot launch a picker or network export.
+
+After Stop commits the final UTC endpoint and clears active state, export proceeds normally from
+the immutable canonical dataset. This avoids blank Stop Local values and gives every destination
+the same authoritative completed-interval semantics. The destination-neutral builder may retain
+defensive running-row capability internally, but it is not an approved user workflow.
+
+### D-057 — A valid monotonic session determines Stop and normalization
+
+Manual Milestone 13 testing found that persisting the current wall-clock sample at Stop made the
+completed total jump by roughly 10–20 seconds after ordinary forward/backward clock corrections,
+even though the live monotonic display stayed accurate. The owner rejected that user experience.
+
+While `LiveTimerSession` retains a valid anchor, Stop and active-date normalization now project:
+
+`logicalInstant = currentSegmentStart + activeDurationAtAnchor + elapsedRealtimeDelta`
+
+The projected value is persisted as an absolute UTC `Instant`, drives ZoneId-aware midnight
+boundaries, and makes the completed total match the final live total. A manual wall-clock change
+therefore cannot create a false split or replace measured elapsed work. The local Stop clock label
+may intentionally differ from the device's newly corrected wall clock.
+
+After process death or reboot, the old monotonic reading is unusable. Recovery still derives its
+initial contribution from persisted Start/current UTC, then establishes a fresh monotonic anchor.
+A negative/untrustworthy recovery remains fail-closed with `ClockChanged`; WorqOrder does not
+invent elapsed time that cannot be reconstructed.
 
 ## Deferred decisions
 

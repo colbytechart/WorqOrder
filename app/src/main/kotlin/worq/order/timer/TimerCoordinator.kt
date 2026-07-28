@@ -97,7 +97,28 @@ class ActiveTimerNormalizer(
         val current =
             activeTimerRepository.readActiveTimerSnapshot()
                 ?: return NormalizeTimerResult.NoActiveTimer
-        if (evaluationInstant.isBefore(current.interval.start)) {
+        val liveState = liveTimerSession.read(current.interval.id)
+        val projectedInstant =
+            liveTimerSession.projectedInstant(
+                intervalId = current.interval.id,
+                intervalStart = current.interval.start,
+            )
+        val normalizationInstant = projectedInstant ?: evaluationInstant
+        if (normalizationInstant.isBefore(current.interval.start)) {
+            recoverLiveSessionIfNeeded(
+                snapshot = current,
+                evaluationInstant = evaluationInstant,
+            )
+            return NormalizeTimerResult.ClockChanged(
+                intervalStart = current.interval.start,
+                evaluationInstant = evaluationInstant,
+            )
+        }
+        if (
+            liveState != null &&
+            !liveState.clockAnomalyDetected &&
+            projectedInstant == null
+        ) {
             return NormalizeTimerResult.ClockChanged(
                 intervalStart = current.interval.start,
                 evaluationInstant = evaluationInstant,
@@ -107,11 +128,15 @@ class ActiveTimerNormalizer(
         val boundaries =
             MidnightBoundaryCalculator.boundaries(
                 segmentStart = current.interval.start,
-                endpoint = evaluationInstant,
+                endpoint = normalizationInstant,
                 zoneId = current.activeTimer.boundaryZoneId,
                 includeEndpoint = true,
             )
         if (boundaries.isEmpty()) {
+            recoverLiveSessionIfNeeded(
+                snapshot = current,
+                evaluationInstant = evaluationInstant,
+            )
             return NormalizeTimerResult.NoChange
         }
 
@@ -139,11 +164,33 @@ class ActiveTimerNormalizer(
             intervalId = normalized.interval.id,
             completedTotal = completedTotal,
             intervalStart = normalized.interval.start,
-            wallNow = evaluationInstant,
+            wallNow = normalizationInstant,
         )
         return NormalizeTimerResult.Normalized(
             snapshot = normalized,
             splitCount = boundaries.size,
+        )
+    }
+
+    private suspend fun recoverLiveSessionIfNeeded(
+        snapshot: ActiveTimerSnapshot,
+        evaluationInstant: Instant,
+    ) {
+        val liveState = liveTimerSession.read(snapshot.interval.id)
+        if (liveState != null && !liveState.clockAnomalyDetected) {
+            return
+        }
+        val completedTotal =
+            Duration.ofMillis(
+                taskRepository.readCompletedDurationMillis(
+                    snapshot.interval.taskId,
+                ),
+            )
+        liveTimerSession.recover(
+            intervalId = snapshot.interval.id,
+            completedTotal = completedTotal,
+            intervalStart = snapshot.interval.start,
+            wallNow = evaluationInstant,
         )
     }
 }
@@ -217,17 +264,22 @@ class TimerCoordinator(
             val current =
                 activeTimerRepository.readActiveTimerSnapshot()
                     ?: return@withLock StopTimerResult.NoActiveTimer
-            val stop = clock.now()
+            val wallStop = clock.now()
+            val liveState = liveTimerSession.read(current.interval.id)
+            val projectedStop =
+                liveTimerSession.projectedInstant(
+                    intervalId = current.interval.id,
+                    intervalStart = current.interval.start,
+                )
+            val stop = projectedStop ?: wallStop
             if (
                 !stop.isAfter(current.interval.start) ||
-                liveTimerSession.hasClockAnomaly(
-                    intervalId = current.interval.id,
-                    wallNow = stop,
-                )
+                liveState?.clockAnomalyDetected == true ||
+                (liveState != null && projectedStop == null)
             ) {
                 return@withLock StopTimerResult.ClockChanged(
                     intervalStart = current.interval.start,
-                    attemptedStop = stop,
+                    attemptedStop = wallStop,
                 )
             }
             val boundaries =

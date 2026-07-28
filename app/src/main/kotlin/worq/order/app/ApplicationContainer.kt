@@ -44,6 +44,7 @@ import worq.order.timer.SystemUtcClock
 import worq.order.timer.SettingsEffectiveZoneIdProvider
 import worq.order.timer.TimerCoordinator
 import worq.order.timer.TimerOperationLock
+import worq.order.timer.TimerRecoveryCoordinator
 import worq.order.timer.UtcClock
 
 /**
@@ -64,6 +65,7 @@ interface ApplicationContainer {
     val taskMutationCoordinator: TaskMutationCoordinator
     val timerCoordinator: TimerCoordinator
     val activeTimerNormalizer: ActiveTimerNormalizer
+    val timerRecoveryCoordinator: TimerRecoveryCoordinator
     val exportSnapshotCoordinator: ExportSnapshotCoordinator
     val csvExportCoordinator: CsvExportCoordinator
     val xlsxExportCoordinator: XlsxExportCoordinator
@@ -204,6 +206,15 @@ internal class DefaultApplicationContainer(
             clock = utcClock,
             liveTimerSession = liveTimerSession,
             operationLock = timerOperationLock,
+        )
+    }
+
+    override val timerRecoveryCoordinator: TimerRecoveryCoordinator by lazy {
+        TimerRecoveryCoordinator(
+            activeTimerNormalizer = activeTimerNormalizer,
+            selectionCoordinator = selectionCoordinator,
+            zoneIdProvider = zoneIdProvider,
+            clock = utcClock,
         )
     }
 

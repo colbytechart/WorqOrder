@@ -50,6 +50,7 @@ import worq.order.timer.CurrentDateProvider
 import worq.order.timer.LiveTimerSession
 import worq.order.timer.TimerCoordinator
 import worq.order.timer.TimerOperationLock
+import worq.order.timer.TimerRecoveryCoordinator
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
@@ -165,6 +166,145 @@ class MainViewModelTest {
             advanceTimeBy(MainViewModel.TIMER_REFRESH_MILLIS * 2)
             runCurrent()
             assertEquals("01:00:01.000", viewModel.uiState.value.timerText)
+        }
+
+    @Test
+    fun runningTimerDisablesEveryExportDestinationUntilStopped() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY)
+            val viewModel = fixture.viewModel()
+            val effects = mutableListOf<MainEffect>()
+            collectState(viewModel)
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.effects.collect(effects::add)
+            }
+            runCurrent()
+
+            viewModel.onEvent(MainEvent.SelectTask(task.id))
+            runCurrent()
+            viewModel.onEvent(MainEvent.StartTimer)
+            runCurrent()
+
+            ExportDestination.entries.forEach { destination ->
+                fixture.settings.setDefaultExportDestination(destination)
+                runCurrent()
+
+                assertEquals(destination, viewModel.uiState.value.exportDestination)
+                assertFalse(viewModel.uiState.value.canExport)
+                viewModel.onEvent(MainEvent.Export)
+                runCurrent()
+                assertTrue(effects.isEmpty())
+                assertNull(viewModel.uiState.value.exportProgress)
+            }
+
+            fixture.clock.instant = fixture.clock.instant.plusSeconds(1)
+            fixture.monotonic.nanos += Duration.ofSeconds(1).toNanos()
+            viewModel.onEvent(MainEvent.StopTimer)
+            runCurrent()
+            assertTrue(viewModel.uiState.value.canExport)
+        }
+
+    @Test
+    fun stopAfterWallClockChangeKeepsTheMonotonicDisplayedTotal() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY)
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+            viewModel.onEvent(MainEvent.SelectTask(task.id))
+            runCurrent()
+            viewModel.onEvent(MainEvent.StartTimer)
+            runCurrent()
+
+            fixture.monotonic.nanos += Duration.ofSeconds(45).toNanos()
+            fixture.clock.instant = fixture.clock.instant.plusSeconds(65)
+            advanceTimeBy(MainViewModel.TIMER_REFRESH_MILLIS)
+            runCurrent()
+            val visibleBeforeStop = viewModel.uiState.value.timerText
+
+            viewModel.onEvent(MainEvent.StopTimer)
+            runCurrent()
+
+            assertEquals("00:00:45.000", visibleBeforeStop)
+            assertEquals(visibleBeforeStop, viewModel.uiState.value.timerText)
+            assertEquals(
+                Duration.ofSeconds(45).toMillis(),
+                fixture.tasks.readCompletedDurationMillis(task.id),
+            )
+        }
+
+    @Test
+    fun activityRecreationReusesPersistedTimerAndApplicationLiveAnchor() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY)
+            val first = fixture.viewModel()
+            collectState(first)
+            runCurrent()
+            first.onEvent(MainEvent.SelectTask(task.id))
+            runCurrent()
+            first.onEvent(MainEvent.StartTimer)
+            runCurrent()
+
+            fixture.clock.instant = fixture.clock.instant.plusSeconds(300)
+            fixture.monotonic.nanos += Duration.ofMinutes(5).toNanos()
+
+            val recreated = fixture.viewModel()
+            collectState(recreated)
+            runCurrent()
+            advanceTimeBy(MainViewModel.TIMER_REFRESH_MILLIS)
+            runCurrent()
+
+            assertEquals(MainTimerAction.STOP, recreated.uiState.value.timerAction)
+            assertEquals("00:05:00.000", recreated.uiState.value.timerText)
+            assertEquals(task.id, recreated.uiState.value.runningTask?.taskId)
+            assertEquals(
+                1,
+                requireNotNull(
+                    fixture.tasks.readTaskWithIntervals(task.id),
+                ).intervals.size,
+            )
+        }
+
+    @Test
+    fun sharedTickerRefreshesDoNotWriteChangingDurationToRepository() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY)
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.uiState.collect()
+            }
+            runCurrent()
+            viewModel.onEvent(MainEvent.SelectTask(task.id))
+            runCurrent()
+            viewModel.onEvent(MainEvent.StartTimer)
+            runCurrent()
+            val before =
+                requireNotNull(
+                    fixture.active.readActiveTimerSnapshot(),
+                ).interval
+
+            fixture.monotonic.nanos += Duration.ofSeconds(50).toNanos()
+            fixture.clock.instant = fixture.clock.instant.plusSeconds(50)
+            advanceTimeBy(MainViewModel.TIMER_REFRESH_MILLIS * 1_000)
+            runCurrent()
+
+            val after =
+                requireNotNull(
+                    fixture.active.readActiveTimerSnapshot(),
+                ).interval
+            assertEquals(before, after)
+            assertEquals("00:00:50.000", viewModel.uiState.value.timerText)
+            assertEquals(
+                1,
+                requireNotNull(
+                    fixture.tasks.readTaskWithIntervals(task.id),
+                ).intervals.size,
+            )
         }
 
     @Test
@@ -770,6 +910,13 @@ class MainViewModelTest {
                 liveTimerSession = liveTimerSession,
                 operationLock = operationLock,
             )
+        private val recoveryCoordinator =
+            TimerRecoveryCoordinator(
+                activeTimerNormalizer = normalizer,
+                selectionCoordinator = selectionCoordinator,
+                zoneIdProvider = zone,
+                clock = clock,
+            )
         private val csvExportCoordinator =
             CsvExportCoordinator(
                 taskRepository = tasks,
@@ -803,7 +950,7 @@ class MainViewModelTest {
                 activeTimerRepository = active,
                 selectionCoordinator = selectionCoordinator,
                 timerCoordinator = timerCoordinator,
-                activeTimerNormalizer = normalizer,
+                timerRecoveryCoordinator = recoveryCoordinator,
                 liveTimerSession = liveTimerSession,
                 utcClock = clock,
                 zoneIdProvider = zone,

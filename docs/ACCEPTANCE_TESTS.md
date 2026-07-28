@@ -41,7 +41,10 @@ Given task A is running, when the user tries to select/edit/delete task B or A a
 
 ### UI-07a Browse while running
 
-Given task A is running for today, when another date is displayed, then A remains the identified global timing selection, Stop remains available, rows on the viewed date cannot replace A, and exporting uses the viewed date. Creating/editing a non-running task does not alter A or its interval.
+Given task A is running for today, when another date is displayed, then A remains the identified
+global timing selection, Stop remains available, rows on the viewed date cannot replace A, and the
+export action remains disabled with **Stop Timer to Export**. Creating/editing a non-running task
+does not alter A or its interval.
 
 ### UI-08 Date picker cancellation
 
@@ -184,7 +187,10 @@ history is Task 1 `09:00–10:00` plus `13:00–14:00` (two hours total) and Tas
 
 ### TMR-03 Stop transaction
 
-Given one active interval, Stop writes one wall-clock UTC stop, clears active state, preserves the interval, and leaves the displayed total derived from completed intervals.
+Given one active interval, Stop writes one UTC stop, clears active state, preserves the interval,
+and leaves the displayed total derived from completed intervals. With a valid process-local anchor,
+the endpoint is Start plus measured monotonic active duration so the final total equals the
+immediately preceding live total.
 
 ### TMR-04 One global timer
 
@@ -216,7 +222,31 @@ Given a deliberately inconsistent test fixture (active pointer to closed/missing
 
 ### TMR-11 Wall-clock anomaly
 
-Given wall now would make Stop at/before Start, Stop does not write an invalid interval or silently invent a boundary; it preserves recoverability and shows the clock-change resolution state.
+Given wall time moves forward or backward while a valid live anchor exists, Stop and normalization
+use the monotonic projected UTC instant. The final displayed/persisted total does not jump and no
+false midnight boundary is created. If process recovery has no trustworthy anchor and wall now
+would make Stop at/before Start, the interval remains recoverable and a clock-change state is
+shown instead of writing an invalid boundary.
+
+### TMR-12 Destination-independent resume recovery
+
+Given a timer is active while Main, Create Task, Edit Task, Settings, or Client Management is
+visible, every Activity resume invokes the same application-scoped recovery sequence. Returning to
+Main shows the Room-owned running task and recovered duration without requiring that Main was
+visible during resume.
+
+### TMR-13 Concurrent recovery idempotence
+
+Given repeated or concurrent Activity/Main resume signals after one or several missed midnights,
+exactly one continuation exists for each crossed boundary, one interval remains open, and the
+active pointer and selection identify the final daily task.
+
+### TMR-14 Recovery-anchor correction
+
+Given process recovery occurs while wall time is before the persisted Start, visible active
+contribution is clamped to zero and a clock anomaly is shown. After wall time is corrected and the
+app resumes, the provisional anchor may be rebuilt without changing any persisted start/stop
+boundary.
 
 ## 6. Midnight, rollover, and time zones
 
@@ -261,7 +291,10 @@ Given a timer spans a spring-forward transition, elapsed duration follows instan
 
 ### DATE-08 Fall back
 
-Given a timer spans repeated fall-back hour, elapsed duration counts both occurrences, local export values contain offsets, and date segments fit 25-hour boundaries where applicable.
+Given a timer spans the repeated fall-back hour, elapsed duration counts both occurrences,
+persisted instants and the interval editor preserve/identify the chosen occurrence, and date
+segments fit 25-hour boundaries where applicable. The intentionally reduced external export
+schema still emits task-zone `HH:mm` only; its duration remains the correct instant-based value.
 
 ### DATE-09 Device zone mode
 
@@ -362,11 +395,11 @@ Longer-than-23-hour task totals are not wrapped. Start/Stop are converted throug
 ZoneId and exported only as 24-hour `HH:mm`; complete instants remain internal. Durations are
 `HH:MM:SS`, truncate rather than round sub-second remainder, and are locale independent.
 
-### CSV-06 Running snapshot
+### CSV-06 Running-timer lockout
 
-Given today's active interval, all rows share one internal export instant, Stop Local is blank, and
-interval/task duration uses that instant without stopping the timer. Running state and snapshot
-instant are retained internally but are not visible columns.
+Given any globally active interval, the export action is disabled and labeled **Stop Timer to
+Export**. Dispatching `MainEvent.Export` while running launches no CSV picker. After Stop, CSV
+contains the completed interval's final Stop Local and duration.
 
 ### CSV-07 Picker cancellation
 
@@ -556,11 +589,11 @@ single-worksheet parts. It has no ownership marker, macro project, formula, exte
 worksheet/content, credential, key material, path traversal entry, or unnecessary identifying
 metadata.
 
-### XLSX-05 Running/repeat/no mutation
+### XLSX-05 Running lockout/repeat/no mutation
 
-A running interval uses the same one-instant snapshot policy as the other destinations. Re-export
-creates another independent file containing one complete current snapshot; it never appends within
-a workbook. No success, cancellation, or failure changes Room or timer state.
+A running interval disables XLSX export under the same policy as the other destinations. After
+Stop, each re-export creates another independent file containing one complete current snapshot; it
+never appends within a workbook. No success, cancellation, or failure changes Room or timer state.
 
 ### XLSX-06 SAF cancellation and failure
 

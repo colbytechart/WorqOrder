@@ -77,17 +77,37 @@ class LiveTimerSession(
 
     fun read(intervalId: String): LiveDurationState? {
         val currentAnchor = anchor?.takeIf { it.intervalId == intervalId } ?: return null
-        val elapsedNanos =
-            max(
-                0L,
-                monotonicTimeSource.elapsedRealtimeNanos() -
-                    currentAnchor.monotonicAnchorNanos,
-            )
+        val elapsed = monotonicElapsedSince(currentAnchor)
         return LiveDurationState(
-            total = currentAnchor.totalAtAnchor.plus(Duration.ofNanos(elapsedNanos)),
+            total = currentAnchor.totalAtAnchor.plus(elapsed),
             clockAnomalyDetected = currentAnchor.clockAnomalyDetected,
             source = currentAnchor.source,
         )
+    }
+
+    /**
+     * Projects a stable UTC instant from the persisted segment start and Android elapsed realtime.
+     *
+     * This is available only while the process owns a valid anchor. A negative wall-clock recovery
+     * is deliberately excluded because elapsed time before that recovery cannot be reconstructed
+     * safely.
+     */
+    fun projectedInstant(
+        intervalId: String,
+        intervalStart: Instant,
+    ): Instant? {
+        val currentAnchor =
+            anchor
+                ?.takeIf {
+                    it.intervalId == intervalId &&
+                        !it.clockAnomalyDetected
+                } ?: return null
+        val activeDuration =
+            currentAnchor.activeDurationAtAnchor
+                .plus(monotonicElapsedSince(currentAnchor))
+        return runCatching {
+            intervalStart.plus(activeDuration)
+        }.getOrNull()
     }
 
     fun hasClockAnomaly(
@@ -118,6 +138,15 @@ class LiveTimerSession(
     fun clear() {
         anchor = null
     }
+
+    private fun monotonicElapsedSince(anchor: LiveTimerAnchor): Duration =
+        Duration.ofNanos(
+            max(
+                0L,
+                monotonicTimeSource.elapsedRealtimeNanos() -
+                    anchor.monotonicAnchorNanos,
+            ),
+        )
 
     companion object {
         val DEFAULT_CLOCK_DIAGNOSTIC_TOLERANCE: Duration = Duration.ofMinutes(2)

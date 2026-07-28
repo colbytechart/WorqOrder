@@ -194,6 +194,23 @@ class MainScreenTest {
     }
 
     @Test
+    fun runningTimerRequiresStopBeforeExport() {
+        setMainContent(
+            state =
+                MainUiState
+                    .ready()
+                    .copy(
+                        timerAction = MainTimerAction.STOP,
+                        canExport = false,
+                    ),
+        )
+
+        composeRule
+            .onNodeWithText("Stop Timer to Export")
+            .assertIsNotEnabled()
+    }
+
+    @Test
     fun csvExportShowsDateProgressAndSuccessState() {
         var state by
             mutableStateOf(

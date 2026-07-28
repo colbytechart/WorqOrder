@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import java.time.Duration
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -58,15 +59,15 @@ import worq.order.model.ActiveTimerSnapshot
 import worq.order.model.DailyTask
 import worq.order.model.TaskListItem
 import worq.order.model.TaskWithClient
-import worq.order.timer.ActiveTimerNormalizer
 import worq.order.timer.CurrentDateProvider
 import worq.order.timer.DurationMath
 import worq.order.timer.EffectiveZoneIdProvider
 import worq.order.timer.LiveTimerSession
-import worq.order.timer.NormalizeTimerResult
 import worq.order.timer.StartTimerResult
 import worq.order.timer.StopTimerResult
 import worq.order.timer.TimerCoordinator
+import worq.order.timer.TimerRecoveryCoordinator
+import worq.order.timer.TimerRecoveryResult
 import worq.order.timer.UtcClock
 
 private sealed interface MainLoad<out T> {
@@ -109,7 +110,7 @@ class MainViewModel(
     private val activeTimerRepository: ActiveTimerRepository,
     private val selectionCoordinator: SelectionCoordinator,
     private val timerCoordinator: TimerCoordinator,
-    private val activeTimerNormalizer: ActiveTimerNormalizer,
+    private val timerRecoveryCoordinator: TimerRecoveryCoordinator,
     private val liveTimerSession: LiveTimerSession,
     private val utcClock: UtcClock,
     private val zoneIdProvider: EffectiveZoneIdProvider,
@@ -298,11 +299,9 @@ class MainViewModel(
             .flatMapLatest {
                 activeTimerRepository
                     .observeActiveTimer()
-                    .mapLatest { activeTimer ->
+                    .mapLatest {
                         val snapshot =
-                            activeTimer?.let {
-                                activeTimerRepository.readActiveTimerSnapshot()
-                            }
+                            activeTimerRepository.readActiveTimerSnapshot()
                         if (snapshot == null) {
                             liveTimerSession.clear()
                             null
@@ -508,26 +507,27 @@ class MainViewModel(
             lifecycleRefreshMutex.withLock {
                 zoneIdProvider.awaitZoneId()
                 refreshClockContext()
-                val normalization =
-                    runCatching {
-                        activeTimerNormalizer.normalize()
-                    }.getOrElse {
+                val recovery =
+                    try {
+                        timerRecoveryCoordinator.recover()
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (_: Exception) {
                         rawState.update {
                             it.copy(message = MainMessage.DATA_UNAVAILABLE)
                         }
                         return@withLock
                     }
-                if (normalization is NormalizeTimerResult.ClockChanged) {
-                    rawState.update {
-                        it.copy(message = MainMessage.CLOCK_CHANGED)
-                    }
-                }
-                runCatching {
-                    selectionCoordinator.reconcileForToday()
-                }.onFailure {
-                    rawState.update {
-                        it.copy(message = MainMessage.DATA_UNAVAILABLE)
-                    }
+                when (recovery) {
+                    is TimerRecoveryResult.ClockChanged ->
+                        rawState.update {
+                            it.copy(message = MainMessage.CLOCK_CHANGED)
+                        }
+                    is TimerRecoveryResult.ActiveTimerChanged ->
+                        rawState.update {
+                            it.copy(message = MainMessage.DATA_UNAVAILABLE)
+                        }
+                    is TimerRecoveryResult.Recovered -> Unit
                 }
             }
         }
@@ -554,15 +554,26 @@ class MainViewModel(
                 effectiveZoneId = zoneId,
             )
         }
-        lifecycleRefreshMutex.withLock {
-            when (activeTimerNormalizer.normalize()) {
-                is NormalizeTimerResult.ClockChanged ->
-                    rawState.update {
-                        it.copy(message = MainMessage.CLOCK_CHANGED)
-                    }
-                else -> Unit
+        try {
+            lifecycleRefreshMutex.withLock {
+                when (timerRecoveryCoordinator.recover()) {
+                    is TimerRecoveryResult.ClockChanged ->
+                        rawState.update {
+                            it.copy(message = MainMessage.CLOCK_CHANGED)
+                        }
+                    is TimerRecoveryResult.ActiveTimerChanged ->
+                        rawState.update {
+                            it.copy(message = MainMessage.DATA_UNAVAILABLE)
+                        }
+                    is TimerRecoveryResult.Recovered -> Unit
+                }
             }
-            selectionCoordinator.reconcileForToday()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            rawState.update {
+                it.copy(message = MainMessage.DATA_UNAVAILABLE)
+            }
         }
     }
 
@@ -615,7 +626,15 @@ class MainViewModel(
 
     private fun export() {
         val state = rawState.value
-        if (state.exportProgress != null || state.tasks !is MainLoad.Value) {
+        val activeTimer =
+            (state.activeTimer as? MainLoad.Value<ActivePresentation?>)
+                ?.value
+        if (
+            state.exportProgress != null ||
+            state.tasks !is MainLoad.Value ||
+            state.isTimerOperationInProgress ||
+            activeTimer != null
+        ) {
             return
         }
         if (state.exportDestination == ExportDestination.GOOGLE_SHEETS) {
@@ -1280,6 +1299,9 @@ class MainViewModel(
                 taskItems.firstOrNull { it.id == taskPendingDeletionId },
             canExport =
                 tasks is MainLoad.Value &&
+                    activeLoadKnown &&
+                    activeTaskId == null &&
+                    !isTimerOperationInProgress &&
                     exportProgress == null,
             exportDestination = exportDestination,
             googleExportState = googleExportState,
@@ -1313,7 +1335,7 @@ class MainViewModel(
                 activeTimerRepository = container.activeTimerRepository,
                 selectionCoordinator = container.selectionCoordinator,
                 timerCoordinator = container.timerCoordinator,
-                activeTimerNormalizer = container.activeTimerNormalizer,
+                timerRecoveryCoordinator = container.timerRecoveryCoordinator,
                 liveTimerSession = container.liveTimerSession,
                 utcClock = container.utcClock,
                 zoneIdProvider = container.zoneIdProvider,

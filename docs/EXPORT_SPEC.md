@@ -8,6 +8,8 @@
 - Export is one-way. It never imports, marks tasks exported, deletes local records, or resolves changes made in an external copy.
 - A retry is safe. Google Sheets re-export replaces the existing date tab idempotently; CSV and
   XLSX intentionally create independent user-selected files.
+- Export requires no globally active timer. Main disables its export action for every destination
+  while timing and identifies **Stop Timer to Export** as the required next action.
 - XLSX is an approved focused destination after Google Sheets export. Do not use Apache POI or
   another broad Excel stack without explicit owner approval. Firebase, service accounts, custom
   backends, broad storage permissions, and embedded secrets remain prohibited.
@@ -16,8 +18,8 @@
 
 `ExportSnapshotCoordinator.prepare(displayedDate)`:
 
-1. Capture one `exportInstant` and the effective/pinned zone context.
-2. Normalize any active interval across all boundaries through that instant.
+1. Main verifies that active-timer state is loaded and no timer is running.
+2. Capture one `exportInstant` and the effective zone context under the timer-operation lock.
 3. In one Room read transaction, load tasks for `displayedDate`, retained clients, ordered intervals, and active state.
 4. Build rows and task totals evaluated at the same `exportInstant`.
 5. Sort rows deterministically.
@@ -29,10 +31,10 @@
 9. Persist a safe last-attempt result in settings; do not modify tasks/intervals.
 
 An empty date still exports the header with no data rows. A task without intervals emits one row
-with blank interval number/start/stop/duration and a zero task total. A running interval emits a
-row with blank Stop Local and durations calculated through the internal snapshot instant; export
-does not stop it. The running state and snapshot instant remain internal metadata rather than
-visible columns.
+with blank interval number/start/stop/duration and a zero task total. The normal product workflow
+does not prepare or dispatch an export while an interval is open. The shared builder retains
+defensive support for immutable data construction, but a running row is not an approved
+user-visible export state.
 
 Milestone 8 implements this as follows: one shared timer-operation lock covers capture of
 `exportInstant`, boundary normalization, and the Room snapshot read. The DAO loads every joined
@@ -194,7 +196,7 @@ metadata.
 
 Milestone 12 verification parses every generated workbook with an independent test reader and
 manually opens representative outputs in Microsoft Excel and LibreOffice. Golden tests cover the
-unified schema, exact single-sheet name, empty/zero/multiple/running intervals, stable order,
+unified schema, exact single-sheet name, empty/zero/multiple intervals, running-export lockout, stable order,
 clock-only local values, long durations, Unicode, commas, quotes, CR/LF, formula-prefixed text,
 package integrity, large-snapshot memory/time, picker cancellation/output failure, repeated
 independent exports, and no Room mutation.
@@ -425,7 +427,7 @@ Tests must prove:
 - exact schema/header/order and zero-task/zero-interval behavior across all three destinations;
 - commas, quotes, CR/LF, Unicode, both task text fields, long hours, `HH:mm` task-zone clock
   values, and sub-second duration truncation;
-- one consistent snapshot for a running interval;
+- Main and its event handler reject every export destination while a timer is running;
 - picker cancellation writes nothing;
 - serializer/output failures do not claim success;
 - XLSX package/cell-type integrity, literal formula-like text, independent-reader compatibility,

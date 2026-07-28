@@ -82,22 +82,36 @@ After activity recreation, reuse the application-scoped live anchor when availab
 
 When the app stays foreground across a date boundary, the ticker/date observer requests normalization on the first refresh after the detected local-date change. The app need not wake exactly at midnight.
 
+The ticker is a single `StateFlow` pipeline shared by all Main collectors. It runs only while Main
+state is collected and an active interval exists, stops after the collection grace period, and
+uses a 50 ms refresh cadence. Navigation/backgrounding therefore stops UI refresh work while the
+persisted interval continues logically. Android elapsed realtime includes device sleep.
+
 ## 6. Stopping
 
-`TimerCoordinator.stop()` obtains `nowInstant`, then under the timer mutex:
+`TimerCoordinator.stop()` obtains a wall-clock sample, then under the timer mutex:
 
 1. Load the singleton active state and referenced interval; if absent, return `NotRunning` idempotently.
-2. Normalize the interval through every boundary strictly before `nowInstant` using the active session's pinned zone.
-3. If `nowInstant` equals a boundary, close the preceding segment at that boundary without creating a zero-length next interval.
-4. Close the final open interval at `nowInstant`.
-5. Validate positive duration and the owning task boundary.
-6. Delete the singleton active row and update affected timestamps.
-7. Select the task owning the final closed segment. If Stop was exactly at midnight, ordinary
+2. If a valid process-local anchor exists, calculate
+   `logicalStop = currentSegmentStart + activeDurationAtAnchor + monotonicDelta`. Otherwise use
+   the wall-clock sample reconstructed after process death/reboot.
+3. Normalize the interval through every boundary strictly before `logicalStop` using the active
+   session's pinned zone.
+4. If `logicalStop` equals a boundary, close the preceding segment at that boundary without
+   creating a zero-length next interval.
+5. Close the final open interval at `logicalStop`.
+6. Validate positive duration and the owning task boundary.
+7. Delete the singleton active row and update affected timestamps.
+8. Select the task owning the final closed segment. If Stop was exactly at midnight, ordinary
    selection reconciliation may subsequently select/create the new day's task without creating a
    zero-length interval.
-8. Clear the process-local monotonic anchor after commit.
+9. Clear the process-local monotonic anchor after commit.
 
-The database stop instant is the injected wall-clock UTC instant, as required for historical reconstruction. The final persisted total may differ from the pre-stop monotonic display if the user/network adjusted wall time during the interval; see anomaly handling.
+The database still stores a UTC stop instant. While a valid in-process anchor exists, that instant
+is projected from the persisted segment start and Android elapsed realtime so the final persisted
+total matches the live display even if wall time moves. This deliberately favors accurate elapsed
+work over copying a corrected wall-clock label. After process death or reboot, the monotonic
+reference is gone and wall-clock reconstruction remains the only available source.
 
 ## 7. Midnight splitting
 
@@ -197,34 +211,52 @@ overlaps require an explicit earlier/later offset selection before saving.
 
 ## 12. Clock anomalies
 
-The product requires wall-clock UTC persistence and monotonic live display, which cannot both hide every manual/system clock correction. Policy:
+The product stores UTC boundaries and uses a monotonic live display. Policy:
 
 - Ordinary wall-clock changes do not make the live in-process display jump.
-- At Stop/recovery/export, compare wall-derived and available monotonic elapsed values.
-- If wall time makes `stop <= start` or differs from the live monotonic estimate by more than the
-  initial diagnostic tolerance of two minutes, do not silently synthesize a historical wall
-  instant. Keep the timer recoverable, return `ClockChanged`, and later UI must guide the user to
-  correct device time or manually correct the interval.
+- While a valid process-local anchor exists, Stop and normalization use its monotonic projection
+  instead of the changed wall clock. Forward/backward wall changes therefore cannot make the final
+  total jump or invent false midnight segments.
+- The persisted projected endpoint remains an absolute UTC `Instant`; it represents Start plus
+  measured elapsed realtime. Its local clock label may intentionally differ from a manually
+  corrected device clock.
 - If process death removed the monotonic reference, wall-clock reconstruction is the only source; show anomaly state for negative duration and never write an invalid stop.
-- Tests inject jumps forward/backward and prove no database invariant is broken.
-
-The exact user copy remains a later UI choice. Changing the two-minute diagnostic tolerance is a
-reviewed behavior change; the no-silent-corruption rule is fixed.
+- If a process-recovery anchor was created while wall time was before the persisted Start, a later
+  successful resume after the user corrects the clock may rebuild that provisional anchor from
+  valid UTC time. No interval boundary is changed by this re-anchoring.
+- Tests inject forward/backward jumps and prove the live total, final persisted duration, and
+  midnight plan remain consistent.
 
 ## 13. Lifecycle triggers
 
 Normalize/check on:
 
-- application/main ViewModel initialization;
-- activity/process resume;
+- `MainActivity.onResume`, regardless of which navigation destination is visible;
+- Main ViewModel initialization and Main destination resume as idempotent presentation retries;
 - detection of foreground date change;
 - Start and Stop;
 - before changing a rule-sensitive task/interval;
-- before exporting a date that could contain the active interval; and
+- after Stop, before exporting the displayed date; export remains disabled while active; and
 - after device boot only when the user next launches the app (no boot receiver required).
 
-No alarm, wake lock, foreground service, or per-tick persistence is needed.
+The application-scoped `TimerRecoveryCoordinator` performs each recovery in this order:
 
-Milestone 3 implements the pure/coordinating services and transaction operations. Android
-lifecycle trigger wiring, the collected UI ticker, process-launch normalization, and user-facing
-clock-anomaly recovery remain Milestones 4 and 13.
+1. Wait for the first DataStore-backed effective ZoneId.
+2. Capture one UTC evaluation instant.
+3. Read and validate Room's singleton/open-interval state.
+4. Split every crossed local-date boundary transactionally with the active session's pinned zone.
+5. Rebuild the process-local monotonic anchor if it is absent or was a negative provisional
+   recovery anchor.
+6. Reconcile persistent selection, with an active Room timer taking precedence.
+7. Let Room/DataStore flows rebuild ViewModel and Compose presentation.
+
+Concurrent resume calls are serialized and the timer-operation mutex serializes them with
+Start/Stop/export normalization. The Room continuation transaction and three-part task uniqueness
+remain the final duplicate-prevention boundary.
+
+An open interval without the singleton pointer, a singleton with zero/multiple open candidates,
+or a mismatched/closed referenced interval is an explicit persistence-invariant error. It is not
+silently discarded or treated as stopped, and a new Start remains blocked.
+
+No alarm, wake lock, boot receiver, foreground service, continuous background loop, WorkManager
+tick, or per-tick persistence is used.

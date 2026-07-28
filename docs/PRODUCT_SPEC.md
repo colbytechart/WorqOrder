@@ -82,7 +82,11 @@ The initial route is the main screen. It has a top app bar, timer, date selector
 - Default to today in the effective application zone.
 - Only show tasks whose stored work date equals the displayed date.
 - Historical and future dates support task creation and manual editing; live Start remains disabled.
-- Date navigation remains available while timing so another date can be viewed/exported. The active task remains the global timing selection even when its row is not on the displayed date; show a persistent running-task identity/date near the timer. Disable selection of every other row, and allow Stop from any displayed date. Creating or editing a non-running task must not change the timing selection or active interval.
+- Date navigation remains available while timing so another date can be viewed. Export remains
+  disabled until Stop. The active task remains the global timing selection even when its row is
+  not on the displayed date; show a persistent running-task identity/date near the timer. Disable
+  selection of every other row, and allow Stop from any displayed date. Creating or editing a
+  non-running task must not change the timing selection or active interval.
 
 ### Task list
 
@@ -117,7 +121,10 @@ Create validates and writes one daily task. If its work date is today, it become
 
 The bottom action always identifies both date and destination, for example **Export Jul 22 as CSV**, **Export Jul 22 as XLSX**, or **Submit Jul 22 to Google Sheets**. It exports the displayed date, not implicitly “today.” Google Sheets without authorization/a validated spreadsheet navigates to and focuses the relevant settings section. CSV and XLSX launch their respective create-document pickers directly.
 
-The app may export while a timer is running. The exporter first normalizes midnight boundaries and takes one consistent snapshot instant. An open interval has a blank stop, a `RUNNING` state, and snapshot-based duration fields; export does not stop it. This behavior must be visible in export documentation and tested.
+Export is disabled whenever the global timer is running, regardless of displayed date or selected
+destination. The disabled Main action reads **Stop Timer to Export**. After Stop commits the final
+UTC boundary and clears active state, CSV, XLSX, or Google Sheets can export the authoritative
+completed data. No destination exposes an incomplete interval with a blank Stop Local.
 
 ## 5. Clients
 
@@ -253,7 +260,10 @@ Additional visual requirements for implementation are Material 3 semantics, 48 d
    no-cost `drive.file`/Picker workflow stops supporting the product, pause Google export changes
    for a new owner decision and retain CSV.
 4. **Device zone changes during timing:** the zone captured at Start is pinned for that active session's splitting. The new effective device zone applies after Stop. This prevents a device-setting change from rewriting an interval's date semantics mid-run.
-5. **Manual wall-clock changes:** live display stays monotonic while the process is alive, but persisted boundaries remain wall-clock UTC as required. Large anomalies are surfaced for correction rather than hidden.
+5. **Manual wall-clock changes:** while the process retains a valid elapsed-realtime anchor, live
+   display, midnight normalization, and the persisted UTC Stop endpoint use the same monotonic
+   projection so Stop does not jump. After process death/reboot, wall-clock reconstruction is the
+   only available source; impossible negative recovery remains a surfaced error.
 
 ## 12. Product completion criteria
 

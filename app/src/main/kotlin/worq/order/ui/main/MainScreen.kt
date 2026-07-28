@@ -159,6 +159,7 @@ fun MainScreen(
         bottomBar = {
             MainBottomActions(
                 canExport = uiState.canExport,
+                isTimerRunning = uiState.isTimerRunning,
                 exportDestination = uiState.exportDestination,
                 googleExportState = uiState.googleExportState,
                 exportProgress = uiState.exportProgress,
@@ -241,6 +242,7 @@ private fun MainContent(
 @Composable
 private fun MainBottomActions(
     canExport: Boolean,
+    isTimerRunning: Boolean,
     exportDestination: ExportDestination,
     googleExportState: MainGoogleExportState,
     exportProgress: MainExportProgress?,
@@ -300,6 +302,12 @@ private fun MainBottomActions(
                                     R.string.exporting_google_sheets
                             },
                         ),
+                    maxLines = 2,
+                    textAlign = TextAlign.Center,
+                )
+            } else if (isTimerRunning) {
+                Text(
+                    text = stringResource(R.string.stop_timer_to_export),
                     maxLines = 2,
                     textAlign = TextAlign.Center,
                 )

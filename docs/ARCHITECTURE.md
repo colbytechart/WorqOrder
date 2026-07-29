@@ -73,7 +73,7 @@ export                 export row model/builder and orchestration
 export.csv             serializer and document destination
 export.xlsx            focused OOXML workbook writer and document destination
 export.google          authorization and Sheets gateway
-security               Keystore key management and encrypted-storage adapters
+security               reserved for separately authorized optional Milestone 19
 model                   UI/domain models that are not persistence entities
 util                    narrow formatting/parsing helpers
 ```
@@ -95,7 +95,7 @@ Later milestones extend the same boundary with:
 - destination-neutral export snapshot coordinator/row builder and CSV serializer;
 - document-output adapter;
 - Google authorization coordinator and `GoogleSheetsGateway`; and
-- focused XLSX writer and Keystore-backed encrypted-storage components; and
+- focused XLSX writer; and
 - dispatcher provider where tests require deterministic dispatchers.
 
 ViewModel factories request only their direct dependencies. Android framework types stay in adapters/gateways, not pure domain services. A DI framework is not planned; reconsider only if container wiring becomes demonstrably unsafe or unmaintainable.
@@ -244,9 +244,10 @@ create daily copies or intervals wait for the first persisted effective-zone emi
 does not contain task rows, active-timer state, passwords, service-account material, raw access
 tokens, or refresh tokens.
 
-Milestone 14 adds Keystore-backed at-rest protection to sensitive Room and DataStore content.
-The selected design must preserve typed repository APIs; ViewModels/composables never handle raw
-keys or cryptographic payloads.
+The required production sequence uses ordinary app-private Preferences DataStore files protected
+by Android's application sandbox. Separately authorized optional Milestone 19 may add
+Keystore-backed at-rest protection while preserving these typed repository APIs; ViewModels and
+composables must never handle raw keys or cryptographic payloads.
 
 ### File output
 
@@ -271,9 +272,11 @@ Milestone 12 adds a one-off XLSX document boundary:
 
 CSV and XLSX files are unencrypted external artifacts once handed to the user-selected provider.
 
-### Encrypted local storage
+### Optional encrypted local storage
 
-Milestone 14 is a required production hardening boundary:
+The current production plan does not implement WorqOrder-managed at-rest encryption for Room or
+DataStore and must not claim that it does. Android's application sandbox is the present local
+access boundary. Optional Milestone 19 retains this separately authorized design:
 
 - non-exportable Android Keystore material anchors versioned, purpose-bound encryption keys;
 - authenticated encryption protects sensitive app-private Room/DataStore data at rest, including
@@ -287,15 +290,15 @@ Milestone 14 is a required production hardening boundary:
 - app code continues to receive mapped domain models, so timer/date/export rules do not become
   coupled to encryption details.
 
-The implementation milestone must compare whole-database encryption with bounded
+If authorized, the implementation milestone must compare whole-database encryption with bounded
 field/envelope encryption against Room query/index/migration needs before selecting a stable,
 GPLv3-compatible API-26 solution. Cryptographic details are recorded in `DECISIONS.md` only after
-that proof. No login, biometric, app PIN, or account gate is part of this required layer.
+that proof. No login, biometric, app PIN, or account gate is implied by optional encryption.
 
-User-directed CSV/XLSX files and readable Google Sheets cells are outside the local encrypted
-boundary. Google traffic uses TLS and Google-managed authorization, but readable Sheets export is
-not end-to-end encrypted by WorqOrder. Plaintext is also necessarily present transiently in
-process memory while an unlocked app displays, edits, or exports data.
+User-directed CSV/XLSX files and readable Google Sheets cells are plaintext external copies.
+Google traffic uses TLS and Google-managed authorization, but readable Sheets export is not
+end-to-end encrypted by WorqOrder. Optional Milestone 19 would not extend local encryption to
+those exports.
 
 ## 10. Google boundary
 
@@ -342,8 +345,8 @@ path, do not broaden scope or enable billing—stop and revisit the Google featu
 ## 11. Security and privacy
 
 - No local account is required for core use.
-- Required production protection is transparent Keystore-backed at-rest encryption; it does not
-  prompt for biometrics, a device credential, an app PIN, or a WorqOrder account.
+- The required production build relies on Android's app sandbox and makes no claim of
+  WorqOrder-managed Room/DataStore encryption.
 - Store only necessary Google spreadsheet metadata; let Google-supported components manage credentials.
 - Never log task descriptions, hardware/software-purchases text, spreadsheet contents,
   authorization headers, IDs unnecessarily, or credential payloads.
@@ -356,13 +359,16 @@ path, do not broaden scope or enable billing—stop and revisit the Google featu
   cells rely on Google account/access controls and are not app-level end-to-end encrypted.
 - Optional user-presence/app-access gating is isolated to post-project Milestone 18 and requires a
   new explicit owner authorization.
+- Optional app-private at-rest encryption is isolated to post-project Milestone 19, after
+  Milestone 18, and also requires new explicit owner authorization.
 
 ## 12. Dependency policy
 
 The implementation dependency set should remain limited to Android/Jetpack Compose,
 lifecycle/navigation, coroutines, Room, DataStore, test libraries, the smallest stable Google
-identity/Sheets stack that satisfies the gateway, and focused XLSX/encryption components proven in
-their owning milestone gates. Avoid Apache POI, broad Excel stacks, redundant cryptography
+identity/Sheets stack that satisfies the gateway, and the focused XLSX implementation proven in
+its owning milestone gate. Encryption components are not production dependencies unless optional
+Milestone 19 is authorized. Avoid Apache POI, broad Excel stacks, redundant cryptography
 frameworks, date libraries, DI frameworks, Firebase BOM, reflection-heavy mapping layers, and
 general-purpose networking stacks unless a separately approved decision demonstrates the need.
 
@@ -378,8 +384,9 @@ All versions live in the version catalog. Renovation is a separate reviewed chan
 - ViewModel tests combine fake repositories/gateways and deterministic time.
 - Compose UI tests cover the main workflows, disabled states, confirmation, settings, picker/authorization launch effects, and accessibility semantics.
 - Fake `Clock`, monotonic source, zone provider, document destination, and Google gateway are first-class test fixtures.
-- Encryption instrumentation adds populated migration, key lifecycle/failure, DB/WAL/SHM/DataStore
-  plaintext-canary scans, backup configuration, and performance/regression fixtures.
+- If optional Milestone 19 is authorized, its instrumentation adds populated migration, key
+  lifecycle/failure, DB/WAL/SHM/DataStore plaintext-canary scans, backup configuration, and
+  performance/regression fixtures.
 
 ## 14. Operational behavior
 

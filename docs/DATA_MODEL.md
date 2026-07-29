@@ -22,9 +22,10 @@ Preferences DataStore: theme, zone mode, export default, selection hints,
 connected spreadsheet metadata, last export outcome
 ```
 
-Milestone 14 protects the app-private Room and sensitive DataStore representation at rest. That
-encryption is a storage adapter concern and does not change these logical entities, relationships,
-IDs, UTC/date/ZoneId semantics, or Room's authority.
+The required production sequence stores this logical model in ordinary app-private Room and
+Preferences DataStore files protected by Android's application sandbox. Optional Milestone 19 may
+add a separately authorized at-rest encryption adapter without changing these entities,
+relationships, IDs, UTC/date/ZoneId semantics, or Room's authority.
 
 Daily tasks in a series are intentionally not parented by a separate series table in version 1. The stable `seriesId` plus work date and assignment zone identifies a rollover copy, and each daily copy carries the metadata used for the next rollover.
 
@@ -161,10 +162,9 @@ Milestone 8 persists no CSV document URI, payload, provider detail, task row, or
 Every CSV attempt uses a fresh create-document flow; its safe last-attempt metadata is presentation
 history only and never becomes task or timer truth.
 
-Milestone 14 encrypts sensitive DataStore-held identifiers/metadata at rest through a reviewed,
-Keystore-backed storage boundary. Preference keys/default recovery remain typed and
-version-tolerant; cryptographic corruption must fail closed rather than silently substituting a
-state that could create or lose task/timer data.
+Optional Milestone 19 retains the reviewed plan for Keystore-backed encryption of sensitive
+DataStore-held identifiers/metadata. It is not part of the current production sequence and must
+preserve the existing typed, version-tolerant preference contract if separately authorized.
 
 ## 9. Selection and rollover data rules
 
@@ -221,12 +221,12 @@ Implemented first schema evolution:
 - a populated `1 -> 2` migration instrumentation test verifies the empty default for existing
   tasks and preservation of every pre-existing relationship and timer invariant.
 
-The Milestone 14 plaintext-to-encrypted-storage transition is a separate non-destructive storage
-migration even when no Room entity version changes. Its tests must populate the previous
-production database/preferences, interrupt every durable transition phase, reopen after process
-death/reboot, and prove all rows, relationships, active-timer state, settings, and selection hints
-survive. Missing/invalidated keys or corrupt ciphertext must never trigger destructive Room
-creation.
+If optional Milestone 19 is separately authorized, its plaintext-to-encrypted-storage transition
+is a separate non-destructive storage migration even when no Room entity version changes. Its
+tests must populate the previous production database/preferences, interrupt every durable
+transition phase, reopen after process death/reboot, and prove all rows, relationships,
+active-timer state, settings, and selection hints survive. Missing/invalidated keys or corrupt
+ciphertext must never trigger destructive Room creation.
 
 ## 12. Deliberate non-models
 

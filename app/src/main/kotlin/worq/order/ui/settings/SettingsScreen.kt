@@ -37,12 +37,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import worq.order.R
@@ -62,6 +67,12 @@ fun SettingsScreen(
 ) {
     val listState = rememberLazyListState()
     var googleScrollRequestId by remember { mutableIntStateOf(0) }
+    var showDisconnectConfirmation by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var showSignOutConfirmation by rememberSaveable {
+        mutableStateOf(false)
+    }
     LaunchedEffect(
         showGoogleSetupRequired,
         uiState.message,
@@ -85,6 +96,58 @@ fun SettingsScreen(
             onQueryChanged = { onEvent(SettingsEvent.EditZoneSearch(it)) },
             onSelect = { onEvent(SettingsEvent.SelectManualZone(it.zoneId)) },
             onDismiss = { onEvent(SettingsEvent.DismissZoneSelector) },
+        )
+    }
+    if (showDisconnectConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDisconnectConfirmation = false },
+            title = {
+                Text(stringResource(R.string.google_disconnect_confirmation_title))
+            },
+            text = {
+                Text(stringResource(R.string.google_disconnect_confirmation_message))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDisconnectConfirmation = false
+                        onEvent(SettingsEvent.DisconnectSpreadsheet)
+                    },
+                ) {
+                    Text(stringResource(R.string.disconnect))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDisconnectConfirmation = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+    if (showSignOutConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showSignOutConfirmation = false },
+            title = {
+                Text(stringResource(R.string.google_sign_out_confirmation_title))
+            },
+            text = {
+                Text(stringResource(R.string.google_sign_out_confirmation_message))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showSignOutConfirmation = false
+                        onEvent(SettingsEvent.SignOutOfGoogle)
+                    },
+                ) {
+                    Text(stringResource(R.string.google_confirm_sign_out))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOutConfirmation = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
         )
     }
 
@@ -295,6 +358,16 @@ fun SettingsScreen(
                         uiState = uiState,
                         onEvent = onEvent,
                         showSetupRequired = showGoogleSetupRequired,
+                        onDisconnect = {
+                            showDisconnectConfirmation = true
+                        },
+                        onSignOut = {
+                            if (uiState.connectedSpreadsheetId != null) {
+                                showSignOutConfirmation = true
+                            } else {
+                                onEvent(SettingsEvent.SignOutOfGoogle)
+                            }
+                        },
                     )
                 }
             }
@@ -307,6 +380,8 @@ private fun GoogleSheetsSettingsSection(
     uiState: SettingsUiState,
     onEvent: (SettingsEvent) -> Unit,
     showSetupRequired: Boolean,
+    onDisconnect: () -> Unit,
+    onSignOut: () -> Unit,
 ) {
     val operationInProgress =
         uiState.googleStatus in
@@ -342,6 +417,10 @@ private fun GoogleSheetsSettingsSection(
                 style = MaterialTheme.typography.titleMedium,
             )
             Row(
+                modifier =
+                    Modifier.semantics {
+                        liveRegion = LiveRegionMode.Polite
+                    },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement =
                     Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
@@ -419,6 +498,11 @@ private fun GoogleSheetsSettingsSection(
                     Text(stringResource(R.string.google_sign_in))
                 }
             } else if (uiState.connectedSpreadsheetId == null) {
+                val invalidInput =
+                    uiState.googleMessage ==
+                        GoogleSettingsMessage.INVALID_SPREADSHEET_INPUT
+                val invalidInputMessage =
+                    stringResource(R.string.google_error_invalid_input)
                 OutlinedTextField(
                     value = uiState.spreadsheetInput,
                     onValueChange = {
@@ -430,12 +514,21 @@ private fun GoogleSheetsSettingsSection(
                     supportingText = {
                         Text(stringResource(R.string.google_spreadsheet_input_help))
                     },
-                    isError =
-                        uiState.googleMessage ==
-                            GoogleSettingsMessage.INVALID_SPREADSHEET_INPUT,
+                    isError = invalidInput,
                     enabled = !operationInProgress,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (invalidInput) {
+                                    Modifier.semantics {
+                                        error(invalidInputMessage)
+                                    }
+                                } else {
+                                    Modifier
+                                },
+                            ),
                 )
                 Button(
                     onClick = {
@@ -449,7 +542,7 @@ private fun GoogleSheetsSettingsSection(
             }
             if (uiState.connectedSpreadsheetId != null) {
                 OutlinedButton(
-                    onClick = { onEvent(SettingsEvent.DisconnectSpreadsheet) },
+                    onClick = onDisconnect,
                     enabled = !operationInProgress,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -458,7 +551,7 @@ private fun GoogleSheetsSettingsSection(
             }
             if (uiState.googleAccountId != null) {
                 TextButton(
-                    onClick = { onEvent(SettingsEvent.SignOutOfGoogle) },
+                    onClick = onSignOut,
                     enabled = !operationInProgress,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -502,7 +595,12 @@ private fun GoogleSettingsMessagePanel(
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    Card {
+    Card(
+        modifier =
+            Modifier.semantics {
+                liveRegion = LiveRegionMode.Assertive
+            },
+    ) {
         Column(
             modifier = Modifier.padding(WorqOrderDimens.ItemPadding),
             verticalArrangement =
@@ -711,7 +809,12 @@ private fun SettingsMessageCard(
     message: SettingsMessage,
     onDismiss: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics { liveRegion = LiveRegionMode.Assertive },
+    ) {
         Row(
             modifier = Modifier.padding(WorqOrderDimens.CardPadding),
             verticalAlignment = Alignment.CenterVertically,

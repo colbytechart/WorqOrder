@@ -403,7 +403,9 @@ contains the completed interval's final Stop Local and duration.
 
 ### CSV-07 Picker cancellation
 
-Canceling before destination URI produces no output and a non-error canceled state; Room and prior files remain unchanged.
+Canceling before a destination URI produces no output, no Main-screen status/banner, and no
+success or error claim; Room and prior files remain unchanged. A non-sensitive diagnostic
+`Canceled` attempt may still be retained.
 
 ### CSV-08 Repeat and failure
 
@@ -420,7 +422,8 @@ unapproved broad Excel stack.
 The full Room snapshot and CSV string exist before the create-document picker opens. Editing the
 task after that point does not change the pending file. Main disables repeat submission while
 preparing/choosing/writing, identifies the displayed export date, and distinguishes success,
-neutral cancellation, retryable failure, and possible partial output.
+retryable failure, and possible partial output. Cancellation restores the ordinary Main state
+without visible feedback.
 
 ### CSV-11 Shared snapshot boundary
 
@@ -510,7 +513,8 @@ Given expired/revoked authorization, export prompts reauthorization and supports
 
 ### GS-13 User cancellation
 
-Canceling account selection/consent does not claim sign-in, connection, or export success.
+Canceling account selection/consent does not claim sign-in, connection, or export success. An
+export cancellation clears in-progress presentation without showing a cancellation banner.
 
 ### GS-14 Ambiguous/remote failure
 
@@ -601,6 +605,7 @@ The official spreadsheet MIME type and user-mediated SAF create-document flow ar
 broad storage permission. No open-document flow or persistable URI grant exists. Cancellation
 writes nothing and never changes Room. Output failure attempts to delete a partial provider
 document and reports when a partial document might remain.
+Cancellation returns to the ordinary Main state without visible feedback.
 
 ### XLSX-07 Compatibility and efficiency
 
@@ -610,59 +615,7 @@ links, credentials, hidden content, or unnecessary metadata. Large-snapshot test
 recorded memory/time limits on minimum and target API devices. Dependency inspection proves the
 focused writer adds no XLSX library and no Apache POI.
 
-## 11. Local data protection and encryption
-
-### ENC-01 Fresh encrypted storage
-
-A fresh production install creates protected app-private Room and sensitive DataStore storage
-anchored by non-exportable Android Keystore material. Seeded sensitive canaries do not appear in
-database, WAL, SHM, DataStore, cache, backup artifacts, logs, or crash output at rest.
-
-### ENC-02 Non-destructive plaintext upgrade
-
-A populated pre-encryption installation upgrades with every client/task/interval/active-timer row,
-ID, timestamp, relationship, selection hint, and setting intact. Reopen after process death and
-reboot preserves behavior and the prior plaintext artifacts are not left recoverable.
-
-### ENC-03 Interrupted migration and resource failures
-
-Interruption at each durable migration phase plus low-storage/write failure is recoverable and
-non-destructive. The app never clears, reseeds, or partially substitutes authoritative data and
-does not run against an ambiguous mixed plaintext/encrypted state.
-
-### ENC-04 Key and ciphertext failures
-
-Missing, invalidated, wrong-version, or rotated keys and corrupted ciphertext fail closed with a
-safe actionable state. Key loss never triggers destructive database creation. Nonce reuse and
-wrong-purpose key use are rejected/tested.
-
-### ENC-05 Backup and extraction boundary
-
-Release manifest/data-extraction rules disable backup for protected app data or exclude it under
-the approved encrypted-backup design. A backup cannot expose plaintext or restore ciphertext
-without its usable key.
-
-### ENC-06 Regression and performance
-
-Room constraints/migrations, Start/Stop/midnight/recovery, selection/settings, CSV/XLSX/Google
-snapshots, account authorization, and UI workflows pass through the encrypted storage adapters.
-Startup, query, timer mutation, migration, file growth, memory, and battery stay within recorded
-approved regressions on API 26 and the current target API.
-
-### ENC-07 Explicit external boundary
-
-The app states that user-selected CSV/XLSX files are unencrypted external documents and readable
-Google Sheets cells rely on TLS/Google access controls rather than WorqOrder end-to-end
-encryption. No biometric, device-credential, app PIN, or WorqOrder login prompt is introduced by
-this required milestone.
-
-### ENC-08 Sensitive-data handling
-
-Static/runtime inspection finds no protected task/client/export content in logs, exceptions,
-analytics, notifications, clipboard, recent temporary files, or credentials. Plaintext export
-snapshots exist only as needed in process memory and are not staged to app-private disk.
-
-## 12. Room and build quality
+## 11. Room and build quality
 
 ### DB-01 Fresh creation/reuse
 
@@ -705,7 +658,7 @@ boundaries. Instrumentation tests cover DataStore recreation, atomic Room contin
 chains, idempotence, and concurrent global Start protection. Lifecycle/UI presentation remains
 deferred to its owning milestones.
 
-## 13. Accessibility and resilience
+## 12. Accessibility and resilience
 
 ### A11Y-01 Semantics/touch
 
@@ -719,7 +672,21 @@ At supported large font scales and narrow screens, timer/date/actions remain und
 
 Selected, running, disabled, validation, success, and failure are conveyed through semantics/text/icons in addition to color; transient messages needed to recover are not snackbar-only.
 
-## 14. Optional post-project application-access security
+### A11Y-04 Destructive Google actions
+
+Disconnecting a spreadsheet requires confirmation that the Google account remains signed in.
+Signing out while a spreadsheet is connected requires confirmation that the spreadsheet will
+also disconnect. Both state that local tasks remain untouched. Signing out with no connected
+spreadsheet remains a direct action.
+
+### A11Y-05 Adaptive Main layout
+
+At 200% font scale, Main's export and Add task actions stack without overlap, the timer retains its
+complete semantic value and can scroll horizontally if necessary, and the timer/date/messages/task
+list share one vertically scrollable surface. At ordinary font scale and phone width, the two
+bottom actions remain side by side.
+
+## 13. Optional post-project application-access security
 
 These tests are inactive unless the owner explicitly authorizes optional Milestone 18 after the
 required project is complete.
@@ -734,7 +701,8 @@ requirement.
 
 Successful, failed, canceled, locked-out, biometric-enrollment-changed, and device-credential
 fallback paths are deterministic, accessible, and do not expose protected content or silently
-delete/replace encryption keys or Room data.
+delete or replace Room data. If optional Milestone 19 is also authorized, the same rule applies to
+its encryption keys.
 
 ### ACCESS-03 Lifecycle locking
 
@@ -749,9 +717,9 @@ recent-app previews cannot reveal or bypass protected screens under the approved
 
 ### ACCESS-05 Full regression
 
-Room/encryption migrations, key failure handling, timer/date/recovery, all three exports, Google
-authorization, accessibility, and debug/release suites pass with app locking both disabled and
-enabled.
+Room migrations, timer/date/recovery, all three exports, Google authorization, accessibility, and
+debug/release suites pass with app locking both disabled and enabled. Encryption migration and key
+failure suites join this regression only if optional Milestone 19 is also authorized.
 
 ### OPTIONAL-EXPORT-01 XLSX mode choice
 
@@ -784,3 +752,59 @@ If separately authorized, routine Task interval cards display completed Start an
 task-zone `HH:mm` without seconds. Persisted UTC instants, stored task ZoneId, duration and
 date-boundary behavior, edit precision, and explicit fall-back occurrence disambiguation remain
 unchanged.
+
+## 14. Optional local data protection and encryption
+
+The `ENC-*` tests are inactive and are not part of current production acceptance. Run them only
+if the owner separately authorizes optional Milestone 19 after optional Milestone 18. Until then,
+the production build must not claim WorqOrder-managed at-rest encryption for Room or DataStore.
+
+### ENC-01 Fresh encrypted storage
+
+A fresh optional-Milestone-19 install creates protected app-private Room and sensitive DataStore
+storage anchored by non-exportable Android Keystore material. Seeded sensitive canaries do not
+appear in database, WAL, SHM, DataStore, cache, backup artifacts, logs, or crash output at rest.
+
+### ENC-02 Non-destructive plaintext upgrade
+
+A populated pre-encryption installation upgrades with every client/task/interval/active-timer row,
+ID, timestamp, relationship, selection hint, and setting intact. Reopen after process death and
+reboot preserves behavior and the prior plaintext artifacts are not left recoverable.
+
+### ENC-03 Interrupted migration and resource failures
+
+Interruption at each durable migration phase plus low-storage/write failure is recoverable and
+non-destructive. The app never clears, reseeds, or partially substitutes authoritative data and
+does not run against an ambiguous mixed plaintext/encrypted state.
+
+### ENC-04 Key and ciphertext failures
+
+Missing, invalidated, wrong-version, or rotated keys and corrupted ciphertext fail closed with a
+safe actionable state. Key loss never triggers destructive database creation. Nonce reuse and
+wrong-purpose key use are rejected and tested.
+
+### ENC-05 Backup and extraction boundary
+
+Release manifest/data-extraction rules disable backup for protected app data or exclude it under
+the approved encrypted-backup design. A backup cannot expose plaintext or restore ciphertext
+without its usable key.
+
+### ENC-06 Regression and performance
+
+Room constraints/migrations, Start/Stop/midnight/recovery, selection/settings, CSV/XLSX/Google
+snapshots, account authorization, and UI workflows pass through the encrypted storage adapters.
+Startup, query, timer mutation, migration, file growth, memory, and battery stay within recorded
+approved regressions on API 26 and the current target API.
+
+### ENC-07 Explicit external boundary
+
+The app states that user-selected CSV/XLSX files are unencrypted external documents and readable
+Google Sheets cells rely on TLS/Google access controls rather than WorqOrder end-to-end
+encryption. No biometric, device-credential, app PIN, or WorqOrder login prompt is introduced by
+this optional milestone.
+
+### ENC-08 Sensitive-data handling
+
+Static/runtime inspection finds no protected task/client/export content in logs, exceptions,
+analytics, notifications, clipboard, recent temporary files, or credentials. Plaintext export
+snapshots exist only as needed in process memory and are not staged to app-private disk.

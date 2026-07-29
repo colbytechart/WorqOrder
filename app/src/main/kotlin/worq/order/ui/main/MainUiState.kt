@@ -22,7 +22,6 @@ enum class MainGoogleExportState {
 
 enum class MainExportOutcome {
     SUCCESS,
-    CANCELED,
     PREPARATION_FAILED,
     CLOCK_CHANGED,
     ACTIVE_TIMER_CHANGED,

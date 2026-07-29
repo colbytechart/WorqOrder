@@ -175,9 +175,19 @@ class SettingsScreenTest {
             .performScrollToNode(hasText("Disconnect spreadsheet"))
         composeRule.onNodeWithText("Disconnect spreadsheet").performClick()
         composeRule
+            .onNodeWithText("Disconnect Spreadsheet?")
+            .assertIsDisplayed()
+        assertTrue(SettingsEvent.DisconnectSpreadsheet !in events)
+        composeRule.onNodeWithText("Disconnect").performClick()
+        composeRule
             .onAllNodes(hasScrollAction())[0]
             .performScrollToNode(hasText("Sign out"))
         composeRule.onNodeWithText("Sign out").performClick()
+        composeRule
+            .onNodeWithText("Sign Out of Google?")
+            .assertIsDisplayed()
+        assertTrue(SettingsEvent.SignOutOfGoogle !in events)
+        composeRule.onNodeWithText("Sign Out").performClick()
 
         assertTrue(SettingsEvent.DisconnectSpreadsheet in events)
         assertTrue(SettingsEvent.SignOutOfGoogle in events)

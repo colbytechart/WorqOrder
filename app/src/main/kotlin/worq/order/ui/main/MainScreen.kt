@@ -2,6 +2,7 @@ package worq.order.ui.main
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,8 +13,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -26,6 +31,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.BottomAppBarDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -54,9 +60,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -64,6 +73,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -78,6 +88,7 @@ import worq.order.ui.theme.WorqOrderDimens
 import worq.order.ui.theme.WorqOrderTheme
 
 object MainScreenTestTags {
+    const val CONTENT = "main_content"
     const val TIMER = "main_timer"
     const val TIMER_ACTION = "main_timer_action"
     const val TASK_LIST = "main_task_list"
@@ -183,47 +194,62 @@ private fun MainContent(
     contentPadding: PaddingValues,
     onEvent: (MainEvent) -> Unit,
 ) {
-    Column(
+    LazyColumn(
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(contentPadding)
-                .padding(horizontal = WorqOrderDimens.ScreenPadding),
+                .testTag(MainScreenTestTags.CONTENT)
+                .padding(contentPadding),
+        contentPadding =
+            PaddingValues(
+                horizontal = WorqOrderDimens.ScreenPadding,
+                vertical = WorqOrderDimens.SectionSpacing,
+            ),
         verticalArrangement = Arrangement.spacedBy(WorqOrderDimens.SectionSpacing),
     ) {
-        TimerCard(
-            uiState = uiState,
-            onStart = { onEvent(MainEvent.StartTimer) },
-            onStop = { onEvent(MainEvent.StopTimer) },
-        )
-        DateSelector(
-            displayedDate = uiState.displayedDate,
-            isToday = uiState.isToday,
-            onPreviousDate = { onEvent(MainEvent.PreviousDate) },
-            onNextDate = { onEvent(MainEvent.NextDate) },
-            onChooseDate = { onEvent(MainEvent.OpenDatePicker) },
-            onReturnToToday = { onEvent(MainEvent.ReturnToToday) },
-        )
-        if (uiState.isTimerRunning && !uiState.isToday) {
-            RunningTaskBanner(
-                runningTask = uiState.runningTask,
+        item {
+            TimerCard(
+                uiState = uiState,
+                onStart = { onEvent(MainEvent.StartTimer) },
+                onStop = { onEvent(MainEvent.StopTimer) },
+            )
+        }
+        item {
+            DateSelector(
+                displayedDate = uiState.displayedDate,
+                isToday = uiState.isToday,
+                onPreviousDate = { onEvent(MainEvent.PreviousDate) },
+                onNextDate = { onEvent(MainEvent.NextDate) },
+                onChooseDate = { onEvent(MainEvent.OpenDatePicker) },
                 onReturnToToday = { onEvent(MainEvent.ReturnToToday) },
             )
         }
+        if (uiState.isTimerRunning && !uiState.isToday) {
+            item {
+                RunningTaskBanner(
+                    runningTask = uiState.runningTask,
+                    onReturnToToday = { onEvent(MainEvent.ReturnToToday) },
+                )
+            }
+        }
         uiState.message?.let { message ->
-            MainMessageBanner(
-                message = message,
-                onDismiss = { onEvent(MainEvent.DismissMessage) },
-            )
+            item {
+                MainMessageBanner(
+                    message = message,
+                    onDismiss = { onEvent(MainEvent.DismissMessage) },
+                )
+            }
         }
         uiState.exportFeedback?.let { feedback ->
-            MainExportFeedbackBanner(
-                feedback = feedback,
-                onDismiss = { onEvent(MainEvent.DismissExportFeedback) },
-                onRetry = { onEvent(MainEvent.Export) },
-            )
+            item {
+                MainExportFeedbackBanner(
+                    feedback = feedback,
+                    onDismiss = { onEvent(MainEvent.DismissExportFeedback) },
+                    onRetry = { onEvent(MainEvent.Export) },
+                )
+            }
         }
-        TaskList(
+        taskList(
             uiState = uiState,
             onSelectTask = { onEvent(MainEvent.SelectTask(it)) },
             onOpenTaskMenu = { onEvent(MainEvent.OpenTaskMenu(it)) },
@@ -231,10 +257,6 @@ private fun MainContent(
             onEditTask = { onEvent(MainEvent.EditTask(it)) },
             onDeleteTask = { onEvent(MainEvent.RequestDeleteTask(it)) },
             onRetry = { onEvent(MainEvent.RetryData) },
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
         )
     }
 }
@@ -250,115 +272,189 @@ private fun MainBottomActions(
     onExport: () -> Unit,
     onCreateTask: () -> Unit,
 ) {
-    BottomAppBar(
-        contentPadding =
-            PaddingValues(
-                horizontal = WorqOrderDimens.ScreenPadding,
-                vertical = WorqOrderDimens.BottomActionVerticalPadding,
-            ),
-    ) {
-        FilledTonalButton(
-            onClick = onExport,
-            enabled = canExport,
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .testTag(MainScreenTestTags.EXPORT_ACTION)
-                    .heightIn(min = WorqOrderDimens.ActionButtonHeight),
-        ) {
-            val formattedDate =
-                DateTimeFormatter
-                    .ofPattern("MMM d")
-                    .format(displayedDate)
-            if (exportProgress != null) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(WorqOrderDimens.InlineProgressSize),
-                    strokeWidth = WorqOrderDimens.InlineProgressStrokeWidth,
-                )
-                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Text(
-                    text =
-                        stringResource(
-                            when (exportDestination) {
-                                ExportDestination.CSV ->
-                                    when (exportProgress) {
-                                        MainExportProgress.PREPARING ->
-                                            R.string.preparing_csv
-                                        MainExportProgress.CHOOSING_DESTINATION ->
-                                            R.string.choosing_csv_destination
-                                        MainExportProgress.WRITING ->
-                                            R.string.writing_csv
-                                    }
-                                ExportDestination.XLSX ->
-                                    when (exportProgress) {
-                                        MainExportProgress.PREPARING ->
-                                            R.string.preparing_xlsx
-                                        MainExportProgress.CHOOSING_DESTINATION ->
-                                            R.string.choosing_xlsx_destination
-                                        MainExportProgress.WRITING ->
-                                            R.string.writing_xlsx
-                                    }
-                                ExportDestination.GOOGLE_SHEETS ->
-                                    R.string.exporting_google_sheets
-                            },
-                        ),
-                    maxLines = 2,
-                    textAlign = TextAlign.Center,
-                )
-            } else if (isTimerRunning) {
-                Text(
-                    text = stringResource(R.string.stop_timer_to_export),
-                    maxLines = 2,
-                    textAlign = TextAlign.Center,
-                )
-            } else {
-                Text(
-                    text =
-                        when (exportDestination) {
-                            ExportDestination.CSV ->
-                                stringResource(
-                                    R.string.export_date_as_csv,
-                                    formattedDate,
-                                )
-                            ExportDestination.XLSX ->
-                                stringResource(
-                                    R.string.export_date_as_xlsx,
-                                    formattedDate,
-                                )
-                            ExportDestination.GOOGLE_SHEETS ->
-                                stringResource(
-                                    if (
-                                        googleExportState ==
-                                        MainGoogleExportState.CONNECTED
-                                    ) {
-                                        R.string.submit_date_to_google_sheets
-                                    } else {
-                                        R.string.setup_google_sheets_for_date
-                                    },
-                                    formattedDate,
-                                )
-                        },
-                    maxLines = 2,
-                    textAlign = TextAlign.Center,
-                )
+    val fontScale = LocalDensity.current.fontScale
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val useStackedActions = maxWidth < 360.dp || fontScale >= 1.3f
+        if (useStackedActions) {
+            Surface(
+                color = BottomAppBarDefaults.containerColor,
+                tonalElevation = BottomAppBarDefaults.ContainerElevation,
+            ) {
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(BottomAppBarDefaults.windowInsets)
+                            .padding(
+                                horizontal = WorqOrderDimens.ScreenPadding,
+                                vertical =
+                                    WorqOrderDimens.BottomActionVerticalPadding,
+                            ),
+                    verticalArrangement =
+                        Arrangement.spacedBy(WorqOrderDimens.BottomActionSpacing),
+                ) {
+                    MainExportButton(
+                        canExport = canExport,
+                        isTimerRunning = isTimerRunning,
+                        exportDestination = exportDestination,
+                        googleExportState = googleExportState,
+                        exportProgress = exportProgress,
+                        displayedDate = displayedDate,
+                        onExport = onExport,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    MainAddTaskButton(
+                        onCreateTask = onCreateTask,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        } else {
+            BottomAppBar(
+                contentPadding =
+                    PaddingValues(
+                        horizontal = WorqOrderDimens.ScreenPadding,
+                        vertical = WorqOrderDimens.BottomActionVerticalPadding,
+                    ),
+            ) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    MainExportButton(
+                        canExport = canExport,
+                        isTimerRunning = isTimerRunning,
+                        exportDestination = exportDestination,
+                        googleExportState = googleExportState,
+                        exportProgress = exportProgress,
+                        displayedDate = displayedDate,
+                        onExport = onExport,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(WorqOrderDimens.BottomActionSpacing))
+                    MainAddTaskButton(
+                        onCreateTask = onCreateTask,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
-        Spacer(Modifier.width(WorqOrderDimens.BottomActionSpacing))
-        Button(
-            onClick = onCreateTask,
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .testTag(MainScreenTestTags.ADD_TASK_ACTION)
-                    .heightIn(min = WorqOrderDimens.ActionButtonHeight),
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = null,
+    }
+}
+
+@Composable
+private fun MainExportButton(
+    canExport: Boolean,
+    isTimerRunning: Boolean,
+    exportDestination: ExportDestination,
+    googleExportState: MainGoogleExportState,
+    exportProgress: MainExportProgress?,
+    displayedDate: LocalDate,
+    onExport: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FilledTonalButton(
+        onClick = onExport,
+        enabled = canExport,
+        modifier =
+            modifier
+                .testTag(MainScreenTestTags.EXPORT_ACTION)
+                .heightIn(min = WorqOrderDimens.ActionButtonHeight),
+    ) {
+        val formattedDate =
+            DateTimeFormatter
+                .ofPattern("MMM d")
+                .format(displayedDate)
+        if (exportProgress != null) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(WorqOrderDimens.InlineProgressSize),
+                strokeWidth = WorqOrderDimens.InlineProgressStrokeWidth,
             )
             Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-            Text(stringResource(R.string.add_task))
+            Text(
+                text =
+                    stringResource(
+                        when (exportDestination) {
+                            ExportDestination.CSV ->
+                                when (exportProgress) {
+                                    MainExportProgress.PREPARING ->
+                                        R.string.preparing_csv
+                                    MainExportProgress.CHOOSING_DESTINATION ->
+                                        R.string.choosing_csv_destination
+                                    MainExportProgress.WRITING ->
+                                        R.string.writing_csv
+                                }
+                            ExportDestination.XLSX ->
+                                when (exportProgress) {
+                                    MainExportProgress.PREPARING ->
+                                        R.string.preparing_xlsx
+                                    MainExportProgress.CHOOSING_DESTINATION ->
+                                        R.string.choosing_xlsx_destination
+                                    MainExportProgress.WRITING ->
+                                        R.string.writing_xlsx
+                                }
+                            ExportDestination.GOOGLE_SHEETS ->
+                                R.string.exporting_google_sheets
+                        },
+                    ),
+                maxLines = 2,
+                textAlign = TextAlign.Center,
+            )
+        } else if (isTimerRunning) {
+            Text(
+                text = stringResource(R.string.stop_timer_to_export),
+                maxLines = 2,
+                textAlign = TextAlign.Center,
+            )
+        } else {
+            Text(
+                text =
+                    when (exportDestination) {
+                        ExportDestination.CSV ->
+                            stringResource(
+                                R.string.export_date_as_csv,
+                                formattedDate,
+                            )
+                        ExportDestination.XLSX ->
+                            stringResource(
+                                R.string.export_date_as_xlsx,
+                                formattedDate,
+                            )
+                        ExportDestination.GOOGLE_SHEETS ->
+                            stringResource(
+                                if (
+                                    googleExportState ==
+                                    MainGoogleExportState.CONNECTED
+                                ) {
+                                    R.string.submit_date_to_google_sheets
+                                } else {
+                                    R.string.setup_google_sheets_for_date
+                                },
+                                formattedDate,
+                            )
+                    },
+                maxLines = 2,
+                textAlign = TextAlign.Center,
+            )
         }
+    }
+}
+
+@Composable
+private fun MainAddTaskButton(
+    onCreateTask: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Button(
+        onClick = onCreateTask,
+        modifier =
+            modifier
+                .testTag(MainScreenTestTags.ADD_TASK_ACTION)
+                .heightIn(min = WorqOrderDimens.ActionButtonHeight),
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = null,
+        )
+        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+        Text(stringResource(R.string.add_task))
     }
 }
 
@@ -401,6 +497,8 @@ private fun TimerCard(
                 text = uiState.timerText,
                 modifier =
                     Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
                         .testTag(MainScreenTestTags.TIMER)
                         .semantics {
                             contentDescription = timerDescription
@@ -533,7 +631,10 @@ private fun RunningTaskBanner(
     onReturnToToday: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics { liveRegion = LiveRegionMode.Polite },
         color = MaterialTheme.colorScheme.secondaryContainer,
         shape = MaterialTheme.shapes.medium,
     ) {
@@ -584,7 +685,10 @@ private fun MainMessageBanner(
     onDismiss: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics { liveRegion = LiveRegionMode.Assertive },
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
         shape = MaterialTheme.shapes.medium,
@@ -614,14 +718,19 @@ private fun MainExportFeedbackBanner(
     onDismiss: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    val isFailure =
-        feedback.outcome !in
-            setOf(
-                MainExportOutcome.SUCCESS,
-                MainExportOutcome.CANCELED,
-            )
+    val isFailure = feedback.outcome != MainExportOutcome.SUCCESS
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics {
+                    liveRegion =
+                        if (isFailure) {
+                            LiveRegionMode.Assertive
+                        } else {
+                            LiveRegionMode.Polite
+                        }
+                },
         color =
             if (isFailure) {
                 MaterialTheme.colorScheme.errorContainer
@@ -675,8 +784,6 @@ private fun exportFeedbackText(
                 when (feedback.outcome) {
                     MainExportOutcome.SUCCESS ->
                         R.string.csv_export_succeeded
-                    MainExportOutcome.CANCELED ->
-                        R.string.csv_export_canceled
                     MainExportOutcome.PREPARATION_FAILED ->
                         R.string.csv_export_preparation_failed
                     MainExportOutcome.CLOCK_CHANGED ->
@@ -696,8 +803,6 @@ private fun exportFeedbackText(
                 when (feedback.outcome) {
                     MainExportOutcome.SUCCESS ->
                         R.string.xlsx_export_succeeded
-                    MainExportOutcome.CANCELED ->
-                        R.string.xlsx_export_canceled
                     MainExportOutcome.PREPARATION_FAILED ->
                         R.string.xlsx_export_preparation_failed
                     MainExportOutcome.CLOCK_CHANGED ->
@@ -717,11 +822,6 @@ private fun exportFeedbackText(
             MainExportOutcome.SUCCESS ->
                 stringResource(
                     R.string.google_export_succeeded,
-                    formattedDate,
-                )
-            MainExportOutcome.CANCELED ->
-                stringResource(
-                    R.string.google_export_canceled,
                     formattedDate,
                 )
             MainExportOutcome.PREPARATION_FAILED ->
@@ -798,8 +898,7 @@ private fun MainExportOutcome.isRetryableGoogleFailure(): Boolean =
             MainExportOutcome.AMBIGUOUS_REMOTE_RESULT,
         )
 
-@Composable
-private fun TaskList(
+private fun LazyListScope.taskList(
     uiState: MainUiState,
     onSelectTask: (String) -> Unit,
     onOpenTaskMenu: (String) -> Unit,
@@ -807,73 +906,63 @@ private fun TaskList(
     onEditTask: (String) -> Unit,
     onDeleteTask: (String) -> Unit,
     onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
-    ) {
+    item {
         Text(
             text = stringResource(R.string.task_list),
             style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.testTag(MainScreenTestTags.TASK_LIST),
         )
-        when {
-            uiState.isLoading -> {
+    }
+    when {
+        uiState.isLoading -> {
+            item {
                 Box(
                     modifier =
                         Modifier
-                            .fillMaxSize()
-                            .testTag(MainScreenTestTags.TASK_LIST),
+                            .fillMaxWidth()
+                            .heightIn(min = WorqOrderDimens.TaskListMinimumHeight),
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator()
                 }
             }
-            uiState.hasTaskLoadError -> {
+        }
+        uiState.hasTaskLoadError -> {
+            item {
                 TaskLoadError(
                     onRetry = onRetry,
                     modifier =
                         Modifier
-                            .fillMaxSize()
-                            .testTag(MainScreenTestTags.TASK_LIST),
+                            .fillMaxWidth()
+                            .heightIn(min = WorqOrderDimens.TaskListMinimumHeight),
                 )
             }
-            uiState.tasks.isEmpty() -> {
+        }
+        uiState.tasks.isEmpty() -> {
+            item {
                 EmptyTaskList(
                     modifier =
                         Modifier
-                            .fillMaxSize()
-                            .testTag(MainScreenTestTags.TASK_LIST),
+                            .fillMaxWidth()
+                            .heightIn(min = WorqOrderDimens.TaskListMinimumHeight),
                 )
             }
-            else -> {
-                LazyColumn(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .testTag(MainScreenTestTags.TASK_LIST),
-                    contentPadding =
-                        PaddingValues(
-                            bottom = WorqOrderDimens.SectionSpacing,
-                        ),
-                    verticalArrangement =
-                        Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
-                ) {
-                    items(
-                        items = uiState.tasks,
-                        key = MainTaskItemUi::id,
-                    ) { task ->
-                        TaskRow(
-                            task = task,
-                            menuExpanded = uiState.openTaskMenuTaskId == task.id,
-                            onSelect = { onSelectTask(task.id) },
-                            onOpenMenu = { onOpenTaskMenu(task.id) },
-                            onCloseMenu = onCloseTaskMenu,
-                            onEdit = { onEditTask(task.id) },
-                            onDelete = { onDeleteTask(task.id) },
-                        )
-                    }
-                }
+        }
+        else -> {
+            items(
+                items = uiState.tasks,
+                key = MainTaskItemUi::id,
+            ) { task ->
+                TaskRow(
+                    task = task,
+                    menuExpanded = uiState.openTaskMenuTaskId == task.id,
+                    onSelect = { onSelectTask(task.id) },
+                    onOpenMenu = { onOpenTaskMenu(task.id) },
+                    onCloseMenu = onCloseTaskMenu,
+                    onEdit = { onEditTask(task.id) },
+                    onDelete = { onDeleteTask(task.id) },
+                )
             }
         }
     }
@@ -893,6 +982,7 @@ private fun TaskRow(
         when {
             task.isRunning -> stringResource(R.string.running)
             task.isSelected -> stringResource(R.string.task_selected_state)
+            !task.canSelect -> stringResource(R.string.stop_before_switching)
             else -> stringResource(R.string.task_not_selected_state)
         }
     Card(
@@ -977,7 +1067,7 @@ private fun TaskRow(
                         contentDescription =
                             stringResource(
                                 R.string.task_options,
-                                task.description,
+                                task.clientName,
                             ),
                     )
                 }

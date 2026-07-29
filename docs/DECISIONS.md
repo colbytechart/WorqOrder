@@ -203,9 +203,9 @@ Consequences: the existing stable DataStore dependency remains prepared but unus
 The owner replaced the earlier broad sequence with the numbered plan recorded in
 `IMPLEMENTATION_PLAN.md`: scaffold; Room persistence; timer/date domain; Main/live presentation;
 clients; task/interval CRUD; persistent settings; CSV; current Google integration planning;
-Google connection settings; Sheets export; focused XLSX; lifecycle hardening; local data
-protection/encryption; accessibility/usability; full audit; and release/handoff. A final
-user-presence/application-access milestone exists only as optional post-project work.
+Google connection settings; Sheets export; focused XLSX; lifecycle hardening;
+accessibility/usability; full audit; and release/handoff. User-presence/application-access work and
+at-rest encryption exist only as separately authorized optional post-project milestones.
 
 Consequences: feature ownership and deferred work follow that sequence. In particular, Milestone 3
 contains no final UI, Google, or CSV behavior; Google documentation/dependency discovery is
@@ -417,22 +417,23 @@ credentials, or app-private keys are written. Apache POI remains disallowed abse
 owner decision. Cancellation writes nothing; output failure uses best-effort partial-document
 cleanup and leaves Room unchanged.
 
-### D-050 — Transparent local data encryption is required production scope
+### D-050 — At-rest encryption is deferred to optional Milestone 19
 
-After lifecycle hardening, add a dedicated Data Protection and Encryption Hardening milestone.
-Protect sensitive app-private Room and DataStore content at rest with versioned,
-Keystore-backed, authenticated encryption. Include database auxiliary files, backup/data
-extraction, caches, temporary artifacts, logs, crash output, non-destructive plaintext migration,
-key rotation, key loss/invalidation, corruption, performance, and full regression testing.
+The owner superseded the earlier required Milestone 14 encryption decision after its experimental
+work was removed from the production branch. The required production sequence does not add
+WorqOrder-managed encryption to app-private Room or DataStore files and must not claim otherwise.
+Android's application sandbox remains the current local access boundary.
 
-This protection is invisible during normal use: no WorqOrder login, account, biometric prompt,
-device-credential prompt, or app PIN is required. Never silently delete/reseed Room or replace
-authoritative data after a key or migration failure. Plaintext necessarily exists transiently in
-memory while the unlocked app uses it.
+The complete Data Protection and Encryption Hardening scope is retained only as optional
+Milestone 19, after optional Milestone 18. It requires separate explicit owner permission. If
+authorized, it must cover versioned Keystore-backed authenticated encryption, database auxiliary
+files, backup/data extraction, caches, temporary artifacts, logs, crash output, non-destructive
+plaintext migration, key rotation, key loss/invalidation, corruption, performance, and full
+regression testing. It must add no mandatory WorqOrder login, account, biometric prompt,
+device-credential prompt, or app PIN, and it must never silently delete or reseed Room.
 
-User-selected CSV and XLSX documents are unencrypted external files. Readable Google Sheets cells
-use platform TLS and Google access controls but are not end-to-end encrypted by WorqOrder. The app
-must communicate these boundaries rather than imply that local encryption follows exported data.
+User-selected CSV and XLSX documents remain unencrypted external files. Readable Google Sheets
+cells use platform TLS and Google access controls but are not end-to-end encrypted by WorqOrder.
 
 ### D-051 — Post-project options require separate authorization
 
@@ -444,8 +445,9 @@ only after Milestone 17 is finished.
 If authorized, keep the feature local/offline and opt-in. It must not introduce a WorqOrder cloud
 account, custom backend, password server, Google-account requirement, or silent key/data loss.
 Its own gate covers prompt/lockout/cancellation, background timeout, screen/reboot/process events,
-deep-link/navigation bypass, sensitive previews, accessibility, running-timer integrity,
-encryption interactions, and full security/regression testing.
+deep-link/navigation bypass, sensitive previews, accessibility, running-timer integrity, and full
+security/regression testing. Encryption interactions apply only if optional Milestone 19 is also
+separately authorized.
 
 The same optional milestone also revisits two export enhancements that are intentionally excluded
 from production scope until separately authorized:
@@ -570,6 +572,25 @@ initial contribution from persisted Start/current UTC, then establishes a fresh 
 A negative/untrustworthy recovery remains fail-closed with `ClockChanged`; WorqOrder does not
 invent elapsed time that cannot be reconstructed.
 
+### D-058 — Milestone 15 adaptive and accessible interaction policy
+
+Owner approval resolves the previously deferred export-cancellation presentation: canceling a
+CSV/XLSX create-document picker or Google export authorization clears progress and returns to
+unchanged Main content without a banner, snackbar, success, or error. A non-sensitive
+`Canceled` last-attempt diagnostic remains permitted.
+
+Main uses one vertically scrollable content surface so timer, date, recovery messages, and task
+rows remain reachable in landscape, on short displays, and at large font scales. At narrow widths
+or at least 130% font scale, Export and Add task stack vertically; ordinary phone layouts retain
+the approved side-by-side bottom actions. The full timer value remains a single accumulated value,
+is horizontally scrollable when enlarged, and retains its complete screen-reader description.
+
+Expected errors use assertive live-region semantics, progress/status and success use polite
+announcements, field validation exposes error semantics, and selected/running/locked task states
+remain explicit text and semantics rather than color-only. Disconnecting a spreadsheet always
+requires confirmation; signing out requires confirmation when connected metadata will also be
+cleared. Neither action changes Room task data.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.
@@ -581,6 +602,8 @@ invent elapsed time that cannot be reconstructed.
 - Task interval-card Start/Stop values changing from their current second-level display to
   task-zone `HH:mm` are deferred to optional Milestone 18 under D-051; full stored time metadata
   remains unchanged.
+- At-rest encryption of app-private Room and DataStore files is deferred to optional Milestone 19
+  under D-050 and requires separate explicit owner authorization after optional Milestone 18.
 - App-access login/biometric/device-credential/PIN gating remains optional post-project scope
   governed by D-051.
 

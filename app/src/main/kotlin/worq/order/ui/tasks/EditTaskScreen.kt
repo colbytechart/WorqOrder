@@ -35,6 +35,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import worq.order.R
@@ -233,7 +236,12 @@ private fun EditTaskContent(
             ) {
                 Text(
                     text = stringResource(message.stringResource()),
-                    modifier = Modifier.weight(1f),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .semantics {
+                                liveRegion = LiveRegionMode.Assertive
+                            },
                     color = MaterialTheme.colorScheme.error,
                 )
                 TextButton(onClick = { onEvent(EditTaskEvent.DismissMessage) }) {
@@ -546,6 +554,10 @@ private fun IntervalEditorDialog(
                     Text(
                         text = stringResource(error.stringResource()),
                         color = MaterialTheme.colorScheme.error,
+                        modifier =
+                            Modifier.semantics {
+                                liveRegion = LiveRegionMode.Assertive
+                            },
                     )
                 }
             }

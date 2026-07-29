@@ -31,10 +31,12 @@
 - Before declaring an implementation milestone complete, run formatting, lint, unit tests, relevant instrumentation tests, and the applicable debug/release builds.
 - Do not silently change product behavior. Update the relevant specification and `docs/DECISIONS.md`, and call out the change for review.
 - Treat credentials, signing material, `local.properties`, generated files, and account tokens as local secrets; never commit them.
-- Protect app-private Room and DataStore contents with the approved Keystore-backed at-rest
-  encryption milestone. Never solve key loss or migration failure by silently deleting local data.
-  User-directed CSV/XLSX files and readable Google Sheets exports leave the app's encrypted local
-  boundary and are not end-to-end encrypted by WorqOrder.
+- App-private at-rest encryption is deferred to optional Milestone 19 and must not be implemented
+  without explicit owner permission after optional Milestone 18. The current production plan relies
+  on Android's app sandbox and must not claim that Room or DataStore files are encrypted by
+  WorqOrder. Never solve any storage or migration failure by silently deleting local data.
+- User-directed CSV/XLSX files and readable Google Sheets exports are plaintext external copies and
+  are not end-to-end encrypted by WorqOrder.
 - Biometric, device-credential, PIN, or account-gated app access belongs only to the optional
   post-project milestone and must not be implemented without explicit owner permission.
 - Do not start a later milestone unless the user explicitly requests it. In particular, do not scaffold or implement the app during the planning milestone.

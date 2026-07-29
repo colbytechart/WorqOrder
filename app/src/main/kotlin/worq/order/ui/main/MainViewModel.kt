@@ -798,12 +798,20 @@ class MainViewModel(
                     )
                 }
             }
-            GoogleSheetsExportOperationResult.Canceled ->
-                finishGoogleExport(
+            GoogleSheetsExportOperationResult.Canceled -> {
+                rawState.update {
+                    it.copy(
+                        exportProgress = null,
+                        exportFeedback = null,
+                    )
+                }
+                recordExportAttempt(
                     workDate = requestedDate,
-                    outcome = MainExportOutcome.CANCELED,
-                    attemptOutcome = ExportAttemptOutcome.CANCELED,
+                    attemptedAt = utcClock.now(),
+                    destination = ExportDestination.GOOGLE_SHEETS,
+                    outcome = ExportAttemptOutcome.CANCELED,
                 )
+            }
             GoogleSheetsExportOperationResult.SetupRequired -> {
                 finishGoogleExport(
                     workDate = requestedDate,
@@ -928,11 +936,7 @@ class MainViewModel(
             rawState.update {
                 it.copy(
                     exportProgress = null,
-                    exportFeedback =
-                        MainExportFeedback(
-                            workDate = export.workDate,
-                            outcome = MainExportOutcome.CANCELED,
-                        ),
+                    exportFeedback = null,
                 )
             }
             recordExportAttempt(
@@ -1017,12 +1021,7 @@ class MainViewModel(
             rawState.update {
                 it.copy(
                     exportProgress = null,
-                    exportFeedback =
-                        MainExportFeedback(
-                            workDate = export.workDate,
-                            outcome = MainExportOutcome.CANCELED,
-                            destination = ExportDestination.XLSX,
-                        ),
+                    exportFeedback = null,
                 )
             }
             recordExportAttempt(

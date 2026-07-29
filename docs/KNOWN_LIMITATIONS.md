@@ -25,6 +25,10 @@
 - A database state containing an orphan open interval or mismatched active pointer fails closed.
   WorqOrder will not delete or close the interval automatically because doing so could lose known
   time. A later support/recovery workflow may be needed for genuinely corrupted installations.
+- Real-device reopening on the next day, a natural midnight crossing, and a multiple-midnight
+  recovery run were deferred by owner to optional Milestone 18, if ever authorized. Automated
+  real-zone, DST, multi-boundary, idempotence, process-recovery, and Room transaction tests cover
+  the underlying rules in the required project.
 
 ## Date and time-zone presentation
 
@@ -38,6 +42,8 @@
 ## Durability boundaries
 
 - Data is not promised to survive uninstalling WorqOrder or clearing its app storage.
+- Android application backup is disabled, so WorqOrder does not provide platform backup/restore or
+  device-transfer recovery for its app-private database and preferences.
 - The required production build does not add WorqOrder-managed encryption to app-private Room or
   DataStore files; it relies on Android's application sandbox. At-rest encryption is deferred to
   optional Milestone 19 and requires separate owner authorization.

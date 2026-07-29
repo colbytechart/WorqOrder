@@ -469,18 +469,27 @@ While an External OAuth app is in Testing:
 - grants that include `drive.file` can expire after seven days, so reauthorization
   during development is expected.
 
-The selected small-use path is:
+The selected no-cost public path is:
 
 1. an individual developer-controlled Google Cloud project;
 2. External/Testing during Milestones 10 and 11 with named test users;
-3. External/In Production when the direct-release build is ready, avoiding the
-   seven-day Testing expiration;
+3. External/In Production when the direct-release build is ready, removing the
+   test-user allowlist and avoiding the seven-day Testing expiration;
 4. no Google Workspace/Cloud organization, custom domain, verified brand, Google Play
-   distribution, or paid service; and
-5. fewer than 100 Google-authorized users unless Google later provides another
-   compatible no-cost/no-domain path.
+   distribution, or paid service.
 
-The project accepts that consent may show unverified or less-polished project identity.
+As rechecked against official Google documentation on 2026-07-29, External/In Production projects
+are available to any Google Account. The 100-new-user cap applies to OAuth clients that present an
+unverified-app warning for unapproved sensitive/restricted scopes; WorqOrder's sole authorization
+scope, `drive.file`, is non-sensitive. Brand verification is optional for apps using only
+non-sensitive scopes unless a verified app name/logo is desired.
+
+Milestone 17 must verify the release-signed APK using an account that was never on the test-user
+list. After that one-time project setup, the owner does not manually add or approve users. A
+Workspace administrator or Advanced Protection policy can still block a particular account, and
+users must have permission to edit their chosen spreadsheet.
+
+The project accepts that consent may show less-polished project identity.
 It still keeps support contact information current and supplies accurate privacy/user
 documentation in the open-source repository.
 

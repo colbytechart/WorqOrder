@@ -124,11 +124,15 @@ The owner completed these emulator/device checks successfully:
 - spring-forward and fall-back transitions; local labels reflected the discontinuous/repeated wall
   clock while elapsed duration remained correct.
 
-Still deferred:
+Deferred by owner to optional Milestone 18, if that milestone is ever authorized:
 
 - reopening on the next real day;
 - a natural one-midnight crossing;
 - multiple-midnight device recovery.
+
+These are not repeated after each required production milestone. Automated real-zone,
+multiple-boundary, idempotence, process-reconstruction, and Room continuation tests remain the
+required-project evidence until the optional physical-device runs are authorized.
 
 Corrections implemented and manually retested successfully:
 

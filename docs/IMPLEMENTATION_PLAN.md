@@ -468,6 +468,9 @@ Entry: feature and refinement milestones accepted.
 
 - Map every product requirement and acceptance scenario to implementation and passing
   evidence.
+- Keep the timer and date-selector bar pinned above an independently scrolling lower Main
+  message/task region and present newly created daily tasks first; preserve Room and canonical
+  export ordering.
 - Run the full unit, coroutine, Room/migration, ViewModel, Compose, lifecycle, CSV, XLSX, fake
   Google, and controlled integration suites.
 - Audit permissions, logs, credentials, OAuth scopes, backup behavior, storage, spreadsheet
@@ -494,9 +497,10 @@ Entry: Milestone 16 audit accepted.
 - Versioning, signing and release configuration through the owner's secure process.
 - Create the permanent direct-release keystore/fingerprint and matching Android OAuth client through
   the owner's secure process; do not create Google Play signing configuration.
-- Move the External OAuth audience to In Production for small ongoing use, document the
-  unverified/personal-use consent limitations, and retain repository-hosted privacy/user guidance
-  without making a custom domain or paid brand verification a release dependency.
+- Move the External OAuth audience to In Production so the test-user list no longer gates any
+  Google Account. Prove the release-signed APK with an account never listed as a tester; document
+  external Workspace/Advanced-Protection restrictions and retain repository-hosted privacy/user
+  guidance without making a custom domain or paid brand verification a release dependency.
 - Document no-cost standard quota behavior, CSV fallback, external plaintext exports, the absence
   of WorqOrder-managed local at-rest encryption, known limitations, and maintenance guidance.
 - Update README and produce a release candidate without committing signing material,
@@ -664,7 +668,7 @@ Milestone 19 is separately authorized and must pass this checklist before being 
 | OAuth configuration differs from app identity | Google authorization fails | Register exact `worq.order` plus debug SHA-1 now and direct-release SHA-1 only in Milestone 17; no Play identity |
 | Google Android auth APIs evolve | Integration churn or conflict with stable-only rule | Milestone 9 selected current stable versions; recheck official releases at Milestone 10 implementation |
 | Picker grant does not match pasted spreadsheet ID | Wrong file connected or per-file access unavailable | Filter Picker by exact ID/MIME type, reject every nonempty `picked_file_ids` mismatch, and require exact-ID Drive capability plus Sheets metadata validation even when reconnect reuses a retained grant with no repeated Picker IDs |
-| OAuth project remains in Testing | `drive.file` grants expire after seven days | Use External Testing during development, then move the small personal-use project to In Production without making verified branding/custom domain a dependency |
+| OAuth project remains in Testing | Only listed testers can authorize and `drive.file` grants can expire after seven days | Before distribution, use External/In Production and prove an unlisted account can connect/export; `drive.file` is non-sensitive and verified branding/custom domain remains optional |
 | Google standard quota or policy changes | Google export could fail or invite paid capacity | Never attach billing or buy quota; use bounded explicit calls, show a useful failure, keep CSV available, and require a new owner decision |
 | Collaborative sheet changes race an export | Possible remote conflict | Marker, narrow reads, atomic batch, raw values, idempotent retry; never change Room |
 | XLSX writer is incompatible or unsafe | Malformed workbooks or formula execution | Focused internal Milestone 12 writer, literal cells, independent-parser/golden tests, Excel/LibreOffice checks, and no Apache POI |

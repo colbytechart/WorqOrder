@@ -20,4 +20,8 @@ object WorqOrderDimens {
     val InlineProgressSize = 20.dp
     val InlineProgressStrokeWidth = 2.dp
     val ZoneSelectorMaxHeight = 360.dp
+    val ScrollIndicatorWidth = 3.dp
+    val ScrollIndicatorEdgePadding = 4.dp
+    val ScrollIndicatorMinimumHeight = 24.dp
+    const val MinimumScrollThumbFraction = 0.12f
 }

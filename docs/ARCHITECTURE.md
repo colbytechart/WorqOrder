@@ -128,6 +128,12 @@ Each ViewModel exposes an immutable `StateFlow<UiState>` and a separate bounded 
 
 The visible ticker runs only while collected and an interval is active. It emits display refresh signals (for example, every 16–100 ms depending on performance), never database mutations. Format milliseconds from the computed duration; do not imply 1 ms refresh precision.
 
+Main keeps the timer card and complete date-selector bar outside the lower `LazyColumn`, so the
+timing identity, Start/Stop control, displayed date, date arrows, and calendar action remain visible
+while messages and tasks scroll independently. Task rows are sorted newest-created first when a
+Room date observation emits, not on each timer refresh. This is a presentation projection only:
+DAO and canonical export ordering remain independently stable.
+
 ## 6. Repository and service responsibilities
 
 ### Repositories
@@ -338,9 +344,11 @@ Google ID `1.2.0`, `play-services-auth:21.6.0`, and
 
 The owner requires WorqOrder to remain GPLv3, free, and open source without Google Workspace,
 organization membership, a custom domain, or paid Google services. Development uses an External
-Testing audience; a small personal-use project may move to External/In Production for non-expiring
-Testing grants without seeking verified branding. If Google's policy later removes that no-cost
-path, do not broaden scope or enable billing—stop and revisit the Google feature.
+Testing audience; Milestone 17 must move the release project to External/In Production so any
+eligible Google Account can authorize without an owner-managed test list. The sole `drive.file`
+authorization scope is non-sensitive, so brand verification remains optional unless verified
+name/logo presentation is desired. If Google's policy later removes that no-cost path, do not
+broaden scope or enable billing—stop and revisit the Google feature.
 
 ## 11. Security and privacy
 

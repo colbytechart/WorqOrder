@@ -414,7 +414,8 @@ The complete developer procedure is in `GOOGLE_SHEETS_SETUP.md`. Its fixed input
 - only `https://www.googleapis.com/auth/drive.file` declared for Google data access;
 - one debug Android OAuth client now and one direct-release client created in Milestone 17;
 - one Web OAuth client ID for Credential Manager;
-- an External audience in Testing during development and In Production for small ongoing use;
+- an External audience in Testing during development and In Production for release, where any
+  eligible Google Account can authorize without being added to a test-user list;
 - no Google Play client, Workspace organization, custom domain, brand-verification dependency,
   Google Cloud billing account, or paid quota increase;
 - an uncommitted `worqorder.google.webClientId` local/CI Gradle property; and

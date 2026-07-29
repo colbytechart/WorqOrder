@@ -76,6 +76,9 @@ The initial route is the main screen. It has a top app bar, timer, date selector
 - Use one control labeled **Start** or **Stop** according to state.
 - Start is enabled only when the displayed date is today, the selected task belongs to today, validation passes, and no interval is globally open.
 - Stop targets the globally active interval, even if UI state has been recreated.
+- Keep the timer card and complete date-selector bar pinned below the top app bar. Messages and task
+  rows use an independent lower scrolling region so a long task list never moves the timer or date
+  controls off screen.
 
 ### Date selector
 
@@ -104,7 +107,11 @@ If the same series/date has retained assignments from different ZoneIds, show a 
 
 Tap selects a row. There is one selected task/series at a time. While an interval is open, the running row stays selected; other rows, task edits, task deletion, and material edits to the running task are disabled. Overflow actions are **Edit task** and **Delete task**. Delete requires confirmation.
 
-Empty dates show an explanatory empty state and the add-task action. Large lists are lazy, keyboard/accessibility navigable, and do not rely on color alone for selected or running state.
+Tasks are presented newest-created first, with a stable ID tie-breaker, so a newly created task
+appears at the top without changing Room or export ordering. Empty dates show an explanatory empty
+state and the add-task action. Large lists are lazy, expose a quiet visual scroll-position
+indicator, remain keyboard/accessibility navigable, and do not rely on color alone for selected or
+running state.
 
 ### Add task
 

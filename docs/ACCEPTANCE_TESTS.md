@@ -23,6 +23,13 @@ Given tasks exist on two dates, when the displayed date changes with arrows or p
 
 Given a daily task has client, description, and intervals, then its row exposes those fields, total duration, overflow actions, selected semantics, and running semantics without relying only on color.
 
+### UI-03a Pinned timer/date controls and task ordering
+
+Given more tasks than fit in the lower task region, scrolling to the oldest task leaves both the
+timer card and complete date-selector bar at their original on-screen positions and exposes a
+visual scroll-position indicator. Tasks are ordered newest-created first with a stable ID
+tie-breaker; adding a task places it first without changing persisted or export order.
+
 ### UI-04 Selection
 
 Given two stopped tasks on the displayed date, when the user taps the second, then it alone is selected and the timer shows its total.
@@ -682,9 +689,9 @@ spreadsheet remains a direct action.
 ### A11Y-05 Adaptive Main layout
 
 At 200% font scale, Main's export and Add task actions stack without overlap, the timer retains its
-complete semantic value and can scroll horizontally if necessary, and the timer/date/messages/task
-list share one vertically scrollable surface. At ordinary font scale and phone width, the two
-bottom actions remain side by side.
+complete semantic value and can scroll horizontally if necessary, and the pinned timer/date region
+leaves a usable independently scrollable lower message/task region. At ordinary font scale and
+phone width, the two bottom actions remain side by side.
 
 ## 13. Optional post-project application-access security
 

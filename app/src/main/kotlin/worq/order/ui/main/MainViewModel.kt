@@ -265,8 +265,13 @@ class MainViewModel(
         }.flatMapLatest { date ->
             taskRepository
                 .observeTasksForDate(date)
-                .map<List<TaskListItem>, MainLoad<List<TaskListItem>>> {
-                    MainLoad.Value(it)
+                .map<List<TaskListItem>, MainLoad<List<TaskListItem>>> { tasks ->
+                    MainLoad.Value(
+                        tasks.sortedWith(
+                            compareByDescending<TaskListItem> { it.task.createdAt }
+                                .thenByDescending { it.task.id },
+                        ),
+                    )
                 }.onStart {
                     emit(MainLoad.Loading)
                 }.catch {

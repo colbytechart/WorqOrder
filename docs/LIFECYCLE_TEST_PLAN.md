@@ -128,14 +128,18 @@ Still deferred:
 
 - reopening on the next real day;
 - a natural one-midnight crossing;
-- multiple-midnight device recovery; and
-- neutral cancellation presentation after that separately deferred UI adjustment is implemented.
+- multiple-midnight device recovery.
 
-Corrections implemented; manual retest pending:
+Corrections implemented and manually retested successfully:
 
 - Forward and backward wall-clock changes previously left the live monotonic display accurate but
   made Stop differ by approximately 10–20 seconds. D-057 now uses the valid monotonic projection
-  for Stop and normalization; repeat both manual checks on the updated build.
+  for Stop and normalization; both forward and backward correction tests passed on the updated
+  build.
 - Running export under the superseded snapshot policy produced blank Stop Local values and
   unusable duration snapshots. D-056 replaces that workflow with a global running-timer lockout;
-  the manual three-destination lockout check must be repeated after installing the updated build.
+  the manual lockout check passed on the updated build.
+
+Milestone 15 resolved the formerly deferred cancellation presentation under D-058. JVM tests
+prove CSV/XLSX/Google cancellation clears progress, writes nothing, retains only the optional
+diagnostic outcome, and exposes no Main-screen feedback.

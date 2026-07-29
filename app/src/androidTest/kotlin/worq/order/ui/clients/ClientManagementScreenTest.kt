@@ -1,5 +1,7 @@
 package worq.order.ui.clients
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -74,6 +76,15 @@ class ClientManagementScreenTest {
         composeRule
             .onNodeWithText("An active client already uses this name.")
             .assertIsDisplayed()
+        composeRule
+            .onNode(
+                matcher =
+                    SemanticsMatcher.expectValue(
+                        SemanticsProperties.Error,
+                        "An active client already uses this name.",
+                    ),
+                useUnmergedTree = true,
+            ).fetchSemanticsNode()
     }
 
     @Test

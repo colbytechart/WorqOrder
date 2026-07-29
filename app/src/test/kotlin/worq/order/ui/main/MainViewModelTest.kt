@@ -544,6 +544,44 @@ class MainViewModelTest {
         }
 
     @Test
+    fun googleAuthorizationCancellationIsVisuallySilentAndRecorded() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.settings.setDefaultExportDestination(
+                ExportDestination.GOOGLE_SHEETS,
+            )
+            fixture.google.saveSignedInAccount(
+                GoogleAccountHint("person@example.com", "Person"),
+            )
+            fixture.google.saveConnectedSpreadsheet(
+                spreadsheetId =
+                    "1AbCdEfGhIjKlMnOpQrStUvWxYz_123456789",
+                spreadsheetTitle = "Work Log",
+                validatedAt = NOW,
+            )
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+            val effect = async { viewModel.effects.first() }
+            runCurrent()
+            viewModel.onEvent(MainEvent.Export)
+            runCurrent()
+            effect.await()
+
+            viewModel.onGoogleSheetsExportResult(
+                GoogleSheetsExportOperationResult.Canceled,
+            )
+            runCurrent()
+
+            assertNull(viewModel.uiState.value.exportProgress)
+            assertNull(viewModel.uiState.value.exportFeedback)
+            assertEquals(
+                ExportAttemptOutcome.CANCELED,
+                fixture.settings.readSettings().lastExportAttempt?.outcome,
+            )
+        }
+
+    @Test
     fun csvPickerCancellationIsNeutralAndWritesNothing() =
         runTest(mainDispatcherRule.dispatcher) {
             val fixture = Fixture()
@@ -570,10 +608,7 @@ class MainViewModelTest {
 
             assertTrue(fixture.document.writes.isEmpty())
             assertNull(viewModel.uiState.value.exportProgress)
-            assertEquals(
-                MainExportOutcome.CANCELED,
-                viewModel.uiState.value.exportFeedback?.outcome,
-            )
+            assertNull(viewModel.uiState.value.exportFeedback)
             assertEquals(
                 ExportAttemptOutcome.CANCELED,
                 fixture.settings.readSettings().lastExportAttempt?.outcome,
@@ -694,10 +729,7 @@ class MainViewModelTest {
 
             assertTrue(fixture.binaryDocument.writes.isEmpty())
             assertNull(viewModel.uiState.value.exportProgress)
-            assertEquals(
-                MainExportOutcome.CANCELED,
-                viewModel.uiState.value.exportFeedback?.outcome,
-            )
+            assertNull(viewModel.uiState.value.exportFeedback)
             assertEquals(
                 ExportAttemptOutcome.CANCELED,
                 fixture.settings.readSettings().lastExportAttempt?.outcome,

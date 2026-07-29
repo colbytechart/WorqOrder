@@ -1,19 +1,29 @@
 package worq.order.ui.main
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -34,6 +44,13 @@ class MainScreenTest {
         setMainContent(MainUiState.ready())
 
         composeRule.onNodeWithText("00:00:00.000").assertIsDisplayed()
+        composeRule
+            .onNodeWithContentDescription(
+                "Tracked time 00:00:00.000. Timer stopped.",
+            ).assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(MainScreenTestTags.CONTENT)
+            .performScrollToNode(hasText("No Tasks for This Date"))
         composeRule.onNodeWithText("No Tasks for This Date").assertIsDisplayed()
         composeRule
             .onNodeWithTag(MainScreenTestTags.TIMER_ACTION)
@@ -109,9 +126,22 @@ class MainScreenTest {
         }
 
         composeRule
+            .onNodeWithTag(MainScreenTestTags.CONTENT)
+            .performScrollToNode(
+                hasTestTag(MainScreenTestTags.taskRow("task-1")),
+            )
+        composeRule
             .onNodeWithTag(MainScreenTestTags.taskRow("task-1"))
             .performClick()
-        composeRule.onNodeWithText("Start").assertIsEnabled().performClick()
+        composeRule
+            .onNodeWithTag(MainScreenTestTags.CONTENT)
+            .performScrollToNode(
+                hasTestTag(MainScreenTestTags.TIMER_ACTION),
+            )
+        composeRule
+            .onNodeWithTag(MainScreenTestTags.TIMER_ACTION)
+            .assertIsEnabled()
+            .performClick()
         composeRule.onNodeWithText("Stop").assertIsEnabled().performClick()
 
         assertTrue(events.contains(MainEvent.SelectTask("task-1")))
@@ -208,6 +238,99 @@ class MainScreenTest {
         composeRule
             .onNodeWithText("Stop Timer to Export")
             .assertIsNotEnabled()
+    }
+
+    @Test
+    fun largeTextStacksBottomActionsAndKeepsMainContentScrollable() {
+        val longDescription =
+            "A long task description remains reachable on a narrow " +
+                "large-text layout without overlapping primary actions."
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides
+                    Density(
+                        density = density.density,
+                        fontScale = 2f,
+                    ),
+            ) {
+                WorqOrderTheme(darkTheme = true) {
+                    MainScreen(
+                        uiState =
+                            MainUiState
+                                .ready()
+                                .copy(
+                                    canExport = true,
+                                    tasks =
+                                        listOf(
+                                            task(
+                                                id = "large-text-task",
+                                                client =
+                                                    "A Very Long Client Name for Layout Testing",
+                                                description = longDescription,
+                                            ),
+                                        ),
+                                ),
+                        onEvent = {},
+                    )
+                }
+            }
+        }
+
+        val exportBounds =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.EXPORT_ACTION)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        val addBounds =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.ADD_TASK_ACTION)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        assertTrue(exportBounds.bottom <= addBounds.top)
+
+        composeRule
+            .onNodeWithTag(MainScreenTestTags.CONTENT)
+            .performScrollToNode(hasText(longDescription))
+        composeRule.onNodeWithText(longDescription).assertIsDisplayed()
+    }
+
+    @Test
+    fun narrowPhoneStacksBottomActionsWithoutOverlap() {
+        composeRule.setContent {
+            Box(
+                modifier =
+                    androidx.compose.ui.Modifier
+                        .width(320.dp)
+                        .fillMaxHeight(),
+            ) {
+                WorqOrderTheme(darkTheme = false) {
+                    MainScreen(
+                        uiState =
+                            MainUiState
+                                .ready()
+                                .copy(canExport = true),
+                        onEvent = {},
+                    )
+                }
+            }
+        }
+
+        val exportBounds =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.EXPORT_ACTION)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        val addBounds =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.ADD_TASK_ACTION)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        assertTrue(exportBounds.bottom <= addBounds.top)
     }
 
     @Test
@@ -351,6 +474,11 @@ class MainScreenTest {
                     ),
             )
         composeRule
+            .onNodeWithTag(MainScreenTestTags.CONTENT)
+            .performScrollToNode(
+                hasText("Submitted Jul 24, 2026 to Google Sheets."),
+            )
+        composeRule
             .onNodeWithText("Submitted Jul 24, 2026 to Google Sheets.")
             .assertIsDisplayed()
 
@@ -424,7 +552,12 @@ class MainScreenTest {
             }
         }
 
-        composeRule.onNodeWithContentDescription("Options for Description").performClick()
+        composeRule
+            .onNodeWithTag(MainScreenTestTags.CONTENT)
+            .performScrollToNode(
+                hasTestTag(MainScreenTestTags.taskRow("task-1")),
+            )
+        composeRule.onNodeWithContentDescription("Options for Client").performClick()
         composeRule.onNodeWithText("Edit").assertIsEnabled().performClick()
         assertTrue(events.contains(MainEvent.EditTask("task-1")))
 

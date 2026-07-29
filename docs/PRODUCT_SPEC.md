@@ -26,8 +26,6 @@ authoritative. Exports are copies and never feed data back into Room.
 - UTF-8 CSV and focused XLSX export through Android scoped/user-mediated storage flows.
 - One connected Google spreadsheet, with one application-owned worksheet tab per date.
 - Local settings and meaningful export status/error presentation.
-- Keystore-backed encryption of sensitive app-private Room/DataStore content, without requiring
-  the user to log in or complete a biometric prompt.
 - Free and open-source distribution under GPLv3, with no paid service required for any supported
   workflow.
 
@@ -45,6 +43,9 @@ authoritative. Exports are copies and never feed data back into Room.
   Google Workspace/Cloud organization membership, or a custom-domain requirement.
 - A foreground service in the initial MVP.
 - A promise that app-private data survives uninstall or clearing application storage.
+- WorqOrder-managed encryption of app-private Room or DataStore files in the required production
+  sequence. At-rest encryption is deferred to optional Milestone 19 and requires separate owner
+  authorization after optional Milestone 18.
 
 ## 3. Core vocabulary
 
@@ -195,11 +196,10 @@ and does not alter Room.
 - Versioned, non-destructive migrations and Room schema exports begin at database version 1.
 - Selection persists as a preferred task-series ID plus the last concrete daily-task ID and the date/zone context in which that task was selected. Invalid references are repaired safely. The displayed date is not persisted; normal startup displays today.
 - When the effective local date or geographical zone changes, an eligible timing selection lazily finds or creates its new daily task using `(series ID, work date, assignment ZoneId)` uniqueness, copies the prior daily task's current client, short description, and hardware/software-purchases text, and becomes selected. A task intentionally selected outside its own stored date/zone context remains view-only instead of being rolled. The zone context prevents a task assigned under a different zone from being silently repurposed.
-- The production encryption milestone protects sensitive Room and DataStore content at rest with
-  Android Keystore-backed key material and a non-destructive migration. Database auxiliary files,
-  backup rules, caches, and diagnostics are part of the protected-data audit.
-- Encryption failure is explicit and fail-closed. The app must never silently clear/reseed Room
-  because a key is missing, invalidated, or incompatible.
+- The current required production sequence does not add WorqOrder-managed at-rest encryption to
+  Room or DataStore. Android's app sandbox remains the local access boundary; optional Milestone
+  19 retains the separately authorized encryption and non-destructive migration plan.
+- Storage failure must remain explicit and must never silently clear or reseed Room.
 - No user login, biometric prompt, device-credential prompt, or app PIN is required by the
   production sequence. Plaintext is necessarily present transiently in process memory while the
   unlocked app displays, edits, or exports it.
@@ -222,9 +222,11 @@ and does not alter Room.
   snapshot on re-export. An unmarked same-name tab is a conflict and is not overwritten. Repeated
   XLSX exports intentionally create independent files, each containing one complete snapshot.
 - No export modifies or deletes local data. Failures and cancellation do not claim success.
-- App-private data is encrypted at rest after the production hardening milestone. User-selected
-  CSV/XLSX files and readable Google Sheets cells are intentionally outside that boundary and are
-  not end-to-end encrypted by WorqOrder.
+  Canceling a document picker or Google authorization returns to unchanged Main content without a
+  cancellation banner or snackbar; a non-sensitive canceled diagnostic attempt may be retained.
+- The required production build does not claim WorqOrder-managed at-rest encryption for Room or
+  DataStore. User-selected CSV/XLSX files and readable Google Sheets cells are plaintext external
+  copies and are not end-to-end encrypted by WorqOrder.
 - Persistent versus one-off XLSX choice and optional automatic local-midnight export to
   Google/future persistent XLSX are deferred to optional Milestone 18 and require separate owner
   authorization.
@@ -270,8 +272,9 @@ Additional visual requirements for implementation are Material 3 semantics, 48 d
 The production project is complete only when all required acceptance tests in
 `ACCEPTANCE_TESTS.md` pass on the supported
 API range, release migrations are non-destructive, offline core behavior is proven, exported
-schemas are stable across all three destinations, app-private at-rest encryption is proven, no
+schemas are stable across all three destinations, no
 prohibited permissions/credentials/dependencies are present, and the Google setup guide has been
 exercised with the debug signing fingerprint. The permanent direct-release fingerprint and release
 OAuth client are deliberately deferred to Milestone 17. Google Play signing is not part of
-completion. Optional Milestone 18 app-access gating is not required for this completion definition.
+completion. Optional Milestone 18 app-access gating and optional Milestone 19 at-rest encryption
+are not required for this completion definition.

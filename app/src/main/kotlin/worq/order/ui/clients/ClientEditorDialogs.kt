@@ -9,7 +9,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import worq.order.R
 import worq.order.ui.theme.WorqOrderDimens
 
@@ -49,8 +54,18 @@ fun ClientEditorDialog(
                     label = { Text(stringResource(R.string.client_name)) },
                     supportingText = {
                         Text(
-                            fieldError
-                                ?: stringResource(R.string.client_name_limit),
+                            text =
+                                fieldError
+                                    ?: stringResource(R.string.client_name_limit),
+                            modifier =
+                                if (fieldError != null) {
+                                    Modifier.semantics {
+                                        error(fieldError)
+                                        liveRegion = LiveRegionMode.Assertive
+                                    }
+                                } else {
+                                    Modifier
+                                },
                         )
                     },
                     isError = fieldError != null,

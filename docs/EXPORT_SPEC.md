@@ -91,7 +91,9 @@ edit flags.
 - Quote a field if it contains comma, quote, CR, or LF. Escape each quote as two quotes. Preserve Unicode and embedded line breaks.
 - Do not use locale-specific number/date formatting in file values.
 - Serialize/validate the complete one-day payload before opening the destination where practical.
-- Picker cancellation before a URI is returned is a neutral `Canceled` outcome and creates no file/partial file.
+- Picker cancellation before a URI is returned creates no file/partial file. It may be retained as
+  a non-sensitive `Canceled` diagnostic attempt, but it produces no Main-screen banner, snackbar,
+  success message, or error message.
 - On output failure after creation, close the stream, attempt deletion only through the granted document API when supported, and report that a partial provider document may remain if deletion is unsupported.
 - Repeating export is permitted. `ACTION_CREATE_DOCUMENT` may disambiguate an existing filename; do not overwrite unrelated files silently.
 
@@ -101,8 +103,9 @@ contract does not promise that `CATEGORY_OPENABLE` is explicitly present when in
 intent, so tests assert the action, MIME type, and title rather than an undocumented category.
 After a URI is returned, `ContentResolver.openOutputStream(uri, "wt")` writes the already
 serialized payload as UTF-8. Provider failure triggers a best-effort `ContentResolver.delete` of
-that exact granted URI. The UI distinguishes success, neutral cancellation, retryable write
-failure, and the case where a partial provider document could not be removed.
+that exact granted URI. The UI distinguishes success, retryable write failure, and the case where
+a partial provider document could not be removed; cancellation simply returns to unchanged Main
+content.
 
 CSV faithfully preserves client, description, and hardware/software-purchases text. Some spreadsheet programs interpret cells beginning with `=`, `+`, `-`, or `@` as formulas when opening CSV. RFC quoting does not prevent that behavior. Silently prefixing text would change exported data, so formula-injection transformation is not part of schema version 2; flag it in release security review and document safe import behavior.
 
@@ -174,9 +177,10 @@ existing workbook.
 - Repeated exports intentionally create independent workbooks. Each contains exactly one complete
   authoritative snapshot, so there is no within-workbook append, duplicate-row, ownership-marker,
   tab-conflict, or existing-content preservation behavior.
-- XLSX output is an unencrypted user-controlled file. Local Keystore-backed encryption ends at the
-  document handoff; protecting, sharing, or deleting that external file is the user's
-  responsibility.
+- XLSX output is an unencrypted user-controlled file. The required production build does not add
+  WorqOrder-managed encryption to local Room/DataStore storage, and optional Milestone 19 would
+  not extend local encryption to an exported document. Protecting, sharing, or deleting that
+  external file is the user's responsibility.
 
 The implemented package contains these fixed parts in deterministic order:
 
@@ -428,7 +432,7 @@ Tests must prove:
 - commas, quotes, CR/LF, Unicode, both task text fields, long hours, `HH:mm` task-zone clock
   values, and sub-second duration truncation;
 - Main and its event handler reject every export destination while a timer is running;
-- picker cancellation writes nothing;
+- picker cancellation writes nothing, changes no local data, and shows no transient status;
 - serializer/output failures do not claim success;
 - XLSX package/cell-type integrity, literal formula-like text, independent-reader compatibility,
   bounded-memory behavior, and no app-private plaintext staging;

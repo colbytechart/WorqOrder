@@ -38,5 +38,19 @@
 ## Durability boundaries
 
 - Data is not promised to survive uninstalling WorqOrder or clearing its app storage.
-- CSV/XLSX documents and readable Google Sheets cells are external plaintext copies. They are not
-  protected by the future app-private at-rest encryption boundary.
+- The required production build does not add WorqOrder-managed encryption to app-private Room or
+  DataStore files; it relies on Android's application sandbox. At-rest encryption is deferred to
+  optional Milestone 19 and requires separate owner authorization.
+- CSV/XLSX documents and readable Google Sheets cells are external plaintext copies. Optional
+  local encryption would not extend to those exports.
+
+## User-interface scope
+
+- Main and all forms are phone-adaptive and remain scrollable on short, landscape, narrow, and
+  large-text layouts. No tablet-specific two-pane or expanded-window layout is provided.
+- At very large font scales, the complete timer value remains one line and may require horizontal
+  scrolling; TalkBack receives the entire formatted duration without scrolling.
+- Automated Compose semantics cover labels, selected/running states, validation/error
+  announcements, confirmations, and 200% font behavior. A human TalkBack listening pass and
+  representative OEM-specific display-scaling pass remain release-audit checks because their
+  subjective output cannot be conclusively validated by instrumentation alone.

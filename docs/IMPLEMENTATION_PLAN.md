@@ -47,9 +47,9 @@ a time.
    through Milestone 16; permanent direct-release signing is deferred to Milestone 17.
 10. Google export uses no-cost standard quota and fails closed to CSV if Google's policy or
     available quota no longer permits that path.
-11. App-private Room and DataStore data receive a production Keystore-backed encryption
-    hardening milestone. User-selected CSV/XLSX files and readable Google Sheets cells are
-    plaintext outside that local boundary.
+11. The required production sequence relies on Android's application sandbox and does not claim
+    WorqOrder-managed at-rest encryption for Room or DataStore. The complete encryption hardening
+    plan is deferred to separately authorized optional Milestone 19.
 12. Biometric, device-credential, PIN, or account-gated access is not part of the production
     sequence. It is a separately authorized optional milestone after the current project is
     complete.
@@ -436,77 +436,16 @@ Status: implemented; awaiting owner acceptance.
 - Instrumented lifecycle/process simulations and manual reboot/background scenarios
   prove persisted open-interval recovery and correct normalization.
 
-## 17. Milestone 14 — Data Protection and Encryption Hardening
+## 17. Milestone 15 — Accessibility, usability, and error-state refinement
 
-Entry: lifecycle/recovery behavior and all persistent schemas are stable.
-
-This is a required production milestone. It adds invisible local protection and deliberately does
-not add a login screen, biometric prompt, app PIN, or account requirement.
-
-### Threat model and design gate
-
-- Document assets, trust boundaries, attacker capabilities, and explicit limits before selecting
-  a cryptographic implementation. The protected local assets include Room main/WAL/SHM content,
-  sensitive DataStore values, export snapshots while held by the app, and diagnostic output.
-- Select only stable, maintained, Android/API-26-compatible, GPLv3-compatible components. Prefer
-  Android Keystore non-exportable key material, authenticated encryption such as AES-GCM, and a
-  design that preserves Room transactions, indexes, migrations, and acceptable startup/query
-  performance.
-- Compare whole-database encryption with carefully bounded field/envelope encryption. Choose and
-  record one design after proving it encrypts auxiliary database files and does not weaken
-  normalized-name uniqueness, date/task queries, or migration support.
-- Define key creation, versioning, rotation, device-unlock availability, backup/restore behavior,
-  and fail-closed handling for missing, invalidated, or corrupt keys. Never silently delete or
-  recreate authoritative Room data after a cryptographic failure.
-
-### Implementation scope
-
-- Migrate existing plaintext Room data to encrypted-at-rest storage through a crash-safe,
-  non-destructive, tested upgrade path with rollback/recovery guidance.
-- Encrypt sensitive DataStore-held metadata using the same reviewed key hierarchy or a separate
-  purpose-bound key. Keep raw Google access/refresh/ID tokens prohibited.
-- Disable Android backup for protected app data or define explicit encrypted backup/data-extraction
-  exclusions so ciphertext is never restored without its usable key.
-- Keep sensitive task/client/export content out of logs, crash messages, analytics, notifications,
-  clipboard, previews, and app-private temporary files. Continue using in-memory immutable export
-  snapshots and clear references promptly after delivery.
-- Preserve TLS-only Google transport and Google-managed authorization. Readable Google Sheets
-  cells are not end-to-end encrypted by WorqOrder. User-directed CSV and XLSX documents cross the
-  app boundary as unencrypted files; the save UI and documentation must state that responsibility.
-- Document that plaintext necessarily exists transiently in process memory while the unlocked app
-  displays, edits, or exports it, and that this milestone does not defend against an attacker who
-  controls an already-unlocked device/process.
-
-### Security, migration, and bug verification gate
-
-- Populate a real prior-version plaintext database and preferences, upgrade them, verify every
-  client/task/interval/active-timer/selection/setting, then reopen after process death and reboot.
-- Search the encrypted database, WAL, SHM, DataStore, cache, backup artifacts, logs, and crash
-  output for seeded canary plaintext; no protected canary may be recoverable at rest.
-- Test fresh install, upgrade interruption at each durable phase, low-storage/write failure,
-  corrupted ciphertext, wrong/missing/invalidated key, key-version rotation, concurrent reads and
-  writes, active timer during upgrade gating, and downgrade behavior. Every failure must be
-  explicit and non-destructive.
-- Re-run Room constraints/migrations, timer lifecycle/recovery, all export snapshot/delivery,
-  Google authorization, and UI regression suites to catch encryption integration bugs.
-- Benchmark startup, date-list queries, client normalization/conflict checks, timer Start/Stop,
-  migration time, database growth, memory, and battery against recorded pre-encryption baselines.
-- Audit release manifests, backup/data-extraction rules, dependency licenses/CVEs, random number
-  use, nonce uniqueness, key aliases/purposes, logging, temporary files, and release-build
-  obfuscation behavior.
-- Run formatting, lint, unit, instrumentation/UI/security tests, and debug/release builds on at
-  least API 26 and the current target API.
-
-## 18. Milestone 15 — Accessibility, usability, and error-state refinement
-
-Entry: all primary workflows and production data protection function.
+Entry: all primary MVP workflows function through Milestone 13.
 
 ### Scope
 
 - Accessibility semantics, touch targets, TalkBack order, large font, small-screen and
   adaptive layout, contrast, and Light/Dark review.
 - Refine empty, loading, disabled, validation, conflict, offline, authorization, retry,
-  encryption/key failure, and destructive-confirmation states without changing approved behavior.
+  storage failure, and destructive-confirmation states without changing approved behavior.
 - Profile long task lists and timer recomposition; fix measured issues without
   architecture expansion.
 
@@ -515,25 +454,24 @@ Entry: all primary workflows and production data protection function.
 - Automated accessibility/UI coverage plus documented manual device, font-scale,
   TalkBack, theme, and error-recovery checks.
 
-### Deferred export-status reminder after Milestone 15
+### Implemented owner-directed cancellation refinement
 
-The owner has resolved the prior column-reduction reminder through schema version 2 before
-Milestone 11. After Milestone 15, remind the owner only about the still-deferred request to stop
-showing neutral export-cancellation status on the Main screen. Do not implement that UI change
-without explicit approval.
+- CSV/XLSX picker cancellation and Google export authorization cancellation write nothing, alter
+  no Room data, clear in-progress UI, and show no Main-screen cancellation status. The diagnostic
+  last-attempt outcome may remain `Canceled`.
 
-## 19. Milestone 16 — Full specification audit, regression testing, and security review
+## 18. Milestone 16 — Full specification audit, regression testing, and security review
 
-Entry: feature, protection, and refinement milestones accepted.
+Entry: feature and refinement milestones accepted.
 
 ### Scope
 
 - Map every product requirement and acceptance scenario to implementation and passing
   evidence.
 - Run the full unit, coroutine, Room/migration, ViewModel, Compose, lifecycle, CSV, XLSX, fake
-  Google, encryption, and controlled integration suites.
-- Audit permissions, logs, credentials, OAuth scopes, local encryption/key management, backup
-  behavior, storage, spreadsheet ownership, spreadsheet-formula risk, dependency licenses and
+  Google, and controlled integration suites.
+- Audit permissions, logs, credentials, OAuth scopes, backup behavior, storage, spreadsheet
+  ownership, spreadsheet-formula risk, dependency licenses and
   vulnerabilities, migration policy, no-billing/no-Play policy, standard quota behavior, and
   prohibited technology.
 - Resolve specification drift through explicit decisions and documentation updates.
@@ -541,16 +479,17 @@ Entry: feature, protection, and refinement milestones accepted.
 ### Verification gate
 
 - No unmapped required behavior, unexplained test gap, prohibited dependency,
-  permission, credential, unencrypted protected local artifact, destructive migration, or known
-  data-loss path remains.
+  permission, credential, destructive migration, or known data-loss path remains. Documentation
+  explicitly states that WorqOrder-managed local at-rest encryption is not current production
+  scope.
 
-## 20. Milestone 17 — Release preparation and developer handoff
+## 19. Milestone 17 — Release preparation and developer handoff
 
 Entry: Milestone 16 audit accepted.
 
 ### Scope
 
-- Final API/device and populated-database/encryption upgrade matrix, performance check, and
+- Final API/device and populated-database migration matrix, performance check, and
   debug/release build verification.
 - Versioning, signing and release configuration through the owner's secure process.
 - Create the permanent direct-release keystore/fingerprint and matching Android OAuth client through
@@ -558,8 +497,8 @@ Entry: Milestone 16 audit accepted.
 - Move the External OAuth audience to In Production for small ongoing use, document the
   unverified/personal-use consent limitations, and retain repository-hosted privacy/user guidance
   without making a custom domain or paid brand verification a release dependency.
-- Document no-cost standard quota behavior, CSV fallback, external plaintext-export and local
-  encryption limitations, known limitations, and maintenance guidance.
+- Document no-cost standard quota behavior, CSV fallback, external plaintext exports, the absence
+  of WorqOrder-managed local at-rest encryption, known limitations, and maintenance guidance.
 - Update README and produce a release candidate without committing signing material,
   credentials, tokens, `local.properties`, or generated local state.
 
@@ -569,7 +508,7 @@ Entry: Milestone 16 audit accepted.
   verification, and applicable release build pass; handoff documentation is complete and
   reproducible.
 
-## 21. Optional Milestone 18 — Post-project options and application-access security
+## 20. Optional Milestone 18 — Post-project options and application-access security
 
 Entry: the current production project through Milestone 17 is fully completed and accepted, and
 the owner separately gives explicit permission to begin this optional milestone.
@@ -620,8 +559,9 @@ the current project.
   duplicate, or lose an active interval.
 - Test accessibility of prompts, no sensitive content before unlock, no bypass through deep links,
   notifications, task-switcher snapshots, exported activities, or restored navigation state.
-- Re-run encryption key-loss/migration, Room, timer, export, lifecycle, Compose, and release
-  regression suites and perform a focused bypass/abuse-case security review.
+- Re-run Room, timer, export, lifecycle, Compose, and release regression suites and perform a
+  focused bypass/abuse-case security review. Encryption suites apply only if optional Milestone 19
+  has also been separately authorized and completed.
 - Test persistent/one-off XLSX mode migration and switching, identical rows in both modes,
   create-document cancellation, unrelated-tab preservation, and stale URI recovery.
 - Test midnight scheduling across ordinary days, spring-forward/fall-back, manual/device ZoneId
@@ -632,6 +572,70 @@ the current project.
 - Test that interval cards omit seconds without changing persisted instants, duration calculations,
   edit precision, date-boundary validation, or explicit DST-overlap disambiguation.
 - Require explicit owner acceptance of every usability/security tradeoff before release.
+
+## 21. Optional Milestone 19 — Data Protection and Encryption Hardening
+
+Entry: optional Milestone 18 is complete or has been explicitly declined, and the owner separately
+gives explicit permission to begin optional Milestone 19.
+
+This milestone is not required for current production completion. Do not begin it from a general
+request to continue or harden the current project. The required production build relies on
+Android's application sandbox and must not claim WorqOrder-managed Room/DataStore encryption.
+
+### Threat model and design gate
+
+- Document assets, trust boundaries, attacker capabilities, and explicit limits before selecting
+  a cryptographic implementation. The protected local assets include Room main/WAL/SHM content,
+  sensitive DataStore values, export snapshots while held by the app, and diagnostic output.
+- Select only stable, maintained, Android/API-26-compatible, GPLv3-compatible components. Prefer
+  Android Keystore non-exportable key material, authenticated encryption such as AES-GCM, and a
+  design that preserves Room transactions, indexes, migrations, and acceptable startup/query
+  performance.
+- Compare whole-database encryption with carefully bounded field/envelope encryption. Choose and
+  record one design after proving it encrypts auxiliary database files and does not weaken
+  normalized-name uniqueness, date/task queries, or migration support.
+- Define key creation, versioning, rotation, device-unlock availability, backup/restore behavior,
+  and fail-closed handling for missing, invalidated, or corrupt keys. Never silently delete or
+  recreate authoritative Room data after a cryptographic failure.
+
+### Optional implementation scope
+
+- Migrate existing plaintext Room data to encrypted-at-rest storage through a crash-safe,
+  non-destructive, tested upgrade path with rollback/recovery guidance.
+- Encrypt sensitive DataStore-held metadata using the same reviewed key hierarchy or a separate
+  purpose-bound key. Keep raw Google access/refresh/ID tokens prohibited.
+- Disable Android backup for protected app data or define explicit encrypted
+  backup/data-extraction exclusions so ciphertext is never restored without its usable key.
+- Keep sensitive task/client/export content out of logs, crash messages, analytics, notifications,
+  clipboard, previews, and app-private temporary files. Continue using in-memory immutable export
+  snapshots and clear references promptly after delivery.
+- Preserve TLS-only Google transport and Google-managed authorization. Readable Google Sheets
+  cells are not end-to-end encrypted by WorqOrder. User-directed CSV and XLSX documents cross the
+  app boundary as unencrypted files; the save UI and documentation must state that responsibility.
+- Document that plaintext necessarily exists transiently in process memory while the unlocked app
+  displays, edits, or exports it, and that this milestone does not defend against an attacker who
+  controls an already-unlocked device/process.
+
+### Optional security, migration, and bug verification gate
+
+- Populate a real prior-version plaintext database and preferences, upgrade them, verify every
+  client/task/interval/active-timer/selection/setting, then reopen after process death and reboot.
+- Search the encrypted database, WAL, SHM, DataStore, cache, backup artifacts, logs, and crash
+  output for seeded canary plaintext; no protected canary may be recoverable at rest.
+- Test fresh install, upgrade interruption at each durable phase, low-storage/write failure,
+  corrupted ciphertext, wrong/missing/invalidated key, key-version rotation, concurrent reads and
+  writes, active timer during upgrade gating, and downgrade behavior. Every failure must be
+  explicit and non-destructive.
+- Re-run Room constraints/migrations, timer lifecycle/recovery, all export snapshot/delivery,
+  Google authorization, optional app-access behavior if present, and UI regression suites to catch
+  encryption integration bugs.
+- Benchmark startup, date-list queries, client normalization/conflict checks, timer Start/Stop,
+  migration time, database growth, memory, and battery against recorded pre-encryption baselines.
+- Audit release manifests, backup/data-extraction rules, dependency licenses/CVEs, random number
+  use, nonce uniqueness, key aliases/purposes, logging, temporary files, and release-build
+  obfuscation behavior.
+- Run formatting, lint, unit, instrumentation/UI/security tests, and debug/release builds on at
+  least API 26 and the current target API.
 
 ## 22. Dependency selection checklist
 
@@ -648,9 +652,9 @@ At the first milestone that needs a dependency:
 
 The initial scaffold already includes Compose, Activity, Lifecycle, Navigation,
 coroutines, Room, Preferences DataStore, and AndroidX testing. Google dependencies were
-selected through the mandatory Milestone 9 discovery gate. XLSX and local-encryption
-dependencies, if any, must pass this checklist in their owning milestones before being
-added.
+selected through the mandatory Milestone 9 discovery gate. XLSX dependencies passed this
+checklist in Milestone 12. Local-encryption dependencies may be considered only if optional
+Milestone 19 is separately authorized and must pass this checklist before being added.
 
 ## 23. Risk register
 
@@ -666,10 +670,10 @@ added.
 | XLSX writer is incompatible or unsafe | Malformed workbooks or formula execution | Focused internal Milestone 12 writer, literal cells, independent-parser/golden tests, Excel/LibreOffice checks, and no Apache POI |
 | One-off XLSX provider write fails after document creation | A partial external file may remain | Build and validate bytes before the picker, close output deterministically, attempt provider deletion on failure, report partial-output risk, and never change Room |
 | Per-date sheets exhaust Google grid allocation or become unwieldy | Export failure or poor spreadsheet usability | Exactly nine columns, required row counts, resize on replacement, monitor the official 10-million-cell spreadsheet limit, and surface a capacity error before mutation |
-| Plaintext local database/preferences are extracted | Sensitive client/task data disclosed from app-private artifacts | Required Milestone 14 Keystore-backed encryption, canary scans across DB/WAL/SHM/DataStore/backup/logs, and fail-closed migration/key handling |
-| Encryption key is lost or invalidated | Authoritative local data becomes unavailable | Versioned key hierarchy, documented recovery limits, non-destructive failure, interrupted-migration tests, and never silently reset Room |
-| Encryption degrades core performance | Slow startup, task lists, or timer mutations | Record pre-encryption baselines and enforce focused startup/query/migration/memory benchmarks |
-| User assumes exported files/Sheets are end-to-end encrypted | Sensitive data is shared outside the protected app boundary | Explicit save/connection guidance: CSV/XLSX are unencrypted user-controlled files and readable Sheets rely on Google/TLS controls |
+| Plaintext app-private database/preferences are extracted from a compromised or sufficiently privileged device | Sensitive client/task data is disclosed | Document that current production relies on Android's application sandbox and does not provide WorqOrder-managed at-rest encryption; retain stronger protection only as optional Milestone 19 |
+| Optional encryption key is lost or invalidated | Authoritative local data becomes unavailable if optional Milestone 19 is later implemented | Require versioned key hierarchy, documented recovery limits, non-destructive failure, interrupted-migration tests, and never silently reset Room |
+| Optional encryption degrades core performance | Slow startup, task lists, or timer mutations if optional Milestone 19 is later implemented | Record pre-encryption baselines and enforce focused startup/query/migration/memory benchmarks within that optional milestone |
+| User assumes local records or exported files/Sheets are end-to-end encrypted | Sensitive data is handled under an incorrect expectation | Explicitly document that current Room/DataStore rely on the Android sandbox, CSV/XLSX are unencrypted user-controlled files, and readable Sheets rely on Google/TLS controls |
 | Wall-clock correction while timer runs | Live and persisted elapsed can disagree | Monotonic live view, UTC persistence, non-negative clamp, explicit anomaly result |
 | DST/zone changes and midnight transitions | Misassigned dates or intervals | Stored/pinned ZoneIds, `atStartOfDay`, three-part uniqueness, real-zone tests |
 | Process death during timer mutation | Orphaned/open state | One Room transaction, singleton pointer, structural open-slot constraint, recovery tests |

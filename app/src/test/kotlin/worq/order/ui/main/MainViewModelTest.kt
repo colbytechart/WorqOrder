@@ -104,6 +104,32 @@ class MainViewModelTest {
         }
 
     @Test
+    fun newestTaskIsPresentedFirstWithoutChangingRepositoryOrder() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val oldest =
+                fixture.addTask(
+                    TODAY,
+                    description = "Oldest",
+                    seriesId = "series-oldest",
+                )
+            val newest =
+                fixture.addTask(
+                    TODAY,
+                    description = "Newest",
+                    seriesId = "series-newest",
+                )
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            assertEquals(
+                listOf(newest.id, oldest.id),
+                viewModel.uiState.value.tasks.map(MainTaskItemUi::id),
+            )
+        }
+
+    @Test
     fun historicalSelectionDisplaysItsTotalButCannotStart() =
         runTest(mainDispatcherRule.dispatcher) {
             val fixture = Fixture()

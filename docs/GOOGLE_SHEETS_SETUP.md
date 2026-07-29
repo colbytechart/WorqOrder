@@ -85,6 +85,14 @@ signing identity, privacy/user documentation, and controlled connection/export t
 are ready. This avoids Testing's seven-day grant expiration for ongoing small use; it
 does not mean publishing through Google Play or purchasing verified branding.
 
+Official policy rechecked 2026-07-29: once the External project is **In Production**, it is
+available to any Google Account and the test-user list no longer gates sign-in/authorization.
+Because WorqOrder requests only non-sensitive `drive.file`, sensitive/restricted-scope verification
+and the unverified-app 100-new-user cap do not apply. Brand verification is needed only if a
+verified WorqOrder name/logo is desired on the consent screen. A user's Workspace administrator,
+Advanced Protection setting, spreadsheet permission, or refusal to consent may still prevent that
+particular account from authorizing.
+
 ### Data Access
 
 Declare only:
@@ -371,8 +379,9 @@ Use only the disposable marked-test and conflict spreadsheets from section 9:
    blank-interval-row behavior respectively.
 6. Include Unicode, multiline, and formula-prefixed client/task text. Verify the Google cell type
    is literal text and no formula executes.
-7. Start a timer and export its date. Verify Stop Local is blank and durations use one snapshot
-   instant without stopping or otherwise changing the timer.
+7. Start a timer and verify the Main action reads **Stop Timer to Export**, is disabled, and sends
+   no Google request. Stop the timer, export, and verify every interval has complete Start/Stop
+   values and stable durations.
 8. Connect the conflict spreadsheet and export the date matching its manually created unmarked
    tab. Verify WorqOrder names the conflict, creates no suffix tab, and changes nothing remotely.
 9. Remove Editor access, delete/revoke the connected file, disable networking, and revoke the
@@ -392,6 +401,9 @@ Before direct production distribution:
 - create/back up the permanent direct-release key through the Milestone 17 secure process;
 - register its SHA-1 as `WorqOrder Android Direct Release`;
 - move the External audience from Testing to In Production when ready;
+- install the release-signed APK and prove sign-in, Picker authorization, connection, and export
+  with a Google Account that has never appeared in the project's test-user list;
+- confirm the published Audience page no longer offers/uses a test-user allowlist;
 - keep support/developer contacts current;
 - verify that only `drive.file` appears in Data Access and runtime requests;
 - review Google Sign in branding requirements;
@@ -402,8 +414,8 @@ Before direct production distribution:
 
 Do not create Google Play configuration. Do not make a custom domain or verified
 name/logo branding a release dependency. The selected non-sensitive `drive.file` scope
-does not require sensitive/restricted-scope verification; the project accepts the
-consent presentation and small-user constraints of the personal/unverified path.
+does not require sensitive/restricted-scope verification. External/In Production is the
+required release state so users never require owner-managed test-list approval.
 
 Do not attach a Google Cloud billing account, request paid quota, or enable a paid API
 tier. Current standard Sheets API use is available at no additional cost; explicit

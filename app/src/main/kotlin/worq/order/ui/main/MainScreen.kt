@@ -9,17 +9,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -55,7 +60,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +71,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
@@ -90,6 +98,7 @@ import worq.order.ui.theme.WorqOrderTheme
 object MainScreenTestTags {
     const val CONTENT = "main_content"
     const val TIMER = "main_timer"
+    const val DATE_SELECTOR = "main_date_selector"
     const val TIMER_ACTION = "main_timer_action"
     const val TASK_LIST = "main_task_list"
     const val EXPORT_ACTION = "main_export_action"
@@ -194,69 +203,174 @@ private fun MainContent(
     contentPadding: PaddingValues,
     onEvent: (MainEvent) -> Unit,
 ) {
-    LazyColumn(
+    val listState = rememberLazyListState()
+    Column(
         modifier =
             Modifier
                 .fillMaxSize()
-                .testTag(MainScreenTestTags.CONTENT)
                 .padding(contentPadding),
-        contentPadding =
-            PaddingValues(
-                horizontal = WorqOrderDimens.ScreenPadding,
-                vertical = WorqOrderDimens.SectionSpacing,
-            ),
-        verticalArrangement = Arrangement.spacedBy(WorqOrderDimens.SectionSpacing),
     ) {
-        item {
-            TimerCard(
-                uiState = uiState,
-                onStart = { onEvent(MainEvent.StartTimer) },
-                onStop = { onEvent(MainEvent.StopTimer) },
-            )
-        }
-        item {
-            DateSelector(
-                displayedDate = uiState.displayedDate,
-                isToday = uiState.isToday,
-                onPreviousDate = { onEvent(MainEvent.PreviousDate) },
-                onNextDate = { onEvent(MainEvent.NextDate) },
-                onChooseDate = { onEvent(MainEvent.OpenDatePicker) },
-                onReturnToToday = { onEvent(MainEvent.ReturnToToday) },
-            )
-        }
-        if (uiState.isTimerRunning && !uiState.isToday) {
-            item {
-                RunningTaskBanner(
-                    runningTask = uiState.runningTask,
-                    onReturnToToday = { onEvent(MainEvent.ReturnToToday) },
-                )
-            }
-        }
-        uiState.message?.let { message ->
-            item {
-                MainMessageBanner(
-                    message = message,
-                    onDismiss = { onEvent(MainEvent.DismissMessage) },
-                )
-            }
-        }
-        uiState.exportFeedback?.let { feedback ->
-            item {
-                MainExportFeedbackBanner(
-                    feedback = feedback,
-                    onDismiss = { onEvent(MainEvent.DismissExportFeedback) },
-                    onRetry = { onEvent(MainEvent.Export) },
-                )
-            }
-        }
-        taskList(
+        TimerCard(
             uiState = uiState,
-            onSelectTask = { onEvent(MainEvent.SelectTask(it)) },
-            onOpenTaskMenu = { onEvent(MainEvent.OpenTaskMenu(it)) },
-            onCloseTaskMenu = { onEvent(MainEvent.CloseTaskMenu) },
-            onEditTask = { onEvent(MainEvent.EditTask(it)) },
-            onDeleteTask = { onEvent(MainEvent.RequestDeleteTask(it)) },
-            onRetry = { onEvent(MainEvent.RetryData) },
+            onStart = { onEvent(MainEvent.StartTimer) },
+            onStop = { onEvent(MainEvent.StopTimer) },
+            modifier =
+                Modifier.padding(
+                    start = WorqOrderDimens.ScreenPadding,
+                    top = WorqOrderDimens.SectionSpacing,
+                    end = WorqOrderDimens.ScreenPadding,
+                ),
+        )
+        DateSelector(
+            displayedDate = uiState.displayedDate,
+            isToday = uiState.isToday,
+            onPreviousDate = { onEvent(MainEvent.PreviousDate) },
+            onNextDate = { onEvent(MainEvent.NextDate) },
+            onChooseDate = { onEvent(MainEvent.OpenDatePicker) },
+            onReturnToToday = { onEvent(MainEvent.ReturnToToday) },
+            modifier =
+                Modifier
+                    .padding(
+                        start = WorqOrderDimens.ScreenPadding,
+                        top = WorqOrderDimens.ItemSpacing,
+                        end = WorqOrderDimens.ScreenPadding,
+                    ).testTag(MainScreenTestTags.DATE_SELECTOR),
+        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+        ) {
+            LazyColumn(
+                state = listState,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .testTag(MainScreenTestTags.CONTENT),
+                contentPadding =
+                    PaddingValues(
+                        horizontal = WorqOrderDimens.ScreenPadding,
+                        vertical = WorqOrderDimens.SectionSpacing,
+                    ),
+                verticalArrangement =
+                    Arrangement.spacedBy(WorqOrderDimens.SectionSpacing),
+            ) {
+                if (uiState.isTimerRunning && !uiState.isToday) {
+                    item {
+                        RunningTaskBanner(
+                            runningTask = uiState.runningTask,
+                            onReturnToToday = { onEvent(MainEvent.ReturnToToday) },
+                        )
+                    }
+                }
+                uiState.message?.let { message ->
+                    item {
+                        MainMessageBanner(
+                            message = message,
+                            onDismiss = { onEvent(MainEvent.DismissMessage) },
+                        )
+                    }
+                }
+                uiState.exportFeedback?.let { feedback ->
+                    item {
+                        MainExportFeedbackBanner(
+                            feedback = feedback,
+                            onDismiss = { onEvent(MainEvent.DismissExportFeedback) },
+                            onRetry = { onEvent(MainEvent.Export) },
+                        )
+                    }
+                }
+                taskList(
+                    uiState = uiState,
+                    onSelectTask = { onEvent(MainEvent.SelectTask(it)) },
+                    onOpenTaskMenu = { onEvent(MainEvent.OpenTaskMenu(it)) },
+                    onCloseTaskMenu = { onEvent(MainEvent.CloseTaskMenu) },
+                    onEditTask = { onEvent(MainEvent.EditTask(it)) },
+                    onDeleteTask = { onEvent(MainEvent.RequestDeleteTask(it)) },
+                    onRetry = { onEvent(MainEvent.RetryData) },
+                )
+            }
+            MainContentScrollIndicator(
+                listState = listState,
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(
+                            end = WorqOrderDimens.ScrollIndicatorEdgePadding,
+                            top = WorqOrderDimens.ItemSpacing,
+                            bottom = WorqOrderDimens.ItemSpacing,
+                        ),
+            )
+        }
+    }
+}
+
+private data class ScrollIndicatorMetrics(
+    val positionFraction: Float,
+    val visibleFraction: Float,
+)
+
+@Composable
+private fun MainContentScrollIndicator(
+    listState: LazyListState,
+    modifier: Modifier = Modifier,
+) {
+    val metrics by
+        remember(listState) {
+            derivedStateOf {
+                val layoutInfo = listState.layoutInfo
+                val totalItems = layoutInfo.totalItemsCount
+                val visibleItems = layoutInfo.visibleItemsInfo.size
+                if (totalItems == 0 || visibleItems >= totalItems) {
+                    null
+                } else {
+                    val scrollableItemCount = (totalItems - visibleItems).coerceAtLeast(1)
+                    ScrollIndicatorMetrics(
+                        positionFraction =
+                            (
+                                listState.firstVisibleItemIndex.toFloat() /
+                                    scrollableItemCount
+                            ).coerceIn(0f, 1f),
+                        visibleFraction =
+                            (
+                                visibleItems.toFloat() /
+                                    totalItems
+                            ).coerceIn(
+                                WorqOrderDimens.MinimumScrollThumbFraction,
+                                1f,
+                            ),
+                    )
+                }
+            }
+        }
+    val currentMetrics = metrics ?: return
+    BoxWithConstraints(
+        modifier =
+            modifier
+                .width(WorqOrderDimens.ScrollIndicatorWidth)
+                .fillMaxSize()
+                .clearAndSetSemantics {},
+    ) {
+        val thumbHeight =
+            (maxHeight * currentMetrics.visibleFraction)
+                .coerceAtLeast(WorqOrderDimens.ScrollIndicatorMinimumHeight)
+                .coerceAtMost(maxHeight)
+        val offset =
+            (maxHeight - thumbHeight) * currentMetrics.positionFraction
+        Box(
+            modifier =
+                Modifier
+                    .offset(y = offset)
+                    .width(WorqOrderDimens.ScrollIndicatorWidth)
+                    .height(thumbHeight)
+                    .background(
+                        color =
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                alpha = 0.45f,
+                            ),
+                        shape = MaterialTheme.shapes.extraSmall,
+                    ),
         )
     }
 }
@@ -463,6 +577,7 @@ private fun TimerCard(
     uiState: MainUiState,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val isStopping = uiState.timerAction == MainTimerAction.STOP
     val actionEnabled = if (isStopping) uiState.canStop else uiState.canStart
@@ -477,7 +592,7 @@ private fun TimerCard(
         )
     Card(
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
                 .heightIn(min = WorqOrderDimens.TimerCardHeight),
     ) {
@@ -555,13 +670,14 @@ private fun DateSelector(
     onNextDate: () -> Unit,
     onChooseDate: () -> Unit,
     onReturnToToday: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val formattedDate =
         DateTimeFormatter
             .ofLocalizedDate(FormatStyle.MEDIUM)
             .format(displayedDate)
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
     ) {

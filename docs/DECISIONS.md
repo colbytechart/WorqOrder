@@ -388,15 +388,33 @@ quota and explicit foreground user actions. Do not enable billing or request inc
 when standard quota is unavailable, return a useful failure and retain CSV.
 
 The Google Auth project uses an individual developer-controlled account and External audience:
-Testing during development, then In Production for small ongoing personal/open-source use. Do not
+Testing during development, then In Production for unrestricted external-account eligibility. Do not
 seek verified name/logo branding when it would introduce a domain requirement. This intentionally
-accepts less-polished or unverified consent presentation and a small-user policy boundary.
+accepts less-polished consent presentation.
 
 Google Play distribution and Play App Signing are out of scope. Milestones 10 and 11 use the debug
 signing SHA-1 and debug Android OAuth client. A permanent direct-release key/fingerprint and matching
 Android OAuth client are created only through the secure Milestone 17 release process. If Google
 changes the free API, quota, OAuth, or Picker policy, do not silently add cost, broader access, or a
 backend; stop for a new owner decision.
+
+### D-048a — Production audience requires no per-user owner intervention
+
+The official Google Auth Platform and Drive scope documentation was rechecked on 2026-07-29.
+External projects in **Testing** are limited to listed test users. External projects set to
+**In Production** are available to any Google Account, so the test-user list no longer gates
+authorization. WorqOrder requests only non-sensitive `drive.file`; mandatory
+sensitive/restricted-scope verification and its unverified-app 100-new-user cap do not apply.
+Brand verification remains optional unless the owner wants a verified WorqOrder name/logo on the
+consent screen, and is not a release dependency.
+
+Milestone 17 must create/register the direct-release signing identity, switch the audience to
+External/In Production, and prove the release-signed APK with a Google Account that has never been
+listed as a test user. After that one-time project/release setup, the owner does not add or approve
+individual users. Authorization can still be blocked by the user's own refusal, missing
+spreadsheet permission, Google Workspace administrator policy, Advanced Protection, account
+eligibility, outage/quota, or a future Google policy change; WorqOrder cannot override those
+external controls.
 
 ### D-049 — Focused XLSX export is production scope
 
@@ -590,6 +608,27 @@ announcements, field validation exposes error semantics, and selected/running/lo
 remain explicit text and semantics rather than color-only. Disconnecting a spreadsheet always
 requires confirmation; signing out requires confirmation when connected metadata will also be
 cleared. Neither action changes Room task data.
+
+### D-059 — Pinned timer and newest-first Main task presentation
+
+The owner supersedes only D-058's single-scroll-surface choice. The timer card and complete
+date-selector bar now remain pinned below the top app bar while messages and the task list scroll
+in an independent lower region with a minimalist visual position indicator. This keeps the primary
+timing state, Start/Stop control, displayed date, navigation arrows, and calendar action
+continuously visible. Large-font and short-screen tests must still prove the lower region remains
+reachable and the pinned controls do not starve it of usable space.
+
+Main presents daily tasks by descending creation instant with stable task ID as a deterministic
+tie-breaker. Sorting occurs when the observed Room list changes, not on the live display ticker.
+Room queries, interval chronology, and canonical CSV/XLSX/Google export ordering are unchanged.
+
+### D-060 — Platform backup disabled for the production application
+
+Milestone 16 found Android backup enabled in the manifest. WorqOrder stores potentially sensitive
+client/task data in app-private Room and DataStore files and does not promise restoration after
+uninstall or storage clearing. The production application therefore sets `allowBackup=false`.
+This reduces unintended platform/cloud/device-transfer copies; it is not WorqOrder-managed
+encryption and does not protect user-directed plaintext CSV/XLSX files or Google Sheets.
 
 ## Deferred decisions
 

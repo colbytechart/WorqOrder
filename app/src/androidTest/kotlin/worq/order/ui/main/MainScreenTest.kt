@@ -134,11 +134,6 @@ class MainScreenTest {
             .onNodeWithTag(MainScreenTestTags.taskRow("task-1"))
             .performClick()
         composeRule
-            .onNodeWithTag(MainScreenTestTags.CONTENT)
-            .performScrollToNode(
-                hasTestTag(MainScreenTestTags.TIMER_ACTION),
-            )
-        composeRule
             .onNodeWithTag(MainScreenTestTags.TIMER_ACTION)
             .assertIsEnabled()
             .performClick()
@@ -295,6 +290,59 @@ class MainScreenTest {
             .onNodeWithTag(MainScreenTestTags.CONTENT)
             .performScrollToNode(hasText(longDescription))
         composeRule.onNodeWithText(longDescription).assertIsDisplayed()
+    }
+
+    @Test
+    fun timerAndDateSelectorRemainPinnedWhileLongTaskSectionScrolls() {
+        val tasks =
+            (1..20).map { index ->
+                task(
+                    id = "task-$index",
+                    description = "Task number $index",
+                )
+            }
+        setMainContent(
+            MainUiState
+                .ready()
+                .copy(tasks = tasks),
+        )
+
+        val timerBeforeScroll =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.TIMER)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        val dateSelectorBeforeScroll =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.DATE_SELECTOR)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+
+        composeRule
+            .onNodeWithTag(MainScreenTestTags.CONTENT)
+            .performScrollToNode(
+                hasTestTag(MainScreenTestTags.taskRow("task-20")),
+            )
+
+        val timerAfterScroll =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.TIMER)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        val dateSelectorAfterScroll =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.DATE_SELECTOR)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        assertEquals(timerBeforeScroll, timerAfterScroll)
+        assertEquals(dateSelectorBeforeScroll, dateSelectorAfterScroll)
+        composeRule
+            .onNodeWithTag(MainScreenTestTags.taskRow("task-20"))
+            .assertIsDisplayed()
     }
 
     @Test

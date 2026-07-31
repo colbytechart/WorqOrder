@@ -70,7 +70,7 @@ class EditTaskViewModelTest {
             fixture.viewModel.onEvent(EditTaskEvent.SaveInterval)
             runCurrent()
             val interval = fixture.viewModel.uiState.value.intervals.single()
-            assertEquals("01:00:00.000", fixture.viewModel.uiState.value.totalDuration)
+            assertEquals("01:00:00", fixture.viewModel.uiState.value.totalDuration)
             assertFalse(interval.startText.contains("-04:00"))
             assertFalse(interval.stopText.contains("-04:00"))
 
@@ -95,7 +95,7 @@ class EditTaskViewModelTest {
             fixture.viewModel.onEvent(EditTaskEvent.ConfirmDeleteInterval)
             runCurrent()
             assertTrue(fixture.viewModel.uiState.value.intervals.isEmpty())
-            assertEquals("00:00:00.000", fixture.viewModel.uiState.value.totalDuration)
+            assertEquals("00:00:00", fixture.viewModel.uiState.value.totalDuration)
         }
 
     @Test

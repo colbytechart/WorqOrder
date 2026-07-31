@@ -416,7 +416,7 @@ The complete developer procedure is in `GOOGLE_SHEETS_SETUP.md`. Its fixed input
 - one Web OAuth client ID for Credential Manager;
 - an External audience in Testing during development and In Production for release, where any
   eligible Google Account can authorize without being added to a test-user list;
-- no Google Play client, Workspace organization, custom domain, brand-verification dependency,
+- no marketplace client, Workspace organization, custom domain, brand-verification dependency,
   Google Cloud billing account, or paid quota increase;
 - an uncommitted `worqorder.google.webClientId` local/CI Gradle property; and
 - no Firebase, `google-services.json`, API-key authorization, service account, client secret,

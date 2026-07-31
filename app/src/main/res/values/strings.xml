@@ -33,6 +33,9 @@
     <string name="timer_still_running">Timer Is Still Running</string>
     <string name="running_task_summary">%1$s · %2$s · %3$s</string>
     <string name="add_task">Add task</string>
+    <string name="export_csv_compact">Export CSV</string>
+    <string name="export_xlsx_compact">Export XLSX</string>
+    <string name="export_sheets_compact">Export Sheets</string>
     <string name="export_date_as_csv">Export %1$s as CSV</string>
     <string name="export_date_as_xlsx">Export %1$s as XLSX</string>
     <string name="stop_timer_to_export">Stop Timer to Export</string>

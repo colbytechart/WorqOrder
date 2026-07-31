@@ -31,16 +31,19 @@ Today is `LocalDate.ofInstant(clock.now(), effectiveZoneId)`. Stored task dates 
 
 Completed interval duration is `Duration.between(start, stop)`. The open contribution at an evaluation instant is non-negative `Duration.between(start, evaluationInstant)`, subject to the live monotonic rule below. Task total is the exact sum; it is not a wall-clock time-of-day.
 
-Formatting uses total milliseconds:
+Duration calculation retains the exact `Duration`. User-visible accumulated formatting truncates
+the positive sub-second remainder without rounding:
 
 ```text
-hours       = totalMs / 3_600_000
-minutes     = (totalMs / 60_000) % 60
-seconds     = (totalMs / 1_000) % 60
-milliseconds= totalMs % 1_000
+totalSeconds = duration.seconds
+hours        = totalSeconds / 3_600
+minutes      = (totalSeconds / 60) % 60
+seconds      = totalSeconds % 60
 ```
 
-Render at least two hour digits, but never truncate larger hours: `07:03:09.004`, `125:00:00.000`. Negative duration is an invariant error, not displayable time.
+Render at least two hour digits, but never truncate larger hours: `07:03:09`, `125:00:00`.
+Negative duration is an invariant error, not displayable time. Persisted start/stop instants and
+all duration arithmetic remain millisecond-precise.
 
 ## 4. Starting
 
@@ -84,8 +87,9 @@ When the app stays foreground across a date boundary, the ticker/date observer r
 
 The ticker is a single `StateFlow` pipeline shared by all Main collectors. It runs only while Main
 state is collected and an active interval exists, stops after the collection grace period, and
-uses a 50 ms refresh cadence. Navigation/backgrounding therefore stops UI refresh work while the
-persisted interval continues logically. Android elapsed realtime includes device sleep.
+uses a 200 ms refresh cadence. Physical release profiling found the previous 50 ms cadence caused
+unnecessarily high foreground CPU. Navigation/backgrounding therefore stops UI refresh work while
+the persisted interval continues logically. Android elapsed realtime includes device sleep.
 
 ## 6. Stopping
 

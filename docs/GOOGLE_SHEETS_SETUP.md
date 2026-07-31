@@ -1,16 +1,15 @@
 # Google Sheets Integration Setup
 
-Status: developer setup guide for Milestones 10 and 11  
-Application ID/package: `worq.order`  
+Status: implemented developer/release setup guide through Milestone 17
+Application ID/package: `worq.order`
 Selected Google data scope: `https://www.googleapis.com/auth/drive.file`
 
-Do not perform this setup until preparing the Google integration environment. No part
-of this guide requires Firebase, a service account, an API key, a client secret, or a
+No part of this guide requires Firebase, a service account, an API key, a client secret, or a
 custom backend.
 
 Permanent project policy: WorqOrder is free/open source under GPLv3, uses no Google
 Cloud billing or paid quota, requires no Google Workspace organization or custom
-domain, and is distributed directly rather than through Google Play.
+domain, and is distributed as an owner-signed APK from GitHub.
 
 ## 1. Inputs to prepare
 
@@ -23,9 +22,9 @@ The developer must control:
 - a primary and secondary test Google account; and
 - editable and read-only test spreadsheets containing no customer data.
 
-The permanent direct-release signing certificate is deliberately deferred to Milestone
-17. No Google Play signing certificate is required. A second production Cloud project
-is optional, not a requirement; if one project is used, name every OAuth client clearly.
+The permanent direct-release signing certificate is created and backed up through the Milestone
+17 secure process. A second production Cloud project is optional, not a requirement; if one
+project is used, name every OAuth client clearly.
 
 ## 2. Create or select the Google Cloud project
 
@@ -80,10 +79,9 @@ During development, leave an External project in **Testing** and add each test a
 under **Test users**. Testing mode is limited and non-identity authorization grants can
 expire after seven days. Treat reauthorization during testing as expected behavior.
 
-Move the audience to **In Production** only in Milestone 17, after the direct-release
-signing identity, privacy/user documentation, and controlled connection/export tests
-are ready. This avoids Testing's seven-day grant expiration for ongoing small use; it
-does not mean publishing through Google Play or purchasing verified branding.
+The owner moved the audience to **In Production** in Milestone 17 after creating the
+direct-release signing identity and release Android OAuth client. This avoids Testing's seven-day
+grant expiration for ongoing small use and does not require purchasing verified branding.
 
 Official policy rechecked 2026-07-29: once the External project is **In Production**, it is
 available to any Google Account and the test-user list no longer gates sign-in/authorization.
@@ -134,20 +132,16 @@ $env:GRADLE_USER_HOME = 'T:\_SC Video\PROJECTS\2026\DNA Work Order App\app\WorqO
 .\gradlew.bat signingReport
 ```
 
-Locate the `debug` variant and record its SHA-1. This—not a release or Play
-fingerprint—is the value for `WorqOrder Android Debug`. Retain SHA-256 only as
-non-secret diagnostic information.
+Locate the `debug` variant and record its SHA-1. This is the value for
+`WorqOrder Android Debug`. Retain SHA-256 only as non-secret diagnostic information.
 
 An alternative is `keytool -list -v` against the debug keystore, but the Gradle signing
 report avoids manually exposing a keystore password in shell history.
 
 ### Release fingerprint
 
-Deferred to Milestone 17. Do not create a release keystore or register a release OAuth
-client during Milestone 10 preparation.
-
-When the owner's permanent direct-release keystore has been created through the secure
-release process, inspect it with:
+The owner's permanent direct-release keystore was created through the secure Milestone 17 release
+process. Inspect it with:
 
 ```powershell
 & "$env:JAVA_HOME\bin\keytool.exe" -list -v -keystore 'PATH_TO_RELEASE_KEYSTORE' -alias 'RELEASE_ALIAS'
@@ -155,12 +149,6 @@ release process, inspect it with:
 
 Let `keytool` prompt for the password. Do not put passwords in the command, scripts,
 Gradle files, documentation, or shell history.
-
-### Google Play app-signing fingerprint
-
-Not applicable. WorqOrder is not distributed through Google Play. Do not create a Play
-Console app, enable Play App Signing, or register a Play Android OAuth client. If the
-owner changes distribution policy in the future, treat that as a new explicit decision.
 
 Never commit a keystore, key password, signing property file, private key, or exported
 certificate containing private material.
@@ -180,15 +168,13 @@ Open **Google Auth Platform > Clients**.
 
 ### Android direct-release client
 
-Do not create one before Milestone 17. At that milestone, create exactly one additional
-Android client for the permanent directly distributed release APK:
+Create exactly one additional Android client for the permanent directly distributed release APK:
 
 - name: `WorqOrder Android Direct Release`;
 - package: `worq.order`; and
 - SHA-1: the permanent release certificate.
 
-There is no Google Play Android client. A package/fingerprint mismatch causes
-authorization failure even when source code is correct.
+A package/fingerprint mismatch causes authorization failure even when source code is correct.
 
 ### Web application client
 
@@ -360,6 +346,15 @@ Expected connection behavior:
 - failures leave Room and prior spreadsheet metadata unchanged unless the user explicitly
   disconnects.
 
+### Production release evidence
+
+The owner-signed `0.1.0` APK was tested with a fresh Google account that had never appeared on an
+OAuth tester list. The External/In Production `drive.file` flow allowed sign-in without owner
+intervention. Exact-spreadsheet connection, first export, same-date idempotent re-export, restart
+recovery, and sign-out-driven disconnect all passed. This confirms the direct GitHub release does
+not require the owner to approve individual user accounts under the documented Google
+configuration.
+
 ## 11. Google Sheets export testing procedure
 
 Use only the disposable marked-test and conflict spreadsheets from section 9:
@@ -412,8 +407,8 @@ Before direct production distribution:
 - verify no secret/configuration files enter the APK or Git; and
 - repeat the official-document/version check immediately before release.
 
-Do not create Google Play configuration. Do not make a custom domain or verified
-name/logo branding a release dependency. The selected non-sensitive `drive.file` scope
+Do not make a custom domain or verified name/logo branding a release dependency. The selected
+non-sensitive `drive.file` scope
 does not require sensitive/restricted-scope verification. External/In Production is the
 required release state so users never require owner-managed test-list approval.
 
@@ -423,7 +418,7 @@ exports remain within standard quotas. A quota failure is shown to the user and 
 remains available. If Google changes this policy, stop and revisit the integration
 rather than adding charges, broader scopes, a backend, or a Workspace subscription.
 
-## 12. Official setup references
+## 13. Official setup references
 
 - [Authorize access to Google user data](https://developer.android.com/identity/authorization)
 - [Implement Sign in with Google](https://developer.android.com/identity/sign-in/credential-manager-siwg-implementation)

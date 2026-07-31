@@ -53,10 +53,12 @@
 ## User-interface scope
 
 - Main and all forms are phone-adaptive and remain scrollable on short, landscape, narrow, and
-  large-text layouts. No tablet-specific two-pane or expanded-window layout is provided.
+  large-text layouts. Landscape moves Export/Add task into the top bar and bounds the compact
+  pinned timer/date row so the independent task-list viewport remains usable. No tablet-specific
+  two-pane or expanded-window layout is provided.
 - At very large font scales, the complete timer value remains one line and may require horizontal
   scrolling; TalkBack receives the entire formatted duration without scrolling.
 - Automated Compose semantics cover labels, selected/running states, validation/error
-  announcements, confirmations, and 200% font behavior. A human TalkBack listening pass and
-  representative OEM-specific display-scaling pass remain release-audit checks because their
-  subjective output cannot be conclusively validated by instrumentation alone.
+  announcements, confirmations, and 200% font behavior. Human TalkBack and representative
+  display-scaling checks passed for `0.1.0`; device/OEM combinations beyond the documented release
+  matrix remain best-effort rather than tablet- or OEM-specific layouts.

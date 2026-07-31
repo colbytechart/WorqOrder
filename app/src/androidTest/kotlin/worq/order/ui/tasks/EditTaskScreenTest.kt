@@ -41,8 +41,11 @@ class EditTaskScreenTest {
 
         composeRule.onNodeWithText("Short description").assertIsDisplayed()
         composeRule.onNodeWithText("Hardware / Software Purchases").assertIsDisplayed()
-        composeRule.onNodeWithText("Task Total: 02:00:00.000").assertIsDisplayed()
-        composeRule.onNodeWithText("Interval 1").assertIsDisplayed()
+        composeRule.onNodeWithText("Task Total: 02:00:00").assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Interval 1")
+            .performScrollTo()
+            .assertIsDisplayed()
         composeRule.onAllNodesWithText("Start: 9:00:00 AM").assertCountEquals(2)
         composeRule.onAllNodesWithText("Stop: 10:00:00 AM").assertCountEquals(2)
         composeRule
@@ -98,7 +101,7 @@ class EditTaskScreenTest {
             selectedClientId = "client",
             description = "Description",
             hardwareSoftwarePurchases = "Laptop",
-            totalDuration = "02:00:00.000",
+            totalDuration = "02:00:00",
         )
 
     private fun interval(
@@ -109,7 +112,7 @@ class EditTaskScreenTest {
         ordinal = ordinal,
         startText = "9:00:00 AM",
         stopText = "10:00:00 AM",
-        durationText = "01:00:00.000",
+        durationText = "01:00:00",
         isRunning = false,
     )
 }

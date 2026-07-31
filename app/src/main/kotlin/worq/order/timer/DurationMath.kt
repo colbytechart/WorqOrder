@@ -66,18 +66,16 @@ object DurationMath {
         if (duration.isNegative) {
             throw NegativeDurationException("Cannot format a negative duration")
         }
-        val totalMillis = duration.toMillis()
-        val hours = totalMillis / MILLIS_PER_HOUR
-        val minutes = (totalMillis % MILLIS_PER_HOUR) / MILLIS_PER_MINUTE
-        val seconds = (totalMillis % MILLIS_PER_MINUTE) / MILLIS_PER_SECOND
-        val millis = totalMillis % MILLIS_PER_SECOND
+        val totalSeconds = duration.seconds
+        val hours = totalSeconds / SECONDS_PER_HOUR
+        val minutes = (totalSeconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE
+        val seconds = totalSeconds % SECONDS_PER_MINUTE
         return String.format(
             Locale.ROOT,
-            "%02d:%02d:%02d.%03d",
+            "%02d:%02d:%02d",
             hours,
             minutes,
             seconds,
-            millis,
         )
     }
 
@@ -86,7 +84,6 @@ object DurationMath {
         zoneId: ZoneId,
     ): ZonedDateTime = instant.atZone(zoneId)
 
-    private const val MILLIS_PER_SECOND = 1_000L
-    private const val MILLIS_PER_MINUTE = 60 * MILLIS_PER_SECOND
-    private const val MILLIS_PER_HOUR = 60 * MILLIS_PER_MINUTE
+    private const val SECONDS_PER_MINUTE = 60L
+    private const val SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE
 }

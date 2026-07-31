@@ -403,3 +403,29 @@ All versions live in the version catalog. Renovation is a separate reviewed chan
 ## 14. Operational behavior
 
 Core failures are represented in UI state and remain retryable. Last export outcome stores destination, displayed date, time, and a safe error category/detail. There is no background auto-sync or scheduled export. `MainActivity.onResume` invokes the application-scoped timer recovery coordinator even when Main is not visible; Main initialization/resume, date-change detection, and rule-sensitive operations provide idempotent retries. No boot receiver, alarm, wake lock, WorkManager stopwatch job, or foreground timer service exists.
+
+## 15. Optional Milestone 18 architecture boundaries
+
+No item in this section exists in the `0.1.0` production implementation.
+
+- Extend the typed settings model with `LandscapeOrientation.RIGHT_HANDED` and
+  `LandscapeOrientation.LEFT_HANDED`; the repository owns serialization, default/fallback, and
+  Flow observation. Composables never read preference keys directly.
+- Keep portrait Main on its production layout. A window-aware landscape root chooses one
+  two-column composition and mirrors column placement from the typed preference. The task
+  `LazyColumn` retains stable keys and independent state; the controls column owns exactly four
+  stacked regions and consumes the same immutable Main state/events as portrait.
+- About reads the build version from generated build configuration and constructs a fixed-origin,
+  version-tagged GitHub Release URI through one tested helper. It launches an external view intent;
+  no repository/network gateway or credential is added.
+- Reuse one presentation formatter for task-zone `HH:mm` Start/Stop values wherever practical.
+  Export schema/model selection remains centralized in `ExportRowBuilder`, and persistence models
+  retain exact instants.
+- Put any running-timer lock-screen integration behind an interface owned by the application/timer
+  coordination boundary. It observes authoritative active-timer identity and never becomes timer
+  authority. Dismissal state is scoped to the active interval ID.
+- Research official current Android behavior before choosing a notification/AppWidget mechanism.
+  Prefer system-rendered elapsed-time capability so the app does not schedule ticks. Do not add a
+  foreground service, wake lock, alarm, or WorkManager loop solely to maintain the lock-screen
+  surface. Treat notification permission, channel, lock-screen privacy, OEM suppression, process
+  death, and reboot as explicit states rather than claiming guaranteed visibility.

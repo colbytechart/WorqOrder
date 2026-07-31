@@ -763,7 +763,43 @@ exposes task content.
 If separately authorized, routine Task interval cards display completed Start and Stop values as
 task-zone `HH:mm` without seconds. Persisted UTC instants, stored task ZoneId, duration and
 date-boundary behavior, edit precision, and explicit fall-back occurrence disambiguation remain
-unchanged.
+unchanged. CSV, XLSX, and Google Sheets continue to emit the same canonical `HH:mm` Start/Stop
+values, with no destination-specific formatter or schema discrepancy.
+
+### OPTIONAL-UI-02 Version-aware About section
+
+If separately authorized, About is the final Settings content, shows the installed
+Gradle-generated version name as plain text, and exposes a small accessible link to the exact
+public GitHub Release tag for that version. The link opens through an external browser intent,
+does not contain credentials, and is tested against debug/release version metadata without a
+second manually maintained version constant.
+
+### OPTIONAL-UI-03 Handed two-column landscape
+
+On first install and corrupt-value fallback, **Landscape Orientation** is **Right-handed**.
+Landscape places a full-height independently scrolling task list in approximately the left half.
+The right half stacks four regions: WorqOrder-left/Settings-right, timer, complete date controls,
+then Export/Add task. Selecting **Left-handed** persists immediately and mirrors those columns
+without changing task order, selection, timer, date, or export state. Portrait is unchanged.
+
+Both modes remain usable on API 26/current target, short and standard landscape, 200% font, large
+display scale, TalkBack, and narrow multi-window bounds. Task rows stay readable and reachable;
+the control half does not overlap, clip, or remove any required action.
+
+### OPTIONAL-UI-04 Running-timer lock-screen surface
+
+If the current official Android platform supports the owner-approved behavior, starting a timer
+shows a lock-screen-capable surface containing the WorqOrder icon/name, active task name, and
+elapsed timer. It appears only while an interval is open. Stop removes it. Swiping it away hides
+it for that active interval without stopping, closing, duplicating, or changing the Room interval;
+a later Start may show a new surface.
+
+Permission denial, OS lock-screen privacy suppression, process death, reboot, screen lock/unlock,
+and task metadata changes fail safely. The app never claims that the surface is visible when user
+or device policy hides it, never writes tick values to Room/DataStore, and never adds a foreground
+service or continuous app-owned background loop solely to update elapsed text. Official API
+research must document whether the implementation is a lock-screen-visible notification or a
+supported lock-screen widget before code begins.
 
 ## 14. Optional local data protection and encryption
 

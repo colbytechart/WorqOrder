@@ -296,3 +296,29 @@ prohibited permissions/credentials/dependencies are present, and the Google setu
 exercised with debug and permanent direct-release fingerprints. Optional Milestone 18 app-access
 gating and optional Milestone 19 at-rest encryption are not required for this completion
 definition.
+
+## 13. Optional Milestone 18 product additions
+
+These are approved backlog requirements, not behavior in `0.1.0`, and require a new explicit owner
+instruction before implementation:
+
+- Put **About** at the bottom of Settings. Show the installed version in plain text and provide an
+  accessible link to that exact build version's public GitHub Release page.
+- Display interval-card Start and Stop clock values as task-zone `HH:mm`, matching all three
+  existing export destinations. Preserve exact UTC instants, stored ZoneId, interval calculations,
+  editing, and DST-overlap metadata.
+- Provide a running-only lock-screen surface with the WorqOrder icon/name, active task name, and
+  elapsed timer. User dismissal hides the surface for that running interval without stopping it.
+  Select the exact stable Android API only after official feasibility review; respect
+  notification/lock-screen privacy settings and do not add a foreground service merely to tick.
+- Replace phone landscape Main with an approximately equal two-column layout. Default
+  **Right-handed** places the full-height independently scrolling task list on the left and a
+  four-region control column on the right: title/Settings, timer, date controls, Export/Add task.
+  **Left-handed** mirrors the columns. Portrait is unchanged.
+- Add a persistent **Landscape Orientation** Settings section after Appearance with explicit
+  **Left-handed** and **Right-handed** radio buttons. Right-handed is the default and safe fallback.
+
+The optional milestone must test both landscape modes under large text/display scale, accessibility,
+short screens, and API 26/current target; validate the exact version-release URL; and prove the
+lock-screen surface adds no timer mutations, continuous background loop, data loss, or material
+CPU/battery regression.

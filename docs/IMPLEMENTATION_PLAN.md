@@ -515,7 +515,7 @@ Entry: Milestone 16 audit accepted.
   verification, and applicable release build pass; handoff documentation is complete and
   reproducible.
 
-## 20. Optional Milestone 18 — Post-project options and application-access security
+## 20. Optional Milestone 18 — Post-project product options and application-access security
 
 Entry: the current production project through Milestone 17 is fully completed and accepted, and
 the owner separately gives explicit permission to begin this optional milestone.
@@ -555,7 +555,31 @@ the current project.
 - Simplify routine Task interval cards so completed Start and Stop values display only task-zone
   `HH:mm`. Retain the full persisted UTC instants, stored task ZoneId, and DST occurrence/offset
   information; the interval editor must still expose occurrence details when a fall-back overlap
-  makes them necessary.
+  makes them necessary. Keep the already-implemented CSV/XLSX/Google Start/Stop output at the same
+  `HH:mm` precision through the one canonical export formatter.
+- Add an **About** section as the final Settings content. Display `BuildConfig.VERSION_NAME` as
+  plain text and provide a small accessible external link to the exact GitHub Release tag for that
+  installed version, using the canonical public repository base URL and
+  `releases/tag/v{versionName}`. Do not hardcode a version independently of Gradle.
+- Replace the current phone-landscape Main arrangement with a two-column layout. In the default
+  **Right-handed** mode, the independently scrolling task list occupies approximately the left
+  half and the right half contains four vertically stacked regions: title/Settings, timer, date
+  controls, then Export/Add task. **Left-handed** mode mirrors the columns. Portrait behavior
+  remains unchanged.
+- Add a typed Preferences DataStore setting named **Landscape Orientation**, shown after
+  Appearance, with explicit **Left-handed** and **Right-handed** radio buttons. Right-handed is the
+  first-install and corrupt-value fallback. Apply changes immediately without changing Room,
+  selection, timing, or export state.
+- Add an optional running-timer lock-screen surface that shows the WorqOrder icon/name, current
+  task name, and system-rendered elapsed timer only while an interval is active. Swiping it away
+  hides it for that active interval without stopping or changing the timer; a later Start may show
+  a new surface.
+- Before implementing the lock-screen request, verify the current official Android mechanism and
+  OS/version support. The requested swipe behavior most closely resembles a lock-screen-visible
+  notification, while true lock-screen widgets are not uniformly available. Choose the narrowest
+  stable API that meets the behavior, document any unavoidable notification-shade/device-setting
+  limitations, request notification permission only where Android requires it, and never add a
+  foreground service or app-driven tick loop merely to keep the elapsed display current.
 
 ### Optional security and bug verification gate
 
@@ -578,6 +602,20 @@ the current project.
   that no background failure mutates Room, creates unbounded retries, or exposes sensitive data.
 - Test that interval cards omit seconds without changing persisted instants, duration calculations,
   edit precision, date-boundary validation, or explicit DST-overlap disambiguation.
+- Test that About displays the exact Gradle-generated version and opens the corresponding public
+  release URL for debug/release variants without exposing credentials or accepting an arbitrary
+  URL.
+- Test default/right-handed and persisted/left-handed landscape modes at API 26/current target,
+  short and standard landscape, 200% font, large display scale, narrow multi-window bounds, and
+  TalkBack. The task list must retain usable width/height and independent scrolling, while every
+  control-region action remains reachable and at least 48 dp.
+- Test lock-screen surface creation/removal, dismissal for one running interval, next-Start
+  reappearance, Stop cleanup, process death, reboot/resume, screen lock/unlock, permission denial,
+  private lock-screen settings, task rename/deletion constraints, and no Room/DataStore tick
+  writes. It must not claim visibility when the OS/user suppresses private lock-screen content.
+- Profile the optional lock-screen surface and mirrored landscape layout for CPU, memory, battery,
+  recomposition, and background work. No implementation may regress the accepted five-Hz Main
+  profile or introduce continuous background execution.
 - Require explicit owner acceptance of every usability/security tradeoff before release.
 
 ## 21. Optional Milestone 19 — Data Protection and Encryption Hardening

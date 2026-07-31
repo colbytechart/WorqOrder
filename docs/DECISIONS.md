@@ -481,7 +481,27 @@ from production scope until separately authorized:
 It also defers a Task interval-card presentation refinement: show completed Start and Stop clock
 values as task-zone `HH:mm` only. This is display-only. Persisted UTC instants, the task's stored
 ZoneId, edit precision, duration calculations, and explicit fall-back occurrence handling remain
-unchanged.
+unchanged. All three exports already use canonical task-zone `HH:mm`; optional Milestone 18 keeps
+that common output and removes seconds only from the remaining interval-card presentation.
+
+Optional Milestone 18 also owns these separately authorized presentation additions:
+
+1. an About section at the very bottom of Settings that derives the installed version from Gradle
+   build metadata and links to that exact version's public GitHub Release page;
+2. a mirrored two-column phone-landscape Main layout, with a full-height independently scrolling
+   task list in one approximate half and title/Settings, timer, date controls, and Export/Add task
+   stacked in four regions in the other half; and
+3. a typed **Landscape Orientation** preference with **Right-handed** as the default/task-list-left
+   layout and **Left-handed** as its column-mirrored counterpart.
+
+Optional Milestone 18 additionally investigates and implements the narrowest officially supported
+running-timer lock-screen surface that can show the WorqOrder icon/name, task name, and elapsed
+timer. It exists only while timing and may be dismissed for the current interval without stopping
+the Room-authoritative timer. Because the requested swipe behavior may require a lock-screen-visible
+notification rather than a universally supported AppWidget, official Android API/version
+capabilities must be verified before selecting the mechanism. The feature must respect user
+lock-screen privacy/notification settings and cannot add a foreground service or app-driven
+background tick loop merely to animate elapsed time.
 
 Automatic midnight export must define Android background-execution behavior, offline/auth/URI
 failure and retry policy, zone changes, reboot/catch-up, duplicate prevention, user controls,
@@ -729,6 +749,8 @@ export schema-version change.
 - Task interval-card Start/Stop values changing from their current second-level display to
   task-zone `HH:mm` are deferred to optional Milestone 18 under D-051; full stored time metadata
   remains unchanged.
+- Version-aware About/release link, handed two-column landscape, and the research-gated
+  running-timer lock-screen surface are deferred to optional Milestone 18 under D-051.
 - At-rest encryption of app-private Room and DataStore files is deferred to optional Milestone 19
   under D-050 and requires separate explicit owner authorization after optional Milestone 18.
 - App-access login/biometric/device-credential/PIN gating remains optional post-project scope

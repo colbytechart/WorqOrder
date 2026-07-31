@@ -140,7 +140,10 @@ Capture the effective geographical zone at Start. Settings are locked while acti
 
 ### D-025 — Concept images are direction, not an alternate contract
 
-Retain the dark/high-contrast vertical visual direction where Material 3/accessibility allow it. Written behavior wins: WorqOrder title, Settings icon, milliseconds, labeled date, explicit task metadata/state, Create/Cancel, unambiguous export label, geographical ZoneId, and explicit client actions.
+Retain the dark/high-contrast vertical visual direction where Material 3/accessibility allow it.
+Written behavior wins for the WorqOrder title, Settings icon, labeled date, explicit task
+metadata/state, Create/Cancel, unambiguous export label, geographical ZoneId, and explicit client
+actions. D-065 later adopts the concept's cleaner no-fraction duration presentation.
 
 ### D-026 — Initial theme
 
@@ -392,9 +395,9 @@ Testing during development, then In Production for unrestricted external-account
 seek verified name/logo branding when it would introduce a domain requirement. This intentionally
 accepts less-polished consent presentation.
 
-Google Play distribution and Play App Signing are out of scope. Milestones 10 and 11 use the debug
-signing SHA-1 and debug Android OAuth client. A permanent direct-release key/fingerprint and matching
-Android OAuth client are created only through the secure Milestone 17 release process. If Google
+Milestones 10 and 11 use the debug signing SHA-1 and debug Android OAuth client. A permanent
+direct-release key/fingerprint and matching Android OAuth client are created only through the
+secure Milestone 17 release process. If Google
 changes the free API, quota, OAuth, or Picker policy, do not silently add cost, broader access, or a
 backend; stop for a new owner decision.
 
@@ -546,7 +549,8 @@ rebuilds a missing process-local monotonic anchor, and reconciles selection. Con
 signals are serialized and timer writes remain protected by the existing timer-operation mutex
 and Room transactions.
 
-The UI ticker remains a shared 50 ms presentation flow and stops when Main is no longer collected.
+The UI ticker remains a shared presentation flow and stops when Main is no longer collected. D-064
+sets its final release cadence to 200 ms after physical performance profiling.
 No background ticking, foreground service, alarm, wake lock, boot receiver, or WorkManager timer
 job is added. Background, screen-off, process-death, Recents-removal, and reboot correctness comes
 from the persisted UTC open interval and singleton pointer when the user next resumes the app.
@@ -630,6 +634,90 @@ uninstall or storage clearing. The production application therefore sets `allowB
 This reduces unintended platform/cloud/device-transfer copies; it is not WorqOrder-managed
 encryption and does not protect user-directed plaintext CSV/XLSX files or Google Sheets.
 
+Milestone 17 lint review extends this decision for Android 12+: the manifest references explicit
+data-extraction rules that exclude every app-private credential/device-protected domain from both
+cloud backup and device transfer. This does not create a backup/export feature and does not change
+the plaintext external-export boundary.
+
+### D-061 — Initial direct-release identity and optimization policy
+
+The initial public release is `0.1.0` with `versionCode = 1`, application ID `worq.order`, and a
+single APK signed by the owner's permanent external RSA-4096 release key. The key and passwords
+never enter Git. The ignored `keystore.properties` points to the external key; the tracked
+`keystore.properties.example` contains placeholders only. AGP's built-in release-signing
+validation must fail when a usable release key is not configured.
+
+The release variant is non-debuggable. R8 code shrinking and resource shrinking remain disabled
+for `0.1.0`: enabling them for the first time at the final release boundary would create
+unnecessary reflection/serialization/Google/Room/OOXML risk without an established download-size
+requirement. A future release may enable shrinking only with explicit owner approval and complete
+release regression testing.
+
+The supported public delivery is the owner-signed APK attached to a GitHub Release with its
+SHA-256. Existing users install an update over the current app using the same signing identity;
+uninstalling first is neither required nor safe for local data.
+
+### D-062 — Production Google audience and no-intervention release
+
+For `0.1.0`, Google Auth Platform is External and In Production, with no app logo or active
+verification requirement. Google Sheets, Drive, and Picker APIs are enabled; `drive.file` is the
+only file-data scope. The release Android OAuth client binds `worq.order` to the permanent release
+SHA-1, and the public Web client identifier is injected from ignored local build configuration.
+
+This state removes the owner-managed test-user-list gate. Ordinary users of the owner-signed APK
+may authorize their own Google Account without owner intervention or payment. User refusal,
+spreadsheet permissions, organization/Advanced-Protection policy, service availability, quota,
+and future Google policy can still deny a particular request. No billing account, paid quota,
+custom domain, or Workspace organization is introduced.
+
+### D-063 — Short-landscape Main actions and pinned-header bound
+
+The owner-approved phone-landscape layout moves Export and Add task from the bottom bar into the
+top application bar. This removes the persistent bottom region that otherwise combines with the
+pinned timer/date header to hide the task list under large text and display scaling. The landscape
+title is left-aligned, Export and Add task are centered as a pair with 144 dp minimum widths and
+16 dp separation on standard phone-landscape widths, and Settings remains at the far right.
+Constrained landscape/multi-window widths use the earlier 120 dp action widths and an ellipsized
+title slot so those elements cannot overlap. The landscape export button uses the compact visible
+labels **Export CSV**, **Export XLSX**, or **Export Sheets**; its semantics retain the full
+displayed date and destination required by D-059 and the export-date rule. Portrait retains the
+approved bottom action area.
+
+Short landscape continues to pin the timer and complete date-navigation controls above the
+independently scrolling task list. Its compact timer/date row has a bounded height, omits only the
+redundant visible **Work Date** label, keeps 48 dp actions, and preserves full timer/date semantics.
+This is a presentation-only change: Main state, Room, timing, task ordering, and all three export
+implementations are unchanged.
+
+### D-064 — Five-Hz visible timer refresh
+
+Physical release profiling with the timer visible for one hour found 22–26% instantaneous app CPU
+and about ten minutes of accumulated process CPU under the original 50 ms presentation cadence.
+Memory returned from roughly 154 MB foreground PSS to 45 MB in the background and back to 157 MB
+when visible, and device temperature rose only 2.1°C, so the evidence did not indicate a memory
+leak or thermal defect. The recomposition cadence itself was nevertheless too expensive.
+
+The visible timer now refreshes every 200 ms (five times per second). Its value still derives from
+the application-scoped monotonic anchor, persisted UTC boundaries remain unchanged, Stop persists
+the precise projected instant, and no tick writes Room or DataStore. The change trades
+unnecessary animation frequency for materially lower CPU while retaining responsive stopwatch
+feedback.
+
+The owner reran the signed release on a physical Pixel after this change. Over 20 minutes with the
+timer visible, cumulative process CPU increased from 1.02 to 31.29 seconds (about 2.5% average),
+battery declined by one percentage point, and temperature decreased from 30.1°C to 29.1°C. During
+the following locked/background interval Android reclaimed the process, which is expected and
+exercises persisted recovery rather than background execution. This evidence closes the release
+performance gate.
+
+### D-065 — Hide fractional seconds at presentation boundaries
+
+User-visible accumulated durations use `HH:MM:SS`; exported Start/Stop remain `HH:mm`, and exported
+durations remain `HH:MM:SS`. Positive sub-second remainders are truncated rather than rounded.
+Room UTC boundaries, monotonic anchors, interval arithmetic, and in-memory export snapshots retain
+their existing precision. This is a presentation-only decision and requires no Room migration or
+export schema-version change.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.
@@ -648,8 +736,10 @@ encryption and does not protect user-directed plaintext CSV/XLSX files or Google
 
 ## Implementation inputs still needed
 
-- Developer-controlled personal Google Cloud project, External test audience, debug SHA-1/debug
-  Android OAuth client, Web OAuth client ID, and disposable test spreadsheets before Milestone 10
-  integration testing.
-- Permanent direct-release key/fingerprint and release Android OAuth client are deferred to
-  Milestone 17. No Google Play signing input is required.
+- None for the implemented `0.1.0` identity. The owner has created/backed up the permanent release
+  key, registered its SHA-1 for `worq.order`, created the release Android OAuth client, enabled the
+  three required Google APIs, configured only `drive.file`, moved the External audience to In
+  Production, removed the logo/verification gate, and confirmed that no billing account is
+  required.
+- Final validation still uses the prepared fresh non-test Google account and a disposable editable
+  spreadsheet; these are test inputs, not application credentials or repository files.

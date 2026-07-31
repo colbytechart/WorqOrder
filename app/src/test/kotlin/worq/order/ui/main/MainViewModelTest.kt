@@ -100,7 +100,7 @@ class MainViewModelTest {
             assertEquals(1, state.tasks.size)
             assertTrue(state.tasks.single().isSelected)
             assertTrue(state.canStart)
-            assertEquals("01:00:00.000", state.timerText)
+            assertEquals("01:00:00", state.timerText)
         }
 
     @Test
@@ -150,7 +150,7 @@ class MainViewModelTest {
             runCurrent()
 
             assertEquals(TODAY.minusDays(1), viewModel.uiState.value.displayedDate)
-            assertEquals("00:30:00.000", viewModel.uiState.value.timerText)
+            assertEquals("00:30:00", viewModel.uiState.value.timerText)
             assertFalse(viewModel.uiState.value.canStart)
         }
 
@@ -172,7 +172,7 @@ class MainViewModelTest {
             viewModel.onEvent(MainEvent.SelectTask(task.id))
             runCurrent()
 
-            assertEquals("01:00:00.000", viewModel.uiState.value.timerText)
+            assertEquals("01:00:00", viewModel.uiState.value.timerText)
             viewModel.onEvent(MainEvent.StartTimer)
             runCurrent()
             assertEquals(MainTimerAction.STOP, viewModel.uiState.value.timerAction)
@@ -181,17 +181,17 @@ class MainViewModelTest {
             fixture.monotonic.nanos += Duration.ofSeconds(1).toNanos()
             advanceTimeBy(MainViewModel.TIMER_REFRESH_MILLIS)
             runCurrent()
-            assertEquals("01:00:01.000", viewModel.uiState.value.timerText)
+            assertEquals("01:00:01", viewModel.uiState.value.timerText)
 
             viewModel.onEvent(MainEvent.StopTimer)
             runCurrent()
             assertEquals(MainTimerAction.START, viewModel.uiState.value.timerAction)
-            assertEquals("01:00:01.000", viewModel.uiState.value.timerText)
+            assertEquals("01:00:01", viewModel.uiState.value.timerText)
 
             fixture.monotonic.nanos += Duration.ofMinutes(10).toNanos()
             advanceTimeBy(MainViewModel.TIMER_REFRESH_MILLIS * 2)
             runCurrent()
-            assertEquals("01:00:01.000", viewModel.uiState.value.timerText)
+            assertEquals("01:00:01", viewModel.uiState.value.timerText)
         }
 
     @Test
@@ -253,7 +253,7 @@ class MainViewModelTest {
             viewModel.onEvent(MainEvent.StopTimer)
             runCurrent()
 
-            assertEquals("00:00:45.000", visibleBeforeStop)
+            assertEquals("00:00:45", visibleBeforeStop)
             assertEquals(visibleBeforeStop, viewModel.uiState.value.timerText)
             assertEquals(
                 Duration.ofSeconds(45).toMillis(),
@@ -284,7 +284,7 @@ class MainViewModelTest {
             runCurrent()
 
             assertEquals(MainTimerAction.STOP, recreated.uiState.value.timerAction)
-            assertEquals("00:05:00.000", recreated.uiState.value.timerText)
+            assertEquals("00:05:00", recreated.uiState.value.timerText)
             assertEquals(task.id, recreated.uiState.value.runningTask?.taskId)
             assertEquals(
                 1,
@@ -324,13 +324,37 @@ class MainViewModelTest {
                     fixture.active.readActiveTimerSnapshot(),
                 ).interval
             assertEquals(before, after)
-            assertEquals("00:00:50.000", viewModel.uiState.value.timerText)
+            assertEquals("00:00:50", viewModel.uiState.value.timerText)
             assertEquals(
                 1,
                 requireNotNull(
                     fixture.tasks.readTaskWithIntervals(task.id),
                 ).intervals.size,
             )
+        }
+
+    @Test
+    fun visibleTimerRefreshesOnlyAtTheConfiguredPresentationCadence() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY)
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+            viewModel.onEvent(MainEvent.SelectTask(task.id))
+            runCurrent()
+            viewModel.onEvent(MainEvent.StartTimer)
+            runCurrent()
+
+            fixture.monotonic.nanos += Duration.ofSeconds(1).toNanos()
+            fixture.clock.instant = fixture.clock.instant.plusSeconds(1)
+            advanceTimeBy(MainViewModel.TIMER_REFRESH_MILLIS - 1)
+            runCurrent()
+            assertEquals("00:00:00", viewModel.uiState.value.timerText)
+
+            advanceTimeBy(1)
+            runCurrent()
+            assertEquals("00:00:01", viewModel.uiState.value.timerText)
         }
 
     @Test

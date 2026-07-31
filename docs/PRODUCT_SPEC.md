@@ -39,8 +39,8 @@ authoritative. Exports are copies and never feed data back into Room.
 - Biometric, device-credential, PIN, or account-gated app access in the required production
   sequence. That capability is reserved for an optional post-project milestone requiring separate
   owner authorization.
-- Google Play distribution, Google Play App Signing, paid Google API quota, a billing account,
-  Google Workspace/Cloud organization membership, or a custom-domain requirement.
+- Paid Google API quota, a billing account, Google Workspace/Cloud organization membership,
+  custom-domain requirement, or marketplace dependency.
 - A foreground service in the initial MVP.
 - A promise that app-private data survives uninstall or clearing application storage.
 - WorqOrder-managed encryption of app-private Room or DataStore files in the required production
@@ -69,7 +69,9 @@ The initial route is the main screen. It has a top app bar, timer, date selector
 
 ### Timer area
 
-- Show `HH:MM:SS.mmm`. Hours are accumulated hours and can exceed 23; milliseconds always have three digits.
+- Show `HH:MM:SS`. Hours are accumulated hours and can exceed 23. Sub-second precision remains
+  available to timer calculations and persisted interval boundaries but is intentionally omitted
+  from user-visible duration text.
 - If no task for the displayed date is selected, show zero and disable Start.
 - For a selected task, show completed interval duration plus the current open interval contribution, if that task is running.
 - Refresh may be coarser than 1 ms. Every rendered value is recalculated from timestamp/monotonic anchors; display ticks never cause database writes.
@@ -127,7 +129,15 @@ Create validates and writes one daily task. If its work date is today, it become
 
 ### Export
 
-The bottom action always identifies both date and destination, for example **Export Jul 22 as CSV**, **Export Jul 22 as XLSX**, or **Submit Jul 22 to Google Sheets**. It exports the displayed date, not implicitly “today.” Google Sheets without authorization/a validated spreadsheet navigates to and focuses the relevant settings section. CSV and XLSX launch their respective create-document pickers directly.
+In portrait, the bottom action identifies both date and destination, for example **Export Jul 22
+as CSV**, **Export Jul 22 as XLSX**, or **Submit Jul 22 to Google Sheets**. In landscape, Export
+and Add task move into the top application bar so the independent task-list viewport is not
+starved. The title remains left-aligned, the two generously sized actions are centered as a pair,
+and Settings remains at the far right. The visible export label is shortened to **Export CSV**,
+**Export XLSX**, or **Export Sheets**, while accessibility semantics retain the full displayed date
+and destination. Every layout exports the displayed date, not implicitly “today.” Google Sheets
+without authorization/a validated spreadsheet navigates to and focuses the relevant settings
+section. CSV and XLSX launch their respective create-document pickers directly.
 
 Export is disabled whenever the global timer is running, regardless of displayed date or selected
 destination. The disabled Main action reads **Stop Timer to Export**. After Stop commits the final
@@ -246,7 +256,9 @@ The three supplied images are visual concepts, not pixel-perfect requirements. T
 | --- | --- | --- |
 | Title reads “task time” | Product name is WorqOrder. | Use **WorqOrder**. |
 | Hamburger menu | Requirement calls for a Settings icon, and no drawer content is specified. | Use a settings/gear icon that navigates to Settings. |
-| Timer shows `HH:MM:SS` | Milliseconds are required. | Show `HH:MM:SS.mmm`, responsively scaled. |
+| Timer shows `HH:MM:SS` | The original written requirements added milliseconds. | Use the
+  concept's cleaner `HH:MM:SS` presentation. Persist and calculate exact sub-second boundaries,
+  but omit fractional seconds from visible and exported duration strings. |
 | Date controls show arrows/calendar plus `+` and `-`, with no visible date | The date must be labeled; add task is separate; minus is not a deletion affordance for the whole list. | Add a prominent date label, keep previous/next/calendar, use one labeled/accessible FAB for Add Task, and remove the ambiguous minus. |
 | Rows emphasize client and clock ranges | Rows must also show description, total duration, selected/running state. | Use client + description as primary metadata and total duration as trailing content; optionally show a time range as secondary detail. |
 | Bottom button says “submit” | Destination and displayed date are ambiguous. | Use the date/destination-specific export labels. |
@@ -281,7 +293,6 @@ The production project is complete only when all required acceptance tests in
 API range, release migrations are non-destructive, offline core behavior is proven, exported
 schemas are stable across all three destinations, no
 prohibited permissions/credentials/dependencies are present, and the Google setup guide has been
-exercised with the debug signing fingerprint. The permanent direct-release fingerprint and release
-OAuth client are deliberately deferred to Milestone 17. Google Play signing is not part of
-completion. Optional Milestone 18 app-access gating and optional Milestone 19 at-rest encryption
-are not required for this completion definition.
+exercised with debug and permanent direct-release fingerprints. Optional Milestone 18 app-access
+gating and optional Milestone 19 at-rest encryption are not required for this completion
+definition.

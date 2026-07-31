@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -43,10 +44,10 @@ class MainScreenTest {
     fun emptyStateShowsZeroTimerAndDisabledStart() {
         setMainContent(MainUiState.ready())
 
-        composeRule.onNodeWithText("00:00:00.000").assertIsDisplayed()
+        composeRule.onNodeWithText("00:00:00").assertIsDisplayed()
         composeRule
             .onNodeWithContentDescription(
-                "Tracked time 00:00:00.000. Timer stopped.",
+                "Tracked time 00:00:00. Timer stopped.",
             ).assertIsDisplayed()
         composeRule
             .onNodeWithTag(MainScreenTestTags.CONTENT)
@@ -65,7 +66,7 @@ class MainScreenTest {
                 client = "Legacy Client",
                 description =
                     "A deliberately long description that remains bounded to the task row.",
-                duration = "27:05:03.012",
+                duration = "27:05:03",
                 selected = true,
                 running = true,
                 archived = true,
@@ -84,7 +85,7 @@ class MainScreenTest {
 
         composeRule.onNodeWithText("Legacy Client").assertIsDisplayed()
         composeRule
-            .onAllNodesWithText("27:05:03.012")
+            .onAllNodesWithText("27:05:03")
             .assertCountEquals(2)
         composeRule.onNodeWithText("Archived client").assertIsDisplayed()
         composeRule.onNodeWithText("Running").assertIsDisplayed()
@@ -343,6 +344,156 @@ class MainScreenTest {
         composeRule
             .onNodeWithTag(MainScreenTestTags.taskRow("task-20"))
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun largeScaleShortLandscapeMovesActionsToTopAndKeepsTasksReachable() {
+        val tasks =
+            (1..8).map { index ->
+                task(
+                    id = "landscape-task-$index",
+                    description = "Landscape task $index",
+                )
+            }
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides
+                    Density(
+                        density = density.density,
+                        fontScale = 2f,
+                    ),
+            ) {
+                Box(
+                    modifier =
+                        androidx.compose.ui.Modifier
+                            .width(640.dp)
+                            .height(360.dp),
+                ) {
+                    WorqOrderTheme(darkTheme = false) {
+                        MainScreen(
+                            uiState =
+                                MainUiState
+                                    .ready()
+                                    .copy(
+                                        canExport = true,
+                                        tasks = tasks,
+                                    ),
+                            onEvent = {},
+                        )
+                    }
+                }
+            }
+        }
+
+        val exportBounds =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.EXPORT_ACTION)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        composeRule.onNodeWithText("Export CSV").assertIsDisplayed()
+        composeRule
+            .onNodeWithContentDescription("Export Jul 24 as CSV")
+            .assertIsDisplayed()
+        val titleBounds =
+            composeRule
+                .onNodeWithText("WorqOrder")
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        composeRule.onNodeWithText("Add task").assertIsDisplayed()
+        val addTaskBounds =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.ADD_TASK_ACTION)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        val settingsBounds =
+            composeRule
+                .onNodeWithContentDescription("Open settings")
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        assertTrue(
+            "Landscape title and Export overlap: " +
+                "title=$titleBounds, export=$exportBounds",
+            titleBounds.right <= exportBounds.left,
+        )
+        assertTrue(
+            "Landscape actions lack separation: " +
+                "export=$exportBounds, add=$addTaskBounds",
+            exportBounds.right < addTaskBounds.left,
+        )
+        assertTrue(
+            "Add task overlaps Settings: " +
+                "add=$addTaskBounds, settings=$settingsBounds",
+            addTaskBounds.right <= settingsBounds.left,
+        )
+        assertTrue(
+            "Landscape Export is too narrow: $exportBounds",
+            exportBounds.width >= 144f,
+        )
+        assertTrue(
+            "Landscape Add task is too narrow: $addTaskBounds",
+            addTaskBounds.width >= 144f,
+        )
+        val timerBeforeScroll =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.TIMER_CARD)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        composeRule
+            .onNodeWithTag(MainScreenTestTags.TIMER)
+            .fetchSemanticsNode()
+        val dateSelectorBeforeScroll =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.DATE_SELECTOR)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        val contentBounds =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.CONTENT)
+                .fetchSemanticsNode()
+                .boundsInRoot
+        assertTrue(
+            "Short landscape must reserve task-list height; " +
+                "timer=$timerBeforeScroll, date=$dateSelectorBeforeScroll, " +
+                "content=$contentBounds",
+            contentBounds.height > 0f,
+        )
+
+        composeRule
+            .onNodeWithTag(MainScreenTestTags.CONTENT)
+            .performScrollToNode(
+                hasTestTag(
+                    MainScreenTestTags.taskRow("landscape-task-8"),
+                ),
+            )
+
+        val timerAfterScroll =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.TIMER_CARD)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        composeRule
+            .onNodeWithTag(MainScreenTestTags.TIMER)
+            .fetchSemanticsNode()
+        val dateSelectorAfterScroll =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.DATE_SELECTOR)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        assertEquals(timerBeforeScroll, timerAfterScroll)
+        assertEquals(dateSelectorBeforeScroll, dateSelectorAfterScroll)
+        composeRule
+            .onNodeWithTag(
+                MainScreenTestTags.taskRow("landscape-task-8"),
+            ).assertIsDisplayed()
     }
 
     @Test

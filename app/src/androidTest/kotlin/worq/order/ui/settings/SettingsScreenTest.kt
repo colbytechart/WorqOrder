@@ -127,6 +127,11 @@ class SettingsScreenTest {
         )
 
         composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(
+                hasText("Stop the running timer before changing the time zone."),
+            )
+        composeRule
             .onNodeWithText("Stop the running timer before changing the time zone.")
             .assertIsDisplayed()
         composeRule.onNodeWithText("Use manual time zone").assertIsNotEnabled()

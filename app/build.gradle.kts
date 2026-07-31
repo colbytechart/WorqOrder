@@ -24,6 +24,32 @@ require(
     "worqorder.google.webClientId is malformed. See docs/GOOGLE_SHEETS_SETUP.md."
 }
 
+val releaseSigningPropertiesFile = rootProject.file("keystore.properties")
+val releaseSigningProperties =
+    Properties().apply {
+        if (releaseSigningPropertiesFile.isFile) {
+            releaseSigningPropertiesFile.inputStream().use(::load)
+        }
+    }
+val hasReleaseSigningProperties = releaseSigningPropertiesFile.isFile
+
+fun requiredReleaseSigningProperty(name: String): String =
+    releaseSigningProperties
+        .getProperty(name)
+        ?.trim()
+        ?.takeIf(String::isNotEmpty)
+        ?: throw GradleException(
+            "Missing $name in ignored keystore.properties. " +
+                "See docs/RELEASE_CHECKLIST.md.",
+        )
+
+val releaseKeystoreFile =
+    if (hasReleaseSigningProperties) {
+        rootProject.file(requiredReleaseSigningProperty("storeFile"))
+    } else {
+        rootProject.file(".release-keystore-not-configured")
+    }
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
@@ -54,9 +80,35 @@ android {
         )
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = releaseKeystoreFile
+            storePassword =
+                if (hasReleaseSigningProperties) {
+                    requiredReleaseSigningProperty("storePassword")
+                } else {
+                    ""
+                }
+            keyAlias =
+                if (hasReleaseSigningProperties) {
+                    requiredReleaseSigningProperty("keyAlias")
+                } else {
+                    ""
+                }
+            keyPassword =
+                if (hasReleaseSigningProperties) {
+                    requiredReleaseSigningProperty("keyPassword")
+                } else {
+                    ""
+                }
+        }
+    }
+
     buildTypes {
         release {
+            isDebuggable = false
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

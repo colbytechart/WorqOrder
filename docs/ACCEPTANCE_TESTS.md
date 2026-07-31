@@ -13,7 +13,9 @@ less frequently.
 
 ### UI-01 Initial empty state
 
-Given the database has no tasks for today, when the main screen opens, then it shows WorqOrder, today's labeled date, `00:00:00.000`, disabled Start, Add Task, a useful empty state, Settings, and an export action naming today's date/destination.
+Given the database has no tasks for today, when the main screen opens, then it shows WorqOrder,
+today's labeled date, `00:00:00`, disabled Start, Add Task, a useful empty state, Settings, and an
+export action naming today's date/destination.
 
 ### UI-02 Date filtering
 
@@ -560,8 +562,9 @@ the Picker resource grant.
 
 Static configuration and release review find no Google Cloud billing account dependency, paid
 quota path, subscription, Workspace/organization requirement, custom-domain requirement, Google
-Play client, or Play App Signing configuration. Debug builds use the registered debug SHA-1; the
-direct-release identity is added only in Milestone 17. The repository remains GPLv3.
+marketplace-signing dependency, or owner-managed tester-list dependency. Debug and direct-release
+builds use Android OAuth clients bound to their exact package/signing SHA-1. The repository remains
+GPLv3.
 
 ### GS-18 Quota and future-policy failure
 
@@ -688,10 +691,12 @@ spreadsheet remains a direct action.
 
 ### A11Y-05 Adaptive Main layout
 
-At 200% font scale, Main's export and Add task actions stack without overlap, the timer retains its
-complete semantic value and can scroll horizontally if necessary, and the pinned timer/date region
-leaves a usable independently scrollable lower message/task region. At ordinary font scale and
-phone width, the two bottom actions remain side by side.
+At 200% font scale, portrait Main stacks Export and Add task without overlap. Landscape Main moves
+those actions into its top application bar, uses a compact destination-specific visible export
+label, and retains the full export date/destination in semantics. The timer retains its complete
+semantic value and can scroll horizontally if necessary. The bounded pinned timer/date region
+leaves a usable independently scrollable lower message/task region on a 640 × 360 dp short
+landscape surface. At ordinary portrait phone width, the two bottom actions remain side by side.
 
 ## 13. Optional post-project application-access security
 

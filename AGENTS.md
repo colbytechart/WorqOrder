@@ -14,9 +14,8 @@
 - Do not add Firebase, a custom backend, a web wrapper, embedded credentials, service-account keys, passwords, OAuth client secrets, or unrestricted API credentials.
 - WorqOrder must remain free and open source under GPLv3. Do not add billing, paid API tiers, paid
   quota increases, subscriptions, or a Google Workspace/organization requirement.
-- Do not prepare Google Play distribution or Play app-signing configuration. The supported release
-  path is direct distribution signed by the owner's permanent release key, which is deferred until
-  Milestone 17.
+- The supported release path is direct distribution signed by the owner's permanent release key.
+  Do not introduce another marketplace/signing workflow without explicit owner approval.
 - Google export must stay within no-cost standard quotas and fail closed without automatic retries
   or charges. If Google's free `drive.file`/Picker/API policy changes, stop Google integration work
   for a new owner decision; CSV must remain available.

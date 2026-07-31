@@ -126,7 +126,11 @@ Each ViewModel exposes an immutable `StateFlow<UiState>` and a separate bounded 
 - export default/connection readiness; and
 - operation/error state.
 
-The visible ticker runs only while collected and an interval is active. It emits display refresh signals (for example, every 16–100 ms depending on performance), never database mutations. Format milliseconds from the computed duration; do not imply 1 ms refresh precision.
+The visible ticker runs only while collected and an interval is active. It emits a display refresh
+signal every 200 ms, never database mutations. The five-Hz cadence was selected from physical
+release profiling to avoid sustained CPU use while remaining responsive. Accumulated presentation
+formats the computed exact duration as `HH:MM:SS` and truncates its sub-second remainder; this does
+not reduce persistence or calculation precision.
 
 Main keeps the timer card and complete date-selector bar outside the lower `LazyColumn`, so the
 timing identity, Start/Stop control, displayed date, date arrows, and calendar action remain visible
@@ -333,9 +337,9 @@ Google support is a replaceable gateway outside the offline core.
 - Google calls are explicit user actions, use bounded/no automatic retry, and stay within the
   no-cost standard tier. Do not attach billing, request a paid quota increase, or implement a path
   that can generate charges. Quota exhaustion is a safe failure and CSV remains available.
-- The supported distribution is direct APK delivery, not Google Play. Debug OAuth identity is used
-  through Milestone 16; the permanent direct-release signing identity and OAuth client are created
-  only in Milestone 17.
+- The supported distribution is an owner-signed APK delivered from GitHub. Debug and
+  direct-release OAuth identities bind to the exact package/signing SHA-1 that produces each
+  artifact.
 
 The Milestone 9 official-document review on 2026-07-26 selected stable Credential Manager `1.6.0`,
 Google ID `1.2.0`, `play-services-auth:21.6.0`, and

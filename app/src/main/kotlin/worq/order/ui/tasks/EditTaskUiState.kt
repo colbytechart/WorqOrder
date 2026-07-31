@@ -64,7 +64,7 @@ data class EditTaskUiState(
     val description: String = "",
     val hardwareSoftwarePurchases: String = "",
     val metadataErrors: Set<TaskMetadataValidationError> = emptySet(),
-    val totalDuration: String = "00:00:00.000",
+    val totalDuration: String = "00:00:00",
     val intervals: List<IntervalItemUi> = emptyList(),
     val isRunning: Boolean = false,
     val isSavingMetadata: Boolean = false,

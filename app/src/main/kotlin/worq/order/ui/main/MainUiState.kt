@@ -108,7 +108,7 @@ data class MainUiState(
         get() = timerAction == MainTimerAction.STOP
 
     companion object {
-        const val ZERO_DURATION = "00:00:00.000"
+        const val ZERO_DURATION = "00:00:00"
     }
 }
 

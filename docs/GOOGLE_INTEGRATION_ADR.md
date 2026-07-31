@@ -1,7 +1,7 @@
 # ADR: Google Identity, Authorization, Picker, and Sheets Access
 
-Status: accepted for Milestones 10 and 11  
-Decision date: 2026-07-26  
+Status: accepted for Milestones 10 and 11
+Decision date: 2026-07-26
 Official guidance reviewed: 2026-07-26
 
 ## 1. Context
@@ -17,7 +17,7 @@ file, and confirms it as the connected spreadsheet. Later exports write one mark
 worksheet tab per displayed date.
 
 The owner has fixed a permanent project policy: WorqOrder remains free and open source
-under GPLv3, is distributed directly rather than through Google Play, and must not
+under GPLv3, is distributed as an owner-signed APK from GitHub, and must not
 require billing, paid API quota, Google Workspace/organization membership, a custom
 domain, or verified OAuth branding. CSV remains the no-network fallback if Google's
 no-cost policy later changes.
@@ -58,8 +58,8 @@ Use the following design:
    access, refresh, ID, or authorization-code tokens in DataStore or Room.
 9. Use only no-additional-cost standard API quota. Never attach billing or request a
    paid quota increase; report quota failure and preserve CSV.
-10. Use the debug signing identity for Milestones 10–16. Create the permanent
-    direct-release identity in Milestone 17; do not create a Google Play client.
+10. Bind debug and direct-release Android OAuth clients to the exact package/signing SHA-1
+    identities that produce those artifacts.
 
 This replaces the earlier provisional plan to request the sensitive
 `https://www.googleapis.com/auth/spreadsheets` scope.
@@ -475,8 +475,8 @@ The selected no-cost public path is:
 2. External/Testing during Milestones 10 and 11 with named test users;
 3. External/In Production when the direct-release build is ready, removing the
    test-user allowlist and avoiding the seven-day Testing expiration;
-4. no Google Workspace/Cloud organization, custom domain, verified brand, Google Play
-   distribution, or paid service.
+4. no Google Workspace/Cloud organization, custom domain, verified brand, marketplace
+   dependency, or paid service.
 
 As rechecked against official Google documentation on 2026-07-29, External/In Production projects
 are available to any Google Account. The 100-new-user cap applies to OAuth clients that present an

@@ -43,8 +43,8 @@ a time.
 8. WorqOrder remains free and open source under GPLv3. No supported milestone may introduce
    billing, a paid API tier, paid quota, Google Workspace/organization membership, or a custom
    domain requirement.
-9. Distribution is direct, not through Google Play. Debug Google OAuth identity is sufficient
-   through Milestone 16; permanent direct-release signing is deferred to Milestone 17.
+9. Distribution is the owner-signed APK from GitHub. Debug and direct-release Google OAuth
+   identities bind to their exact package/signing SHA-1.
 10. Google export uses no-cost standard quota and fails closed to CSV if Google's policy or
     available quota no longer permits that path.
 11. The required production sequence relies on Android's application sandbox and does not claim
@@ -126,7 +126,7 @@ Entry: Milestone 2 persistence accepted.
   active session's pinned geographical ZoneId.
 - Daily continuation task find/create, metadata copying, continuation intervals, and
   transactional active-pointer retargeting.
-- Pure completed/active/total duration calculation and `HH:MM:SS.mmm` formatting,
+- Pure completed/active/total duration calculation and `HH:MM:SS` presentation formatting,
   including totals over 23 hours and clock-anomaly clamping.
 - Reusable manual-interval validation for ordering, task-day bounds, overlap, open and
   running-state conflicts, and explicit DST gap/overlap resolution.
@@ -310,7 +310,7 @@ spreadsheets are available. Release signing and any release OAuth client remain 
   and Google Sheets default-destination selection.
 - No Firebase, service account, embedded secret, raw token in DataStore, Drive-wide
   authorization, or spreadsheet creation.
-- No Google Play configuration, billing account, paid quota, Workspace organization, custom
+- No marketplace configuration, billing account, paid quota, Workspace organization, custom
   domain, or verified-brand dependency.
 
 ### Verification gate
@@ -410,7 +410,7 @@ Status: implemented; awaiting owner acceptance.
   effective ZoneId, normalizes Room's authoritative active timer, and reconciles selection.
 - Activity resume triggers recovery regardless of the visible navigation destination; Main also
   performs an idempotent retry and reconstructs presentation state from persisted data.
-- Live display uses one collection-scoped 50-millisecond monotonic ticker without database tick
+- Live display uses one collection-scoped 200-millisecond monotonic ticker without database tick
   writes or background execution.
 - Active-timer reads fail closed for orphaned, missing, or multiple open intervals instead of
   treating structurally inconsistent persistence as a stopped timer.
@@ -496,7 +496,7 @@ Entry: Milestone 16 audit accepted.
   debug/release build verification.
 - Versioning, signing and release configuration through the owner's secure process.
 - Create the permanent direct-release keystore/fingerprint and matching Android OAuth client through
-  the owner's secure process; do not create Google Play signing configuration.
+  the owner's secure process.
 - Move the External OAuth audience to In Production so the test-user list no longer gates any
   Google Account. Prove the release-signed APK with an account never listed as a tester; document
   external Workspace/Advanced-Protection restrictions and retain repository-hosted privacy/user
@@ -505,6 +505,9 @@ Entry: Milestone 16 audit accepted.
   of WorqOrder-managed local at-rest encryption, known limitations, and maintenance guidance.
 - Update README and produce a release candidate without committing signing material,
   credentials, tokens, `local.properties`, or generated local state.
+- Initial release identity is fixed at `0.1.0` / code `1`. Publish the owner-signed APK and SHA-256
+  through a GitHub Release. Keep R8/resource shrinking disabled unless a separately tested owner
+  decision changes that policy.
 
 ### Verification gate
 

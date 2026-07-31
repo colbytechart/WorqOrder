@@ -3,7 +3,9 @@
 ## 1. Storage conventions
 
 - Stable IDs are random UUID strings generated in the application before insert. They are never reused or derived from mutable text.
-- UTC instants are stored as signed 64-bit epoch milliseconds. Millisecond precision matches the UI/export contract and Android clocks.
+- UTC instants are stored as signed 64-bit epoch milliseconds. This preserves Android clock and
+  interval precision even though user-visible/exported duration strings intentionally omit
+  fractional seconds.
 - Work dates are stored independently as `LocalDate.toEpochDay()` signed 64-bit values.
 - Zone IDs are IANA/geographical IDs accepted by `ZoneId.of`, for example `America/New_York`; fixed-offset display labels are not stored in place of them.
 - Booleans are SQLite integers through Room.

@@ -1358,6 +1358,6 @@ class MainViewModel(
     }
 
     companion object {
-        const val TIMER_REFRESH_MILLIS = 50L
+        const val TIMER_REFRESH_MILLIS = 200L
     }
 }

@@ -28,7 +28,7 @@ class DurationMathTest {
     }
 
     @Test
-    fun accumulatedFormatterAllowsHoursOverTwentyThreeAndKeepsMilliseconds() {
+    fun accumulatedFormatterAllowsHoursOverTwentyThreeAndHidesMilliseconds() {
         val duration =
             Duration
                 .ofHours(49)
@@ -36,7 +36,7 @@ class DurationMathTest {
                 .plusSeconds(3)
                 .plusMillis(4)
 
-        assertEquals("49:02:03.004", DurationMath.formatAccumulated(duration))
+        assertEquals("49:02:03", DurationMath.formatAccumulated(duration))
     }
 
     @Test

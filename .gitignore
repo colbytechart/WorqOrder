@@ -2,6 +2,7 @@
 .gradle/
 .kotlin/
 .tmp/
+.android-user/
 build/
 **/build/
 

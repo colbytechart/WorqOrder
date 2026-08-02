@@ -8,15 +8,18 @@ import androidx.room.RoomDatabase
 @Database(
     entities = [
         ClientEntity::class,
+        EmployeeEntity::class,
         DailyTaskEntity::class,
         WorkIntervalEntity::class,
         ActiveTimerEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class WorqOrderDatabase : RoomDatabase() {
     abstract fun clientDao(): ClientDao
+
+    abstract fun employeeDao(): EmployeeDao
 
     abstract fun taskDao(): TaskDao
 

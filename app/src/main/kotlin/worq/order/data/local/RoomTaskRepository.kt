@@ -10,6 +10,8 @@ import worq.order.data.CreateDailyTaskResult
 import worq.order.data.DeleteTaskResult
 import worq.order.data.EntityIdGenerator
 import worq.order.data.ManualIntervalPersistenceResult
+import worq.order.data.MileageNormalizer
+import worq.order.data.MileageValidationResult
 import worq.order.data.NewDailyTask
 import worq.order.data.NormalizedTaskMetadata
 import worq.order.data.TaskMetadataValidationResult
@@ -235,6 +237,10 @@ class RoomTaskRepository(
             clientId = clientId,
             description = metadata.description,
             hardwareSoftwarePurchases = metadata.hardwareSoftwarePurchases,
+            employeeId = employeeId,
+            employeeNameSnapshot = employeeNameSnapshot,
+            workType = workType.name,
+            mileage = normalizeMileage(mileage),
             workDateEpochDay = workDate.toEpochDay(),
             zoneId = zoneId.id,
             createdAtEpochMs = nowEpochMs,
@@ -258,6 +264,13 @@ class RoomTaskRepository(
                 throw IllegalArgumentException(
                     "Invalid task metadata: ${validation.errors.joinToString()}",
                 )
+        }
+
+    private fun normalizeMileage(mileage: String?): String? =
+        when (val result = MileageNormalizer.normalize(mileage)) {
+            is MileageValidationResult.Valid -> result.canonicalValue
+            is MileageValidationResult.Invalid ->
+                throw IllegalArgumentException("Invalid mileage: ${result.error}")
         }
 }
 

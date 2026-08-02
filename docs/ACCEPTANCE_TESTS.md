@@ -437,7 +437,7 @@ without visible feedback.
 ### CSV-11 Shared snapshot boundary
 
 `ExportSnapshotCoordinator` performs normalization/read/build once and returns the immutable
-canonical dataset (nine columns in released `0.1.0`, 13 in planned `0.2.0`). CSV serialization
+canonical dataset (nine columns in released `0.1.0`, 14 in planned `0.2.0`). CSV serialization
 changes no field/order/value. XLSX/Google adapters
 consume the same object rather than rebuilding destination-specific rows.
 
@@ -718,11 +718,12 @@ duplicates collapsed, and new names appended. Existing clients are never overwri
 the final active list is A–Z. Unsupported, malformed, corrupt, over-limit, I/O-failed, or excessive
 input causes no partial mutation or crash and reports an actionable error.
 
-### V2-EMPLOYEE-01 Directory and historical snapshots
+### V2-CONSULTANT-01 Directory and historical snapshots
 
-Employee add/rename/archive/restore and A–Z active selection match the approved validation rules.
-New task creation requires an active selected Employee. Rename/archive never changes earlier task
-employee snapshots or exports; explicit task edit may correct the assignment. Rollover copies the
+The user-facing Consultant directory (internally Employee persistence) supports
+add/rename/archive/restore and A–Z active selection under the approved validation rules. New task
+creation requires an active selected Consultant. Rename/archive never changes earlier task
+consultant snapshots or exports; explicit task edit may correct the assignment. Rollover copies the
 source snapshot. Migrated unassigned tasks remain legible/editable.
 
 ### V2-TASK-01 Work Type, Mileage, and Billing Minutes
@@ -735,11 +736,20 @@ persisted and never changes timestamp precision.
 
 ### V2-EXPORT-01 Canonical schema 3
 
-CSV, one-off XLSX, and Google Sheets expose exactly these headers/values in order: Work Date,
-Employee, Client Name, Description, Hardware / Software Purchases, Work Type, Mileage, Interval
-Number, Start Local, Stop Local, Interval Duration, Task Total Duration, Billing Minutes.
-Start/Stop are `HH:mm`; durations are `HH:MM:SS`; Billing Minutes follows V2-TASK-01. Known owned
+CSV, one-off XLSX, and Google Sheets expose exactly these headers/values in order: Start date, End
+date, Consultant, Client, Description, Expense, Work type, Mileage, Interval number, Start time,
+Stop time, Interval duration, Time spent, Billing minutes. Both date fields equal the same stored
+task date formatted `MM/DD/YYYY`. Export Start/Stop are `HH:mm`; durations are `HH:MM:SS`; Billing
+minutes follows V2-TASK-01. Known owned
 schema-2 Google tabs upgrade atomically; unowned or newer/unknown tabs remain untouched conflicts.
+
+### V2-TASK-02 Interval presentation and text-entry capitalization
+
+Routine interval cards omit an interval Duration field, label values Start Time/Stop Time, and use
+task-zone 12-hour `hh:mm a`. Task Total remains above the interval list and Billing Minutes is
+directly below it. Text fields request sentence capitalization from the keyboard without changing
+stored text automatically. Exact instants, editor precision, DST occurrence handling, and export
+formatting remain unchanged.
 
 ### V2-EXPORT-02 Automatic eligibility and captured date
 

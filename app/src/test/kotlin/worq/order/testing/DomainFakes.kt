@@ -12,6 +12,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import worq.order.data.ActiveTimerRepository
 import worq.order.data.AppSettings
+import worq.order.data.AutomaticGooglePendingReason
 import worq.order.data.CreateActiveIntervalResult
 import worq.order.data.CreateDailyTaskResult
 import worq.order.data.DeleteTaskResult
@@ -19,6 +20,7 @@ import worq.order.data.ManualIntervalPersistenceResult
 import worq.order.data.NewDailyTask
 import worq.order.data.ExportDestination
 import worq.order.data.LastExportAttempt
+import worq.order.data.LandscapeHandedness
 import worq.order.data.SelectedTaskRepository
 import worq.order.data.SelectedTaskState
 import worq.order.data.SettingsRepository
@@ -154,6 +156,44 @@ class FakeSettingsRepository(
     override suspend fun recordLastExportAttempt(attempt: LastExportAttempt) {
         state.value = state.value.copy(lastExportAttempt = attempt)
     }
+
+    override suspend fun setSelectedEmployeeId(employeeId: String?) {
+        state.value = state.value.copy(selectedEmployeeId = employeeId)
+    }
+
+    override suspend fun setLandscapeHandedness(handedness: LandscapeHandedness) {
+        state.value = state.value.copy(landscapeHandedness = handedness)
+    }
+
+    override suspend fun setAutomaticGoogleExportEnabled(enabled: Boolean) {
+        state.value =
+            state.value.copy(
+                automaticGoogleExportEnabled = enabled,
+                automaticGoogleTargetDate =
+                    state.value.automaticGoogleTargetDate.takeIf { enabled },
+                automaticGooglePendingReason =
+                    state.value.automaticGooglePendingReason.takeIf { enabled },
+            )
+    }
+
+    override suspend fun setAutomaticGooglePendingExport(
+        workDate: LocalDate,
+        reason: AutomaticGooglePendingReason,
+    ) {
+        state.value =
+            state.value.copy(
+                automaticGoogleTargetDate = workDate,
+                automaticGooglePendingReason = reason,
+            )
+    }
+
+    override suspend fun clearAutomaticGooglePendingExport() {
+        state.value =
+            state.value.copy(
+                automaticGoogleTargetDate = null,
+                automaticGooglePendingReason = null,
+            )
+    }
 }
 
 class FakeSelectedTaskRepository(
@@ -280,6 +320,10 @@ class FakeTaskRepository : TaskRepository {
                     description = newTask.description.trim(),
                     hardwareSoftwarePurchases =
                         newTask.hardwareSoftwarePurchases.trim(),
+                    employeeId = newTask.employeeId,
+                    employeeNameSnapshot = newTask.employeeNameSnapshot,
+                    workType = newTask.workType,
+                    mileage = newTask.mileage,
                     workDate = newTask.workDate,
                     zoneId = newTask.zoneId,
                     createdAt = now,

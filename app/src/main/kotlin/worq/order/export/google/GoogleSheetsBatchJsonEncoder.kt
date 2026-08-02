@@ -57,6 +57,23 @@ internal object GoogleSheetsBatchJsonEncoder {
                             ),
                     ),
                 )
+            is GoogleSheetsBatchRequest.UpdateSheetMetadataValue ->
+                JSONObject().put(
+                    "updateDeveloperMetadata",
+                    JSONObject()
+                        .put(
+                            "dataFilters",
+                            JSONArray().put(
+                                JSONObject().put(
+                                    "developerMetadataLookup",
+                                    JSONObject().put("metadataId", metadataId),
+                                ),
+                            ),
+                        ).put(
+                            "developerMetadata",
+                            JSONObject().put("metadataValue", value),
+                        ).put("fields", "metadataValue"),
+                )
             is GoogleSheetsBatchRequest.ResizeSheet ->
                 JSONObject().put(
                     "updateSheetProperties",

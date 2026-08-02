@@ -12,6 +12,7 @@ import org.junit.Test
 import worq.order.data.NewDailyTask
 import worq.order.data.SelectedTaskState
 import worq.order.model.DailyTask
+import worq.order.model.WorkType
 import worq.order.testing.FakeActiveTimerRepository
 import worq.order.testing.FakeSelectedTaskRepository
 import worq.order.testing.FakeTaskRepository
@@ -57,6 +58,10 @@ class SelectionCoordinatorTest {
                 source.hardwareSoftwarePurchases,
                 copy.hardwareSoftwarePurchases,
             )
+            assertEquals(source.employeeId, copy.employeeId)
+            assertEquals(source.employeeNameSnapshot, copy.employeeNameSnapshot)
+            assertEquals(source.workType, copy.workType)
+            assertEquals(source.mileage, copy.mileage)
             assertEquals(TODAY, copy.workDate)
             assertEquals(NEW_YORK, copy.zoneId)
             assertEquals(copy.id, fixture.selection.readSelection()?.taskId)
@@ -242,6 +247,10 @@ class SelectionCoordinatorTest {
                     clientId = "client-1",
                     description = "Current description",
                     hardwareSoftwarePurchases = "Current purchases",
+                    employeeId = "employee-1",
+                    employeeNameSnapshot = "Alex Rivera",
+                    workType = WorkType.ON_SITE,
+                    mileage = "18.5",
                     workDate = date,
                     zoneId = zoneId,
                     seriesId = seriesId,

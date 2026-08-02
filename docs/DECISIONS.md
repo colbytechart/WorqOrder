@@ -433,7 +433,7 @@ stores no XLSX document URI or connection metadata. Repeated exports intentional
 independent files.
 
 Use a focused internal Android-compatible OOXML writer with no new production dependency. All
-canonical values are literal cells (nine in `0.1.0`, 13 in planned `0.2.0`); no macros, formulas,
+canonical values are literal cells (nine in `0.1.0`, 14 in planned `0.2.0`); no macros, formulas,
 external links, hidden worksheets,
 credentials, or app-private keys are written. Apache POI remains disallowed absent a new explicit
 owner decision. Cancellation writes nothing; output failure uses best-effort partial-document
@@ -727,16 +727,17 @@ valid names append. Commit the complete planned import atomically and keep the f
 sorted A–Z. Unsupported MIME/extension, malformed quoting/encoding, invalid cells, excessive size,
 or I/O failure produces no partial mutations and an actionable non-crashing result.
 
-### D-068 — Employees use directory identity plus task snapshots
+### D-068 — Consultants use internal Employee identity plus task snapshots
 
-Add an Employee directory directly below Client Management. Employee validation, normalization,
+Add a user-facing **Consultant** directory directly below Client Management. Its internal Room
+entity remains named Employee; this is an implementation term, not a GUI label. Consultant validation, normalization,
 active/archive/restore semantics, and alphabetical ordering mirror clients. Preferences stores the
-currently selected active employee for future tasks.
+currently selected active consultant for future tasks.
 
 Each daily task stores the optional employee ID and an assignment-time employee-name snapshot.
-Renaming or archiving an Employee entry does not rewrite existing tasks or exports. Explicitly
+Renaming or archiving a Consultant entry does not rewrite existing tasks or exports. Explicitly
 editing a task may replace its assignment/snapshot. New task creation requires an active selected
-employee; migrated `0.1.0` tasks use null ID/blank snapshot until edited. Rollover/midnight copies
+consultant; migrated `0.1.0` tasks use null ID/blank snapshot until edited. Rollover/midnight copies
 carry the source task's snapshot rather than re-resolving the current directory name.
 
 Archiving the currently selected directory employee clears the future-task selection; it does not
@@ -754,31 +755,38 @@ Billing Minutes is derived from the task's exact interval total and is not persi
 `0` for zero duration; otherwise `ceil(totalMilliseconds / 900000) * 15`. Any positive total below
 15 minutes therefore yields `15`.
 
-All destinations advance together to schema version 3 with these exact columns:
+All destinations advance together to schema version 3 with these exact 14 columns:
 
-1. Work Date
-2. Employee
-3. Client Name
-4. Description
-5. Hardware / Software Purchases
-6. Work Type
-7. Mileage
-8. Interval Number
-9. Start Local
-10. Stop Local
-11. Interval Duration
-12. Task Total Duration
-13. Billing Minutes
+1. Start date
+2. End date
+3. Consultant
+4. Client
+5. Description
+6. Expense
+7. Work type
+8. Mileage
+9. Interval number
+10. Start time
+11. Stop time
+12. Interval duration
+13. Time spent
+14. Billing minutes
 
-Start/Stop use task-zone `HH:mm` only. Duration values remain accumulated `HH:MM:SS`, but the word
-`Formatted` is removed from both headers. Precise internal instants and milliseconds remain
+Start date and End date repeat the same stored task date as `MM/DD/YYYY`; this is only an export
+projection and does not create a date range in Room. Export Start/Stop use task-zone `HH:mm` only.
+Duration values remain accumulated `HH:MM:SS`; **Time spent** is the renamed task-total value.
+Precise internal instants and milliseconds remain
 unchanged. Known owned Google schema-2 tabs are atomically upgraded/replaced as schema 3 on
 re-export; unowned same-name tabs and unknown/newer schemas remain protected conflicts.
 
 ### D-070 — v0.2 presentation additions
 
-Routine interval cards display Start/Stop as task-zone `HH:mm` without changing editor or storage
-precision. The final About section displays only `WorqOrder v0.2.0 - stable`, derived from build
+Routine interval cards omit their redundant Duration row and display **Start Time**/**Stop Time**
+as task-zone 12-hour `hh:mm a` without changing editor or storage precision. Task Total remains
+above the list and the derived Billing Minutes counter appears directly below it, never per
+interval. Text-entry fields request sentence capitalization from the Android keyboard without
+silently rewriting stored user text. The final About section displays only
+`WorqOrder v0.2.0 - stable`, derived from build
 metadata, and has no GitHub repository/release link.
 
 Landscape uses a global top bar with WorqOrder far left and Settings far right, then approximately

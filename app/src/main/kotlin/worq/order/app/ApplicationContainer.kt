@@ -8,12 +8,14 @@ import kotlinx.coroutines.SupervisorJob
 import worq.order.data.ActiveTimerRepository
 import worq.order.data.ClientRepository
 import worq.order.data.GoogleConnectionRepository
+import worq.order.data.EmployeeRepository
 import worq.order.data.SelectedTaskRepository
 import worq.order.data.SettingsRepository
 import worq.order.data.TaskRepository
 import worq.order.data.UuidEntityIdGenerator
 import worq.order.data.local.RoomActiveTimerRepository
 import worq.order.data.local.RoomClientRepository
+import worq.order.data.local.RoomEmployeeRepository
 import worq.order.data.local.RoomTaskRepository
 import worq.order.data.local.WorqOrderDatabase
 import worq.order.data.preferences.PreferencesSelectedTaskRepository
@@ -52,6 +54,7 @@ import worq.order.timer.UtcClock
  */
 interface ApplicationContainer {
     val clientRepository: ClientRepository
+    val employeeRepository: EmployeeRepository
     val taskRepository: TaskRepository
     val activeTimerRepository: ActiveTimerRepository
     val selectedTaskRepository: SelectedTaskRepository
@@ -95,6 +98,14 @@ internal class DefaultApplicationContainer(
     override val clientRepository: ClientRepository by lazy {
         RoomClientRepository(
             clientDao = database.clientDao(),
+            idGenerator = UuidEntityIdGenerator,
+            clock = SystemUtcClock,
+        )
+    }
+
+    override val employeeRepository: EmployeeRepository by lazy {
+        RoomEmployeeRepository(
+            dao = database.employeeDao(),
             idGenerator = UuidEntityIdGenerator,
             clock = SystemUtcClock,
         )

@@ -54,6 +54,9 @@ positive  -> ceil(totalMilliseconds / 900_000) * 15
 
 It is never stored as a ticking/denormalized counter. Live task presentation may include the open
 interval contribution; exports still require Stop and calculate from completed intervals only.
+Routine task detail keeps Task Total above the interval list and Billing Minutes directly below.
+Individual interval cards omit their Duration field and render Start Time/Stop Time as task-zone
+12-hour `hh:mm a`; interval editing and all persisted/calculation precision remain unchanged.
 
 ## 4. Starting
 

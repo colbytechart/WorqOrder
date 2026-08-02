@@ -15,12 +15,32 @@ data class Client(
     val archivedAt: Instant?,
 )
 
+data class Employee(
+    val id: String,
+    val name: String,
+    val canonicalName: String,
+    val isActive: Boolean,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val archivedAt: Instant?,
+)
+
+enum class WorkType {
+    ON_SITE,
+    IN_OFFICE,
+    UNSPECIFIED,
+}
+
 data class DailyTask(
     val id: String,
     val seriesId: String,
     val clientId: String,
     val description: String,
     val hardwareSoftwarePurchases: String = "",
+    val employeeId: String? = null,
+    val employeeNameSnapshot: String = "",
+    val workType: WorkType = WorkType.UNSPECIFIED,
+    val mileage: String? = null,
     val workDate: LocalDate,
     val zoneId: ZoneId,
     val createdAt: Instant,

@@ -475,6 +475,7 @@ class RestGoogleSheetsGateway(
                         sheetId = sheetId,
                         key = item.requireNonBlankString("metadataKey"),
                         value = item.requireNonBlankString("metadataValue"),
+                        metadataId = item.optInt("metadataId").takeIf { item.has("metadataId") },
                     ),
                 )
             }

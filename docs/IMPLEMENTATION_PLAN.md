@@ -537,12 +537,16 @@ for every implemented change.
   incomplete export.
 - Add transactional, append-only client-name CSV import through an Android read-document picker;
   active duplicates are skipped, archived matches restored, and the A–Z list is never replaced.
-- Add the Employee directory/current selection, immutable employee-name task snapshots, and
+- Add the Consultant-labeled directory/current selection, backed by Employee persistence and
+  immutable employee-name task snapshots, and
   non-destructive versioned Room migration from the `0.1.0` schema.
 - Add per-task Work Type and Mileage, derived Billing Minutes, and shared schema-version-3 export
-  with 13 exact columns across CSV/XLSX/Google.
-- Simplify routine Task interval cards so completed Start and Stop values display only task-zone
-  `HH:mm`. Retain the full persisted UTC instants, stored task ZoneId, and DST occurrence/offset
+  with 14 exact columns across CSV/XLSX/Google, including identical `MM/DD/YYYY` Start date and End
+  date values derived from the one stored work date.
+- Simplify routine Task interval cards by omitting Duration and showing Start Time/Stop Time in
+  task-zone 12-hour `hh:mm a`. Keep Task Total above the list and Billing Minutes directly below.
+  Make text fields request sentence capitalization without rewriting stored text. Retain the full
+  persisted UTC instants, stored task ZoneId, and DST occurrence/offset
   information; the interval editor must still expose occurrence details when a fall-back overlap
   makes them necessary. Keep the already-implemented CSV/XLSX/Google Start/Stop output at the same
   `HH:mm` precision through the one canonical export formatter.
@@ -573,8 +577,8 @@ for every implemented change.
 ### v0.2.0 verification gate
 
 - Test version-2-to-new-schema migration with existing tasks/intervals and an open timer; client
-  CSV parser/import atomicity; employee snapshot history; Work Type/Mileage; Billing Minutes; and
-  exact 13-column destination equivalence.
+  CSV parser/import atomicity; consultant snapshot history; Work Type/Mileage; Billing Minutes;
+  and exact 14-column destination equivalence.
 - Test midnight scheduling across ordinary days, spring-forward/fall-back, manual/device ZoneId
   changes, missed execution, Doze, reboot, offline/auth expiry, concurrent manual export, and
   repeated delivery. Each successful date must converge to one duplicate-free tab.
@@ -606,32 +610,40 @@ commit/acceptance.
 
 ### Milestone 19 — v0.2 persistence and canonical export foundation
 
+Status: completed and verified with offline JVM/lint/build checks plus the connected instrumentation
+suite.
+
 Set version `0.2.0`/code 2. Add Employee persistence, daily-task employee snapshot/Work
 Type/Mileage fields, settings defaults, pure Billing Minutes, explicit non-destructive Room
 `2 -> 3` migration,
 schema export, and canonical export schema 3. Preserve all `0.1.0` data and current UI behavior
-except where compile-safe mapping requires migrated blank/Unspecified values.
+except where compile-safe mapping requires migrated blank/Unspecified values. Schema 3 contains
+the exact 14 owner-approved headers and duplicates the one stored work date into `MM/DD/YYYY`
+Start date and End date export values.
 
 ### Milestone 20 — Client CSV import
 
 Implement the read-only CSV picker, bounded RFC-style parser, append/restore/skip transaction,
 A–Z result, error handling, UI, and tests. Import client names only; do not import tasks.
 
-### Milestone 21 — Employee management and selection
+### Milestone 21 — Consultant management and selection
 
-Implement the Settings Employee section, add/rename/archive/restore, active selection, historical
+Implement the Settings Consultant section using Employee persistence, with
+add/rename/archive/restore, active selection, historical
 snapshot semantics, task-creation empty state, and persistence/UI tests.
 
 ### Milestone 22 — Task metadata, Billing Minutes, and export integration
 
-Add Create/Edit Work Type and numeric-decimal Mileage controls, employee assignment/correction,
+Add Create/Edit Work Type and numeric-decimal Mileage controls, consultant assignment/correction,
 derived Billing Minutes presentation, rollover copying, and schema-3 CSV/XLSX/Google integration.
 Prove destination equivalence and Google schema-2-owned-tab upgrade.
 
-### Milestone 23 — About and simplified interval times
+### Milestone 23 — About, simplified intervals, and text-entry capitalization
 
-Add final Settings About text only and display interval Start/Stop as `HH:mm`. Preserve exact
-instants, editing/DST detail, and all calculation precision.
+Add final Settings About text only. Remove per-interval Duration, display Start Time/Stop Time as
+12-hour `hh:mm a`, retain Task Total above the list, place Billing Minutes immediately below it,
+and request sentence capitalization for text fields. Preserve exact stored text/instants,
+editing/DST detail, export `HH:mm`, and all calculation precision.
 
 ### Milestone 24 — Handed two-column landscape
 

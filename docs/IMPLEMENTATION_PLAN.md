@@ -48,8 +48,8 @@ a time.
 10. Google export uses no-cost standard quota and fails closed to CSV if Google's policy or
     available quota no longer permits that path.
 11. The required production sequence relies on Android's application sandbox and does not claim
-    WorqOrder-managed at-rest encryption for Room or DataStore. The complete encryption hardening
-    plan is deferred to separately authorized optional Milestone 19.
+    WorqOrder-managed at-rest encryption for Room or DataStore. Encryption, opt-in app access, and
+    screenshot/Recents privacy controls are deferred to separately authorized optional Milestone E.
 12. Biometric, device-credential, PIN, or account-gated access is not part of the production
     sequence. It is a separately authorized optional milestone after the current project is
     complete.
@@ -515,57 +515,46 @@ Entry: Milestone 16 audit accepted.
   verification, and applicable release build pass; handoff documentation is complete and
   reproducible.
 
-## 20. Optional Milestone 18 — Post-project product options and application-access security
+## 20. WorqOrder `0.2.0` development roadmap
 
-Entry: the current production project through Milestone 17 is fully completed and accepted, and
-the owner separately gives explicit permission to begin this optional milestone.
+Entry: public `0.1.0` is accepted; `milestone18` descends from `v0.2.0-development`, which descends
+from preserved `main`. Release identity is `versionName = 0.2.0`, `versionCode = 2`.
 
-This milestone is not required for current production completion. Do not remind the owner about it
-until Milestone 17 is completely finished, and never begin it from a general request to continue
-the current project.
+The active roadmap uses consecutive integer milestone labels. Milestone 18 is this planning-only
+documentation preparation and changes no implementation code. Each later milestone begins only after an
+explicit owner instruction and ends with its relevant unit, migration, ViewModel, Compose,
+accessibility, instrumentation, lint, debug/release, and manual gates. The former persistent-XLSX
+option and deferred natural-midnight device exercises are removed. Quality checks remain required
+for every implemented change.
 
-### Optional scope
+### Approved aggregate scope
 
-- Revisit the threat model specifically for unauthorized use of an unlocked or shared device.
-- Offer an opt-in app lock backed by Android BiometricPrompt with device credential where supported;
-  decide whether a local PIN fallback is acceptable without weakening Keystore protection.
-- Define lock-on-launch, background timeout, screen-off, process-death, task-switcher, and
-  sensitive-screen reauthentication behavior without interrupting or corrupting a running timer.
-- Keep core records local and offline. Do not add a WorqOrder cloud account, custom backend,
-  password database, remote recovery service, or Google-account requirement merely to unlock the
-  app.
-- Add privacy-screen controls such as sensitive recent-app previews and screenshots only after
-  explicit usability review.
-- Design recovery and key-binding behavior so enrollment changes, credential removal, or biometric
-  lockout never cause silent database deletion. Clearly document any security/recovery tradeoff.
-- Add an explicit XLSX mode choice: keep the production separate one-off workbook for each manual
-  export or use a connected persistent workbook. Both modes consume the same canonical
-  nine-column snapshot and never change Room.
-- Optionally schedule automatic export of the just-completed local date at its ZoneId-aware
-  midnight only when the selected destination is Google Sheets or a valid persistent XLSX
-  workbook. CSV and one-off XLSX are excluded because they require a user-selected destination.
-- Design automatic export around current Android background-execution guidance without a
-  foreground service merely waiting for midnight. Define reboot/catch-up, Doze, zone changes,
-  offline/auth expiration, missing/revoked XLSX URI, bounded retry, duplicate/idempotent
-  replacement, notification/privacy, enable/disable controls, and battery behavior before
-  implementation.
-- Automatic XLSX recovery may prompt for a replacement document only while the user is present; a
-  background run with an invalid URI records a safe pending failure and cannot silently select a
-  filesystem destination.
+- Keep XLSX as one new manual `ACTION_CREATE_DOCUMENT` workbook per export. Persistent-XLSX mode
+  is obsolete. CSV is also manual.
+- Add opt-in automatic export only for Google Sheets. Capture the intended date near 11:59 PM;
+  inexact execution shortly after midnight still exports that captured prior date. A running timer
+  creates durable pending state and a content-free post-Stop notification action rather than an
+  incomplete export.
+- Add transactional, append-only client-name CSV import through an Android read-document picker;
+  active duplicates are skipped, archived matches restored, and the A–Z list is never replaced.
+- Add the Employee directory/current selection, immutable employee-name task snapshots, and
+  non-destructive versioned Room migration from the `0.1.0` schema.
+- Add per-task Work Type and Mileage, derived Billing Minutes, and shared schema-version-3 export
+  with 13 exact columns across CSV/XLSX/Google.
 - Simplify routine Task interval cards so completed Start and Stop values display only task-zone
   `HH:mm`. Retain the full persisted UTC instants, stored task ZoneId, and DST occurrence/offset
   information; the interval editor must still expose occurrence details when a fall-back overlap
   makes them necessary. Keep the already-implemented CSV/XLSX/Google Start/Stop output at the same
   `HH:mm` precision through the one canonical export formatter.
-- Add an **About** section as the final Settings content. Display `BuildConfig.VERSION_NAME` as
-  plain text and provide a small accessible external link to the exact GitHub Release tag for that
-  installed version, using the canonical public repository base URL and
-  `releases/tag/v{versionName}`. Do not hardcode a version independently of Gradle.
+- Add an **About** section as the final Settings content. Display only
+  `WorqOrder v{BuildConfig.VERSION_NAME} - stable`; add no repository or release link.
 - Replace the current phone-landscape Main arrangement with a two-column layout. In the default
   **Right-handed** mode, the independently scrolling task list occupies approximately the left
-  half and the right half contains four vertically stacked regions: title/Settings, timer, date
-  controls, then Export/Add task. **Left-handed** mode mirrors the columns. Portrait behavior
-  remains unchanged.
+  half below a spanning top bar, while the right half contains timer, date controls, then
+  Export/Add task. The top bar keeps WorqOrder far left and Settings far right. **Left-handed**
+  mode mirrors only the content columns. Portrait behavior remains unchanged. The list's
+  scrollbar stays attached to its right edge, and the visible list extends to the same bottom
+  margin as the action buttons.
 - Add a typed Preferences DataStore setting named **Landscape Orientation**, shown after
   Appearance, with explicit **Left-handed** and **Right-handed** radio buttons. Right-handed is the
   first-install and corrupt-value fallback. Apply changes immediately without changing Room,
@@ -581,20 +570,11 @@ the current project.
   limitations, request notification permission only where Android requires it, and never add a
   foreground service or app-driven tick loop merely to keep the elapsed display current.
 
-### Optional security and bug verification gate
+### v0.2.0 verification gate
 
-- Test successful/failed/canceled authentication, lockout, device-credential fallback, enrollment
-  changes, background timeout boundaries, screen off/on, rotation, process death, reboot, and
-  concurrent navigation.
-- Test Start/Stop and midnight normalization while UI access is locked; locking must not stop,
-  duplicate, or lose an active interval.
-- Test accessibility of prompts, no sensitive content before unlock, no bypass through deep links,
-  notifications, task-switcher snapshots, exported activities, or restored navigation state.
-- Re-run Room, timer, export, lifecycle, Compose, and release regression suites and perform a
-  focused bypass/abuse-case security review. Encryption suites apply only if optional Milestone 19
-  has also been separately authorized and completed.
-- Test persistent/one-off XLSX mode migration and switching, identical rows in both modes,
-  create-document cancellation, unrelated-tab preservation, and stale URI recovery.
+- Test version-2-to-new-schema migration with existing tasks/intervals and an open timer; client
+  CSV parser/import atomicity; employee snapshot history; Work Type/Mileage; Billing Minutes; and
+  exact 13-column destination equivalence.
 - Test midnight scheduling across ordinary days, spring-forward/fall-back, manual/device ZoneId
   changes, missed execution, Doze, reboot, offline/auth expiry, concurrent manual export, and
   repeated delivery. Each successful date must converge to one duplicate-free tab.
@@ -602,9 +582,7 @@ the current project.
   that no background failure mutates Room, creates unbounded retries, or exposes sensitive data.
 - Test that interval cards omit seconds without changing persisted instants, duration calculations,
   edit precision, date-boundary validation, or explicit DST-overlap disambiguation.
-- Test that About displays the exact Gradle-generated version and opens the corresponding public
-  release URL for debug/release variants without exposing credentials or accepting an arbitrary
-  URL.
+- Test that About displays the exact Gradle-generated version/stability text and has no link.
 - Test default/right-handed and persisted/left-handed landscape modes at API 26/current target,
   short and standard landscape, 200% font, large display scale, narrow multi-window bounds, and
   TalkBack. The task list must retain usable width/height and independent scrolling, while every
@@ -613,15 +591,90 @@ the current project.
   reappearance, Stop cleanup, process death, reboot/resume, screen lock/unlock, permission denial,
   private lock-screen settings, task rename/deletion constraints, and no Room/DataStore tick
   writes. It must not claim visibility when the OS/user suppresses private lock-screen content.
-- Profile the optional lock-screen surface and mirrored landscape layout for CPU, memory, battery,
+- Profile the lock-screen surface and mirrored landscape layout for CPU, memory, battery,
   recomposition, and background work. No implementation may regress the accepted five-Hz Main
   profile or introduce continuous background execution.
-- Require explicit owner acceptance of every usability/security tradeoff before release.
+- Require explicit owner approval after each mandatory official-research milestone and acceptance
+  of every platform limitation before the corresponding implementation begins.
 
-## 21. Optional Milestone 19 — Data Protection and Encryption Hardening
+### Milestone 18 — v0.2 planning and roadmap preparation
 
-Entry: optional Milestone 18 is complete or has been explicitly declined, and the owner separately
-gives explicit permission to begin optional Milestone 19.
+Prepare and commit the complete `0.2.0` specifications, decisions, acceptance criteria, migration
+strategy, consecutive copy/paste prompts, and optional Milestone E boundary. Modify no application
+code, Gradle configuration, Room schema, or Android resources. Status: completed, awaiting owner
+commit/acceptance.
+
+### Milestone 19 — v0.2 persistence and canonical export foundation
+
+Set version `0.2.0`/code 2. Add Employee persistence, daily-task employee snapshot/Work
+Type/Mileage fields, settings defaults, pure Billing Minutes, explicit non-destructive Room
+`2 -> 3` migration,
+schema export, and canonical export schema 3. Preserve all `0.1.0` data and current UI behavior
+except where compile-safe mapping requires migrated blank/Unspecified values.
+
+### Milestone 20 — Client CSV import
+
+Implement the read-only CSV picker, bounded RFC-style parser, append/restore/skip transaction,
+A–Z result, error handling, UI, and tests. Import client names only; do not import tasks.
+
+### Milestone 21 — Employee management and selection
+
+Implement the Settings Employee section, add/rename/archive/restore, active selection, historical
+snapshot semantics, task-creation empty state, and persistence/UI tests.
+
+### Milestone 22 — Task metadata, Billing Minutes, and export integration
+
+Add Create/Edit Work Type and numeric-decimal Mileage controls, employee assignment/correction,
+derived Billing Minutes presentation, rollover copying, and schema-3 CSV/XLSX/Google integration.
+Prove destination equivalence and Google schema-2-owned-tab upgrade.
+
+### Milestone 23 — About and simplified interval times
+
+Add final Settings About text only and display interval Start/Stop as `HH:mm`. Preserve exact
+instants, editing/DST detail, and all calculation precision.
+
+### Milestone 24 — Handed two-column landscape
+
+Add typed handedness preference and the approved responsive two-column landscape layout. Preserve
+portrait and task ordering; test short/large-text/display-scale/API-26/current configurations.
+
+### Milestone 25 — Automatic Google export official research and design
+
+With explicit internet permission, verify current official Android background-work, notification,
+Doze/reboot, and Google authorization constraints. Select the narrowest stable free mechanism,
+document dependencies/permissions and captured-date/pending rules, explain limitations, and pause
+for owner approval. Do not implement scheduling in this milestone.
+
+### Milestone 26 — Automatic Google daily export implementation
+
+After Milestone 25 approval, implement the conditional Settings switch, inexact captured-date
+schedule, idempotent Google-only work, running-timer pending state, post-Stop notification action,
+failure recovery, and complete tests. CSV/XLSX remain manual.
+
+### Milestone 27 — Running-timer lock-screen official research and design
+
+With explicit internet permission, review current official Android Clock-like timer/alarm,
+notification, chronometer, lock-screen, widget, permission, and dismissal behavior. Present the
+feasible alternatives and pause for explicit owner approval. Do not implement the surface here.
+
+### Milestone 28 — Approved running-timer lock-screen surface
+
+Implement only the Milestone-27-approved mechanism. Room remains timer authority; dismissal is
+per-interval and Stop cleans up. Test permission denial, privacy suppression, process/reboot,
+dismissal/restart, task naming, CPU/battery, and absence of tick persistence/background loops.
+
+### Milestone 29 — v0.2 integration and release readiness
+
+Audit upgrade compatibility and all implemented `0.2.0` requirements, run full relevant automated
+and manual gates, update user/privacy/release/handoff documentation, build/sign/checksum the APK
+through the existing permanent direct-release process, and prepare GitHub release instructions.
+This is a release gate, not a source of optional product features.
+
+## 21. Optional Milestone E — Data Protection, App Access, and Privacy Hardening
+
+Entry: the owner separately and explicitly assigns and instructs WorqOrder to begin Milestone E.
+It is an unscheduled, release-agnostic backburner item outside `0.2.0` and every other release
+scope until that instruction occurs.
 
 This milestone is not required for current production completion. Do not begin it from a general
 request to continue or harden the current project. The required production build relies on
@@ -645,6 +698,12 @@ Android's application sandbox and must not claim WorqOrder-managed Room/DataStor
 
 ### Optional implementation scope
 
+- Offer an opt-in local app lock using an owner-approved biometric, device-credential, or PIN
+  design. Define launch/background/screen-off/process/reboot behavior without stopping or
+  corrupting an active timer and without adding a WorqOrder account/backend.
+- Add separately opt-in screenshot blocking and sensitive Recents-preview protection only after
+  usability/accessibility review. Prevent navigation/deep-link bypass and avoid exposing task
+  content before successful local access.
 - Migrate existing plaintext Room data to encrypted-at-rest storage through a crash-safe,
   non-destructive, tested upgrade path with rollback/recovery guidance.
 - Encrypt sensitive DataStore-held metadata using the same reviewed key hierarchy or a separate
@@ -699,7 +758,7 @@ The initial scaffold already includes Compose, Activity, Lifecycle, Navigation,
 coroutines, Room, Preferences DataStore, and AndroidX testing. Google dependencies were
 selected through the mandatory Milestone 9 discovery gate. XLSX dependencies passed this
 checklist in Milestone 12. Local-encryption dependencies may be considered only if optional
-Milestone 19 is separately authorized and must pass this checklist before being added.
+Milestone E is separately authorized and must pass this checklist before being added.
 
 ## 23. Risk register
 
@@ -715,9 +774,9 @@ Milestone 19 is separately authorized and must pass this checklist before being 
 | XLSX writer is incompatible or unsafe | Malformed workbooks or formula execution | Focused internal Milestone 12 writer, literal cells, independent-parser/golden tests, Excel/LibreOffice checks, and no Apache POI |
 | One-off XLSX provider write fails after document creation | A partial external file may remain | Build and validate bytes before the picker, close output deterministically, attempt provider deletion on failure, report partial-output risk, and never change Room |
 | Per-date sheets exhaust Google grid allocation or become unwieldy | Export failure or poor spreadsheet usability | Exactly nine columns, required row counts, resize on replacement, monitor the official 10-million-cell spreadsheet limit, and surface a capacity error before mutation |
-| Plaintext app-private database/preferences are extracted from a compromised or sufficiently privileged device | Sensitive client/task data is disclosed | Document that current production relies on Android's application sandbox and does not provide WorqOrder-managed at-rest encryption; retain stronger protection only as optional Milestone 19 |
-| Optional encryption key is lost or invalidated | Authoritative local data becomes unavailable if optional Milestone 19 is later implemented | Require versioned key hierarchy, documented recovery limits, non-destructive failure, interrupted-migration tests, and never silently reset Room |
-| Optional encryption degrades core performance | Slow startup, task lists, or timer mutations if optional Milestone 19 is later implemented | Record pre-encryption baselines and enforce focused startup/query/migration/memory benchmarks within that optional milestone |
+| Plaintext app-private database/preferences are extracted from a compromised or sufficiently privileged device | Sensitive client/task data is disclosed | Document that current production relies on Android's application sandbox and does not provide WorqOrder-managed at-rest encryption; retain stronger protection only as optional Milestone E |
+| Optional encryption key is lost or invalidated | Authoritative local data becomes unavailable if optional Milestone E is later implemented | Require versioned key hierarchy, documented recovery limits, non-destructive failure, interrupted-migration tests, and never silently reset Room |
+| Optional encryption degrades core performance | Slow startup, task lists, or timer mutations if optional Milestone E is later implemented | Record pre-encryption baselines and enforce focused startup/query/migration/memory benchmarks within that optional milestone |
 | User assumes local records or exported files/Sheets are end-to-end encrypted | Sensitive data is handled under an incorrect expectation | Explicitly document that current Room/DataStore rely on the Android sandbox, CSV/XLSX are unencrypted user-controlled files, and readable Sheets rely on Google/TLS controls |
 | Wall-clock correction while timer runs | Live and persisted elapsed can disagree | Monotonic live view, UTC persistence, non-negative clamp, explicit anomaly result |
 | DST/zone changes and midnight transitions | Misassigned dates or intervals | Stored/pinned ZoneIds, `atStartOfDay`, three-part uniqueness, real-zone tests |

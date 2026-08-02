@@ -1,6 +1,6 @@
 # WorqOrder Product Specification
 
-Status: planning baseline  
+Status: released `0.1.0` baseline plus approved `0.2.0` development specification
 Product: WorqOrder for Android  
 Minimum Android version: API 26  
 Authoritative data store: local Room database
@@ -31,7 +31,8 @@ authoritative. Exports are copies and never feed data back into Room.
 
 ### Excluded
 
-- Import from CSV, XLSX, or Google Sheets.
+- Importing tasks or intervals from CSV, XLSX, or Google Sheets. Version `0.2.0` adds a narrowly
+  scoped client-name-only CSV import; it is not task import or synchronization.
 - Google Sheets synchronization, conflict merging, or cross-device task synchronization.
 - Firebase, a custom backend, web application, web wrapper, Flutter, or React Native.
 - Concurrent timers, background location, billing, required accounts for local use, or team
@@ -44,8 +45,8 @@ authoritative. Exports are copies and never feed data back into Room.
 - A foreground service in the initial MVP.
 - A promise that app-private data survives uninstall or clearing application storage.
 - WorqOrder-managed encryption of app-private Room or DataStore files in the required production
-  sequence. At-rest encryption is deferred to optional Milestone 19 and requires separate owner
-  authorization after optional Milestone 18.
+  sequence. At-rest encryption and optional app-access/privacy controls are deferred to optional
+  Milestone E and require separate owner authorization.
 
 ## 3. Core vocabulary
 
@@ -53,6 +54,14 @@ authoritative. Exports are copies and never feed data back into Room.
 - **Today:** `Clock.now()` interpreted in the currently effective application `ZoneId`.
 - **Daily task:** one task record for one work date. Corresponding records on other dates share a task-series ID.
 - **Hardware / Software Purchases:** optional free-form task metadata for listing hardware and software purchases associated with a daily task.
+- **Employee:** an active directory choice used for new tasks; each daily task retains the
+  employee name captured when assigned so later employee rename/archive cannot rewrite history.
+- **Work Type:** task metadata with `On-Site` as the new-task default and `In-Office` as the other
+  selectable value. Migrated tasks may remain `Unspecified` until edited.
+- **Mileage:** optional non-negative decimal task metadata stored without floating-point or
+  locale-dependent conversion.
+- **Billing Minutes:** derived task information: zero for no recorded time, otherwise the exact
+  total interval duration rounded upward to the nearest 15-minute multiple.
 - **Interval:** a start instant and optional stop instant belonging to one daily task.
 - **Open interval:** the sole interval with no stop instant, referenced by the singleton active-timer record.
 - **Connected spreadsheet:** the one validated Google spreadsheet ID stored in settings. A connection is not a sync relationship.
@@ -123,9 +132,21 @@ A plus/FAB opens a task-creation screen or accessible dialog containing:
 - an inline **Add client** action using the same validation/repository path as Settings;
 - a required short description, trimmed, maximum 400 characters;
 - an optional text field labeled **Hardware / Software Purchases**, trimmed when nonblank, maximum 400 characters; and
+- the currently selected active **Employee**, required for creation;
+- a **Work Type:** radio group containing **On-Site** and **In-Office**, defaulting to On-Site;
+- an optional **Mileage** decimal field that uses the numeric-decimal keyboard and accepts only a
+  validated non-negative decimal representation; and
 - **Create** and **Cancel** actions.
 
-Create validates and writes one daily task. If its work date is today, it becomes selected. Cancel writes nothing. Creating on a historical or future displayed date returns to that date but does not change the live-timing selection merely because it was created.
+Create validates and writes one daily task with an immutable employee-name snapshot. If its work
+date is today, it becomes selected. Cancel writes nothing. Creating on a historical or future
+displayed date returns to that date but does not change the live-timing selection merely because
+it was created.
+
+After any positive recorded duration exists, task detail shows **Billing Minutes** as the exact
+combined interval duration rounded upward to the nearest 15-minute multiple. With no recorded time
+it is `0`; any positive total below 15 minutes is `15`. This value is derived, not a ticking or
+independently persisted counter.
 
 ### Export
 
@@ -159,12 +180,30 @@ Client names:
 
 Archive, not delete, removes a client from new-task selectors. The retained client row continues to satisfy historical task relationships and exports. Restore fails with an actionable message if its canonical name conflicts with an active client. Renaming a retained client updates the name shown by all tasks that reference it; see the explicit assumption in `DECISIONS.md`.
 
+Version `0.2.0` adds **Import From CSV** to Client Management. The Android picker accepts CSV
+only. Every nonblank cell is treated as a proposed client name. Import appends to the current list
+and never overwrites it: active duplicates are skipped, archived canonical matches are restored,
+in-file duplicates collapse, and the resulting active list is A–Z. Invalid, malformed, corrupt,
+over-limit, or unreasonably large input fails atomically without a partial import or crash.
+
+### Employees
+
+Settings maintains active/archived employees with the same normalization, validation, ordering,
+rename, archive, and restore principles as clients. A current active employee is selected for new
+tasks. Each task stores an employee ID plus the name snapshot captured on assignment. Renaming or
+archiving a directory entry never changes an earlier task's employee name or export. New task
+creation is blocked until an active employee is selected; migrated `0.1.0` tasks remain blank until
+explicitly edited.
+
 ## 6. Tasks and interval editing
 
-A task-edit screen changes the daily task's client, short description, and **Hardware / Software Purchases** text and lists intervals chronologically. It supports manually adding an interval, editing a completed interval's start/stop, and deleting a completed interval through the same validation path.
+A task-edit screen changes the daily task's employee assignment, client, short description,
+**Hardware / Software Purchases**, Work Type, and Mileage and lists intervals chronologically. It
+supports manually adding an interval, editing a completed interval's start/stop, and deleting a
+completed interval through the same validation path.
 
-Routine interval cards show the task-zone local start and stop clock times without an appended UTC
-offset. The interval editor still exposes earlier/later occurrence choices when a fall-back overlap
+Routine interval cards show task-zone local start and stop as `HH:mm`, without seconds or an
+appended UTC offset. The interval editor still exposes earlier/later occurrence choices when a fall-back overlap
 makes the offset materially necessary. Successfully saving task metadata returns to the main
 screen; validation or persistence failure keeps the editor open.
 
@@ -187,6 +226,8 @@ For DST overlaps, the editor must show enough offset/occurrence information to d
 Settings contains:
 
 - **Clients:** active list with add/rename/archive and optional archived list with restore. Client Management is the first normal Settings item so the most frequent local-data administration workflow is immediately reachable.
+- **Employee:** directly below Client Management, with the active selection plus add, rename,
+  archive, archived view, and restore.
 - **Appearance:** explicit System, Light, and Dark choices, with System as the first-launch default. System follows the device appearance while Light and Dark remain enabled as immediately selectable overrides. Changes are persisted in Preferences DataStore and apply immediately without recreating navigation or timer state.
 - **Time zone:** device-zone mode or manual geographical `ZoneId`, searchable/navigable selector, and effective ID display. Device mode is the first-launch default. Mode/zone changes are blocked during timing. Historical stored dates and zone IDs never move.
 - **Export Destination:** CSV, XLSX, or Google Sheets, with CSV as the first-launch and corrupt-value
@@ -197,6 +238,17 @@ Settings contains:
   spreadsheet is connected, hide the URL/ID input and Validate and Connect action until it is
   disconnected. When the user changes Export Destination to Google Sheets, automatically scroll
   the Settings list to reveal this section.
+- **Landscape Orientation:** Right-handed and Left-handed radio choices. Right-handed is the
+  first-install/corrupt-value fallback; portrait is unaffected.
+- **About:** final content showing only `WorqOrder v0.2.0 - stable`, derived from build metadata,
+  with no GitHub repository or release link.
+
+When Google Sheets is selected, show an opt-in **Automatic Daily Export** switch inside that
+conditional section. It defaults off, is hidden for CSV/XLSX, and cannot be enabled until
+authorization and a valid spreadsheet connection exist. An enabled schedule
+captures the intended effective-zone work date near 11:59 PM. Android may run it approximately or
+shortly after midnight, but it must still export that captured date. Successful automatic export
+shows no Main-screen success status and no success notification.
 
 Disconnecting a spreadsheet clears its ID/title association but does not delete the spreadsheet or
 revoke unrelated account access. Sign-out clears the app's Google identity/authorization session
@@ -215,7 +267,7 @@ and does not alter Room.
 - When the effective local date or geographical zone changes, an eligible timing selection lazily finds or creates its new daily task using `(series ID, work date, assignment ZoneId)` uniqueness, copies the prior daily task's current client, short description, and hardware/software-purchases text, and becomes selected. A task intentionally selected outside its own stored date/zone context remains view-only instead of being rolled. The zone context prevents a task assigned under a different zone from being silently repurposed.
 - The current required production sequence does not add WorqOrder-managed at-rest encryption to
   Room or DataStore. Android's app sandbox remains the local access boundary; optional Milestone
-  19 retains the separately authorized encryption and non-destructive migration plan.
+  E retains the separately authorized encryption and non-destructive migration plan.
 - Storage failure must remain explicit and must never silently clear or reseed Room.
 - No user login, biometric prompt, device-credential prompt, or app PIN is required by the
   production sequence. Plaintext is necessarily present transiently in process memory while the
@@ -225,10 +277,10 @@ and does not alter Room.
 
 - CSV, XLSX, and Google Sheets use the same row model and stable column order defined in
   `EXPORT_SPEC.md`.
-- The shared visible schema has exactly nine columns: Work Date, Client Name, Description,
-  Hardware / Software Purchases, Interval Number, Start Local, Stop Local, Interval Duration
-  Formatted, and Task Total Duration Formatted. Destination adapters do not independently select
-  or format fields.
+- Version `0.2.0` advances the shared visible schema to exactly 13 columns: Work Date, Employee,
+  Client Name, Description, Hardware / Software Purchases, Work Type, Mileage, Interval Number,
+  Start Local, Stop Local, Interval Duration, Task Total Duration, and Billing Minutes.
+  Destination adapters do not independently select or format fields.
 - CSV is UTF-8, RFC-style quoted, repeatable, and one row per interval; zero-interval tasks still emit one row.
 - Every XLSX export creates one new standards-compliant, unencrypted OOXML workbook through
   `ACTION_CREATE_DOCUMENT`. It contains one `WorqOrder_YYYY-MM-DD` worksheet for the displayed
@@ -244,9 +296,9 @@ and does not alter Room.
 - The required production build does not claim WorqOrder-managed at-rest encryption for Room or
   DataStore. User-selected CSV/XLSX files and readable Google Sheets cells are plaintext external
   copies and are not end-to-end encrypted by WorqOrder.
-- Persistent versus one-off XLSX choice and optional automatic local-midnight export to
-  Google/future persistent XLSX are deferred to optional Milestone 18 and require separate owner
-  authorization.
+- XLSX remains a fresh, user-selected one-off workbook for every manual export. Persistent-XLSX
+  mode is obsolete. Automatic export is opt-in and Google-Sheets-only in `0.2.0`; CSV and XLSX
+  always remain manual.
 
 ## 10. Concept-image review
 
@@ -269,6 +321,14 @@ The three supplied images are visual concepts, not pixel-perfect requirements. T
 | Client plus/minus and selected row | Minus is ambiguous and rename/archive/restore are absent. | Give each client an overflow/action menu with Rename and Archive; use a distinct Add button and an Archived section. |
 
 Additional visual requirements for implementation are Material 3 semantics, 48 dp touch targets, scalable text, contrast in both themes, screen-reader labels, and layouts that remain usable under font scaling and small screens. Exact colors and typography remain a design choice for a later UI milestone.
+
+The reattached `0.2.0` landscape concept is authoritative for composition, not exact pixels. In
+Right-handed mode, the Tasks heading and list occupy the left column from below the global title
+line to the same bottom margin used by the action buttons; its quiet scrollbar stays attached to
+that list's right edge. The right column contains the timer card, complete date controls, and the
+Export/Add pair, while the WorqOrder title stays at the upper left and Settings remains at the
+upper right. Left-handed mode mirrors the two functional columns while preserving logical
+accessibility traversal. Responsive sizing may depart from the mockup to prevent clipping.
 
 ## 11. Requirement reconciliations and risks
 
@@ -293,32 +353,68 @@ The production project is complete only when all required acceptance tests in
 API range, release migrations are non-destructive, offline core behavior is proven, exported
 schemas are stable across all three destinations, no
 prohibited permissions/credentials/dependencies are present, and the Google setup guide has been
-exercised with debug and permanent direct-release fingerprints. Optional Milestone 18 app-access
-gating and optional Milestone 19 at-rest encryption are not required for this completion
-definition.
+exercised with debug and permanent direct-release fingerprints. Optional Milestone E
+app-access/privacy controls and at-rest encryption are not required for this completion definition.
 
-## 13. Optional Milestone 18 product additions
+## 13. Approved v0.2.0 product additions
 
-These are approved backlog requirements, not behavior in `0.1.0`, and require a new explicit owner
-instruction before implementation:
+The following are required `0.2.0` development scope, implemented only through the explicitly
+authorized consecutive milestones in `IMPLEMENTATION_PLAN.md`:
 
-- Put **About** at the bottom of Settings. Show the installed version in plain text and provide an
-  accessible link to that exact build version's public GitHub Release page.
-- Display interval-card Start and Stop clock values as task-zone `HH:mm`, matching all three
-  existing export destinations. Preserve exact UTC instants, stored ZoneId, interval calculations,
-  editing, and DST-overlap metadata.
-- Provide a running-only lock-screen surface with the WorqOrder icon/name, active task name, and
-  elapsed timer. User dismissal hides the surface for that running interval without stopping it.
-  Select the exact stable Android API only after official feasibility review; respect
-  notification/lock-screen privacy settings and do not add a foreground service merely to tick.
-- Replace phone landscape Main with an approximately equal two-column layout. Default
-  **Right-handed** places the full-height independently scrolling task list on the left and a
-  four-region control column on the right: title/Settings, timer, date controls, Export/Add task.
-  **Left-handed** mirrors the columns. Portrait is unchanged.
-- Add a persistent **Landscape Orientation** Settings section after Appearance with explicit
-  **Left-handed** and **Right-handed** radio buttons. Right-handed is the default and safe fallback.
+1. **Client CSV import.** Client Management launches an Android read-document picker restricted
+   to CSV. Every nonblank CSV cell is treated as a proposed client name. Import appends to the
+   existing list; it never replaces it. Existing active canonical matches are skipped, archived
+   matches are restored, duplicates within the file collapse, and the result remains A–Z. A
+   malformed, non-CSV, over-limit, or unreasonably large input fails transactionally without a
+   partial import or crash. The UI reports added/restored/skipped counts.
+2. **Employee assignment.** Settings provides an Employee directory and current selection directly
+   below Client Management. New tasks require an active employee. Rename/archive/restore uses the
+   approved snapshot rules so historical task employee names and exports never change
+   retroactively. Migrated `0.1.0` tasks remain unassigned/blank until explicitly edited.
+3. **Work Type and Mileage.** Create/Edit Task provides one-choice `On-Site`/`In-Office` controls,
+   defaulting new tasks to `On-Site`, plus an optional validated decimal Mileage field that opens
+   a numeric-decimal keyboard. Existing tasks migrate to `Unspecified` and blank Mileage.
+4. **Billing Minutes.** Show zero until time exists, then round the task's exact combined interval
+   duration upward to 15-minute increments. Do not persist a redundant counter. Include the
+   derived integer in every export.
+5. **Canonical export schema 3.** All three destinations use the same immutable 13-column snapshot
+   and format Start/Stop as task-zone `HH:mm`. Interval and task total duration headers omit
+   `Formatted`; values remain accumulated `HH:MM:SS`. Google-owned schema-2 tabs are safely
+   upgraded/replaced on re-export; unowned same-name tabs remain protected.
+6. **Simplified interval presentation.** Routine interval Start/Stop values display `HH:mm` only.
+   Persisted instants, editing precision, offsets needed for DST ambiguity, and duration math stay
+   exact.
+7. **About.** The last Settings content reads `WorqOrder v0.2.0 - stable`, without a repository or
+   release link.
+8. **Handed two-column landscape.** A global top bar spans the screen with WorqOrder at the far
+   left and Settings at the far right, matching the approved concept. Below it, default
+   Right-handed mode places the full-height task list in approximately the left half, from its
+   heading to the common bottom margin, with its scrollbar attached to the list's right edge. The
+   right half stacks timer, date controls, and Export/Add actions. Left-handed mirrors only those
+   two functional columns. The task list remains independently scrollable under large
+   text/display sizes; portrait remains unchanged.
+9. **Running-timer lock-screen surface.** Before implementation, research current official Android
+   stable mechanisms based on native Clock timer/alarm behavior, explain notification/widget and
+   permission implications, and pause for owner approval. Any approved surface shows app identity,
+   active task, and elapsed timer only while running; swipe dismissal must not stop the Room timer.
+   Do not add a foreground service merely to update a stopwatch.
+10. **Automatic Google daily export.** The opt-in Google-only scheduler captures the intended
+    effective-zone date near the end of that date. Approximate execution after midnight still
+    exports the captured prior date, never a newly blank day. Owned-tab replacement keeps the
+    operation duplicate-free. If a timer is running, preserve the target as pending; after Stop,
+    post a content-free actionable system notification whose tap resumes/performs or confirms that
+    date's export. CSV/XLSX never auto-run. Failures remain retryable and never mutate Room.
 
-The optional milestone must test both landscape modes under large text/display scale, accessibility,
-short screens, and API 26/current target; validate the exact version-release URL; and prove the
-lock-screen surface adds no timer mutations, continuous background loop, data loss, or material
-CPU/battery regression.
+The former persistent-XLSX choice and the previously deferred natural-midnight device exercises
+are not `0.2.0` backlog items. Appropriate automated and manual verification remains mandatory for
+each actual behavior change.
+
+## 14. Optional Milestone E
+
+Milestone E is an unscheduled, release-agnostic backburner item outside `0.2.0` and every other
+release scope until the owner explicitly assigns it. It requires a separate explicit owner
+instruction and contains only optional WorqOrder-managed at-rest encryption, opt-in local
+biometric/device-credential/approved-PIN app locking, and separately reviewed screenshot/Recents
+privacy controls, together with their dedicated migration, security, accessibility, performance,
+and regression testing. It must not add a mandatory account, backend, destructive recovery, or
+false protection claims.

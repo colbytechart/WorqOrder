@@ -106,3 +106,30 @@ for a new product decision; CSV remains available.
 Use this repository's issue tracker for privacy questions or reports. Changes to data collection,
 storage, permissions, OAuth scopes, or network destinations must be documented in this file, the
 product decisions, and release notes before distribution.
+
+## 9. Approved `0.2.0` privacy update (not yet effective)
+
+Before `0.2.0` release, the effective notice must add:
+
+- employee directory IDs/names/archive timestamps, the current employee preference, and per-task
+  employee ID/name snapshot;
+- per-task Work Type and Mileage; Billing Minutes is derived from existing intervals rather than
+  stored independently;
+- read-only access to one user-selected CSV document when **Import From CSV** is invoked. The file
+  is parsed in process only to append/restore client names; it is not uploaded, retained, or used
+  to import tasks;
+- Landscape Orientation and opt-in Automatic Daily Google Export preferences plus a non-sensitive
+  captured/pending target date;
+- a 13-column external table: Work Date, Employee, Client Name, Description, Hardware / Software
+  Purchases, Work Type, Mileage, Interval Number, Start Local, Stop Local, Interval Duration, Task
+  Total Duration, and Billing Minutes; and
+- optional Google-only scheduled transmission near the end of the captured work date. A successful
+  automatic export is silent. Pending/error notifications must contain no employee/client/task
+  content. CSV and XLSX remain manual.
+
+The planned running-timer lock-screen surface may display the active task name on the device lock
+screen only after an official platform review and explicit owner approval. Its final permission,
+visibility, dismissal, and privacy wording must be added here before release. Users/OEM policy may
+hide it. Optional Milestone E encryption/app-lock/screenshot/Recents controls are release-agnostic
+backburner items outside `0.2.0` and every other release scope until explicitly assigned; this
+notice must not imply otherwise.

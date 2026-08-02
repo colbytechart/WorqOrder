@@ -9,8 +9,13 @@
   order, or format exported task fields independently inside a destination adapter.
 - Production XLSX creates one new user-selected workbook per export through
   `ACTION_CREATE_DOCUMENT`; it never opens or updates an existing workbook. Persistent-workbook
-  mode and automatic midnight export belong only to optional Milestone 18 and require explicit
-  owner permission.
+  mode is obsolete and must not be reintroduced without a new explicit owner decision.
+- The only automatic export destination is the single connected Google spreadsheet. Its opt-in
+  near-end-of-day schedule captures the intended local work date, remains idempotent, and may run
+  shortly after midnight while still exporting that captured date. CSV and XLSX remain manual.
+- If the scheduled Google export finds a running timer, persist the captured date as pending. Do
+  not export an open interval. After Stop, show an actionable system notification; tapping it
+  resumes or confirms export of the preserved date. Never expose task/client content in it.
 - Do not add Firebase, a custom backend, a web wrapper, embedded credentials, service-account keys, passwords, OAuth client secrets, or unrestricted API credentials.
 - WorqOrder must remain free and open source under GPLv3. Do not add billing, paid API tiers, paid
   quota increases, subscriptions, or a Google Workspace/organization requirement.
@@ -30,12 +35,15 @@
 - Before declaring an implementation milestone complete, run formatting, lint, unit tests, relevant instrumentation tests, and the applicable debug/release builds.
 - Do not silently change product behavior. Update the relevant specification and `docs/DECISIONS.md`, and call out the change for review.
 - Treat credentials, signing material, `local.properties`, generated files, and account tokens as local secrets; never commit them.
-- App-private at-rest encryption is deferred to optional Milestone 19 and must not be implemented
-  without explicit owner permission after optional Milestone 18. The current production plan relies
+- App-private at-rest encryption is deferred to optional Milestone E and must not be implemented
+  without explicit owner permission. Milestone E is an unscheduled, release-agnostic backburner
+  item outside v0.2.0 and every other release scope until the owner assigns it explicitly. The
+  current production plan relies
   on Android's app sandbox and must not claim that Room or DataStore files are encrypted by
   WorqOrder. Never solve any storage or migration failure by silently deleting local data.
 - User-directed CSV/XLSX files and readable Google Sheets exports are plaintext external copies and
   are not end-to-end encrypted by WorqOrder.
-- Biometric, device-credential, PIN, or account-gated app access belongs only to the optional
-  post-project milestone and must not be implemented without explicit owner permission.
+- Biometric, device-credential, PIN, or account-gated app access and optional screenshot/Recents
+  privacy controls belong only to optional Milestone E and must not be implemented without
+  explicit owner permission.
 - Do not start a later milestone unless the user explicitly requests it. In particular, do not scaffold or implement the app during the planning milestone.

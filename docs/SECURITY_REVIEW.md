@@ -7,7 +7,8 @@ Scope: required production plan through Milestone 17
 
 WorqOrder is a local-first offline application. Android's application sandbox protects Room and
 DataStore from ordinary cross-app access. WorqOrder-managed at-rest encryption is not implemented
-and remains optional Milestone 19. CSV/XLSX files and readable Google Sheets cells are intentional
+and remains release-agnostic, unscheduled optional Milestone E outside every release scope until
+the owner assigns it. CSV/XLSX files and readable Google Sheets cells are intentional
 plaintext external copies.
 
 This review found no embedded credential, destructive migration, broad storage permission,
@@ -33,7 +34,7 @@ custom backend.
 | Google/XLSX formula execution | High | Mitigated by literal string cell APIs/types |
 | Published dependency advisories | High | Exact Maven coordinates checked against OSV on 2026-07-29; no known affected package/version returned |
 | Gradle wrapper substitution | High | Distribution checksum pinned; checked-in wrapper JAR matches Gradle's published 9.4.1 checksum |
-| At-rest encryption | Medium | Not current scope; explicitly optional Milestone 19 |
+| At-rest encryption | Medium | Outside all release scopes; unscheduled optional Milestone E |
 
 ## 3. Manifest and permission review
 

@@ -130,8 +130,9 @@ running timer. Client, task, purchases, appearance preference, selected/running 
 and accumulated total survived without duplicate tasks or intervals. Explicit Room migration
 instrumentation separately covers the version 1-to-2 schema transition.
 
-The three natural date-boundary device checks remain explicitly deferred to optional Milestone 18
-and are not `0.1.0` release gates: reopening on the next real day, crossing one natural midnight,
+The three natural date-boundary device checks were not performed for `0.1.0`, were later removed
+from the future backlog by owner decision, and are not `0.1.0` release gates: reopening on the next
+real day, crossing one natural midnight,
 and recovering across multiple real midnights. Automated real-zone, DST, multi-boundary,
 idempotence, process-recovery, and transaction tests continue to cover the rules.
 

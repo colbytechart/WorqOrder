@@ -25,8 +25,9 @@ connected spreadsheet metadata, last export outcome
 ```
 
 The required production sequence stores this logical model in ordinary app-private Room and
-Preferences DataStore files protected by Android's application sandbox. Optional Milestone 19 may
-add a separately authorized at-rest encryption adapter without changing these entities,
+Preferences DataStore files protected by Android's application sandbox. Release-agnostic,
+unscheduled Milestone E may add a separately authorized at-rest encryption adapter only after the
+owner explicitly assigns it, without changing these entities,
 relationships, IDs, UTC/date/ZoneId semantics, or Room's authority.
 
 Daily tasks in a series are intentionally not parented by a separate series table in version 1. The stable `seriesId` plus work date and assignment zone identifies a rollover copy, and each daily copy carries the metadata used for the next rollover.
@@ -164,7 +165,7 @@ Milestone 8 persists no CSV document URI, payload, provider detail, task row, or
 Every CSV attempt uses a fresh create-document flow; its safe last-attempt metadata is presentation
 history only and never becomes task or timer truth.
 
-Optional Milestone 19 retains the reviewed plan for Keystore-backed encryption of sensitive
+Optional Milestone E retains the reviewed plan for Keystore-backed encryption of sensitive
 DataStore-held identifiers/metadata. It is not part of the current production sequence and must
 preserve the existing typed, version-tolerant preference contract if separately authorized.
 
@@ -223,7 +224,7 @@ Implemented first schema evolution:
 - a populated `1 -> 2` migration instrumentation test verifies the empty default for existing
   tasks and preservation of every pre-existing relationship and timer invariant.
 
-If optional Milestone 19 is separately authorized, its plaintext-to-encrypted-storage transition
+If optional Milestone E is separately authorized, its plaintext-to-encrypted-storage transition
 is a separate non-destructive storage migration even when no Room entity version changes. Its
 tests must populate the previous production database/preferences, interrupt every durable
 transition phase, reopen after process death/reboot, and prove all rows, relationships,
@@ -238,3 +239,98 @@ ciphertext must never trigger destructive Room creation.
 - No Google row IDs or export flags are required because Google export replaces a marked date tab from an authoritative snapshot.
 - No XLSX entities are needed; XLSX remains a transient one-way document projection. There are
   also no attachments, user table, Firebase IDs, or server queues.
+
+## 13. Planned v0.2.0 schema evolution
+
+This section is the approved `0.2.0` target and does not describe the released `0.1.0` database.
+The implementation must advance Room from version 2 to version 3 through an explicit, populated,
+non-destructive migration and commit the resulting schema JSON. Existing clients, tasks,
+intervals, active-timer state, IDs, dates, zones, and timestamps must remain intact.
+
+### `employees`
+
+| Column | Type | Rules |
+| --- | --- | --- |
+| `id` | TEXT PK | stable UUID, immutable |
+| `name` | TEXT | trimmed/collapsed display name, 1–100 characters |
+| `canonical_name` | TEXT | locale-independent duplicate key |
+| `active_name_key` | TEXT nullable UNIQUE | canonical name while active; null while archived |
+| `is_active` | INTEGER | selectable-state flag |
+| `created_at_epoch_ms` | INTEGER | UTC epoch millis |
+| `updated_at_epoch_ms` | INTEGER | UTC epoch millis |
+| `archived_at_epoch_ms` | INTEGER nullable | set on removal, cleared on restore |
+
+Employee normalization, active-name uniqueness, A–Z ordering, archive, and restore follow the
+same durable principles as clients. An employee directory row is not the historical display
+authority for an already-created task.
+
+### v0.2 additions to `daily_tasks`
+
+| Column | Type | Rules / migration default |
+| --- | --- | --- |
+| `employee_id` | TEXT nullable FK | selected active employee; null for migrated `0.1.0` tasks |
+| `employee_name_snapshot` | TEXT | immutable-at-assignment display/export value; empty for migrated tasks |
+| `work_type` | TEXT | `ON_SITE`, `IN_OFFICE`, or migrated `UNSPECIFIED` |
+| `mileage` | TEXT nullable | validated normalized non-negative decimal text; null means not entered |
+
+New task creation requires an active selected employee and defaults Work Type to `ON_SITE`.
+Editing a daily task may correct its employee, Work Type, or Mileage. Employee rename/archive does
+not rewrite `employee_name_snapshot` on prior tasks; future tasks use the employee's then-current
+name. This preserves historical exports while retaining the directory relationship where it is
+still valid. Removing an employee is archive/deactivation, not destructive deletion.
+
+Mileage is stored as canonical plain decimal text rather than floating point. Accept digits and
+at most one decimal separator in the UI, normalize the stored/exported value without locale-based
+grouping, reject negative, exponent, NaN, infinity, and malformed values, and define a reasonable
+precision/length bound in the implementation milestone. Existing tasks migrate with blank
+Mileage and `UNSPECIFIED` Work Type rather than inventing historical facts.
+
+### Derived Billing Minutes
+
+Billing Minutes is exposed as task information but is not a Room column. It is derived from the
+exact non-negative sum of the task's intervals so it cannot become stale:
+
+```text
+total == 0 ms  -> 0
+total > 0 ms   -> ceil(total / 900_000 ms) * 15
+```
+
+Thus any positive duration below or equal to 15 minutes bills 15, and every larger total rounds
+up to the next integer multiple of 15. The value may include the active contribution in live UI;
+exports continue to require Stop and therefore derive it only from completed authoritative
+intervals.
+
+Approved examples: `12:32` total yields `15`; `13:11 + 3:03:45 + 1:16:00` totals `4:32:56`
+(272 minutes 56 seconds) and yields `285` Billing Minutes.
+
+### v0.2 Preferences DataStore additions
+
+| Preference | Value/default |
+| --- | --- |
+| `selected_employee_id` | nullable; no selected employee on a migrated install until chosen |
+| `landscape_handedness` | `RIGHT_HANDED`; alternate `LEFT_HANDED` |
+| `automatic_google_export_enabled` | `false` |
+| `automatic_google_target_epoch_day` | nullable captured local work date |
+| `automatic_google_pending_reason` | nullable typed non-sensitive state |
+
+Unknown/corrupt values fall back safely. DataStore remains non-authoritative for task/timer data.
+Archiving the selected employee clears `selected_employee_id` atomically from the application's
+perspective; it never rewrites existing daily tasks.
+The automatic-export target must survive process death/reboot and is cleared only after confirmed
+success, explicit cancellation by the user, or a documented superseding schedule decision.
+
+### v0.2 relationships and copy rules
+
+```text
+Employee 1 ---- * DailyTask (nullable relationship for migrated history)
+                    + immutable employee_name_snapshot
+Client   1 ---- * DailyTask 1 ---- * WorkInterval
+```
+
+Daily rollover and midnight continuation copy the source daily task's employee ID/name snapshot,
+Work Type, Mileage, client, description, and purchases into the new daily copy. They do not
+re-resolve the employee name from the current directory and never alter the preceding task.
+
+The planned explicit `MIGRATION_2_3` must be tested from a populated version-2 database containing
+active/archived clients, multiple tasks and intervals, and an open active timer. Destructive
+migration remains prohibited.

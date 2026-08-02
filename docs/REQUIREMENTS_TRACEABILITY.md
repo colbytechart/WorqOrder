@@ -45,7 +45,7 @@ changing its implementation in this milestone.
 | Timestamp-derived display; no persisted ticks | `LiveTimerSession`, collection-scoped Main ticker | Live session and “no tick writes” ViewModel tests | Background/screen-lock tests | Pass |
 | Process/activity/reboot reconstruction | Recovery coordinator, Room active snapshot, activity/Main resume hooks | Recovery concurrency/process tests | Rotation, Don't Keep Activities, process kill, Recents, reboot passed | Pass |
 | Daily selection rollover; no duplicate copy | `SelectionCoordinator`, three-part task uniqueness | Selection/restart tests; Room unique index | Zone-change manual tests | Pass |
-| One/multiple midnight splitting and idempotence | Boundary calculator, active normalizer, transactional DAO | Real-zone/DST/multi-midnight unit and Room tests | Natural midnight runs deferred to optional Milestone 18 by owner | Pass |
+| One/multiple midnight splitting and idempotence | Boundary calculator, active normalizer, transactional DAO | Real-zone/DST/multi-midnight unit and Room tests | Accepted automated evidence | Pass |
 | Device/manual ZoneId and historical stability | Device zone source, settings provider/repository | Zone provider/settings/selection tests | Device and manual zone changes passed | Pass |
 | Spring-forward/fall-back correctness | `java.time` boundaries and validator | Boundary, validator, timer tests | Both transitions passed manually | Pass |
 | Forward/backward wall-clock correction while process lives | Monotonic projected Stop/normalization | Live session, coordinator, recovery, Main tests | Both correction tests passed after D-057 | Pass |
@@ -76,7 +76,7 @@ changing its implementation in this milestone.
 | Google validation and typed failure mapping | Google coordinator and REST gateway | Parser/coordinator/fake gateway tests | Live validation passed | Pass |
 | Per-date marked Google worksheet and idempotent replacement | Planner, encoder, gateway, export coordinator | Planner/encoder/coordinator tests | Re-export and blank-first-sheet flows passed after fixes | Pass |
 | Running-timer export lockout for all destinations | Main ViewModel/UI and shared snapshot precondition | Main ViewModel/Compose tests | Manual lifecycle test 18 passed after fix | Pass |
-| No import, sync, local mutation, or automatic retry | Export coordinators/gateway boundaries | Coordinator/fake tests and static review | Live retry behavior accepted | Pass |
+| `0.1.0`: no import, sync, local mutation, or automatic retry | Export coordinators/gateway boundaries | Coordinator/fake tests and static review | Live retry behavior accepted | Pass |
 
 ## 7. Persistence, migration, accessibility, and security
 
@@ -90,8 +90,8 @@ changing its implementation in this milestone.
 | No credentials/tokens/private keys committed | `.gitignore`, local config injection, redacted token type | Release tracked/intended-file scan: no credential-pattern matches | Permanent key is external and ignored | Pass |
 | Least-scope Google access and safe token handling | `drive.file` request factory; in-memory token wrapper | Scope/connection tests and static scan | Live External-test authorization passed | Pass |
 | No broad permissions; backup disabled | Manifest plus `data_extraction_rules.xml` | Manifest/lint/static audit | N/A | Pass |
-| WorqOrder-managed at-rest encryption | Explicitly optional Milestone 19 | N/A | N/A | N/A |
-| Biometric/PIN/account-gated app access | Explicitly optional Milestone 18 | N/A | N/A | N/A |
+| WorqOrder-managed at-rest encryption | Release-agnostic, unscheduled optional Milestone E | N/A | N/A | N/A |
+| Biometric/PIN/account-gated app access and screenshot/Recents controls | Release-agnostic, unscheduled optional Milestone E | N/A | N/A | N/A |
 
 ## 8. Current audit gate
 
@@ -102,3 +102,19 @@ representative physical performance observation passes after the five-Hz timer r
 accessibility, minimum, target, next-API, populated-update, complete connected, performance, and
 production Google gates pass. Staging the verified APK as a GitHub Release asset is a publication
 step, not an implementation blocker.
+
+## 9. Planned `0.2.0` traceability (not yet implemented)
+
+| Requirement | Planned implementation | Required automated evidence | Manual/official gate | Status |
+| --- | --- | --- | --- | --- |
+| Non-destructive `0.1.0` update | Room migration, schema export, typed preference defaults | Populated v2 migration including open timer | Install-update smoke | Planned M19 |
+| 13-column canonical schema 3 | Shared export row builder/snapshot | CSV/XLSX/Google equivalence and schema-2 owned-tab upgrade | Open representative files/sheet | Planned M19/M22 |
+| Client-name CSV import append/A–Z | Parser, document input, transaction coordinator | Quoting, corruption, bounds, duplicates, restore, rollback | Picker/import sample | Planned M20 |
+| Employee directory/selection/history | Employee Room repository, DataStore selection, task snapshot | CRUD/conflict/archive/snapshot/migration/rollover tests | Settings/task workflow | Planned M21/M22 |
+| Work Type and Mileage | Task metadata/repository/Create/Edit UI | validation, keyboard semantics, persistence/migration | Create/edit workflow | Planned M22 |
+| Derived Billing Minutes | Pure calculator and task/export projections | zero, sub-15, boundary, examples, long totals | Task/export check | Planned M19/M22 |
+| About text and interval `HH:mm` | Build metadata and shared display formatter | exact text/no link; precision-preservation tests | Settings/interval check | Planned M23 |
+| Handed landscape | typed preference and mirrored two-column Main | persistence, semantics, short/large-scale Compose tests | both handed modes/API range | Planned M24 |
+| Automatic Google captured-date export | research-approved scheduler/coordinator | target date, pending Stop, failures, races, idempotence | official research approval + delayed/device test | Planned M25/M26 |
+| Running lock-screen surface | research-approved platform adapter | authority/dismissal/permission/process/performance tests | official alternatives approval + device test | Planned M27/M28 |
+| `0.2.0` release readiness | existing direct-signing/release pipeline | full relevant regression and migration gates | signed update/fresh install/Google account | Planned M29 |

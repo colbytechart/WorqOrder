@@ -517,6 +517,30 @@ export safely while retaining CSV until the owner revisits the decision.
 - [Google ID SDK release notes](https://developers.google.com/identity/android-credential-manager/releases)
 - [Google Play services release notes](https://developers.google.com/android/guides/releases)
 - [AuthorizationClient reference](https://developers.google.com/android/reference/com/google/android/gms/auth/api/identity/AuthorizationClient)
+
+## 16. `0.2.0` automatic-export research addendum
+
+The owner approved an opt-in Google-Sheets-only automatic daily export. CSV and XLSX remain manual.
+The job captures an intended work date/ZoneId near 11:59 PM and may execute shortly after midnight
+while still exporting that captured prior date. It uses the same `drive.file` grant, connected
+spreadsheet, canonical schema-3 snapshot, and marked-tab replacement as manual export. It never
+stores a raw access/refresh token.
+
+This ADR does not yet claim that `AuthorizationClient` can always complete unattended background
+authorization. Before implementation, Milestone 25 must use current official Android/Google
+documentation to decide:
+
+- the stable API-26-compatible inexact scheduler and reboot/Doze rescheduling behavior;
+- whether a fresh `drive.file` token can be obtained without an Activity/user resolution;
+- how authorization, account, or Picker resolution is converted to a pending user action;
+- notification permission/channel behavior without task/client content;
+- unique-work, retry, quota, disconnect/sign-out, zone-change, and captured-date semantics; and
+- whether any proposed stable dependency or permission changes the free/GPLv3/no-backend policy.
+
+If a timer is active, no authorization or export is attempted: the captured date becomes pending,
+and a notification is offered only after Stop. Successful automatic export has no Main-screen or
+success-notification presentation. The research milestone must explain findings and pause for
+owner approval before adding functional scheduling code.
 - [Choose Google Sheets API scopes](https://developers.google.com/workspace/sheets/api/scopes)
 - [Choose Google Drive API scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)
 - [Google Picker for desktop and mobile apps](https://developers.google.com/workspace/drive/picker/guides/desktop-mobile-picker)

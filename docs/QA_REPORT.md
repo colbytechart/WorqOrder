@@ -283,7 +283,8 @@ large-text, and display-scale checks passed task creation, timer Start/Stop, fix
 independent task-list scrolling. Minimum, target, and next-API runtime gates are complete.
 
 Reopening on the next real day, a natural one-midnight crossing, and multiple-midnight device
-recovery were moved by owner to optional Milestone 18. Automated multi-boundary and real-zone
+recovery were not performed during the `0.1.0` device run and were later removed from the future
+backlog by owner decision. Automated multi-boundary and real-zone
 evidence remains active.
 
 ## 6. Release blockers and pending checks

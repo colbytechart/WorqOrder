@@ -25,10 +25,6 @@
 - A database state containing an orphan open interval or mismatched active pointer fails closed.
   WorqOrder will not delete or close the interval automatically because doing so could lose known
   time. A later support/recovery workflow may be needed for genuinely corrupted installations.
-- Real-device reopening on the next day, a natural midnight crossing, and a multiple-midnight
-  recovery run were deferred by owner to optional Milestone 18, if ever authorized. Automated
-  real-zone, DST, multi-boundary, idempotence, process-recovery, and Room transaction tests cover
-  the underlying rules in the required project.
 
 ## Date and time-zone presentation
 
@@ -46,7 +42,8 @@
   device-transfer recovery for its app-private database and preferences.
 - The required production build does not add WorqOrder-managed encryption to app-private Room or
   DataStore files; it relies on Android's application sandbox. At-rest encryption is deferred to
-  optional Milestone 19 and requires separate owner authorization.
+  optional Milestone E, an unscheduled backburner item outside every release scope, and requires
+  separate owner assignment and authorization.
 - CSV/XLSX documents and readable Google Sheets cells are external plaintext copies. Optional
   local encryption would not extend to those exports.
 
@@ -62,3 +59,15 @@
   announcements, confirmations, and 200% font behavior. Human TalkBack and representative
   display-scaling checks passed for `0.1.0`; device/OEM combinations beyond the documented release
   matrix remain best-effort rather than tablet- or OEM-specific layouts.
+
+## Planned v0.2.0 limitations
+
+- Automatic daily export is Google-Sheets-only and best-effort under Android background scheduling.
+  It captures the intended work date, so a delayed run after midnight exports the prior date, but
+  Android/Google authorization, connectivity, Doze, OEM policy, and user settings may require an
+  actionable pending/retry flow rather than guaranteed unattended completion.
+- The running-timer lock-screen surface is not guaranteed until its official Android feasibility
+  milestone is approved. User/OEM notification and lock-screen privacy settings may suppress any
+  platform-approved surface.
+- Migrated `0.1.0` tasks cannot invent historical Employee, Work Type, or Mileage values; they
+  remain blank/Unspecified until explicitly edited.

@@ -423,6 +423,22 @@ rather than adding charges, broader scopes, a backend, or a Workspace subscripti
 - [Authorize access to Google user data](https://developer.android.com/identity/authorization)
 - [Implement Sign in with Google](https://developer.android.com/identity/sign-in/credential-manager-siwg-implementation)
 - [Manage OAuth clients](https://support.google.com/cloud/answer/15549257)
+
+## 14. Planned `0.2.0` automatic-export setup
+
+No additional Google OAuth scope, billing account, Workspace organization, custom domain, test-user
+list, service account, or backend is approved for automatic export. Continue using only
+`drive.file` and the existing exact-spreadsheet connection.
+
+Milestone 25 must first verify the current official background-authorization model. If Android or
+Google requires a manifest permission, notification channel, scheduler dependency, or developer
+console change, document it step by step here and pause for owner approval before implementation.
+Never invent configuration or add a broader Sheets/Drive scope to make unattended work easier.
+
+The eventual manual verification must prove an enabled schedule exports its captured date even if
+execution is delayed past midnight; never schedules CSV/XLSX; converges with same-date manual
+export; defers while timing; exposes a content-free post-Stop notification action; recovers from
+offline/auth/disconnect/quota states; and produces no Main or notification success message.
 - [Manage OAuth app audience](https://support.google.com/cloud/answer/15549945)
 - [Google Picker for desktop and mobile apps](https://developers.google.com/workspace/drive/picker/guides/desktop-mobile-picker)
 - [Choose Google Sheets API scopes](https://developers.google.com/workspace/sheets/api/scopes)

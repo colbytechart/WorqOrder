@@ -69,5 +69,5 @@
 - The running-timer lock-screen surface is not guaranteed until its official Android feasibility
   milestone is approved. User/OEM notification and lock-screen privacy settings may suppress any
   platform-approved surface.
-- Migrated `0.1.0` tasks cannot invent historical Employee, Work Type, or Mileage values; they
+- Migrated `0.1.0` tasks cannot invent historical Consultant (internally Employee), Work Type, or Mileage values; they
   remain blank/Unspecified until explicitly edited.

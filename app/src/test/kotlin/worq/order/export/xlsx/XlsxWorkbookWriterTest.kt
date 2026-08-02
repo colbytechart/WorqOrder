@@ -29,15 +29,20 @@ class XlsxWorkbookWriterTest {
                 rows =
                     listOf(
                         row(
-                            "2026-07-24",
+                            "07/24/2026",
+                            "07/24/2026",
+                            "Employee",
                             "Client",
                             "Description",
                             "",
+                            "On-Site",
+                            "18.5",
                             "1",
                             "09:00",
                             "10:00",
                             "01:00:00",
                             "01:00:00",
+                            "60",
                         ),
                     ),
             )
@@ -81,15 +86,20 @@ class XlsxWorkbookWriterTest {
                     rows =
                         listOf(
                             row(
-                                "2026-07-24",
+                                "07/24/2026",
+                                "07/24/2026",
+                                "Employee",
                                 client,
                                 description,
                                 purchases,
+                                "In-Office",
+                                "",
                                 "1",
                                 "09:00",
                                 "10:00",
                                 "01:00:00",
                                 "25:00:00",
+                                "1500",
                             ),
                         ),
                 ),
@@ -99,9 +109,9 @@ class XlsxWorkbookWriterTest {
                 .getValue("xl/worksheets/sheet1.xml")
                 .toString(Charsets.UTF_8)
 
-        assertEquals(client, readRows(bytes)[1][1])
-        assertEquals(description, readRows(bytes)[1][2])
-        assertEquals(purchases, readRows(bytes)[1][3])
+        assertEquals(client, readRows(bytes)[1][3])
+        assertEquals(description, readRows(bytes)[1][4])
+        assertEquals(purchases, readRows(bytes)[1][5])
         assertFalse(worksheetXml.contains("<f"))
         assertTrue(worksheetXml.contains("=SUM(A1:A2)"))
         assertTrue(worksheetXml.contains("_x000D_"))
@@ -131,7 +141,9 @@ class XlsxWorkbookWriterTest {
                     rows =
                         listOf(
                             row(
-                                "2026-07-24",
+                                "07/24/2026",
+                                "07/24/2026",
+                                "",
                                 "Client",
                                 "Task",
                                 "",
@@ -139,7 +151,10 @@ class XlsxWorkbookWriterTest {
                                 "",
                                 "",
                                 "",
+                                "",
+                                "",
                                 "00:00:00",
+                                "0",
                             ),
                         ),
                 )

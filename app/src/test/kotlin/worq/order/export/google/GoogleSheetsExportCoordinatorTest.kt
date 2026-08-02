@@ -156,15 +156,20 @@ class GoogleSheetsExportCoordinatorTest {
                     listOf(
                         ExportRow(
                             listOf(
-                                "2026-07-24",
+                                "07/24/2026",
+                                "07/24/2026",
+                                "Employee",
                                 "Client",
                                 "Task",
+                                "",
+                                "On-Site",
                                 "",
                                 "1",
                                 "09:00",
                                 "10:00",
                                 "01:00:00",
                                 "01:00:00",
+                                "60",
                             ),
                         ),
                     ),

@@ -103,16 +103,16 @@ accessibility, minimum, target, next-API, populated-update, complete connected, 
 production Google gates pass. Staging the verified APK as a GitHub Release asset is a publication
 step, not an implementation blocker.
 
-## 9. Planned `0.2.0` traceability (not yet implemented)
+## 9. `0.2.0` traceability
 
 | Requirement | Planned implementation | Required automated evidence | Manual/official gate | Status |
 | --- | --- | --- | --- | --- |
-| Non-destructive `0.1.0` update | Room migration, schema export, typed preference defaults | Populated v2 migration including open timer | Install-update smoke | Planned M19 |
-| 13-column canonical schema 3 | Shared export row builder/snapshot | CSV/XLSX/Google equivalence and schema-2 owned-tab upgrade | Open representative files/sheet | Planned M19/M22 |
+| Non-destructive `0.1.0` update | Room migration, schema export, typed preference defaults | Populated v1/v2 migrations including open timer passed in connected suite | Signed install-update smoke | Partial: foundation passed M19; release smoke M29 |
+| 14-column canonical schema 3 with repeated Start/End dates | Shared export row builder/snapshot | exact headers, `MM/DD/YYYY` duplicated dates, CSV/XLSX/Google equivalence, schema-2 owned-tab upgrade passed | Open representative files/sheet | Partial: shared foundation passed M19; populated UI/manual gate M22/M29 |
 | Client-name CSV import append/A–Z | Parser, document input, transaction coordinator | Quoting, corruption, bounds, duplicates, restore, rollback | Picker/import sample | Planned M20 |
-| Employee directory/selection/history | Employee Room repository, DataStore selection, task snapshot | CRUD/conflict/archive/snapshot/migration/rollover tests | Settings/task workflow | Planned M21/M22 |
-| Work Type and Mileage | Task metadata/repository/Create/Edit UI | validation, keyboard semantics, persistence/migration | Create/edit workflow | Planned M22 |
-| Derived Billing Minutes | Pure calculator and task/export projections | zero, sub-15, boundary, examples, long totals | Task/export check | Planned M19/M22 |
+| Consultant directory/selection/history | Employee Room repository, DataStore selection, task snapshot | persistence CRUD/conflict/archive/snapshot/migration/rollover foundation passed | Consultant-labeled Settings/task workflow | Partial: persistence passed M19; UI M21/M22 |
+| Work Type and Mileage | Task metadata/repository/Create/Edit UI | persistence, migration, and canonical decimal normalization passed | Create/edit workflow | Partial: foundation passed M19; UI M22 |
+| Derived Billing Minutes | Pure calculator and task/export projections | zero, sub-15, boundary, examples, and long totals passed | Task-detail check | Partial: domain/export passed M19; UI M22 |
 | About text and interval `HH:mm` | Build metadata and shared display formatter | exact text/no link; precision-preservation tests | Settings/interval check | Planned M23 |
 | Handed landscape | typed preference and mirrored two-column Main | persistence, semantics, short/large-scale Compose tests | both handed modes/API range | Planned M24 |
 | Automatic Google captured-date export | research-approved scheduler/coordinator | target date, pending Stop, failures, races, idempotence | official research approval + delayed/device test | Planned M25/M26 |

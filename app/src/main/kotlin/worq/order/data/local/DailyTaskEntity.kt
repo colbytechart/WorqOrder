@@ -16,6 +16,13 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.RESTRICT,
             onUpdate = ForeignKey.NO_ACTION,
         ),
+        ForeignKey(
+            entity = EmployeeEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["employee_id"],
+            onDelete = ForeignKey.RESTRICT,
+            onUpdate = ForeignKey.NO_ACTION,
+        ),
     ],
     indices = [
         Index(
@@ -30,6 +37,10 @@ import androidx.room.PrimaryKey
         Index(
             name = "index_daily_tasks_client_id",
             value = ["client_id"],
+        ),
+        Index(
+            name = "index_daily_tasks_employee_id",
+            value = ["employee_id"],
         ),
     ],
 )
@@ -48,6 +59,20 @@ data class DailyTaskEntity(
         defaultValue = "''",
     )
     val hardwareSoftwarePurchases: String = "",
+    @ColumnInfo(name = "employee_id")
+    val employeeId: String? = null,
+    @ColumnInfo(
+        name = "employee_name_snapshot",
+        defaultValue = "''",
+    )
+    val employeeNameSnapshot: String = "",
+    @ColumnInfo(
+        name = "work_type",
+        defaultValue = "'UNSPECIFIED'",
+    )
+    val workType: String = "UNSPECIFIED",
+    @ColumnInfo(name = "mileage")
+    val mileage: String? = null,
     @ColumnInfo(name = "work_date_epoch_day")
     val workDateEpochDay: Long,
     @ColumnInfo(name = "zone_id")

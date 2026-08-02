@@ -120,9 +120,9 @@ Before `0.2.0` release, the effective notice must add:
   to import tasks;
 - Landscape Orientation and opt-in Automatic Daily Google Export preferences plus a non-sensitive
   captured/pending target date;
-- a 13-column external table: Work Date, Employee, Client Name, Description, Hardware / Software
-  Purchases, Work Type, Mileage, Interval Number, Start Local, Stop Local, Interval Duration, Task
-  Total Duration, and Billing Minutes; and
+- a 14-column external table: Start date, End date, Consultant, Client, Description, Expense, Work
+  type, Mileage, Interval number, Start time, Stop time, Interval duration, Time spent, and Billing
+  minutes. Both exported date columns repeat the same stored task date; and
 - optional Google-only scheduled transmission near the end of the captured work date. A successful
   automatic export is silent. Pending/error notifications must contain no employee/client/task
   content. CSV and XLSX remain manual.

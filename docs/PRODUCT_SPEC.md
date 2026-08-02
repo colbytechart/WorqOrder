@@ -54,7 +54,8 @@ authoritative. Exports are copies and never feed data back into Room.
 - **Today:** `Clock.now()` interpreted in the currently effective application `ZoneId`.
 - **Daily task:** one task record for one work date. Corresponding records on other dates share a task-series ID.
 - **Hardware / Software Purchases:** optional free-form task metadata for listing hardware and software purchases associated with a daily task.
-- **Employee:** an active directory choice used for new tasks; each daily task retains the
+- **Consultant:** the user-facing name for an active Employee-directory choice used for new tasks;
+  each daily task retains the
   employee name captured when assigned so later employee rename/archive cannot rewrite history.
 - **Work Type:** task metadata with `On-Site` as the new-task default and `In-Office` as the other
   selectable value. Migrated tasks may remain `Unspecified` until edited.
@@ -132,7 +133,7 @@ A plus/FAB opens a task-creation screen or accessible dialog containing:
 - an inline **Add client** action using the same validation/repository path as Settings;
 - a required short description, trimmed, maximum 400 characters;
 - an optional text field labeled **Hardware / Software Purchases**, trimmed when nonblank, maximum 400 characters; and
-- the currently selected active **Employee**, required for creation;
+- the currently selected active **Consultant**, required for creation;
 - a **Work Type:** radio group containing **On-Site** and **In-Office**, defaulting to On-Site;
 - an optional **Mileage** decimal field that uses the numeric-decimal keyboard and accepts only a
   validated non-negative decimal representation; and
@@ -147,6 +148,10 @@ After any positive recorded duration exists, task detail shows **Billing Minutes
 combined interval duration rounded upward to the nearest 15-minute multiple. With no recorded time
 it is `0`; any positive total below 15 minutes is `15`. This value is derived, not a ticking or
 independently persisted counter.
+
+All free-text entry controls, including task Description, Hardware / Software Purchases, client,
+and consultant names, request sentence capitalization from the Android keyboard. This is an input
+method hint only; WorqOrder does not silently alter text the user has entered.
 
 ### Export
 
@@ -186,24 +191,27 @@ and never overwrites it: active duplicates are skipped, archived canonical match
 in-file duplicates collapse, and the resulting active list is A–Z. Invalid, malformed, corrupt,
 over-limit, or unreasonably large input fails atomically without a partial import or crash.
 
-### Employees
+### Consultants
 
-Settings maintains active/archived employees with the same normalization, validation, ordering,
-rename, archive, and restore principles as clients. A current active employee is selected for new
-tasks. Each task stores an employee ID plus the name snapshot captured on assignment. Renaming or
-archiving a directory entry never changes an earlier task's employee name or export. New task
-creation is blocked until an active employee is selected; migrated `0.1.0` tasks remain blank until
+Settings labels the internal Employee directory as **Consultant** and maintains active/archived
+consultants with the same normalization, validation, ordering, rename, archive, and restore
+principles as clients. A current active consultant is selected for new tasks. Each task stores an
+internal employee ID plus the consultant-name snapshot captured on assignment. Renaming or
+archiving a directory entry never changes an earlier task's consultant name or export. New task
+creation is blocked until an active consultant is selected; migrated `0.1.0` tasks remain blank until
 explicitly edited.
 
 ## 6. Tasks and interval editing
 
-A task-edit screen changes the daily task's employee assignment, client, short description,
+A task-edit screen changes the daily task's consultant assignment, client, short description,
 **Hardware / Software Purchases**, Work Type, and Mileage and lists intervals chronologically. It
 supports manually adding an interval, editing a completed interval's start/stop, and deleting a
 completed interval through the same validation path.
 
-Routine interval cards show task-zone local start and stop as `HH:mm`, without seconds or an
-appended UTC offset. The interval editor still exposes earlier/later occurrence choices when a fall-back overlap
+Routine interval cards omit the individual Duration field and show **Start Time** and **Stop
+Time** as task-zone local 12-hour `hh:mm a`, without seconds or an appended UTC offset. Task Total
+remains above the interval list and the derived Billing Minutes counter is directly below it,
+never repeated per interval. The interval editor still exposes earlier/later occurrence choices when a fall-back overlap
 makes the offset materially necessary. Successfully saving task metadata returns to the main
 screen; validation or persistence failure keeps the editor open.
 
@@ -226,7 +234,8 @@ For DST overlaps, the editor must show enough offset/occurrence information to d
 Settings contains:
 
 - **Clients:** active list with add/rename/archive and optional archived list with restore. Client Management is the first normal Settings item so the most frequent local-data administration workflow is immediately reachable.
-- **Employee:** directly below Client Management, with the active selection plus add, rename,
+- **Consultant:** directly below Client Management, backed internally by Employee persistence,
+  with the active selection plus add, rename,
   archive, archived view, and restore.
 - **Appearance:** explicit System, Light, and Dark choices, with System as the first-launch default. System follows the device appearance while Light and Dark remain enabled as immediately selectable overrides. Changes are persisted in Preferences DataStore and apply immediately without recreating navigation or timer state.
 - **Time zone:** device-zone mode or manual geographical `ZoneId`, searchable/navigable selector, and effective ID display. Device mode is the first-launch default. Mode/zone changes are blocked during timing. Historical stored dates and zone IDs never move.
@@ -277,9 +286,10 @@ and does not alter Room.
 
 - CSV, XLSX, and Google Sheets use the same row model and stable column order defined in
   `EXPORT_SPEC.md`.
-- Version `0.2.0` advances the shared visible schema to exactly 13 columns: Work Date, Employee,
-  Client Name, Description, Hardware / Software Purchases, Work Type, Mileage, Interval Number,
-  Start Local, Stop Local, Interval Duration, Task Total Duration, and Billing Minutes.
+- Version `0.2.0` advances the shared visible schema to exactly 14 columns: Start date, End date,
+  Consultant, Client, Description, Expense, Work type, Mileage, Interval number, Start time, Stop
+  time, Interval duration, Time spent, and Billing minutes. Both date values repeat the task's one
+  stored work date as `MM/DD/YYYY`; this export projection does not change in-app date behavior.
   Destination adapters do not independently select or format fields.
 - CSV is UTF-8, RFC-style quoted, repeatable, and one row per interval; zero-interval tasks still emit one row.
 - Every XLSX export creates one new standards-compliant, unencrypted OOXML workbook through
@@ -367,9 +377,9 @@ authorized consecutive milestones in `IMPLEMENTATION_PLAN.md`:
    matches are restored, duplicates within the file collapse, and the result remains A–Z. A
    malformed, non-CSV, over-limit, or unreasonably large input fails transactionally without a
    partial import or crash. The UI reports added/restored/skipped counts.
-2. **Employee assignment.** Settings provides an Employee directory and current selection directly
-   below Client Management. New tasks require an active employee. Rename/archive/restore uses the
-   approved snapshot rules so historical task employee names and exports never change
+2. **Consultant assignment.** Settings provides a Consultant-labeled directory and current selection directly
+   below Client Management. New tasks require an active consultant. Rename/archive/restore uses the
+   approved snapshot rules so historical task consultant names and exports never change
    retroactively. Migrated `0.1.0` tasks remain unassigned/blank until explicitly edited.
 3. **Work Type and Mileage.** Create/Edit Task provides one-choice `On-Site`/`In-Office` controls,
    defaulting new tasks to `On-Site`, plus an optional validated decimal Mileage field that opens
@@ -377,13 +387,15 @@ authorized consecutive milestones in `IMPLEMENTATION_PLAN.md`:
 4. **Billing Minutes.** Show zero until time exists, then round the task's exact combined interval
    duration upward to 15-minute increments. Do not persist a redundant counter. Include the
    derived integer in every export.
-5. **Canonical export schema 3.** All three destinations use the same immutable 13-column snapshot
-   and format Start/Stop as task-zone `HH:mm`. Interval and task total duration headers omit
-   `Formatted`; values remain accumulated `HH:MM:SS`. Google-owned schema-2 tabs are safely
+5. **Canonical export schema 3.** All three destinations use the same immutable 14-column snapshot
+   specified in `EXPORT_SPEC.md`; Start date and End date repeat the stored date as `MM/DD/YYYY`,
+   and Start time/Stop time use task-zone `HH:mm`. Duration values remain accumulated `HH:MM:SS`.
+   Google-owned schema-2 tabs are safely
    upgraded/replaced on re-export; unowned same-name tabs remain protected.
-6. **Simplified interval presentation.** Routine interval Start/Stop values display `HH:mm` only.
-   Persisted instants, editing precision, offsets needed for DST ambiguity, and duration math stay
-   exact.
+6. **Simplified interval presentation and text entry.** Routine interval cards omit Duration and
+   display Start Time/Stop Time as `hh:mm a`. Task Total and Billing Minutes appear once above the
+   list. Free-text controls request sentence capitalization. Persisted instants, editing precision,
+   offsets needed for DST ambiguity, duration math, and user-entered text stay exact.
 7. **About.** The last Settings content reads `WorqOrder v0.2.0 - stable`, without a repository or
    release link.
 8. **Handed two-column landscape.** A global top bar spans the screen with WorqOrder at the far

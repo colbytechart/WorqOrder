@@ -24,10 +24,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import worq.order.data.ActiveTimerRepository
 import worq.order.data.AppSettings
+import worq.order.data.AutomaticGooglePendingReason
 import worq.order.data.CreateActiveIntervalResult
 import worq.order.data.ExportDestination
 import worq.order.data.ExportAttemptOutcome
 import worq.order.data.LastExportAttempt
+import worq.order.data.LandscapeHandedness
 import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
 import worq.order.data.TimeZoneSettingResult
@@ -70,6 +72,13 @@ class PreferencesSettingsRepositoryTest {
                     outcome = ExportAttemptOutcome.SUCCESS,
                 )
             repository.recordLastExportAttempt(exportAttempt)
+            repository.setSelectedEmployeeId("employee-1")
+            repository.setLandscapeHandedness(LandscapeHandedness.LEFT_HANDED)
+            repository.setAutomaticGoogleExportEnabled(true)
+            repository.setAutomaticGooglePendingExport(
+                LocalDate.of(2026, 7, 24),
+                AutomaticGooglePendingReason.TIMER_RUNNING,
+            )
             scope.cancel()
             scope.coroutineContext.job.join()
 
@@ -97,6 +106,14 @@ class PreferencesSettingsRepositoryTest {
                 restored.defaultExportDestination,
             )
             assertEquals(exportAttempt, restored.lastExportAttempt)
+            assertEquals("employee-1", restored.selectedEmployeeId)
+            assertEquals(LandscapeHandedness.LEFT_HANDED, restored.landscapeHandedness)
+            assertTrue(restored.automaticGoogleExportEnabled)
+            assertEquals(LocalDate.of(2026, 7, 24), restored.automaticGoogleTargetDate)
+            assertEquals(
+                AutomaticGooglePendingReason.TIMER_RUNNING,
+                restored.automaticGooglePendingReason,
+            )
 
             repository.setThemeMode(ThemeMode.DARK)
             repository.setTimeZoneMode(TimeZoneMode.DEVICE)
@@ -106,6 +123,9 @@ class PreferencesSettingsRepositoryTest {
             assertEquals(TimeZoneMode.DEVICE, changed.timeZoneMode)
             assertEquals(ExportDestination.CSV, changed.defaultExportDestination)
             repository.setThemeMode(ThemeMode.SYSTEM)
+            repository.setAutomaticGoogleExportEnabled(false)
+            assertNull(repository.readSettings().automaticGoogleTargetDate)
+            assertNull(repository.readSettings().automaticGooglePendingReason)
 
             scope.cancel()
             scope.coroutineContext.job.join()
@@ -146,6 +166,8 @@ class PreferencesSettingsRepositoryTest {
                 preferences[stringPreferencesKey("manual_zone_id")] = "UTC"
                 preferences[stringPreferencesKey("default_export_destination")] =
                     "LOTUS"
+                preferences[stringPreferencesKey("landscape_handedness")] = "UPSIDE_DOWN"
+                preferences[stringPreferencesKey("automatic_google_pending_reason")] = "UNKNOWN"
             }
             val repository =
                 PreferencesSettingsRepository(
@@ -162,6 +184,9 @@ class PreferencesSettingsRepositoryTest {
                 ExportDestination.CSV,
                 settings.defaultExportDestination,
             )
+            assertEquals(LandscapeHandedness.RIGHT_HANDED, settings.landscapeHandedness)
+            assertNull(settings.automaticGoogleTargetDate)
+            assertNull(settings.automaticGooglePendingReason)
 
             scope.cancel()
             scope.coroutineContext.job.join()

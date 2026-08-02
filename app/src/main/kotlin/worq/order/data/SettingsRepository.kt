@@ -22,6 +22,15 @@ enum class ExportDestination {
     GOOGLE_SHEETS,
 }
 
+enum class LandscapeHandedness {
+    RIGHT_HANDED,
+    LEFT_HANDED,
+}
+
+enum class AutomaticGooglePendingReason {
+    TIMER_RUNNING,
+}
+
 enum class ExportAttemptOutcome {
     SUCCESS,
     CANCELED,
@@ -63,6 +72,11 @@ data class AppSettings(
     val manualZoneId: ZoneId? = null,
     val defaultExportDestination: ExportDestination = ExportDestination.CSV,
     val lastExportAttempt: LastExportAttempt? = null,
+    val selectedEmployeeId: String? = null,
+    val landscapeHandedness: LandscapeHandedness = LandscapeHandedness.RIGHT_HANDED,
+    val automaticGoogleExportEnabled: Boolean = false,
+    val automaticGoogleTargetDate: LocalDate? = null,
+    val automaticGooglePendingReason: AutomaticGooglePendingReason? = null,
 )
 
 sealed interface TimeZoneSettingResult {
@@ -89,4 +103,17 @@ interface SettingsRepository {
     suspend fun setDefaultExportDestination(destination: ExportDestination)
 
     suspend fun recordLastExportAttempt(attempt: LastExportAttempt)
+
+    suspend fun setSelectedEmployeeId(employeeId: String?)
+
+    suspend fun setLandscapeHandedness(handedness: LandscapeHandedness)
+
+    suspend fun setAutomaticGoogleExportEnabled(enabled: Boolean)
+
+    suspend fun setAutomaticGooglePendingExport(
+        workDate: LocalDate,
+        reason: AutomaticGooglePendingReason,
+    )
+
+    suspend fun clearAutomaticGooglePendingExport()
 }

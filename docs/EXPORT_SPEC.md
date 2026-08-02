@@ -48,25 +48,28 @@ dataset object.
 
 Schema version 3 is internal compatibility metadata. It is used by WorqOrder markers and export
 adapters but is not a visible data column. Version `0.2.0` advances every destination together to
-these exact 13 columns in this exact order:
+these exact 14 columns in this exact order:
 
 | # | Column | Encoding |
 | ---: | --- | --- |
-| 1 | Work Date | `YYYY-MM-DD` |
-| 2 | Employee | task's employee-name snapshot; blank for unassigned migrated history |
-| 3 | Client Name | retained current client name |
-| 4 | Description | short task description |
-| 5 | Hardware / Software Purchases | optional task text; blank when none |
-| 6 | Work Type | `On-Site`, `In-Office`, or blank for migrated `Unspecified` |
-| 7 | Mileage | normalized plain non-negative decimal text, or blank |
-| 8 | Interval Number | stable positive ordinal or blank |
-| 9 | Start Local | task-zone local clock time `HH:mm`, or blank |
-| 10 | Stop Local | task-zone local clock time `HH:mm`, or blank |
-| 11 | Interval Duration | accumulated `HH:MM:SS`, or blank |
-| 12 | Task Total Duration | accumulated `HH:MM:SS` |
-| 13 | Billing Minutes | non-negative base-10 integer |
+| 1 | Start date | task work date formatted `MM/DD/YYYY` |
+| 2 | End date | the same task work date formatted `MM/DD/YYYY` |
+| 3 | Consultant | task's employee-name snapshot; blank for unassigned migrated history |
+| 4 | Client | retained current client name |
+| 5 | Description | short task description |
+| 6 | Expense | optional hardware/software-purchases task text; blank when none |
+| 7 | Work type | `On-Site`, `In-Office`, or blank for migrated `Unspecified` |
+| 8 | Mileage | normalized plain non-negative decimal text, or blank |
+| 9 | Interval number | stable positive ordinal or blank |
+| 10 | Start time | task-zone local clock time `HH:mm`, or blank |
+| 11 | Stop time | task-zone local clock time `HH:mm`, or blank |
+| 12 | Interval duration | accumulated `HH:MM:SS`, or blank |
+| 13 | Time spent | exact same value previously named Task Total Duration; accumulated `HH:MM:SS` |
+| 14 | Billing minutes | non-negative base-10 integer |
 
-Start/Stop instants are converted using the task's stored geographical ZoneId and only then reduced
+Both date columns intentionally repeat the same independently stored task work date. They are an
+export projection only: WorqOrder does not store a date range and does not change date behavior in
+the app. Start/Stop instants are converted using the task's stored geographical ZoneId and only then reduced
 to 24-hour `HH:mm`. Seconds, fractional seconds, date, offset, and ZoneId are intentionally omitted
 from the export; the complete instants and task ZoneId remain stored in Room. Two fall-back
 occurrences can therefore display the same clock time even though the app retains distinct
@@ -77,7 +80,7 @@ hours at 24. Empty optional values are empty fields, not the strings `null` or `
 
 Billing Minutes uses the exact task total before display truncation: zero total produces `0`; any
 positive total produces `ceil(totalMilliseconds / 900000) * 15`. A zero-interval task therefore
-has blank interval fields, `00:00:00` Task Total Duration, and `0` Billing Minutes. Export remains
+has blank interval fields, `00:00:00` Time spent, and `0` Billing minutes. Export remains
 blocked during timing, so canonical Billing Minutes never depends on an incomplete open interval.
 
 Rows sort using retained internal metadata: task creation instant, task ID, interval start (null
@@ -116,7 +119,7 @@ that exact granted URI. The UI distinguishes success, retryable write failure, a
 a partial provider document could not be removed; cancellation simply returns to unchanged Main
 content.
 
-CSV faithfully preserves employee snapshot, client, description, purchases, Work Type, and
+CSV faithfully preserves the consultant snapshot, client, description, expense, Work type, and
 Mileage text. Some spreadsheet programs interpret cells beginning with `=`, `+`, `-`, or `@` as
 formulas when opening CSV. RFC quoting does not prevent that behavior. Silently prefixing text
 would change exported data, so formula-injection transformation is not part of schema version 3;
@@ -127,19 +130,19 @@ flag it in release security review and document safe import behavior.
 The first record is always the following exact header:
 
 ```csv
-Work Date,Employee,Client Name,Description,Hardware / Software Purchases,Work Type,Mileage,Interval Number,Start Local,Stop Local,Interval Duration,Task Total Duration,Billing Minutes
+Start date,End date,Consultant,Client,Description,Expense,Work type,Mileage,Interval number,Start time,Stop time,Interval duration,Time spent,Billing minutes
 ```
 
 A completed interval may serialize as:
 
 ```csv
-2026-07-24,Alex Rivera,"Acme, Inc.","Repair ""north"" unit",Laptop,On-Site,18.5,1,09:00,10:00,01:00:00,01:00:00,60
+07/24/2026,07/24/2026,Alex Rivera,"Acme, Inc.","Repair ""north"" unit",Laptop,On-Site,18.5,1,09:00,10:00,01:00:00,01:00:00,60
 ```
 
 A task without intervals has blank interval number/start/stop/duration and a zero task total:
 
 ```csv
-2026-07-24,Alex Rivera,Example Client,Planning,,On-Site,,,,,,00:00:00,0
+07/24/2026,07/24/2026,Alex Rivera,Example Client,Planning,,On-Site,,,,,,,00:00:00,0
 ```
 
 The examples are shown with line breaks for readability; the file record terminator is CRLF.
@@ -174,7 +177,7 @@ existing workbook.
 - Android launches `ActivityResultContracts.CreateDocument` for every export. It stores no
   document URI, persistable grant, workbook name, or connection status.
 - Each new workbook contains exactly one visible worksheet named
-  `WorqOrder_YYYY-MM-DD`. Row 1 contains the exact 13 canonical headers and row 2 onward contains
+  `WorqOrder_YYYY-MM-DD`. Row 1 contains the exact 14 canonical headers and row 2 onward contains
   the same canonical rows used by CSV and Google Sheets.
 - User text, dates, times, interval numbers, and durations are literal inline-string cells.
   Formula-like values beginning with `=`, `+`, `-`, or `@` never become formulas. Formatted
@@ -205,7 +208,7 @@ The implemented package contains these fixed parts in deterministic order:
 5. `xl/styles.xml`
 6. `xl/worksheets/sheet1.xml`
 
-For schema version 3, `sheet1.xml` declares `A1:M<last-row>`, writes the header with the package's
+For schema version 3, `sheet1.xml` declares `A1:N<last-row>`, writes the header with the package's
 bold text style, and
 writes every canonical value as an `inlineStr` cell with `xml:space="preserve"`. SpreadsheetML
 escape sequences preserve carriage returns and otherwise-illegal XML control characters; literal
@@ -317,7 +320,7 @@ Visible layout:
 
 | Cell/range | Content |
 | --- | --- |
-| row 1 | the 13 exact canonical column headers |
+| row 1 | the 14 exact canonical column headers |
 | row 2 onward | canonical export rows |
 
 The ownership values are stored as sheet-scoped, `PROJECT`-visible developer metadata created by
@@ -338,7 +341,7 @@ schema version 3. The table is application-owned. Users are warned that edits in
 will be replaced on the next export. Other tabs are never touched.
 
 Google Sheets has no published fixed sheet-count limit, but the connected spreadsheet has a
-10-million-cell total limit. Add each date sheet with exactly 13 columns and only enough rows for
+10-million-cell total limit. Add each date sheet with exactly 14 columns and only enough rows for
 its header/data, and resize it on re-export so unused grid allocation does not consume the
 spreadsheet unnecessarily.
 
@@ -356,10 +359,10 @@ spreadsheet unnecessarily.
 4. Send one `POST
    /v4/spreadsheets/{spreadsheetId}:batchUpdate` containing, in order:
    - either an `UpdateSheetPropertiesRequest` that renames/right-sizes the confirmed blank first
-     sheet, or an `AddSheetRequest` with a collision-free non-negative sheet ID, exact title, 13
+     sheet, or an `AddSheetRequest` with a collision-free non-negative sheet ID, exact title, 14
      columns, and `1 + dataRowCount` rows;
    - three `CreateDeveloperMetadataRequest` entries for the exact keys/values above; and
-   - one `UpdateCellsRequest` covering row 1 through the final data row and columns 1 through 13.
+   - one `UpdateCellsRequest` covering row 1 through the final data row and columns 1 through 14.
 5. Every cell is a `userEnteredValue.stringValue`. This is the `UpdateCellsRequest` equivalent of
    a raw literal write: formula-like client/task text is not parsed as a formula, and the gateway
    does not independently format any canonical value.
@@ -375,7 +378,7 @@ spreadsheet unnecessarily.
    atomically replace it with schema-3 metadata, headers, and rows. A newer/unknown schema or
    incompatible date remains a conflict and is not overwritten.
 4. Send one atomic `spreadsheets.batchUpdate` containing an `UpdateSheetPropertiesRequest` that
-   right-sizes the owned grid to exactly 13 columns and `1 + dataRowCount` rows, followed by an
+   right-sizes the owned grid to exactly 14 columns and `1 + dataRowCount` rows, followed by an
    `UpdateCellsRequest` that replaces the complete header/data table. Shrinking removes obsolete
    trailing rows/cells.
 5. Write rows in the shared stable sort order; do not independently sort or format at the gateway.
@@ -383,7 +386,7 @@ spreadsheet unnecessarily.
 
 Replacement, not append-only merging, is authoritative. This resolves contradictory earlier append wording and ensures edits, deleted intervals, deleted tasks, and changed metadata are reflected without duplicates. Repeating unchanged export produces the same visible table.
 
-Use raw string cell values for all 13 canonical fields so employee, client, task text, Work Type,
+Use raw string cell values for all 14 canonical fields so consultant, client, task text, Work type,
 and Mileage are not evaluated as formulas and CSV/XLSX/Google content remains equivalent. Do not
 create a new spreadsheet document at export.
 
@@ -498,7 +501,7 @@ Tests must prove:
   bounded-memory behavior, and no app-private plaintext staging;
 - one connected spreadsheet only;
 - URL/ID parsing and validation;
-- create marked date tab with invisible metadata, exact 13-column visible table, re-export
+- create marked date tab with invisible metadata, exact 14-column visible table, re-export
   replacement, obsolete-row clearing/grid resizing, and stable shared ordering;
 - unchanged re-export has no duplicate rows;
 - local edit/delete is reflected by replacement;
@@ -510,8 +513,9 @@ Tests must prove:
 - offline, auth expiration, permission, rate-limit, server, and ambiguous-response states are useful/retryable; and
 - all failures leave Room task data unchanged.
 
-Version `0.2.0` additionally tests employee snapshot stability, Work Type, normalized/blank
-Mileage, Billing Minutes at zero/positive/boundary/long totals, exact renamed duration headers,
+Version `0.2.0` additionally tests consultant snapshot stability, Work type, normalized/blank
+Mileage, Billing minutes at zero/positive/boundary/long totals, exact 14 renamed headers and
+duplicated `MM/DD/YYYY` Start date/End date values,
 schema-2 owned-tab upgrade to schema 3, unowned-tab protection, and equivalent CSV/XLSX/Google
 values. Automatic-export tests cover captured-date execution before/after midnight, inexact delay,
 running-timer pending state, post-Stop notification action, notification dismissal, reboot/Doze,

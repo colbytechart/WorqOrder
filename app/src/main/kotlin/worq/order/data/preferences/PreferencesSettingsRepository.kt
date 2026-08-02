@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import java.io.IOException
@@ -17,11 +18,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.withLock
 import worq.order.data.ActiveTimerRepository
+import worq.order.data.AutomaticGooglePendingReason
 import worq.order.data.AppSettings
 import worq.order.data.ExportDestination
 import worq.order.data.ExportAttemptOutcome
 import worq.order.data.ExportErrorCategory
 import worq.order.data.LastExportAttempt
+import worq.order.data.LandscapeHandedness
 import worq.order.data.SettingsRepository
 import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
@@ -111,6 +114,49 @@ class PreferencesSettingsRepository(
         }
     }
 
+    override suspend fun setSelectedEmployeeId(employeeId: String?) {
+        dataStore.edit { preferences ->
+            if (employeeId.isNullOrBlank()) {
+                preferences.remove(SELECTED_EMPLOYEE_ID)
+            } else {
+                preferences[SELECTED_EMPLOYEE_ID] = employeeId
+            }
+        }
+    }
+
+    override suspend fun setLandscapeHandedness(handedness: LandscapeHandedness) {
+        dataStore.edit { preferences ->
+            preferences[LANDSCAPE_HANDEDNESS] = handedness.name
+        }
+    }
+
+    override suspend fun setAutomaticGoogleExportEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[AUTOMATIC_GOOGLE_EXPORT_ENABLED] = enabled
+            if (!enabled) {
+                preferences.remove(AUTOMATIC_GOOGLE_TARGET_DATE)
+                preferences.remove(AUTOMATIC_GOOGLE_PENDING_REASON)
+            }
+        }
+    }
+
+    override suspend fun setAutomaticGooglePendingExport(
+        workDate: LocalDate,
+        reason: AutomaticGooglePendingReason,
+    ) {
+        dataStore.edit { preferences ->
+            preferences[AUTOMATIC_GOOGLE_TARGET_DATE] = workDate.toEpochDay()
+            preferences[AUTOMATIC_GOOGLE_PENDING_REASON] = reason.name
+        }
+    }
+
+    override suspend fun clearAutomaticGooglePendingExport() {
+        dataStore.edit { preferences ->
+            preferences.remove(AUTOMATIC_GOOGLE_TARGET_DATE)
+            preferences.remove(AUTOMATIC_GOOGLE_PENDING_REASON)
+        }
+    }
+
     private fun settingsFromPreferences(preferences: Preferences): AppSettings {
         val themeMode =
             preferences[THEME_MODE]
@@ -132,12 +178,32 @@ class PreferencesSettingsRepository(
             preferences[DEFAULT_EXPORT_DESTINATION]
                 .enumOrDefault(ExportDestination.CSV)
         val lastExportAttempt = preferences.lastExportAttemptOrNull()
+        val selectedEmployeeId = preferences[SELECTED_EMPLOYEE_ID]?.takeIf(String::isNotBlank)
+        val landscapeHandedness =
+            preferences[LANDSCAPE_HANDEDNESS]
+                .enumOrDefault(LandscapeHandedness.RIGHT_HANDED)
+        val automaticGoogleExportEnabled =
+            preferences[AUTOMATIC_GOOGLE_EXPORT_ENABLED] ?: false
+        val automaticGoogleTargetDate =
+            preferences[AUTOMATIC_GOOGLE_TARGET_DATE]
+                ?.let { epochDay -> runCatching { LocalDate.ofEpochDay(epochDay) }.getOrNull() }
+        val automaticGooglePendingReason =
+            preferences[AUTOMATIC_GOOGLE_PENDING_REASON]
+                ?.let { stored ->
+                    enumValues<AutomaticGooglePendingReason>().firstOrNull { it.name == stored }
+                }
+                ?.takeIf { automaticGoogleTargetDate != null }
         return AppSettings(
             themeMode = themeMode,
             timeZoneMode = timeZoneMode,
             manualZoneId = manualZoneId,
             defaultExportDestination = exportDestination,
             lastExportAttempt = lastExportAttempt,
+            selectedEmployeeId = selectedEmployeeId,
+            landscapeHandedness = landscapeHandedness,
+            automaticGoogleExportEnabled = automaticGoogleExportEnabled,
+            automaticGoogleTargetDate = automaticGoogleTargetDate,
+            automaticGooglePendingReason = automaticGooglePendingReason,
         )
     }
 
@@ -203,5 +269,13 @@ class PreferencesSettingsRepository(
             stringPreferencesKey("last_export_outcome")
         val LAST_EXPORT_ERROR_CATEGORY =
             stringPreferencesKey("last_export_error_category")
+        val SELECTED_EMPLOYEE_ID = stringPreferencesKey("selected_employee_id")
+        val LANDSCAPE_HANDEDNESS = stringPreferencesKey("landscape_handedness")
+        val AUTOMATIC_GOOGLE_EXPORT_ENABLED =
+            booleanPreferencesKey("automatic_google_export_enabled")
+        val AUTOMATIC_GOOGLE_TARGET_DATE =
+            longPreferencesKey("automatic_google_target_epoch_day")
+        val AUTOMATIC_GOOGLE_PENDING_REASON =
+            stringPreferencesKey("automatic_google_pending_reason")
     }
 }

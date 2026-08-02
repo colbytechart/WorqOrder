@@ -125,7 +125,7 @@ class XlsxWorkbookWriter {
             append("<worksheet xmlns=\"")
             append(SPREADSHEET_NAMESPACE)
             append("\">")
-            append("<dimension ref=\"A1:I")
+            append("<dimension ref=\"A1:N")
             append(lastRow)
             append("\"/>")
             append("<sheetViews><sheetView workbookViewId=\"0\"/></sheetViews>")

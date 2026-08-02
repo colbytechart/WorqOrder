@@ -9,11 +9,16 @@ import worq.order.model.TaskListItem
 import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
+import worq.order.model.WorkType
 
 data class NewDailyTask(
     val clientId: String,
     val description: String,
     val hardwareSoftwarePurchases: String = "",
+    val employeeId: String? = null,
+    val employeeNameSnapshot: String = "",
+    val workType: WorkType = WorkType.UNSPECIFIED,
+    val mileage: String? = null,
     val workDate: LocalDate,
     val zoneId: ZoneId,
     val seriesId: String? = null,
@@ -97,7 +102,7 @@ interface TaskRepository {
      * Finds or atomically creates the exact series/date/zone copy of [sourceTaskId].
      *
      * Returns null when the source task no longer exists. The new copy retains the source task's
-     * current client, description, and series ID.
+     * current client, employee snapshot, task metadata, and series ID.
      */
     suspend fun findOrCreateDailyTaskCopy(
         sourceTaskId: String,

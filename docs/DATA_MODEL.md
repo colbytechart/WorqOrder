@@ -11,7 +11,7 @@
 - Booleans are SQLite integers through Room.
 - Every mutable entity has `createdAtEpochMs` and `updatedAtEpochMs`; updates use the injected UTC clock.
 - Entities are persistence details. Repositories map them to domain models and validate strings/time values before writes.
-- Room version 1 stores these primitive values directly and requires no type converters. Domain mappings reconstruct `Instant`, `LocalDate`, and `ZoneId` deterministically.
+- Room schema versions 1 through 3 store these primitive values directly and require no type converters. Domain mappings reconstruct `Instant`, `LocalDate`, and `ZoneId` deterministically.
 
 ## 2. Entity relationship overview
 
@@ -204,14 +204,15 @@ Migration tests populate clients, archived clients, multiple task series/dates, 
 Implemented schema details:
 
 - production database name: `worqorder.db`;
-- Room annotation: `version = 2`, `exportSchema = true`;
+- Room annotation: `version = 3`, `exportSchema = true`;
 - committed schemas:
-  `app/schemas/worq.order.data.local.WorqOrderDatabase/1.json` and
-  `app/schemas/worq.order.data.local.WorqOrderDatabase/2.json`;
+  `app/schemas/worq.order.data.local.WorqOrderDatabase/1.json`,
+  `app/schemas/worq.order.data.local.WorqOrderDatabase/2.json`, and
+  `app/schemas/worq.order.data.local.WorqOrderDatabase/3.json`;
 - production construction uses `Room.databaseBuilder` without startup deletion, seeding, or destructive fallback; and
 - there is no `0 -> 1` migration because version 1 is the first schema. Production construction
-  registers the explicit `MIGRATION_1_2`, and every later change must add another explicit forward
-  migration and instrumentation test.
+  registers the explicit `MIGRATION_1_2` and `MIGRATION_2_3`; every later change must add another
+  explicit forward migration and instrumentation test.
 
 Implemented first schema evolution:
 
@@ -240,11 +241,10 @@ ciphertext must never trigger destructive Room creation.
 - No XLSX entities are needed; XLSX remains a transient one-way document projection. There are
   also no attachments, user table, Firebase IDs, or server queues.
 
-## 13. Planned v0.2.0 schema evolution
+## 13. v0.2.0 schema evolution
 
-This section is the approved `0.2.0` target and does not describe the released `0.1.0` database.
-The implementation must advance Room from version 2 to version 3 through an explicit, populated,
-non-destructive migration and commit the resulting schema JSON. Existing clients, tasks,
+Milestone 19 advances Room from version 2 to version 3 through an explicit, populated,
+non-destructive migration and commits the resulting schema JSON. Existing clients, tasks,
 intervals, active-timer state, IDs, dates, zones, and timestamps must remain intact.
 
 ### `employees`
@@ -260,7 +260,8 @@ intervals, active-timer state, IDs, dates, zones, and timestamps must remain int
 | `updated_at_epoch_ms` | INTEGER | UTC epoch millis |
 | `archived_at_epoch_ms` | INTEGER nullable | set on removal, cleared on restore |
 
-Employee normalization, active-name uniqueness, A–Z ordering, archive, and restore follow the
+Employee is the internal persistence name; every user-facing label calls this directory
+**Consultant**. Normalization, active-name uniqueness, A–Z ordering, archive, and restore follow the
 same durable principles as clients. An employee directory row is not the historical display
 authority for an already-created task.
 
@@ -268,7 +269,7 @@ authority for an already-created task.
 
 | Column | Type | Rules / migration default |
 | --- | --- | --- |
-| `employee_id` | TEXT nullable FK | selected active employee; null for migrated `0.1.0` tasks |
+| `employee_id` | TEXT nullable FK | selected active consultant; null for migrated `0.1.0` tasks |
 | `employee_name_snapshot` | TEXT | immutable-at-assignment display/export value; empty for migrated tasks |
 | `work_type` | TEXT | `ON_SITE`, `IN_OFFICE`, or migrated `UNSPECIFIED` |
 | `mileage` | TEXT nullable | validated normalized non-negative decimal text; null means not entered |
@@ -282,7 +283,8 @@ still valid. Removing an employee is archive/deactivation, not destructive delet
 Mileage is stored as canonical plain decimal text rather than floating point. Accept digits and
 at most one decimal separator in the UI, normalize the stored/exported value without locale-based
 grouping, reject negative, exponent, NaN, infinity, and malformed values, and define a reasonable
-precision/length bound in the implementation milestone. Existing tasks migrate with blank
+at most 9 integer digits and 3 meaningful fractional digits; input is bounded to 32 characters
+before parsing. Strip redundant leading/trailing zeroes and store zero as `0`. Existing tasks migrate with blank
 Mileage and `UNSPECIFIED` Work Type rather than inventing historical facts.
 
 ### Derived Billing Minutes
@@ -331,6 +333,6 @@ Daily rollover and midnight continuation copy the source daily task's employee I
 Work Type, Mileage, client, description, and purchases into the new daily copy. They do not
 re-resolve the employee name from the current directory and never alter the preceding task.
 
-The planned explicit `MIGRATION_2_3` must be tested from a populated version-2 database containing
+The explicit `MIGRATION_2_3` is tested from a populated version-2 database containing
 active/archived clients, multiple tasks and intervals, and an open active timer. Destructive
 migration remains prohibited.

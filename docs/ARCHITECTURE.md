@@ -185,7 +185,8 @@ DAO and canonical export ordering remain independently stable.
   under the timer-operation lock, normalizes crossed boundaries, reads the transactional Room
   snapshot, and returns the one immutable destination-neutral dataset. Main permits this workflow
   only when Room-derived active state is loaded and empty.
-- `ExportRowBuilder`: owns schema version 3 in `0.2.0`, the exact 13 visible columns, task-zone `HH:mm`,
+- `ExportRowBuilder`: owns schema version 3 in `0.2.0`, the exact 14 visible columns, duplicated
+  `MM/DD/YYYY` Start/End dates, task-zone export `HH:mm`,
   accumulated `HH:MM:SS`, zero-interval rows, and deterministic internal-key sorting.
 - `CsvExportCoordinator`: consumes the prepared snapshot and only serializes/packages the pending
   UTF-8 CSV before the picker opens.
@@ -277,7 +278,7 @@ Milestone 12 adds a one-off XLSX document boundary:
 - Compose launches `ActivityResultContracts.CreateDocument` with the official XLSX MIME type for
   every export; no storage permission or retained URI grant is requested.
 - A focused internal OOXML writer packages the already-canonical snapshot into one new workbook
-  containing one `WorqOrder_YYYY-MM-DD` worksheet and the exact shared canonical table (13 columns
+  containing one `WorqOrder_YYYY-MM-DD` worksheet and the exact shared canonical table (14 columns
   beginning with schema version 3 in `0.2.0`).
 - The writer never opens or modifies an existing workbook, writes formulas, or stages plaintext
   on app-private disk. Cancellation occurs before output; a failed write uses the same best-effort
@@ -429,7 +430,8 @@ their dedicated milestone.
 
 No item in this section describes released `0.1.0` behavior until its owning v0.2 milestone lands.
 
-- Add `EmployeeRepository` and Room-backed active/archive operations. `DailyTask` stores both the
+- Add `EmployeeRepository` and Room-backed active/archive operations, exposed to users as
+  **Consultant** management. `DailyTask` stores both the
   optional employee relationship and assignment-time name snapshot. Directory changes never
   cascade text changes into historical tasks.
 - Add a bounded `ClientCsvImportParser` and `ClientImportCoordinator`. Android document access is
@@ -439,7 +441,7 @@ No item in this section describes released `0.1.0` behavior until its owning v0.
 - Extend task metadata validation with Work Type and canonical decimal Mileage. Add
   `BillingMinutesCalculator` as pure derived logic; do not persist or tick it.
 - `ExportRowBuilder` is the only schema-3 field-selection/formatting boundary. All destinations
-  receive the same 13 strings and keep exact internal instants outside the projection.
+  receive the same 14 strings and keep exact internal instants outside the projection.
 - Extend the typed settings model with `LandscapeOrientation.RIGHT_HANDED` and
   `LandscapeOrientation.LEFT_HANDED`; the repository owns serialization, default/fallback, and
   Flow observation. Composables never read preference keys directly.

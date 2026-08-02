@@ -13,6 +13,9 @@ Android resources, or release behavior.
 
 ## Milestone 19 — v0.2 persistence and canonical export foundation
 
+Status: completed. Room schema 3, the non-destructive migration, persistence/preferences
+foundations, Billing Minutes, and canonical schema-3 exports passed offline and connected checks.
+
 ```text
 Begin Milestone 19 for WorqOrder 0.2.0. Read AGENTS.md, every relevant document under docs/, and
 the complete current implementation before modifying anything. Verify that the implementation
@@ -30,10 +33,11 @@ Advance Room to version 3 with an explicit non-destructive MIGRATION_2_3 from th
 version-2 schema, export the new schema JSON, and preserve populated clients/tasks/intervals/active
 timer. Existing tasks migrate with blank employee, Unspecified Work Type, and blank Mileage.
 
-Advance the one canonical export snapshot to schema version 3 with exactly these columns: Work
-Date, Employee, Client Name, Description, Hardware / Software Purchases, Work Type, Mileage,
-Interval Number, Start Local, Stop Local, Interval Duration, Task Total Duration, Billing Minutes.
-Start/Stop are HH:mm; durations remain HH:MM:SS; internal timestamps remain precise. Adapt CSV,
+Advance the one canonical export snapshot to schema version 3 with exactly these columns: Start
+date, End date, Consultant, Client, Description, Expense, Work type, Mileage, Interval number,
+Start time, Stop time, Interval duration, Time spent, Billing minutes. Both dates repeat the one
+stored task date as MM/DD/YYYY. Start/Stop are HH:mm; durations remain HH:MM:SS; internal
+timestamps remain precise. Adapt CSV,
 one-off XLSX, and Google to consume the same rows. Known WorqOrder-owned Google schema-2 tabs may
 upgrade atomically to schema 3; unowned or unknown/newer tabs remain protected.
 
@@ -65,17 +69,18 @@ Compose, accessibility, picker-cancel, and instrumentation tests. Run the full r
 verification, report exact results/files/limits, suggest a commit message, and stop.
 ```
 
-## Milestone 21 — Employee management and selection
+## Milestone 21 — Consultant management and selection
 
 ```text
-Begin Milestone 21. Read AGENTS.md, all employee/data/product decisions, and the existing app.
-Implement the Employee Settings section directly below Client Management. Support active A-Z
+Begin Milestone 21. Read AGENTS.md, all consultant/employee-data/product decisions, and the existing app.
+Implement the user-facing Consultant Settings section directly below Client Management, backed by
+the internal Employee entity. Support active A-Z
 view, add, rename, archive/remove from selection, archived view, restore, and one persisted current
-employee selection. Use the approved client-like normalization and conflict behavior.
+consultant selection. Use the approved client-like normalization and conflict behavior.
 
-Historical tasks use their employee-name snapshot: rename/archive must never rewrite earlier
+Historical tasks use their consultant-name snapshot: rename/archive must never rewrite earlier
 tasks or exports. New/future assignment uses the current directory name. An explicit task edit may
-later correct a daily task. When there is no active selected employee, task creation must expose a
+later correct a daily task. When there is no active selected consultant, task creation must expose a
 usable blocking/redirect state, but complete task form changes remain Milestone 22.
 
 Add Room/repository/DataStore/ViewModel/Compose/accessibility tests for defaults, CRUD, conflicts,
@@ -88,7 +93,7 @@ commit message, then stop.
 
 ```text
 Begin Milestone 22. Read AGENTS.md and all v0.2 task/export specifications. Complete Create/Edit
-Task integration for required selected Employee, Work Type radio buttons (On-Site default,
+Task integration for required selected Consultant, Work Type radio buttons (On-Site default,
 In-Office alternative), and optional Mileage. Mileage must request a decimal numeric keyboard,
 accept only digits and one decimal point under the approved bounds, reject malformed/negative
 values, and persist/export canonical locale-independent decimal text. Migrated Unspecified/blank
@@ -99,7 +104,7 @@ exact combined interval total rounded up to a multiple of 15. It must update aft
 interval changes without a stored counter. Rollover/midnight copies Employee ID/name snapshot,
 Work Type, and Mileage from the source daily task.
 
-Complete schema-3 values across CSV, one-off XLSX, and Google Sheets through the existing single
+Complete the exact 14-column schema-3 values across CSV, one-off XLSX, and Google Sheets through the existing single
 canonical builder. Do not add destination-specific selection/formatting. Prove owned schema-2
 Google tabs upgrade safely and repeated export stays duplicate-free. Keep Start/Stop backend
 precision and the Stop-before-export rule.
@@ -109,15 +114,18 @@ including the owner examples for Billing Minutes. Run relevant offline and conne
 report behavior/results/files and a commit message, then stop.
 ```
 
-## Milestone 23 — About and simplified interval times
+## Milestone 23 — About, simplified intervals, and text-entry capitalization
 
 ```text
 Begin Milestone 23. Read AGENTS.md and current UI/version specifications. Add the final Settings
 About content with only the Gradle-derived text "WorqOrder v0.2.0 - stable". Do not add a GitHub,
 repository, browser, or release link.
 
-Change routine task interval Start/Stop presentation to task-zone HH:mm everywhere visible and
-keep the same HH:mm export values. Preserve full UTC instants, milliseconds, stored ZoneId,
+Remove the routine interval Duration field; label interval values Start Time/Stop Time and present
+them in task-zone 12-hour hh:mm a. Keep Task Total above the interval list and place Billing
+Minutes directly below it. Make all text boxes request sentence capitalization from the Android
+keyboard without rewriting saved user text. Keep the same 24-hour HH:mm export values. Preserve
+full UTC instants, milliseconds, stored ZoneId,
 duration math, interval editor precision, and explicit DST-overlap occurrence information. This is
 presentation/export formatting only; do not truncate stored data.
 

@@ -634,9 +634,12 @@ are recorded in the Milestone 20 completion report.
 
 ### Milestone 21 — Consultant management and selection
 
-Implement the Settings Consultant section using Employee persistence, with
-add/rename/archive/restore, active selection, historical
-snapshot semantics, task-creation empty state, and persistence/UI tests.
+Status: implemented. Settings now provides the Consultant-labeled A-Z selector and
+add/rename/archive/restore directory directly below Client Management. Typed DataStore persists one
+validated active selection; stale or archived selections are cleared. Create Task provides the
+blocking Settings route when no selection is valid, and Room rechecks active references while
+capturing the assignment-time Consultant snapshot. Repository, coordinator, ViewModel, Compose,
+DataStore, and Room tests cover the behavior. Complete metadata controls remain Milestone 22.
 
 ### Milestone 22 — Task metadata, Billing Minutes, and export integration
 

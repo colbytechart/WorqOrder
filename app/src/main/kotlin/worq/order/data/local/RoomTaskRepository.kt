@@ -87,10 +87,14 @@ class RoomTaskRepository(
     override suspend fun createDailyTask(newTask: NewDailyTask): CreateDailyTaskResult {
         require(newTask.clientId.isNotBlank()) { "clientId must not be blank" }
         val entity = newTask.toEntity()
-        return if (taskDao.insertDailyTaskIfClientActive(entity)) {
-            CreateDailyTaskResult.Created(entity.toModel())
-        } else {
-            CreateDailyTaskResult.ClientUnavailable
+        val result = taskDao.insertDailyTaskIfReferencesActive(entity)
+        return when (result.status) {
+            TaskCreationWriteStatus.CREATED ->
+                CreateDailyTaskResult.Created(requireNotNull(result.task).toModel())
+            TaskCreationWriteStatus.CLIENT_UNAVAILABLE ->
+                CreateDailyTaskResult.ClientUnavailable
+            TaskCreationWriteStatus.EMPLOYEE_UNAVAILABLE ->
+                CreateDailyTaskResult.EmployeeUnavailable
         }
     }
 

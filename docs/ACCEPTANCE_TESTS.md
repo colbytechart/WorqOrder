@@ -735,6 +735,14 @@ creation requires an active selected Consultant. Rename/archive never changes ea
 consultant snapshots or exports; explicit task edit may correct the assignment. Rollover copies the
 source snapshot. Migrated unassigned tasks remain legible/editable.
 
+The persisted selection recovers only when its Employee row still exists and is active. Archiving
+the selected Consultant clears future selection while leaving every daily-task Employee ID/name
+snapshot unchanged. Add offers restore for a canonical archived match; rename/restore conflicts do
+not partially mutate either row. Create Task displays an actionable Consultant Settings route and
+keeps Create disabled while no valid selection exists. At save time Room rechecks both the active
+Client and active Employee and captures the Employee's current name in the same transaction that
+inserts the daily task.
+
 ### V2-TASK-01 Work Type, Mileage, and Billing Minutes
 
 New tasks default to On-Site and can choose In-Office. Mileage opens a decimal numeric keyboard,

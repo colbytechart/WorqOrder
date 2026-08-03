@@ -30,6 +30,7 @@ import worq.order.ui.settings.ApplicationSettingsViewModel
 import worq.order.ui.settings.SettingsViewModel
 import worq.order.ui.clients.ClientManagementScreen
 import worq.order.ui.clients.ClientManagementViewModel
+import worq.order.ui.employees.ConsultantSettingsViewModel
 import worq.order.ui.main.MainEffect
 import worq.order.ui.main.MainScreen
 import worq.order.ui.main.MainViewModel
@@ -192,6 +193,10 @@ fun WorqOrderApp() {
                 remember(application, workDate) {
                     CreateTaskViewModel.Factory(
                         clientRepository = application.container.clientRepository,
+                        employeeRepository = application.container.employeeRepository,
+                        settingsRepository = application.container.settingsRepository,
+                        consultantSelectionCoordinator =
+                            application.container.consultantSelectionCoordinator,
                         taskMutationCoordinator =
                             application.container.taskMutationCoordinator,
                         workDate = workDate,
@@ -201,8 +206,10 @@ fun WorqOrderApp() {
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             LaunchedEffect(viewModel, navController) {
                 viewModel.effects.collect { effect ->
-                    if (effect == CreateTaskEffect.NavigateBack) {
-                        navController.popBackStack()
+                    when (effect) {
+                        CreateTaskEffect.NavigateBack -> navController.popBackStack()
+                        CreateTaskEffect.NavigateToSettings ->
+                            navController.navigate(AppRoutes.SETTINGS)
                     }
                 }
             }
@@ -321,6 +328,18 @@ private fun SettingsDestination(
         }
     val viewModel: SettingsViewModel = viewModel(factory = factory)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val consultantFactory =
+        remember(application) {
+            ConsultantSettingsViewModel.Factory(
+                employeeRepository = application.container.employeeRepository,
+                settingsRepository = application.container.settingsRepository,
+                selectionCoordinator =
+                    application.container.consultantSelectionCoordinator,
+            )
+        }
+    val consultantViewModel: ConsultantSettingsViewModel =
+        viewModel(factory = consultantFactory)
+    val consultantUiState by consultantViewModel.uiState.collectAsStateWithLifecycle()
     val googleConnectionCoordinator =
         remember(application, activity) {
             application.container.createGoogleConnectionCoordinator(activity)
@@ -362,6 +381,8 @@ private fun SettingsDestination(
         onOpenClientManagement = {
             navController.navigate(AppRoutes.CLIENT_MANAGEMENT)
         },
+        consultantUiState = consultantUiState,
+        onConsultantEvent = consultantViewModel::onEvent,
         showGoogleSetupRequired = showGoogleSetupRequired,
     )
 }

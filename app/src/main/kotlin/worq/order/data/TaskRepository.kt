@@ -30,6 +30,8 @@ sealed interface CreateDailyTaskResult {
     ) : CreateDailyTaskResult
 
     data object ClientUnavailable : CreateDailyTaskResult
+
+    data object EmployeeUnavailable : CreateDailyTaskResult
 }
 
 sealed interface UpdateTaskMetadataResult {

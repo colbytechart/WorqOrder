@@ -752,6 +752,13 @@ Archiving the currently selected directory employee clears the future-task selec
 change existing tasks. The user must select/restore an active employee before creating another
 task.
 
+Milestone 21 implements this with a Consultant-labeled Settings section directly below Client
+Management, an A-Z active selector, active/archived management, and a coordinator spanning the
+Room directory and typed DataStore preference. The task-creation transaction rechecks the selected
+Employee is active and reads its current Room name into `employee_name_snapshot`; stale selection
+cannot create a newly assigned task. Complete Consultant correction, Work Type, and Mileage task
+controls remain Milestone 22.
+
 ### D-069 — Work metadata, derived billing, and canonical schema 3
 
 New tasks default Work Type to `On-Site`; `In-Office` is the alternative. Migrated tasks use

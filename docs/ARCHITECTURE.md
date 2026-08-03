@@ -446,6 +446,13 @@ No item in this section describes released `0.1.0` behavior until its owning v0.
   **Consultant** management. `DailyTask` stores both the
   optional employee relationship and assignment-time name snapshot. Directory changes never
   cascade text changes into historical tasks.
+- Milestone 21 adds `ConsultantSelectionCoordinator` between the Consultant Settings ViewModel,
+  `EmployeeRepository`, and typed `SettingsRepository`. It validates persisted selections against
+  active Room rows, clears stale/archived selections, and clears the current selection after a
+  selected Consultant is archived. Create Task observes this coordinated state, blocks with a
+  Settings route when none is valid, and supplies the selected Employee ID to the Room transaction.
+  The transaction rechecks the Employee is active and captures its current name into the daily-task
+  snapshot, preventing a stale UI selection or concurrent archive from creating a bad assignment.
 - Add a bounded `ClientCsvImportParser` and `ClientImportCoordinator`. Android document access is
   isolated behind a read-only input adapter; parsing is pure, and one repository transaction
   appends/restores normalized names without replacing existing clients. Final active observation

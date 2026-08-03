@@ -54,6 +54,9 @@ import worq.order.R
 import worq.order.data.ExportDestination
 import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
+import worq.order.ui.employees.ConsultantSettingsEvent
+import worq.order.ui.employees.ConsultantSettingsSection
+import worq.order.ui.employees.ConsultantSettingsUiState
 import worq.order.ui.theme.WorqOrderDimens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,6 +66,8 @@ fun SettingsScreen(
     onEvent: (SettingsEvent) -> Unit,
     onNavigateBack: () -> Unit,
     onOpenClientManagement: () -> Unit,
+    consultantUiState: ConsultantSettingsUiState = ConsultantSettingsUiState(),
+    onConsultantEvent: (ConsultantSettingsEvent) -> Unit = {},
     showGoogleSetupRequired: Boolean = false,
 ) {
     val listState = rememberLazyListState()
@@ -84,7 +89,7 @@ fun SettingsScreen(
                 ExportDestination.GOOGLE_SHEETS &&
             (showGoogleSetupRequired || googleScrollRequestId > 0)
         ) {
-            val googleSectionIndex = if (uiState.message == null) 4 else 5
+            val googleSectionIndex = if (uiState.message == null) 5 else 6
             listState.animateScrollToItem(googleSectionIndex)
             googleScrollRequestId = 0
         }
@@ -200,6 +205,12 @@ fun SettingsScreen(
                             contentDescription = null,
                         )
                     },
+                )
+            }
+            item {
+                ConsultantSettingsSection(
+                    uiState = consultantUiState,
+                    onEvent = onConsultantEvent,
                 )
             }
             uiState.message?.let { message ->

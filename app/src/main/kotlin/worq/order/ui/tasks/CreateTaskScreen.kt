@@ -93,6 +93,33 @@ fun CreateTaskScreen(
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
+                text = stringResource(R.string.consultant),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            when {
+                uiState.isLoadingConsultant -> CircularProgressIndicator()
+                uiState.selectedConsultantName != null ->
+                    Text(
+                        stringResource(
+                            R.string.selected_consultant,
+                            uiState.selectedConsultantName,
+                        ),
+                    )
+                else -> {
+                    Text(
+                        text = stringResource(R.string.task_consultant_required),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    OutlinedButton(
+                        onClick = { onEvent(CreateTaskEvent.OpenConsultantSettings) },
+                        enabled = !uiState.isSavingTask,
+                    ) {
+                        Text(stringResource(R.string.open_consultant_settings))
+                    }
+                }
+            }
+            Text(
                 text = stringResource(R.string.task_client),
                 style = MaterialTheme.typography.titleMedium,
             )
@@ -226,8 +253,11 @@ fun CreateTaskScreen(
                     enabled =
                         !uiState.isSavingTask &&
                             !uiState.isLoadingClients &&
+                            !uiState.isLoadingConsultant &&
                             !uiState.hasClientLoadError &&
-                            uiState.activeClients.isNotEmpty(),
+                            !uiState.hasConsultantLoadError &&
+                            uiState.activeClients.isNotEmpty() &&
+                            uiState.selectedConsultantId != null,
                     modifier =
                         Modifier
                             .weight(1f)
@@ -284,4 +314,6 @@ private fun CreateTaskMessage.stringResource(): Int =
         CreateTaskMessage.RESTORE_NAME_CONFLICT -> R.string.restore_client_conflict
         CreateTaskMessage.CLIENT_REQUIRED -> R.string.task_client_required
         CreateTaskMessage.CLIENT_ARCHIVED -> R.string.task_client_archived_during_edit
+        CreateTaskMessage.CONSULTANT_REQUIRED -> R.string.task_consultant_required
+        CreateTaskMessage.CONSULTANT_ARCHIVED -> R.string.consultant_archived_during_selection
     }

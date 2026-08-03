@@ -80,6 +80,9 @@ class CreateTaskScreenTest {
                     isLoadingClients = false,
                     activeClients = listOf(ClientItemUi("client", "Client")),
                     selectedClientId = "client",
+                    isLoadingConsultant = false,
+                    selectedConsultantId = "employee",
+                    selectedConsultantName = "Alex Rivera",
                 ),
             onEvent = events::add,
         )
@@ -101,6 +104,29 @@ class CreateTaskScreenTest {
             ),
         )
         assertTrue(events.contains(CreateTaskEvent.CreateTask))
+    }
+
+    @Test
+    fun missingConsultantExplainsRequirementAndRoutesToSettings() {
+        val events = mutableListOf<CreateTaskEvent>()
+        setContent(
+            state =
+                CreateTaskUiState(
+                    isLoadingClients = false,
+                    activeClients = listOf(ClientItemUi("client", "Client")),
+                    selectedClientId = "client",
+                    isLoadingConsultant = false,
+                ),
+            onEvent = events::add,
+        )
+
+        composeRule
+            .onNodeWithText("Select an active Consultant in Settings before creating a task.")
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Open Consultant Settings").performClick()
+        composeRule.onNodeWithText("Create").assertIsNotEnabled()
+
+        assertEquals(CreateTaskEvent.OpenConsultantSettings, events.last())
     }
 
     private fun setContent(

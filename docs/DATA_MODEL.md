@@ -316,8 +316,11 @@ Approved examples: `12:32` total yields `15`; `13:11 + 3:03:45 + 1:16:00` totals
 | `automatic_google_pending_reason` | nullable typed non-sensitive state |
 
 Unknown/corrupt values fall back safely. DataStore remains non-authoritative for task/timer data.
-Archiving the selected employee clears `selected_employee_id` atomically from the application's
-perspective; it never rewrites existing daily tasks.
+Archiving the selected employee clears `selected_employee_id` before the coordinated operation is
+reported complete from the application's perspective. Room and DataStore cannot share one physical
+transaction, so UI state also treats a missing/archived selected ID as unselected and startup/
+observation reconciliation removes any stale preference. None of these operations rewrites an
+existing daily task.
 The automatic-export target must survive process death/reboot and is cleared only after confirmed
 success, explicit cancellation by the user, or a documented superseding schedule decision.
 

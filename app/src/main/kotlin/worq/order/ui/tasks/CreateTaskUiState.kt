@@ -12,6 +12,8 @@ enum class CreateTaskMessage {
     RESTORE_NAME_CONFLICT,
     CLIENT_REQUIRED,
     CLIENT_ARCHIVED,
+    CONSULTANT_REQUIRED,
+    CONSULTANT_ARCHIVED,
 }
 
 data class CreateTaskUiState(
@@ -20,6 +22,10 @@ data class CreateTaskUiState(
     val hasClientLoadError: Boolean = false,
     val activeClients: List<ClientItemUi> = emptyList(),
     val selectedClientId: String? = null,
+    val isLoadingConsultant: Boolean = true,
+    val hasConsultantLoadError: Boolean = false,
+    val selectedConsultantId: String? = null,
+    val selectedConsultantName: String? = null,
     val description: String = "",
     val hardwareSoftwarePurchases: String = "",
     val metadataErrors: Set<TaskMetadataValidationError> = emptySet(),
@@ -64,6 +70,8 @@ sealed interface CreateTaskEvent {
 
     data object OpenAddClient : CreateTaskEvent
 
+    data object OpenConsultantSettings : CreateTaskEvent
+
     data class EditNewClientName(
         val name: String,
     ) : CreateTaskEvent
@@ -81,4 +89,6 @@ sealed interface CreateTaskEvent {
 
 sealed interface CreateTaskEffect {
     data object NavigateBack : CreateTaskEffect
+
+    data object NavigateToSettings : CreateTaskEffect
 }

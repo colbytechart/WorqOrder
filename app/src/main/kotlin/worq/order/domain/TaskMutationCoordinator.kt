@@ -27,6 +27,8 @@ sealed interface CreateTaskOperationResult {
     ) : CreateTaskOperationResult
 
     data object ClientUnavailable : CreateTaskOperationResult
+
+    data object ConsultantUnavailable : CreateTaskOperationResult
 }
 
 sealed interface UpdateTaskOperationResult {
@@ -86,6 +88,7 @@ class TaskMutationCoordinator(
         description: String,
         hardwareSoftwarePurchases: String,
         workDate: LocalDate,
+        employeeId: String? = null,
     ): CreateTaskOperationResult {
         zoneIdProvider.awaitZoneId()
         val metadata =
@@ -109,6 +112,7 @@ class TaskMutationCoordinator(
                             description = metadata.description,
                             hardwareSoftwarePurchases =
                                 metadata.hardwareSoftwarePurchases,
+                            employeeId = employeeId,
                             workDate = workDate,
                             zoneId = zoneIdProvider.zoneId(),
                         ),
@@ -117,6 +121,8 @@ class TaskMutationCoordinator(
                 is CreateDailyTaskResult.Created -> result.task
                 CreateDailyTaskResult.ClientUnavailable ->
                     return CreateTaskOperationResult.ClientUnavailable
+                CreateDailyTaskResult.EmployeeUnavailable ->
+                    return CreateTaskOperationResult.ConsultantUnavailable
             }
         val selected =
             if (created.workDate == currentDateProvider.today()) {

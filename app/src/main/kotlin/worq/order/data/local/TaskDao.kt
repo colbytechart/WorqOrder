@@ -130,6 +130,16 @@ abstract class TaskDao {
 
     @Query(
         """
+        SELECT name
+        FROM employees
+        WHERE id = :employeeId AND is_active = 1
+        LIMIT 1
+        """,
+    )
+    protected abstract suspend fun readActiveEmployeeName(employeeId: String): String?
+
+    @Query(
+        """
         SELECT COUNT(*)
         FROM active_timer
         WHERE task_id = :taskId
@@ -138,12 +148,30 @@ abstract class TaskDao {
     protected abstract suspend fun countActiveTimerForTask(taskId: String): Int
 
     @Transaction
-    open suspend fun insertDailyTaskIfClientActive(task: DailyTaskEntity): Boolean {
+    open suspend fun insertDailyTaskIfReferencesActive(
+        task: DailyTaskEntity,
+    ): TaskCreationEntityResult {
         if (readClientActive(task.clientId) != true) {
-            return false
+            return TaskCreationEntityResult(TaskCreationWriteStatus.CLIENT_UNAVAILABLE)
         }
-        insertDailyTask(task)
-        return true
+        val employeeName =
+            task.employeeId?.let { employeeId ->
+                readActiveEmployeeName(employeeId)
+                    ?: return TaskCreationEntityResult(
+                        TaskCreationWriteStatus.EMPLOYEE_UNAVAILABLE,
+                    )
+            }
+        val assignedTask =
+            if (employeeName == null) {
+                task
+            } else {
+                task.copy(employeeNameSnapshot = employeeName)
+            }
+        insertDailyTask(assignedTask)
+        return TaskCreationEntityResult(
+            status = TaskCreationWriteStatus.CREATED,
+            task = assignedTask,
+        )
     }
 
     @Transaction

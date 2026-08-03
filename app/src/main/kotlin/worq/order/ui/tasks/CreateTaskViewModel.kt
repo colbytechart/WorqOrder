@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
@@ -19,9 +20,12 @@ import worq.order.data.ClientMutationResult
 import worq.order.data.ClientNameValidationResult
 import worq.order.data.ClientNameNormalizer
 import worq.order.data.ClientRepository
+import worq.order.data.EmployeeRepository
+import worq.order.data.SettingsRepository
 import worq.order.data.TaskMetadataValidationResult
 import worq.order.data.TaskMetadataValidator
 import worq.order.domain.CreateTaskOperationResult
+import worq.order.domain.ConsultantSelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.model.Client
 import worq.order.ui.clients.ArchivedClientRestoreOffer
@@ -33,6 +37,9 @@ import worq.order.ui.clients.toFieldError
 
 class CreateTaskViewModel(
     private val clientRepository: ClientRepository,
+    private val employeeRepository: EmployeeRepository,
+    private val settingsRepository: SettingsRepository,
+    private val consultantSelectionCoordinator: ConsultantSelectionCoordinator,
     private val taskMutationCoordinator: TaskMutationCoordinator,
     workDate: LocalDate,
 ) : ViewModel() {
@@ -41,10 +48,12 @@ class CreateTaskViewModel(
     private val mutableEffects = MutableSharedFlow<CreateTaskEffect>(extraBufferCapacity = 1)
     val effects = mutableEffects.asSharedFlow()
     private var clientObservationJob: Job? = null
+    private var consultantObservationJob: Job? = null
     private var createInFlight = false
 
     init {
         observeActiveClients()
+        observeSelectedConsultant()
     }
 
     fun onEvent(event: CreateTaskEvent) {
@@ -96,6 +105,8 @@ class CreateTaskViewModel(
                         message = null,
                     )
                 }
+            CreateTaskEvent.OpenConsultantSettings ->
+                mutableEffects.tryEmit(CreateTaskEffect.NavigateToSettings)
             is CreateTaskEvent.EditNewClientName ->
                 mutableUiState.update { state ->
                     state.copy(
@@ -161,6 +172,52 @@ class CreateTaskViewModel(
                         )
                     }
                 }.launchIn(viewModelScope)
+    }
+
+    private fun observeSelectedConsultant() {
+        consultantObservationJob?.cancel()
+        consultantObservationJob =
+            combine(
+                employeeRepository.observeActiveEmployees(),
+                settingsRepository.observeSettings(),
+            ) { employees, settings ->
+                employees to settings.selectedEmployeeId
+            }.onStart {
+                mutableUiState.update {
+                    it.copy(
+                        isLoadingConsultant = true,
+                        hasConsultantLoadError = false,
+                    )
+                }
+            }.onEach { (employees, selectedId) ->
+                val selected = employees.firstOrNull { it.id == selectedId }
+                mutableUiState.update { state ->
+                    state.copy(
+                        isLoadingConsultant = false,
+                        hasConsultantLoadError = false,
+                        selectedConsultantId = selected?.id,
+                        selectedConsultantName = selected?.name,
+                        message =
+                            if (selectedId != null && selected == null) {
+                                CreateTaskMessage.CONSULTANT_ARCHIVED
+                            } else {
+                                state.message
+                            },
+                    )
+                }
+                if (selectedId != null && selected == null) {
+                    viewModelScope.launch {
+                        runCatching { consultantSelectionCoordinator.reconcileSelection() }
+                    }
+                }
+            }.catch {
+                mutableUiState.update {
+                    it.copy(
+                        isLoadingConsultant = false,
+                        hasConsultantLoadError = true,
+                    )
+                }
+            }.launchIn(viewModelScope)
     }
 
     private fun selectClient(clientId: String) {
@@ -321,6 +378,7 @@ class CreateTaskViewModel(
             return
         }
         val clientId = state.selectedClientId
+        val consultantId = state.selectedConsultantId
         val validation =
             TaskMetadataValidator.validate(
                 description = state.description,
@@ -330,13 +388,15 @@ class CreateTaskViewModel(
             (validation as? TaskMetadataValidationResult.Invalid)
                 ?.errors
                 .orEmpty()
-        if (clientId == null || metadataErrors.isNotEmpty()) {
+        if (clientId == null || consultantId == null || metadataErrors.isNotEmpty()) {
             mutableUiState.update {
                 it.copy(
                     metadataErrors = metadataErrors,
                     message =
                         if (clientId == null) {
                             CreateTaskMessage.CLIENT_REQUIRED
+                        } else if (consultantId == null) {
+                            CreateTaskMessage.CONSULTANT_REQUIRED
                         } else {
                             null
                         },
@@ -360,6 +420,7 @@ class CreateTaskViewModel(
                         hardwareSoftwarePurchases =
                             state.hardwareSoftwarePurchases,
                         workDate = state.workDate,
+                        employeeId = consultantId,
                     )
                 }.getOrElse {
                     createInFlight = false
@@ -401,6 +462,18 @@ class CreateTaskViewModel(
                         )
                     }
                 }
+                CreateTaskOperationResult.ConsultantUnavailable -> {
+                    createInFlight = false
+                    runCatching { consultantSelectionCoordinator.reconcileSelection() }
+                    mutableUiState.update {
+                        it.copy(
+                            isSavingTask = false,
+                            selectedConsultantId = null,
+                            selectedConsultantName = null,
+                            message = CreateTaskMessage.CONSULTANT_ARCHIVED,
+                        )
+                    }
+                }
             }
         }
     }
@@ -419,6 +492,9 @@ class CreateTaskViewModel(
 
     class Factory(
         private val clientRepository: ClientRepository,
+        private val employeeRepository: EmployeeRepository,
+        private val settingsRepository: SettingsRepository,
+        private val consultantSelectionCoordinator: ConsultantSelectionCoordinator,
         private val taskMutationCoordinator: TaskMutationCoordinator,
         private val workDate: LocalDate,
     ) : ViewModelProvider.Factory {
@@ -427,6 +503,9 @@ class CreateTaskViewModel(
             require(modelClass.isAssignableFrom(CreateTaskViewModel::class.java))
             return CreateTaskViewModel(
                 clientRepository = clientRepository,
+                employeeRepository = employeeRepository,
+                settingsRepository = settingsRepository,
+                consultantSelectionCoordinator = consultantSelectionCoordinator,
                 taskMutationCoordinator = taskMutationCoordinator,
                 workDate = workDate,
             ) as T

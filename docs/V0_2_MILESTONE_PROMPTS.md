@@ -74,6 +74,10 @@ verification, report exact results/files/limits, suggest a commit message, and s
 
 ## Milestone 21 — Consultant management and selection
 
+Status: implemented. Consultant Settings, active selection persistence/recovery, archival clearing,
+transaction-time task snapshot capture, and the Create Task missing-selection route passed the
+Milestone 21 verification gates recorded in its completion report.
+
 ```text
 Begin Milestone 21. Read AGENTS.md, all consultant/employee-data/product decisions, and the existing app.
 Implement the user-facing Consultant Settings section directly below Client Management, backed by

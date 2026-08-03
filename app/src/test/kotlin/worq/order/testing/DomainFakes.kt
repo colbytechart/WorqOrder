@@ -4,6 +4,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.Locale
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -16,6 +17,10 @@ import worq.order.data.AutomaticGooglePendingReason
 import worq.order.data.CreateActiveIntervalResult
 import worq.order.data.CreateDailyTaskResult
 import worq.order.data.DeleteTaskResult
+import worq.order.data.EmployeeMutationResult
+import worq.order.data.EmployeeNameNormalizer
+import worq.order.data.EmployeeNameValidationResult
+import worq.order.data.EmployeeRepository
 import worq.order.data.ManualIntervalPersistenceResult
 import worq.order.data.NewDailyTask
 import worq.order.data.ExportDestination
@@ -37,6 +42,7 @@ import worq.order.model.ActiveTimer
 import worq.order.model.ActiveTimerSnapshot
 import worq.order.model.Client
 import worq.order.model.DailyTask
+import worq.order.model.Employee
 import worq.order.model.TaskListItem
 import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
@@ -194,6 +200,118 @@ class FakeSettingsRepository(
                 automaticGooglePendingReason = null,
             )
     }
+}
+
+class FakeEmployeeRepository(
+    initial: List<Employee> = emptyList(),
+) : EmployeeRepository {
+    private val state = MutableStateFlow(initial.associateBy(Employee::id))
+    private var nextId = initial.size
+
+    override fun observeActiveEmployees(): Flow<List<Employee>> =
+        state.map { employees -> employees.values.sortedDirectory().filter(Employee::isActive) }
+
+    override fun observeAllEmployees(): Flow<List<Employee>> =
+        state.map { employees -> employees.values.sortedDirectory() }
+
+    override suspend fun readEmployee(employeeId: String): Employee? = state.value[employeeId]
+
+    override suspend fun addEmployee(name: String): EmployeeMutationResult {
+        val normalized = normalized(name) ?: return invalid(name)
+        activeConflict(normalized.canonicalName)?.let {
+            return EmployeeMutationResult.DuplicateActiveName(it.id)
+        }
+        state.value.values.firstOrNull {
+            !it.isActive && it.canonicalName == normalized.canonicalName
+        }?.let { return EmployeeMutationResult.MatchingArchivedEmployee(it) }
+        val employee =
+            Employee(
+                id = "employee-${++nextId}",
+                name = normalized.displayName,
+                canonicalName = normalized.canonicalName,
+                isActive = true,
+                createdAt = Instant.EPOCH,
+                updatedAt = Instant.EPOCH,
+                archivedAt = null,
+            )
+        state.value = state.value + (employee.id to employee)
+        return EmployeeMutationResult.Success(employee)
+    }
+
+    override suspend fun renameEmployee(
+        employeeId: String,
+        name: String,
+    ): EmployeeMutationResult {
+        val current = state.value[employeeId] ?: return EmployeeMutationResult.NotFound
+        val normalized = normalized(name) ?: return invalid(name)
+        if (current.isActive) {
+            activeConflict(normalized.canonicalName, employeeId)?.let {
+                return EmployeeMutationResult.DuplicateActiveName(it.id)
+            }
+        }
+        val renamed =
+            current.copy(
+                name = normalized.displayName,
+                canonicalName = normalized.canonicalName,
+                updatedAt = current.updatedAt.plusMillis(1),
+            )
+        state.value = state.value + (employeeId to renamed)
+        return EmployeeMutationResult.Success(renamed)
+    }
+
+    override suspend fun archiveEmployee(employeeId: String): EmployeeMutationResult {
+        val current = state.value[employeeId] ?: return EmployeeMutationResult.NotFound
+        val archived =
+            current.copy(
+                isActive = false,
+                updatedAt = current.updatedAt.plusMillis(1),
+                archivedAt = current.updatedAt.plusMillis(1),
+            )
+        state.value = state.value + (employeeId to archived)
+        return EmployeeMutationResult.Success(archived)
+    }
+
+    override suspend fun restoreEmployee(employeeId: String): EmployeeMutationResult {
+        val current = state.value[employeeId] ?: return EmployeeMutationResult.NotFound
+        activeConflict(current.canonicalName, employeeId)?.let {
+            return EmployeeMutationResult.DuplicateActiveName(it.id)
+        }
+        val restored =
+            current.copy(
+                isActive = true,
+                updatedAt = current.updatedAt.plusMillis(1),
+                archivedAt = null,
+            )
+        state.value = state.value + (employeeId to restored)
+        return EmployeeMutationResult.Success(restored)
+    }
+
+    suspend fun add(employee: Employee) {
+        state.value = state.value + (employee.id to employee)
+    }
+
+    private fun normalized(name: String) =
+        (EmployeeNameNormalizer.validate(name) as? EmployeeNameValidationResult.Valid)?.name
+
+    private fun invalid(name: String): EmployeeMutationResult.InvalidName =
+        EmployeeMutationResult.InvalidName(
+            (EmployeeNameNormalizer.validate(name) as EmployeeNameValidationResult.Invalid).error,
+        )
+
+    private fun activeConflict(
+        canonicalName: String,
+        excludingId: String? = null,
+    ): Employee? =
+        state.value.values.firstOrNull {
+            it.isActive && it.canonicalName == canonicalName && it.id != excludingId
+        }
+
+    private fun Collection<Employee>.sortedDirectory(): List<Employee> =
+        sortedWith(
+            compareBy<Employee> { it.name.lowercase(Locale.ROOT) }
+                .thenBy { it.name }
+                .thenBy { it.id },
+        )
 }
 
 class FakeSelectedTaskRepository(

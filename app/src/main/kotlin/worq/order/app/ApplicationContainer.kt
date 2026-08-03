@@ -27,6 +27,7 @@ import worq.order.data.preferences.PreferencesSettingsRepository
 import worq.order.data.preferences.worqOrderPreferencesDataStore
 import worq.order.domain.ClientCsvImportCoordinator
 import worq.order.domain.ClientCsvParser
+import worq.order.domain.ConsultantSelectionCoordinator
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
@@ -71,6 +72,7 @@ interface ApplicationContainer {
     val currentDateProvider: CurrentDateProvider
     val liveTimerSession: LiveTimerSession
     val selectionCoordinator: SelectionCoordinator
+    val consultantSelectionCoordinator: ConsultantSelectionCoordinator
     val taskMutationCoordinator: TaskMutationCoordinator
     val timerCoordinator: TimerCoordinator
     val activeTimerNormalizer: ActiveTimerNormalizer
@@ -207,6 +209,13 @@ internal class DefaultApplicationContainer(
             activeTimerRepository = activeTimerRepository,
             currentDateProvider = currentDateProvider,
             zoneIdProvider = zoneIdProvider,
+        )
+    }
+
+    override val consultantSelectionCoordinator: ConsultantSelectionCoordinator by lazy {
+        ConsultantSelectionCoordinator(
+            employeeRepository = employeeRepository,
+            settingsRepository = settingsRepository,
         )
     }
 

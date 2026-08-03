@@ -55,7 +55,14 @@ class SettingsScreenTest {
                 .assertIsDisplayed()
                 .fetchSemanticsNode()
                 .boundsInRoot
-        assertTrue(clientBounds.top < appearanceBounds.top)
+        val consultantBounds =
+            composeRule
+                .onNodeWithText("Consultant")
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        assertTrue(clientBounds.top < consultantBounds.top)
+        assertTrue(consultantBounds.top < appearanceBounds.top)
         composeRule.onNodeWithText("Use system setting").assertIsSelected()
         composeRule.onNodeWithText("Light").assertIsEnabled()
         composeRule.onNodeWithText("Dark").assertIsEnabled()

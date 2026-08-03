@@ -626,6 +626,12 @@ Start date and End date export values.
 Implement the read-only CSV picker, bounded RFC-style parser, append/restore/skip transaction,
 A–Z result, error handling, UI, and tests. Import client names only; do not import tasks.
 
+Status: implemented. The exact bounds are 1 MiB, 10,000 records, 20,000 cells, and 1,024 UTF-16
+code units per raw cell; client validation remains 100 Unicode code points after whitespace
+normalization. Android `OpenDocument`, strict extension/MIME checks, silent cancellation, accessible
+progress/results, and the all-or-nothing Room transaction are included. Final verification results
+are recorded in the Milestone 20 completion report.
+
 ### Milestone 21 — Consultant management and selection
 
 Implement the Settings Consultant section using Employee persistence, with

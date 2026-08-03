@@ -190,6 +190,15 @@ only. Every nonblank cell is treated as a proposed client name. Import appends t
 and never overwrites it: active duplicates are skipped, archived canonical matches are restored,
 in-file duplicates collapse, and the resulting active list is A–Z. Invalid, malformed, corrupt,
 over-limit, or unreasonably large input fails atomically without a partial import or crash.
+The selected document must have a `.csv` filename and a recognized CSV MIME type. Import accepts
+strict UTF-8 (including an optional leading BOM), quoted commas and quotes, CR/LF record endings,
+Unicode, and quoted multiline cells. It is bounded to 1 MiB, 10,000 records, 20,000 cells, and
+1,024 UTF-16 code units in one raw cell; the existing normalized 100-code-point client-name limit
+still applies. Cancellation changes nothing and shows no failure. A completed import reports added,
+restored, and skipped counts.
+Import results appear directly below **Import From CSV** and before **Active Clients**. Showing or
+dismissing an import error returns the Client Management list to the top so the actionable message
+cannot remain hidden above a long active or archived list.
 
 ### Consultants
 

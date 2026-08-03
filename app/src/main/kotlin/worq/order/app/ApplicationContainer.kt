@@ -6,22 +6,27 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import worq.order.data.ActiveTimerRepository
+import worq.order.data.ClientImportRepository
 import worq.order.data.ClientRepository
-import worq.order.data.GoogleConnectionRepository
 import worq.order.data.EmployeeRepository
+import worq.order.data.GoogleConnectionRepository
 import worq.order.data.SelectedTaskRepository
 import worq.order.data.SettingsRepository
 import worq.order.data.TaskRepository
 import worq.order.data.UuidEntityIdGenerator
+import worq.order.data.document.AndroidClientCsvDocumentSource
 import worq.order.data.local.RoomActiveTimerRepository
+import worq.order.data.local.RoomClientImportRepository
 import worq.order.data.local.RoomClientRepository
 import worq.order.data.local.RoomEmployeeRepository
 import worq.order.data.local.RoomTaskRepository
 import worq.order.data.local.WorqOrderDatabase
+import worq.order.data.preferences.PreferencesGoogleConnectionRepository
 import worq.order.data.preferences.PreferencesSelectedTaskRepository
 import worq.order.data.preferences.PreferencesSettingsRepository
-import worq.order.data.preferences.PreferencesGoogleConnectionRepository
 import worq.order.data.preferences.worqOrderPreferencesDataStore
+import worq.order.domain.ClientCsvImportCoordinator
+import worq.order.domain.ClientCsvParser
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
@@ -54,6 +59,7 @@ import worq.order.timer.UtcClock
  */
 interface ApplicationContainer {
     val clientRepository: ClientRepository
+    val clientCsvImportCoordinator: ClientCsvImportCoordinator
     val employeeRepository: EmployeeRepository
     val taskRepository: TaskRepository
     val activeTimerRepository: ActiveTimerRepository
@@ -100,6 +106,22 @@ internal class DefaultApplicationContainer(
             clientDao = database.clientDao(),
             idGenerator = UuidEntityIdGenerator,
             clock = SystemUtcClock,
+        )
+    }
+
+    private val clientImportRepository: ClientImportRepository by lazy {
+        RoomClientImportRepository(
+            clientDao = database.clientDao(),
+            idGenerator = UuidEntityIdGenerator,
+            clock = SystemUtcClock,
+        )
+    }
+
+    override val clientCsvImportCoordinator: ClientCsvImportCoordinator by lazy {
+        ClientCsvImportCoordinator(
+            documentSource = AndroidClientCsvDocumentSource(applicationContext.contentResolver),
+            parser = ClientCsvParser(),
+            repository = clientImportRepository,
         )
     }
 

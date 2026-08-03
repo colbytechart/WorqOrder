@@ -21,6 +21,7 @@ import androidx.navigation.navArgument
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
 import worq.order.data.ThemeMode
+import worq.order.data.ClientCsvFilePolicy
 import worq.order.export.google.GoogleConnectionFailure
 import worq.order.export.google.GoogleConnectionOperationResult
 import worq.order.export.google.GoogleSheetsExportFailure
@@ -267,14 +268,30 @@ fun WorqOrderApp() {
                 remember(application) {
                     ClientManagementViewModel.Factory(
                         clientRepository = application.container.clientRepository,
+                        clientCsvImportCoordinator =
+                            application.container.clientCsvImportCoordinator,
                     )
                 }
             val viewModel: ClientManagementViewModel = viewModel(factory = factory)
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            val clientCsvLauncher =
+                rememberLauncherForActivityResult(
+                    ActivityResultContracts.OpenDocument(),
+                ) { documentUri ->
+                    viewModel.onEvent(
+                        worq.order.ui.clients.ClientManagementEvent
+                            .ImportCsvDocumentSelected(documentUri?.toString()),
+                    )
+                }
             ClientManagementScreen(
                 uiState = uiState,
                 onEvent = viewModel::onEvent,
                 onNavigateBack = navController::popBackStack,
+                onImportCsv = {
+                    clientCsvLauncher.launch(
+                        ClientCsvFilePolicy.acceptedMimeTypes.toTypedArray(),
+                    )
+                },
             )
         }
     }

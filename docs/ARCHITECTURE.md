@@ -82,6 +82,18 @@ model                   UI/domain models that are not persistence entities
 util                    narrow formatting/parsing helpers
 ```
 
+### Client CSV import boundary (`0.2.0` Milestone 20)
+
+Client Management launches Android `OpenDocument` with only the approved CSV MIME types. The
+Android document source verifies both the provider-reported display-name extension and MIME type,
+then performs a bounded one-shot read on `Dispatchers.IO`; it neither copies nor retains the file
+and does not persist URI access. `ClientCsvParser` strictly decodes UTF-8 and creates positioned
+cells while enforcing the documented byte/record/cell limits. `ClientCsvImportCoordinator` reuses
+`ClientNameNormalizer`, ignores blank cells, rejects the entire plan on any invalid name, and
+collapses canonical duplicates before persistence. `RoomClientImportRepository` delegates once to
+the `ClientDao` transaction, which skips active matches, restores archived matches, and inserts new
+rows atomically. Existing task and interval repositories are not part of this path.
+
 Do not add one “use case” class per repository getter. Add named domain services where multiple entities, clocks, transactions, or invariants are involved.
 
 ## 4. Application container

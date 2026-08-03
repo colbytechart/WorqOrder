@@ -1,5 +1,13 @@
 # Known Limitations
 
+## Client CSV import limits
+
+Client import is deliberately bounded to a 1 MiB UTF-8 CSV document, 10,000 records, 20,000 cells,
+and 1,024 UTF-16 code units per raw cell. A proposed client name must also fit the normal
+100-Unicode-code-point limit after whitespace normalization. Providers must report an approved CSV
+MIME type and a `.csv` display name. Files outside these safety limits are rejected atomically;
+they are not partially imported.
+
 ## Timer and lifecycle
 
 - WorqOrder does not execute a stopwatch loop while backgrounded, screen-off, process-killed, or

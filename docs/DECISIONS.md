@@ -727,6 +727,14 @@ valid names append. Commit the complete planned import atomically and keep the f
 sorted A–Z. Unsupported MIME/extension, malformed quoting/encoding, invalid cells, excessive size,
 or I/O failure produces no partial mutations and an actionable non-crashing result.
 
+Milestone 20 implements this with Android `OpenDocument`, no persisted URI grant, and a strict
+`.csv` filename plus CSV MIME allowlist (`text/csv`, `text/comma-separated-values`,
+`application/csv`, or `application/vnd.ms-excel`). Input is strict UTF-8, with a leading UTF-8 BOM
+accepted. Bounds are 1 MiB per document, 10,000 records, 20,000 cells, and 1,024 UTF-16 code units
+per raw cell; normalized names remain limited to 100 Unicode code points. Parsing and all
+validation finish before the single Room transaction begins. File-picker cancellation is silent,
+and a completed attempt reports added/restored/skipped counts.
+
 ### D-068 — Consultants use internal Employee identity plus task snapshots
 
 Add a user-facing **Consultant** directory directly below Client Management. Its internal Room

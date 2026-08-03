@@ -50,6 +50,9 @@ stop.
 
 ## Milestone 20 — Client CSV import
 
+Status: implemented. Client-name-only CSV import uses bounded strict UTF-8 parsing and one atomic
+append/restore/skip Room transaction; exact verification is recorded in the completion report.
+
 ```text
 Begin Milestone 20. Read AGENTS.md, the v0.2 specifications, and current Milestone-19 code first.
 Implement client-name-only Import From CSV in Client Management. Use Android's read-document file

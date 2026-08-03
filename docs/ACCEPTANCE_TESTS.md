@@ -718,6 +718,15 @@ duplicates collapsed, and new names appended. Existing clients are never overwri
 the final active list is A–Z. Unsupported, malformed, corrupt, over-limit, I/O-failed, or excessive
 input causes no partial mutation or crash and reports an actionable error.
 
+Automated coverage must prove strict UTF-8/BOM handling; comma, doubled-quote, CR/LF, Unicode, and
+quoted-multiline handling; the 1 MiB/10,000-record/20,000-cell/1,024-UTF-16-unit limits; extension
+and MIME rejection; blank-cell omission; normalization; active and in-file duplicate skipping;
+archived restoration; A–Z observation; accessible progress/result states; silent picker cancel;
+and rollback when a later database mutation fails after an earlier restoration.
+With a long client directory scrolled away from the actions, an import error returns the list to
+the top and displays the error between **Import From CSV** and **Active Clients**. Dismissing the
+error also leaves the list at the top with both import actions visible.
+
 ### V2-CONSULTANT-01 Directory and historical snapshots
 
 The user-facing Consultant directory (internally Employee persistence) supports

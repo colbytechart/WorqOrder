@@ -115,9 +115,9 @@ Before `0.2.0` release, the effective notice must add:
   employee ID/name snapshot;
 - per-task Work Type and Mileage; Billing Minutes is derived from existing intervals rather than
   stored independently;
-- read-only access to one user-selected CSV document when **Import From CSV** is invoked. The file
-  is parsed in process only to append/restore client names; it is not uploaded, retained, or used
-  to import tasks;
+- read-only access to one user-selected CSV document when **Import From CSV** is invoked. The
+  bounded file is parsed in process only to append/restore client names; it is not uploaded,
+  retained, or used to import tasks. WorqOrder does not persist the document permission;
 - Landscape Orientation and opt-in Automatic Daily Google Export preferences plus a non-sensitive
   captured/pending target date;
 - a 14-column external table: Start date, End date, Consultant, Client, Description, Expense, Work

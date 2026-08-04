@@ -643,9 +643,17 @@ DataStore, and Room tests cover the behavior. Complete metadata controls remain 
 
 ### Milestone 22 — Task metadata, Billing Minutes, and export integration
 
-Add Create/Edit Work Type and numeric-decimal Mileage controls, consultant assignment/correction,
-derived Billing Minutes presentation, rollover copying, and schema-3 CSV/XLSX/Google integration.
-Prove destination equivalence and Google schema-2-owned-tab upgrade.
+Status: implemented and verified. Offline debug/release compilation, JVM tests, lint, and Android
+test compilation pass. The owner-run connected suite passed all 93 tests with zero failures,
+errors, or skips.
+
+Create/Edit now integrates the required selected Consultant, active-Consultant correction,
+On-Site/In-Office controls, decimal-keyboard Mileage entry, canonical bounded validation, and one
+atomic stopped-task Room update. Task detail derives Billing Minutes directly from exact completed
+interval totals and refreshes from Room interval observation. Rollover/midnight copying remains
+covered for Consultant snapshot, Work Type, and Mileage. The shared schema-3 builder continues to
+feed CSV, one-off XLSX, and Google Sheets; exact value, destination-equivalence, duplicate-free
+re-export, and owned schema-2 upgrade tests remain active.
 
 ### Milestone 23 — About, simplified intervals, and text-entry capitalization
 

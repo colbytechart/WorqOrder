@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -94,6 +95,13 @@ class CreateTaskScreenTest {
             .onNodeWithTag(CreateTaskScreenTestTags.PURCHASES)
             .performTextInput("Laptop")
         composeRule
+            .onNodeWithText("In-Office")
+            .performScrollTo()
+            .performClick()
+        composeRule
+            .onNodeWithTag(CreateTaskScreenTestTags.MILEAGE)
+            .performTextInput("12.5")
+        composeRule
             .onNodeWithTag(CreateTaskScreenTestTags.CREATE)
             .performClick()
 
@@ -103,6 +111,8 @@ class CreateTaskScreenTest {
                 CreateTaskEvent.EditHardwareSoftwarePurchases("Laptop"),
             ),
         )
+        assertTrue(events.contains(CreateTaskEvent.SelectWorkType(worq.order.model.WorkType.IN_OFFICE)))
+        assertTrue(events.contains(CreateTaskEvent.EditMileage("12.5")))
         assertTrue(events.contains(CreateTaskEvent.CreateTask))
     }
 

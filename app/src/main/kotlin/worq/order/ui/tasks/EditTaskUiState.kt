@@ -7,6 +7,8 @@ import worq.order.data.TaskMetadataValidationError
 import worq.order.domain.ManualIntervalValidationError
 import worq.order.domain.OverlapOffsetChoice
 import worq.order.ui.clients.ClientItemUi
+import worq.order.model.WorkType
+import worq.order.ui.employees.ConsultantItemUi
 
 enum class IntervalEndpoint {
     START,
@@ -44,6 +46,7 @@ enum class EditTaskMessage {
     DATA_UNAVAILABLE,
     TASK_NOT_FOUND,
     CLIENT_UNAVAILABLE,
+    CONSULTANT_UNAVAILABLE,
     RUNNING_TASK,
     INTERVAL_NOT_FOUND,
     RUNNING_INTERVAL,
@@ -61,10 +64,17 @@ data class EditTaskUiState(
     val activeClients: List<ClientItemUi> = emptyList(),
     val selectedClientId: String? = null,
     val isClientMenuExpanded: Boolean = false,
+    val originalConsultantName: String = "",
+    val activeConsultants: List<ConsultantItemUi> = emptyList(),
+    val selectedConsultantId: String? = null,
+    val isConsultantMenuExpanded: Boolean = false,
     val description: String = "",
     val hardwareSoftwarePurchases: String = "",
+    val workType: WorkType = WorkType.UNSPECIFIED,
+    val mileage: String = "",
     val metadataErrors: Set<TaskMetadataValidationError> = emptySet(),
     val totalDuration: String = "00:00:00",
+    val billingMinutes: Long = 0,
     val intervals: List<IntervalItemUi> = emptyList(),
     val isRunning: Boolean = false,
     val isSavingMetadata: Boolean = false,
@@ -81,6 +91,13 @@ data class EditTaskUiState(
                 .firstOrNull { it.id == selectedClientId }
                 ?.name
                 ?: originalClientName.takeIf { it.isNotBlank() }
+
+    val selectedConsultantName: String?
+        get() =
+            activeConsultants
+                .firstOrNull { it.id == selectedConsultantId }
+                ?.name
+                ?: originalConsultantName.takeIf { it.isNotBlank() }
 }
 
 sealed interface EditTaskEvent {
@@ -94,11 +111,27 @@ sealed interface EditTaskEvent {
         val clientId: String,
     ) : EditTaskEvent
 
+    data object OpenConsultantMenu : EditTaskEvent
+
+    data object DismissConsultantMenu : EditTaskEvent
+
+    data class SelectConsultant(
+        val consultantId: String,
+    ) : EditTaskEvent
+
     data class EditDescription(
         val value: String,
     ) : EditTaskEvent
 
     data class EditHardwareSoftwarePurchases(
+        val value: String,
+    ) : EditTaskEvent
+
+    data class SelectWorkType(
+        val workType: WorkType,
+    ) : EditTaskEvent
+
+    data class EditMileage(
         val value: String,
     ) : EditTaskEvent
 

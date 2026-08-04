@@ -34,6 +34,7 @@ import worq.order.data.TaskMetadataValidationError
 import worq.order.data.AppSettings
 import worq.order.domain.ConsultantSelectionCoordinator
 import worq.order.model.Employee
+import worq.order.model.WorkType
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CreateTaskViewModelTest {
@@ -114,6 +115,8 @@ class CreateTaskViewModelTest {
             fixture.viewModel.onEvent(
                 CreateTaskEvent.EditHardwareSoftwarePurchases(" Laptop "),
             )
+            fixture.viewModel.onEvent(CreateTaskEvent.SelectWorkType(WorkType.IN_OFFICE))
+            fixture.viewModel.onEvent(CreateTaskEvent.EditMileage("012.500"))
             fixture.viewModel.onEvent(CreateTaskEvent.CreateTask)
             fixture.viewModel.onEvent(CreateTaskEvent.CreateTask)
             runCurrent()
@@ -126,6 +129,8 @@ class CreateTaskViewModelTest {
                 tasks.single().task.hardwareSoftwarePurchases,
             )
             assertEquals("employee-1", tasks.single().task.employeeId)
+            assertEquals(WorkType.IN_OFFICE, tasks.single().task.workType)
+            assertEquals("12.5", tasks.single().task.mileage)
             assertEquals(
                 tasks.single().task.id,
                 fixture.selection.readSelection()?.taskId,
@@ -161,6 +166,28 @@ class CreateTaskViewModelTest {
 
             assertTrue(fixture.tasks.observeTasksForDate(WORK_DATE).first().isEmpty())
             assertEquals(listOf(CreateTaskEffect.NavigateBack), effects)
+        }
+
+    @Test
+    fun malformedMileageBlocksCreationAndInvalidCharactersAreIgnored() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture =
+                taskFixture(
+                    FakeClientRepository(listOf(client("client-1", "Client"))),
+                )
+            fixture.viewModel.onEvent(CreateTaskEvent.SelectClient("client-1"))
+            fixture.viewModel.onEvent(CreateTaskEvent.EditDescription("Task"))
+            fixture.viewModel.onEvent(CreateTaskEvent.EditMileage("12a"))
+            assertEquals("", fixture.viewModel.uiState.value.mileage)
+
+            fixture.viewModel.onEvent(CreateTaskEvent.EditMileage("1.2345"))
+            fixture.viewModel.onEvent(CreateTaskEvent.CreateTask)
+
+            assertTrue(
+                TaskMetadataValidationError.MILEAGE_TOO_PRECISE in
+                    fixture.viewModel.uiState.value.metadataErrors,
+            )
+            assertTrue(fixture.tasks.observeTasksForDate(WORK_DATE).first().isEmpty())
         }
 
     @Test

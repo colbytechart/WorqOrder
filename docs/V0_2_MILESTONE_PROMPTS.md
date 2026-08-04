@@ -98,6 +98,9 @@ commit message, then stop.
 
 ## Milestone 22 — Task metadata, Billing Minutes, and export integration
 
+Status: implemented and verified. Offline compile/JVM/lint checks passed, and the owner's
+project-local emulator run passed all 93 connected tests with zero failures, errors, or skips.
+
 ```text
 Begin Milestone 22. Read AGENTS.md and all v0.2 task/export specifications. Complete Create/Edit
 Task integration for required selected Consultant, Work Type radio buttons (On-Site default,

@@ -5,6 +5,7 @@ import worq.order.data.TaskMetadataValidationError
 import worq.order.ui.clients.ArchivedClientRestoreOffer
 import worq.order.ui.clients.ClientEditorUiState
 import worq.order.ui.clients.ClientItemUi
+import worq.order.model.WorkType
 
 enum class CreateTaskMessage {
     DATA_UNAVAILABLE,
@@ -28,6 +29,8 @@ data class CreateTaskUiState(
     val selectedConsultantName: String? = null,
     val description: String = "",
     val hardwareSoftwarePurchases: String = "",
+    val workType: WorkType = WorkType.ON_SITE,
+    val mileage: String = "",
     val metadataErrors: Set<TaskMetadataValidationError> = emptySet(),
     val isSavingTask: Boolean = false,
     val hasUnsavedTaskChanges: Boolean = false,
@@ -57,6 +60,14 @@ sealed interface CreateTaskEvent {
     ) : CreateTaskEvent
 
     data class EditHardwareSoftwarePurchases(
+        val value: String,
+    ) : CreateTaskEvent
+
+    data class SelectWorkType(
+        val workType: WorkType,
+    ) : CreateTaskEvent
+
+    data class EditMileage(
         val value: String,
     ) : CreateTaskEvent
 

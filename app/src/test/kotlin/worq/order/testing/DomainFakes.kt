@@ -47,6 +47,7 @@ import worq.order.model.TaskListItem
 import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
+import worq.order.model.WorkType
 import worq.order.timer.EffectiveZoneIdProvider
 import worq.order.timer.MonotonicTimeSource
 import worq.order.timer.UtcClock
@@ -489,6 +490,9 @@ class FakeTaskRepository : TaskRepository {
         clientId: String,
         description: String,
         hardwareSoftwarePurchases: String,
+        employeeId: String?,
+        workType: WorkType,
+        mileage: String?,
     ): UpdateTaskMetadataResult =
         mutex.withLock {
             val current =
@@ -506,6 +510,15 @@ class FakeTaskRepository : TaskRepository {
                                 description = description,
                                 hardwareSoftwarePurchases =
                                     hardwareSoftwarePurchases,
+                                employeeId = employeeId ?: current.employeeId,
+                                employeeNameSnapshot =
+                                    if (employeeId == null || employeeId == current.employeeId) {
+                                        current.employeeNameSnapshot
+                                    } else {
+                                        employeeId.orEmpty()
+                                    },
+                                workType = workType,
+                                mileage = mileage,
                             )
                     )
             UpdateTaskMetadataResult.Updated(requireNotNull(taskState.value[taskId]))

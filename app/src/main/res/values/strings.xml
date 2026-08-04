@@ -95,6 +95,13 @@
     <string name="task_time_zone">Time zone: %1$s</string>
     <string name="task_description">Short description</string>
     <string name="hardware_software_purchases">Hardware / Software Purchases</string>
+    <string name="work_type">Work Type:</string>
+    <string name="work_type_on_site">On-Site</string>
+    <string name="work_type_in_office">In-Office</string>
+    <string name="mileage">Mileage</string>
+    <string name="mileage_malformed">Enter a non-negative number using at most one decimal point.</string>
+    <string name="mileage_too_large">Mileage can contain at most 9 digits before the decimal point.</string>
+    <string name="mileage_too_precise">Mileage can contain at most 3 digits after the decimal point.</string>
     <string name="field_required">Required</string>
     <string name="character_limit_error">Character limit: %1$d</string>
     <string name="character_count">%1$d / %2$d</string>
@@ -110,6 +117,8 @@
     <string name="delete_task_from_main_message">Delete “%1$s” and all time recorded for this date? The client and corresponding tasks on other dates remain.</string>
     <string name="delete">Delete</string>
     <string name="task_total_duration">Task Total: %1$s</string>
+    <string name="billing_minutes">Billing Minutes: %1$d</string>
+    <string name="task_consultant_unavailable">Select an active Consultant before saving this task.</string>
     <string name="intervals">Intervals</string>
     <string name="no_intervals">No recorded intervals.</string>
     <string name="add_interval">Add interval</string>
@@ -298,6 +307,7 @@
     <string name="task_consultant_required">Select an active Consultant in Settings before creating a task.</string>
     <string name="open_consultant_settings">Open Consultant Settings</string>
     <string name="selected_consultant">Consultant: %1$s</string>
+    <string name="change_consultant">Change Consultant</string>
 
     <string name="task_client">Client</string>
     <string name="choose_client">Choose a client</string>

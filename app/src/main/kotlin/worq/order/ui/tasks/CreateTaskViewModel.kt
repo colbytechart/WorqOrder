@@ -21,6 +21,7 @@ import worq.order.data.ClientNameValidationResult
 import worq.order.data.ClientNameNormalizer
 import worq.order.data.ClientRepository
 import worq.order.data.EmployeeRepository
+import worq.order.data.MileageNormalizer
 import worq.order.data.SettingsRepository
 import worq.order.data.TaskMetadataValidationResult
 import worq.order.data.TaskMetadataValidator
@@ -87,6 +88,26 @@ class CreateTaskViewModel(
                         hasUnsavedTaskChanges = true,
                         message = null,
                     )
+                }
+            is CreateTaskEvent.SelectWorkType ->
+                mutableUiState.update {
+                    it.copy(
+                        workType = event.workType,
+                        metadataErrors = emptySet(),
+                        hasUnsavedTaskChanges = true,
+                        message = null,
+                    )
+                }
+            is CreateTaskEvent.EditMileage ->
+                if (MileageNormalizer.acceptsInput(event.value)) {
+                    mutableUiState.update {
+                        it.copy(
+                            mileage = event.value,
+                            metadataErrors = emptySet(),
+                            hasUnsavedTaskChanges = true,
+                            message = null,
+                        )
+                    }
                 }
             CreateTaskEvent.CreateTask -> createTask()
             CreateTaskEvent.RequestClose -> requestClose()
@@ -383,6 +404,8 @@ class CreateTaskViewModel(
             TaskMetadataValidator.validate(
                 description = state.description,
                 hardwareSoftwarePurchases = state.hardwareSoftwarePurchases,
+                workType = state.workType,
+                mileage = state.mileage,
             )
         val metadataErrors =
             (validation as? TaskMetadataValidationResult.Invalid)
@@ -421,6 +444,8 @@ class CreateTaskViewModel(
                             state.hardwareSoftwarePurchases,
                         workDate = state.workDate,
                         employeeId = consultantId,
+                        workType = state.workType,
+                        mileage = state.mileage,
                     )
                 }.getOrElse {
                     createInFlight = false

@@ -220,6 +220,10 @@ abstract class TaskDao {
         SET client_id = :clientId,
             description = :description,
             hardware_software_purchases = :hardwareSoftwarePurchases,
+            employee_id = :employeeId,
+            employee_name_snapshot = :employeeNameSnapshot,
+            work_type = :workType,
+            mileage = :mileage,
             updated_at_epoch_ms = :updatedAtEpochMs
         WHERE id = :taskId
         """,
@@ -229,6 +233,10 @@ abstract class TaskDao {
         clientId: String,
         description: String,
         hardwareSoftwarePurchases: String,
+        employeeId: String?,
+        employeeNameSnapshot: String,
+        workType: String,
+        mileage: String?,
         updatedAtEpochMs: Long,
     ): Int
 
@@ -238,9 +246,13 @@ abstract class TaskDao {
         clientId: String,
         description: String,
         hardwareSoftwarePurchases: String,
+        employeeId: String?,
+        workType: String,
+        mileage: String?,
         updatedAtEpochMs: Long,
     ): TaskMetadataWriteEntityResult {
-        if (readTask(taskId) == null) {
+        val currentTask = readTask(taskId)
+        if (currentTask == null) {
             return TaskMetadataWriteEntityResult(TaskMetadataWriteStatus.TASK_NOT_FOUND)
         }
         if (countActiveTimerForTask(taskId) != 0) {
@@ -249,12 +261,29 @@ abstract class TaskDao {
         if (readClientActive(clientId) != true) {
             return TaskMetadataWriteEntityResult(TaskMetadataWriteStatus.CLIENT_UNAVAILABLE)
         }
+        val assignedEmployeeId: String?
+        val employeeName: String
+        if (employeeId == null) {
+            assignedEmployeeId = currentTask.employeeId
+            employeeName = currentTask.employeeNameSnapshot
+        } else {
+            assignedEmployeeId = employeeId
+            employeeName =
+                readActiveEmployeeName(employeeId)
+                    ?: return TaskMetadataWriteEntityResult(
+                        TaskMetadataWriteStatus.EMPLOYEE_UNAVAILABLE,
+                    )
+        }
         if (
             updateTaskMetadataInternal(
                 taskId = taskId,
                 clientId = clientId,
                 description = description,
                 hardwareSoftwarePurchases = hardwareSoftwarePurchases,
+                employeeId = assignedEmployeeId,
+                employeeNameSnapshot = employeeName,
+                workType = workType,
+                mileage = mileage,
                 updatedAtEpochMs = updatedAtEpochMs,
             ) != 1
         ) {

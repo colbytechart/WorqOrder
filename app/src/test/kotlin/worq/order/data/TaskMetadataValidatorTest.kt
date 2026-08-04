@@ -3,6 +3,7 @@ package worq.order.data
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import worq.order.model.WorkType
 
 class TaskMetadataValidatorTest {
     @Test
@@ -61,6 +62,32 @@ class TaskMetadataValidatorTest {
                 description = emoji.repeat(MAX_TASK_DESCRIPTION_CODE_POINTS),
                 hardwareSoftwarePurchases = emoji.repeat(MAX_TASK_PURCHASES_CODE_POINTS),
             ) is TaskMetadataValidationResult.Valid,
+        )
+    }
+
+    @Test
+    fun normalizesMileageAndRetainsWorkType() {
+        val valid =
+            TaskMetadataValidator.validate(
+                description = "Task",
+                hardwareSoftwarePurchases = "",
+                workType = WorkType.IN_OFFICE,
+                mileage = "0012.500",
+            ) as TaskMetadataValidationResult.Valid
+
+        assertEquals(WorkType.IN_OFFICE, valid.metadata.workType)
+        assertEquals("12.5", valid.metadata.mileage)
+
+        val invalid =
+            TaskMetadataValidator.validate(
+                description = "Task",
+                hardwareSoftwarePurchases = "",
+                workType = WorkType.ON_SITE,
+                mileage = "12.3456",
+            ) as TaskMetadataValidationResult.Invalid
+        assertEquals(
+            setOf(TaskMetadataValidationError.MILEAGE_TOO_PRECISE),
+            invalid.errors,
         )
     }
 }

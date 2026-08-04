@@ -457,8 +457,12 @@ No item in this section describes released `0.1.0` behavior until its owning v0.
   isolated behind a read-only input adapter; parsing is pure, and one repository transaction
   appends/restores normalized names without replacing existing clients. Final active observation
   remains A–Z.
-- Extend task metadata validation with Work Type and canonical decimal Mileage. Add
-  `BillingMinutesCalculator` as pure derived logic; do not persist or tick it.
+- Milestone 22 extends shared task metadata validation with Work Type and canonical decimal
+  Mileage. `TaskMutationCoordinator` passes the complete normalized edit into one Room repository
+  transaction, where both Client and Consultant are rechecked as active and the Consultant name
+  snapshot is captured before the stopped task is updated. Create Task requires the coordinated
+  active Consultant and defaults Work Type to On-Site. `BillingMinutes` remains pure derived logic;
+  Edit Task recalculates it from observed exact interval totals and never persists or ticks it.
 - `ExportRowBuilder` is the only schema-3 field-selection/formatting boundary. All destinations
   receive the same 14 strings and keep exact internal instants outside the projection.
 - Extend the typed settings model with `LandscapeOrientation.RIGHT_HANDED` and

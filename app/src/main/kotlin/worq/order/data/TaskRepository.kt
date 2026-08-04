@@ -43,6 +43,8 @@ sealed interface UpdateTaskMetadataResult {
 
     data object ClientUnavailable : UpdateTaskMetadataResult
 
+    data object EmployeeUnavailable : UpdateTaskMetadataResult
+
     data object RunningTask : UpdateTaskMetadataResult
 }
 
@@ -117,6 +119,9 @@ interface TaskRepository {
         clientId: String,
         description: String,
         hardwareSoftwarePurchases: String,
+        employeeId: String?,
+        workType: WorkType,
+        mileage: String?,
     ): UpdateTaskMetadataResult
 
     suspend fun deleteTask(taskId: String): DeleteTaskResult

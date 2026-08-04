@@ -10,8 +10,6 @@ import worq.order.data.CreateDailyTaskResult
 import worq.order.data.DeleteTaskResult
 import worq.order.data.EntityIdGenerator
 import worq.order.data.ManualIntervalPersistenceResult
-import worq.order.data.MileageNormalizer
-import worq.order.data.MileageValidationResult
 import worq.order.data.NewDailyTask
 import worq.order.data.NormalizedTaskMetadata
 import worq.order.data.TaskMetadataValidationResult
@@ -23,6 +21,7 @@ import worq.order.model.TaskListItem
 import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
+import worq.order.model.WorkType
 import worq.order.timer.UtcClock
 
 class RoomTaskRepository(
@@ -132,16 +131,28 @@ class RoomTaskRepository(
         clientId: String,
         description: String,
         hardwareSoftwarePurchases: String,
+        employeeId: String?,
+        workType: WorkType,
+        mileage: String?,
     ): UpdateTaskMetadataResult {
         require(taskId.isNotBlank()) { "taskId must not be blank" }
         require(clientId.isNotBlank()) { "clientId must not be blank" }
-        val metadata = normalizeMetadata(description, hardwareSoftwarePurchases)
+        val metadata =
+            normalizeMetadata(
+                description = description,
+                hardwareSoftwarePurchases = hardwareSoftwarePurchases,
+                workType = workType,
+                mileage = mileage,
+            )
         val result =
             taskDao.updateStoppedTaskMetadata(
                 taskId = taskId,
                 clientId = clientId,
                 description = metadata.description,
                 hardwareSoftwarePurchases = metadata.hardwareSoftwarePurchases,
+                employeeId = employeeId,
+                workType = metadata.workType.name,
+                mileage = metadata.mileage,
                 updatedAtEpochMs = clock.now().toEpochMilli(),
             )
         return when (result.status) {
@@ -151,6 +162,8 @@ class RoomTaskRepository(
                 UpdateTaskMetadataResult.TaskNotFound
             TaskMetadataWriteStatus.CLIENT_UNAVAILABLE ->
                 UpdateTaskMetadataResult.ClientUnavailable
+            TaskMetadataWriteStatus.EMPLOYEE_UNAVAILABLE ->
+                UpdateTaskMetadataResult.EmployeeUnavailable
             TaskMetadataWriteStatus.RUNNING_TASK ->
                 UpdateTaskMetadataResult.RunningTask
         }
@@ -233,7 +246,13 @@ class RoomTaskRepository(
         workIntervalDao.readCompletedDurationMs(taskId)
 
     private fun NewDailyTask.toEntity(): DailyTaskEntity {
-        val metadata = normalizeMetadata(description, hardwareSoftwarePurchases)
+        val metadata =
+            normalizeMetadata(
+                description = description,
+                hardwareSoftwarePurchases = hardwareSoftwarePurchases,
+                workType = workType,
+                mileage = mileage,
+            )
         val nowEpochMs = clock.now().toEpochMilli()
         return DailyTaskEntity(
             id = idGenerator.newId(),
@@ -243,8 +262,8 @@ class RoomTaskRepository(
             hardwareSoftwarePurchases = metadata.hardwareSoftwarePurchases,
             employeeId = employeeId,
             employeeNameSnapshot = employeeNameSnapshot,
-            workType = workType.name,
-            mileage = normalizeMileage(mileage),
+            workType = metadata.workType.name,
+            mileage = metadata.mileage,
             workDateEpochDay = workDate.toEpochDay(),
             zoneId = zoneId.id,
             createdAtEpochMs = nowEpochMs,
@@ -255,12 +274,16 @@ class RoomTaskRepository(
     private fun normalizeMetadata(
         description: String,
         hardwareSoftwarePurchases: String,
+        workType: WorkType = WorkType.UNSPECIFIED,
+        mileage: String? = null,
     ): NormalizedTaskMetadata =
         when (
             val validation =
                 TaskMetadataValidator.validate(
                     description = description,
                     hardwareSoftwarePurchases = hardwareSoftwarePurchases,
+                    workType = workType,
+                    mileage = mileage,
                 )
         ) {
             is TaskMetadataValidationResult.Valid -> validation.metadata
@@ -270,12 +293,6 @@ class RoomTaskRepository(
                 )
         }
 
-    private fun normalizeMileage(mileage: String?): String? =
-        when (val result = MileageNormalizer.normalize(mileage)) {
-            is MileageValidationResult.Valid -> result.canonicalValue
-            is MileageValidationResult.Invalid ->
-                throw IllegalArgumentException("Invalid mileage: ${result.error}")
-        }
 }
 
 private fun ManualIntervalWriteEntityResult.toPersistenceResult():

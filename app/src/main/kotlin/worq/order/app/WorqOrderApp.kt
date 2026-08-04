@@ -239,6 +239,7 @@ fun WorqOrderApp() {
                         taskId = taskId,
                         taskRepository = application.container.taskRepository,
                         clientRepository = application.container.clientRepository,
+                        employeeRepository = application.container.employeeRepository,
                         activeTimerRepository =
                             application.container.activeTimerRepository,
                         taskMutationCoordinator =

@@ -306,3 +306,28 @@ Release shrinking is resolved rather than blocked: R8/resource shrinking remain 
 Kotlin's official style is configured, but the project has no formatting-check task. Compilation
 and lint enforce syntax/static correctness; introducing a formatter would be a dependency/tooling
 decision rather than a hidden audit change.
+
+## 8. v0.2.0 incremental evidence through Milestone 22
+
+Milestone 22 completed the task-facing Consultant, Work Type, Mileage, and derived Billing Minutes
+integration without changing Room schema version 3. Create and Edit share bounded metadata
+validation; stopped-task edits recheck active Client and Consultant references and commit the
+complete metadata change transactionally. Billing Minutes remains derived from exact interval
+totals rather than persisted state. The one canonical schema-3 snapshot remains the input to CSV,
+XLSX, and Google Sheets.
+
+The project-local offline gate passed debug/release compilation, debug assembly, all 186 JVM tests
+across 36 suites, lint with zero errors (14 informational warnings), and Android-test Kotlin
+compilation. The owner then ran:
+
+```text
+gradlew -Duser.home=<project>/.android-user --offline --no-daemon
+  :app:connectedDebugAndroidTest
+BUILD SUCCESSFUL
+```
+
+Generated JUnit XML records 93 tests across 17 suites, with zero failures, zero errors, and zero
+skipped tests. Two test-fixture defects found during the gate were corrected: the Room metadata
+test now creates the active Consultant it assigns, and the Edit Task Compose test scrolls Billing
+Minutes into the emulator viewport before asserting visibility. Neither correction changes
+production behavior.

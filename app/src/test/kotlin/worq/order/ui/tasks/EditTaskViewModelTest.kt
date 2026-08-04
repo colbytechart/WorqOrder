@@ -23,12 +23,15 @@ import worq.order.domain.TaskMutationCoordinator
 import worq.order.testing.FakeActiveTimerRepository
 import worq.order.testing.FakeClientRepository
 import worq.order.testing.FakeClientRepository.Companion.client
+import worq.order.testing.FakeEmployeeRepository
 import worq.order.testing.FakeSelectedTaskRepository
 import worq.order.testing.FakeTaskRepository
 import worq.order.testing.FakeUtcClock
 import worq.order.testing.FakeZoneIdProvider
 import worq.order.testing.MainDispatcherRule
 import worq.order.timer.CurrentDateProvider
+import worq.order.model.Employee
+import worq.order.model.WorkType
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class EditTaskViewModelTest {
@@ -49,6 +52,9 @@ class EditTaskViewModelTest {
             fixture.viewModel.onEvent(
                 EditTaskEvent.EditHardwareSoftwarePurchases(" Software license "),
             )
+            fixture.viewModel.onEvent(EditTaskEvent.SelectConsultant("employee-2"))
+            fixture.viewModel.onEvent(EditTaskEvent.SelectWorkType(WorkType.IN_OFFICE))
+            fixture.viewModel.onEvent(EditTaskEvent.EditMileage("012.500"))
             fixture.viewModel.onEvent(EditTaskEvent.SaveMetadata)
             runCurrent()
 
@@ -57,6 +63,9 @@ class EditTaskViewModelTest {
             assertEquals("client-2", changed.clientId)
             assertEquals("Updated", changed.description)
             assertEquals("Software license", changed.hardwareSoftwarePurchases)
+            assertEquals("employee-2", changed.employeeId)
+            assertEquals(WorkType.IN_OFFICE, changed.workType)
+            assertEquals("12.5", changed.mileage)
             assertFalse(fixture.viewModel.uiState.value.hasUnsavedMetadataChanges)
             assertEquals(listOf(EditTaskEffect.NavigateBack), effects)
         }
@@ -71,6 +80,7 @@ class EditTaskViewModelTest {
             runCurrent()
             val interval = fixture.viewModel.uiState.value.intervals.single()
             assertEquals("01:00:00", fixture.viewModel.uiState.value.totalDuration)
+            assertEquals(60L, fixture.viewModel.uiState.value.billingMinutes)
             assertFalse(interval.startText.contains("-04:00"))
             assertFalse(interval.stopText.contains("-04:00"))
 
@@ -96,6 +106,7 @@ class EditTaskViewModelTest {
             runCurrent()
             assertTrue(fixture.viewModel.uiState.value.intervals.isEmpty())
             assertEquals("00:00:00", fixture.viewModel.uiState.value.totalDuration)
+            assertEquals(0L, fixture.viewModel.uiState.value.billingMinutes)
         }
 
     @Test
@@ -173,6 +184,10 @@ class EditTaskViewModelTest {
                     clientId = "client-1",
                     description = "Task",
                     hardwareSoftwarePurchases = "Laptop",
+                    employeeId = "employee-1",
+                    employeeNameSnapshot = "Alex Rivera",
+                    workType = WorkType.ON_SITE,
+                    mileage = "5",
                     workDate = TODAY,
                     zoneId = ZONE,
                 ),
@@ -187,11 +202,19 @@ class EditTaskViewModelTest {
                     client("client-2", "Second"),
                 ),
             )
+        val employees =
+            FakeEmployeeRepository(
+                listOf(
+                    employee("employee-1", "Alex Rivera"),
+                    employee("employee-2", "Morgan Lee"),
+                ),
+            )
         val viewModel =
             EditTaskViewModel(
                 taskId = task.id,
                 taskRepository = tasks,
                 clientRepository = clients,
+                employeeRepository = employees,
                 activeTimerRepository = active,
                 taskMutationCoordinator = mutationCoordinator,
             )
@@ -220,5 +243,19 @@ class EditTaskViewModelTest {
         val ZONE: ZoneId = ZoneId.of("America/New_York")
         val TODAY: LocalDate = LocalDate.of(2026, 7, 25)
         val NOW: Instant = Instant.parse("2026-07-25T16:00:00Z")
+
+        fun employee(
+            id: String,
+            name: String,
+        ) =
+            Employee(
+                id = id,
+                name = name,
+                canonicalName = name.lowercase(),
+                isActive = true,
+                createdAt = Instant.EPOCH,
+                updatedAt = Instant.EPOCH,
+                archivedAt = null,
+            )
     }
 }

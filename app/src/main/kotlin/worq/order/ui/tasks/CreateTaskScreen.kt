@@ -44,6 +44,7 @@ import worq.order.ui.theme.WorqOrderDimens
 object CreateTaskScreenTestTags {
     const val DESCRIPTION = "create_task_description"
     const val PURCHASES = "create_task_purchases"
+    const val MILEAGE = "create_task_mileage"
     const val CREATE = "create_task_confirm"
 }
 
@@ -225,6 +226,18 @@ fun CreateTaskScreen(
                                 uiState.metadataErrors,
                     )
                 },
+            )
+            TaskWorkTypeSelector(
+                selected = uiState.workType,
+                enabled = !uiState.isSavingTask,
+                onSelect = { onEvent(CreateTaskEvent.SelectWorkType(it)) },
+            )
+            TaskMileageField(
+                value = uiState.mileage,
+                validationErrors = uiState.metadataErrors,
+                enabled = !uiState.isSavingTask,
+                onValueChange = { onEvent(CreateTaskEvent.EditMileage(it)) },
+                modifier = Modifier.testTag(CreateTaskScreenTestTags.MILEAGE),
             )
             uiState.message?.let { message ->
                 Text(

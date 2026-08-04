@@ -685,6 +685,9 @@ class MainViewModelTest {
                 clientId = task.clientId,
                 description = "Changed after picker opened",
                 hardwareSoftwarePurchases = "",
+                employeeId = task.employeeId,
+                workType = task.workType,
+                mileage = task.mileage,
             )
             viewModel.onEvent(
                 MainEvent.CsvDocumentSelected("content://documents/export.csv"),
@@ -730,6 +733,9 @@ class MainViewModelTest {
                 clientId = task.clientId,
                 description = "Changed after picker opened",
                 hardwareSoftwarePurchases = "",
+                employeeId = task.employeeId,
+                workType = task.workType,
+                mileage = task.mileage,
             )
             viewModel.onEvent(
                 MainEvent.XlsxDocumentSelected(

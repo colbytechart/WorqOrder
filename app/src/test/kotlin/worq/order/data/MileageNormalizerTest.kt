@@ -27,4 +27,14 @@ class MileageNormalizerTest {
             MileageNormalizer.normalize("1.2345"),
         )
     }
+
+    @Test
+    fun editableInputAllowsOnlyDigitsAndOneDecimalPoint() {
+        assertEquals(true, MileageNormalizer.acceptsInput(""))
+        assertEquals(true, MileageNormalizer.acceptsInput("."))
+        assertEquals(true, MileageNormalizer.acceptsInput("12.5"))
+        assertEquals(false, MileageNormalizer.acceptsInput("12.5.1"))
+        assertEquals(false, MileageNormalizer.acceptsInput("-1"))
+        assertEquals(false, MileageNormalizer.acceptsInput("1,5"))
+    }
 }

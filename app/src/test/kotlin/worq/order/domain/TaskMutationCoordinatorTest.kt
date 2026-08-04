@@ -4,6 +4,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -29,6 +30,7 @@ class TaskMutationCoordinatorTest {
                     description = "  Install workstation  ",
                     hardwareSoftwarePurchases = "  Laptop  ",
                     workDate = TODAY,
+                    employeeId = "employee-1",
                 )
 
             val created = result as CreateTaskOperationResult.Created
@@ -49,11 +51,30 @@ class TaskMutationCoordinatorTest {
                     description = "Historical",
                     hardwareSoftwarePurchases = "",
                     workDate = TODAY.minusDays(1),
+                    employeeId = "employee-1",
                 )
 
             assertTrue(result is CreateTaskOperationResult.Created)
             assertTrue(!(result as CreateTaskOperationResult.Created).selectedForTiming)
             assertNull(fixture.selection.readSelection())
+        }
+
+    @Test
+    fun createWithoutConsultantIsRejectedBeforePersistence() =
+        runTest {
+            val fixture = Fixture()
+
+            assertEquals(
+                CreateTaskOperationResult.ConsultantUnavailable,
+                fixture.coordinator.createTask(
+                    clientId = "client-1",
+                    description = "Task",
+                    hardwareSoftwarePurchases = "",
+                    workDate = TODAY,
+                    employeeId = null,
+                ),
+            )
+            assertTrue(fixture.tasks.observeTasksForDate(TODAY).first().isEmpty())
         }
 
     @Test

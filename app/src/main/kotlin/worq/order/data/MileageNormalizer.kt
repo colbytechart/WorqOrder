@@ -23,6 +23,10 @@ object MileageNormalizer {
     const val MAX_FRACTION_DIGITS = 3
     private const val MAX_INPUT_CHARACTERS = 32
     private val decimalPattern = Regex("""(?:\d+(?:\.\d*)?|\.\d+)""")
+    private val editableDecimalPattern = Regex("""\d*(?:\.\d*)?""")
+
+    fun acceptsInput(rawValue: String): Boolean =
+        rawValue.length <= MAX_INPUT_CHARACTERS && editableDecimalPattern.matches(rawValue)
 
     fun normalize(rawValue: String?): MileageValidationResult {
         val value = rawValue?.trim().orEmpty()

@@ -794,6 +794,15 @@ Precise internal instants and milliseconds remain
 unchanged. Known owned Google schema-2 tabs are atomically upgraded/replaced as schema 3 on
 re-export; unowned same-name tabs and unknown/newer schemas remain protected conflicts.
 
+Milestone 22 completes the task-facing integration without another Room migration. Create Task
+uses the selected active Consultant, defaults to On-Site, and accepts optional bounded decimal
+Mileage. Edit Task can reassign an active Consultant and update Client, text metadata, Work Type,
+and canonical Mileage in one stopped-task transaction. Room rechecks both referenced directory
+rows and refreshes the assignment-time Consultant snapshot; a stale/archive race produces no
+partial update. Billing Minutes is calculated from observed completed intervals and is never a
+stored counter. All destinations continue consuming the one schema-3 snapshot implemented in
+Milestone 19; no adapter gained independent field selection or formatting.
+
 ### D-070 — v0.2 presentation additions
 
 Routine interval cards omit their redundant Duration row and display **Start Time**/**Stop Time**

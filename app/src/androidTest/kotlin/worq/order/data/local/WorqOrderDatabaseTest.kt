@@ -342,6 +342,7 @@ class WorqOrderDatabaseTest {
     fun taskSeriesDateZoneKeyIsUniqueAndDifferentZoneRemainsDistinct() =
         runBlocking {
             insertClient(id = "client-1")
+            insertEmployee(id = "employee-1", name = "Alex Rivera")
             insertTask(id = "task-1", clientId = "client-1")
 
             expectConstraintFailure {
@@ -368,6 +369,7 @@ class WorqOrderDatabaseTest {
     fun multipleIntervalsUseStableOrdinalsAndChronologicalDetailOrder() =
         runBlocking {
             insertClient(id = "client-1")
+            insertEmployee(id = "employee-1", name = "Alex Rivera")
             insertTask(id = "task-1", clientId = "client-1")
 
             val later =
@@ -615,6 +617,7 @@ class WorqOrderDatabaseTest {
     fun taskMetadataAndManualIntervalsUseTransactionalGuards() =
         runBlocking {
             insertClient(id = "client-1")
+            insertEmployee(id = "employee-1", name = "Alex Rivera")
             insertTask(id = "task-1", clientId = "client-1")
             val repository =
                 RoomTaskRepository(
@@ -634,11 +637,36 @@ class WorqOrderDatabaseTest {
                     clientId = "client-1",
                     description = " Updated task ",
                     hardwareSoftwarePurchases = " Laptop and IDE ",
+                    employeeId = "employee-1",
+                    workType = worq.order.model.WorkType.IN_OFFICE,
+                    mileage = "0012.500",
                 )
             assertTrue(updated is worq.order.data.UpdateTaskMetadataResult.Updated)
             val task = requireNotNull(database.taskDao().readTask("task-1"))
             assertEquals("Updated task", task.description)
             assertEquals("Laptop and IDE", task.hardwareSoftwarePurchases)
+            assertEquals("employee-1", task.employeeId)
+            assertEquals("Alex Rivera", task.employeeNameSnapshot)
+            assertEquals("IN_OFFICE", task.workType)
+            assertEquals("12.5", task.mileage)
+
+            database.employeeDao().archive("employee-1", TEST_NOW.toEpochMilli())
+            assertEquals(
+                worq.order.data.UpdateTaskMetadataResult.EmployeeUnavailable,
+                repository.updateTaskMetadata(
+                    taskId = "task-1",
+                    clientId = "client-1",
+                    description = "Must not persist",
+                    hardwareSoftwarePurchases = "",
+                    employeeId = "employee-1",
+                    workType = worq.order.model.WorkType.ON_SITE,
+                    mileage = "1",
+                ),
+            )
+            assertEquals(
+                "Updated task",
+                database.taskDao().readTask("task-1")?.description,
+            )
 
             val added =
                 repository.addManualInterval(
@@ -707,6 +735,9 @@ class WorqOrderDatabaseTest {
                     clientId = "client-1",
                     description = "Changed",
                     hardwareSoftwarePurchases = "",
+                    employeeId = null,
+                    workType = worq.order.model.WorkType.UNSPECIFIED,
+                    mileage = null,
                 ),
             )
             assertEquals(

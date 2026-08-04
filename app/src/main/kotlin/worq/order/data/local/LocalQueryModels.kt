@@ -64,6 +64,7 @@ enum class TaskMetadataWriteStatus {
     UPDATED,
     TASK_NOT_FOUND,
     CLIENT_UNAVAILABLE,
+    EMPLOYEE_UNAVAILABLE,
     RUNNING_TASK,
 }
 

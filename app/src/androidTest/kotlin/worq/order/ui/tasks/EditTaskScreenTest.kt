@@ -17,6 +17,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import worq.order.ui.clients.ClientItemUi
+import worq.order.ui.employees.ConsultantItemUi
+import worq.order.model.WorkType
 import worq.order.ui.theme.WorqOrderTheme
 
 @RunWith(AndroidJUnit4::class)
@@ -41,7 +43,16 @@ class EditTaskScreenTest {
 
         composeRule.onNodeWithText("Short description").assertIsDisplayed()
         composeRule.onNodeWithText("Hardware / Software Purchases").assertIsDisplayed()
-        composeRule.onNodeWithText("Task Total: 02:00:00").assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Task Total: 02:00:00")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Billing Minutes: 120")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Alex Rivera").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("On-Site").performScrollTo().assertIsDisplayed()
         composeRule
             .onNodeWithText("Interval 1")
             .performScrollTo()
@@ -99,9 +110,15 @@ class EditTaskScreenTest {
             originalClientName = "Client",
             activeClients = listOf(ClientItemUi("client", "Client")),
             selectedClientId = "client",
+            originalConsultantName = "Alex Rivera",
+            activeConsultants = listOf(ConsultantItemUi("employee", "Alex Rivera")),
+            selectedConsultantId = "employee",
             description = "Description",
             hardwareSoftwarePurchases = "Laptop",
+            workType = WorkType.ON_SITE,
+            mileage = "12.5",
             totalDuration = "02:00:00",
+            billingMinutes = 120,
         )
 
     private fun interval(

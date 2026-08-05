@@ -303,7 +303,7 @@ Given a timer spans a spring-forward transition, elapsed duration follows instan
 Given a timer spans the repeated fall-back hour, elapsed duration counts both occurrences,
 persisted instants and the interval editor preserve/identify the chosen occurrence, and date
 segments fit 25-hour boundaries where applicable. The intentionally reduced external export
-schema still emits task-zone `HH:mm` only; its duration remains the correct instant-based value.
+schema still emits task-zone `hh:mm a` only; its duration remains the correct instant-based value.
 
 ### DATE-09 Device zone mode
 
@@ -337,8 +337,10 @@ ZoneIds.
 
 ### SET-01 Immediate appearance modes
 
-Client Management is the first normal Settings item, followed by Appearance, Time Zone, and Export
-Destination. Google Sheets Connection is visible only when Google Sheets is selected. System is
+Client Management is the first Settings item and Consultant Management is second, followed by the
+bare Consultant selector/warning and Appearance. No Time Zone card, controls, effective-ID text,
+or selector dialog is exposed. Device zone remains the first-launch/corrupt-value default in typed
+settings. Export Destination follows Appearance, and Google Sheets Connection is visible only when Google Sheets is selected. System is
 selected by default and follows device Light/Dark configuration changes. Selecting explicit Light
 or Dark overrides the device while all three radio choices remain enabled. Screen, section, card,
 empty-state, and dialog headers use title capitalization without rewriting body/action copy. Every
@@ -401,7 +403,7 @@ records use CRLF.
 ### CSV-05 Durations/timestamps
 
 Longer-than-23-hour task totals are not wrapped. Start/Stop are converted through the task's stored
-ZoneId and exported only as 24-hour `HH:mm`; complete instants remain internal. Durations are
+ZoneId and exported only as strict 12-hour `hh:mm a`; complete instants remain internal. Durations are
 `HH:MM:SS`, truncate rather than round sub-second remainder, and are locale independent.
 
 ### CSV-06 Running-timer lockout
@@ -594,7 +596,7 @@ header; a zero-interval task has one blank-interval row.
 ### XLSX-03 Cell safety and fidelity
 
 All canonical values are literal text cells. Formula-prefixed text is not executable.
-Unicode, commas, quotes, CR/LF, task-zone `HH:mm`, and accumulated `HH:MM:SS` survive an
+Unicode, commas, quotes, CR/LF, task-zone `hh:mm a`, and accumulated `HH:MM:SS` survive an
 independent-reader round trip and open correctly in Microsoft Excel and LibreOffice.
 
 ### XLSX-04 Package safety
@@ -735,6 +737,13 @@ creation requires an active selected Consultant. Rename/archive never changes ea
 consultant snapshots or exports; explicit task edit may correct the assignment. Rollover copies the
 source snapshot. Migrated unassigned tasks remain legible/editable.
 
+Standalone **Client Management** and **Consultant Management** rows are the first and second
+Settings options. The bare current-Consultant dropdown and missing-selection warning follow those
+rows with no Consultant or Clients card. The dedicated Consultant destination contains Add
+Consultant plus active and archived lists with the same rename/archive/restore behavior and visual
+structure as Client Management. Empty active and archived sections each show an indented title and
+supporting explanation. Back navigation returns to Settings without changing selection.
+
 The persisted selection recovers only when its Employee row still exists and is active. Archiving
 the selected Consultant clears future selection while leaving every daily-task Employee ID/name
 snapshot unchanged. Add offers restore for a canonical archived match; rename/restore conflicts do
@@ -756,7 +765,7 @@ persisted and never changes timestamp precision.
 CSV, one-off XLSX, and Google Sheets expose exactly these headers/values in order: Start date, End
 date, Consultant, Client, Description, Expense, Work type, Mileage, Interval number, Start time,
 Stop time, Interval duration, Time spent, Billing minutes. Both date fields equal the same stored
-task date formatted `MM/DD/YYYY`. Export Start/Stop are `HH:mm`; durations are `HH:MM:SS`; Billing
+task date formatted `MM/DD/YYYY`. Export Start/Stop are `hh:mm a`; durations are `HH:MM:SS`; Billing
 minutes follows V2-TASK-01. Known owned
 schema-2 Google tabs upgrade atomically; unowned or newer/unknown tabs remain untouched conflicts.
 
@@ -792,17 +801,18 @@ Disabling automation cancels future eligible work safely.
 
 ### V2-UI-01 Interval clock-time display
 
-Routine Task interval cards display completed Start and Stop values as
-task-zone `HH:mm` without seconds. Persisted UTC instants, stored task ZoneId, duration and
+Routine Task interval cards display completed Start Time and Stop Time values as
+task-zone `hh:mm a` without seconds. Persisted UTC instants, stored task ZoneId, duration and
 date-boundary behavior, edit precision, and explicit fall-back occurrence disambiguation remain
-unchanged. CSV, XLSX, and Google Sheets continue to emit the same canonical `HH:mm` Start/Stop
+unchanged. CSV, XLSX, and Google Sheets emit the same canonical `hh:mm a` Start/Stop
 values, with no destination-specific formatter or schema discrepancy.
 
-### V2-UI-02 Version-aware About section
+### V2-UI-02 Version-aware Settings footer
 
-About is the final Settings content and displays exactly the Gradle-derived version/stability text,
-for example `WorqOrder v0.2.0 - stable`. It has no repository/release link, click action, or second
-manually maintained version constant.
+The final Settings content is bare footer text over the screen background, outside any card and
+without an About title. It displays exactly the Gradle-derived version/stability text, for example
+`WorqOrder v0.2.0 - stable`, and has no repository/release link, click action, or second manually
+maintained version constant.
 
 ### V2-UI-03 Handed two-column landscape
 

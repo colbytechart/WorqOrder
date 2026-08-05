@@ -7,8 +7,6 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +39,7 @@ import worq.order.model.WorkInterval
 import worq.order.timer.DurationMath
 import worq.order.ui.clients.ClientItemUi
 import worq.order.ui.employees.ConsultantItemUi
+import worq.order.util.ClockTimeFormatter
 
 class EditTaskViewModel(
     private val taskId: String,
@@ -741,18 +740,11 @@ private fun TaskWithIntervals.completedDurationText(): String {
 }
 
 private fun WorkInterval.toItem(zoneId: java.time.ZoneId): IntervalItemUi {
-    val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
-    val startZoned = start.atZone(zoneId)
-    val stopZoned = stop?.atZone(zoneId)
-    val duration =
-        stop?.let { Duration.between(start, it) }
-            ?: Duration.ZERO
     return IntervalItemUi(
         id = id,
         ordinal = ordinal,
-        startText = timeFormatter.format(startZoned),
-        stopText = stopZoned?.let(timeFormatter::format).orEmpty(),
-        durationText = DurationMath.formatAccumulated(duration),
+        startText = ClockTimeFormatter.format(start, zoneId),
+        stopText = stop?.let { ClockTimeFormatter.format(it, zoneId) }.orEmpty(),
         isRunning = stop == null,
     )
 }

@@ -61,7 +61,7 @@ class CsvExportCoordinatorTest {
 
             assertTrue(result is PrepareCsvExportResult.Ready)
             val csv = (result as PrepareCsvExportResult.Ready).export.contents
-            assertTrue(csv.contains(",1,08:00,,01:00:00,01:00:00"))
+            assertTrue(csv.contains(",1,08:00 AM,,01:00:00,01:00:00"))
             assertNotNull(activeAfter)
             assertNull(activeAfter?.interval?.stop)
         }

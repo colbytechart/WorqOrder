@@ -38,7 +38,7 @@ they are not partially imported.
 
 - An active session keeps the geographical ZoneId captured at Start even if the operating-system
   device zone changes. The new device zone applies after Stop.
-- The reduced CSV/XLSX/Google export schema shows Start/Stop as `HH:mm`. On a fall-back day those
+- The reduced CSV/XLSX/Google export schema shows Start/Stop as `hh:mm a`. On a fall-back day those
   external values alone cannot distinguish the first and second occurrence of a repeated clock
   time. Persisted UTC instants, stored ZoneId, correct duration, and explicit editor occurrence
   handling remain intact inside the app.

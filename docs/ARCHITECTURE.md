@@ -198,7 +198,7 @@ DAO and canonical export ordering remain independently stable.
   snapshot, and returns the one immutable destination-neutral dataset. Main permits this workflow
   only when Room-derived active state is loaded and empty.
 - `ExportRowBuilder`: owns schema version 3 in `0.2.0`, the exact 14 visible columns, duplicated
-  `MM/DD/YYYY` Start/End dates, task-zone export `HH:mm`,
+  `MM/DD/YYYY` Start/End dates, task-zone export `hh:mm a`,
   accumulated `HH:MM:SS`, zero-interval rows, and deterministic internal-key sorting.
 - `CsvExportCoordinator`: consumes the prepared snapshot and only serializes/packages the pending
   UTF-8 CSV before the picker opens.
@@ -453,6 +453,13 @@ No item in this section describes released `0.1.0` behavior until its owning v0.
   Settings route when none is valid, and supplies the selected Employee ID to the Room transaction.
   The transaction rechecks the Employee is active and captures its current name into the daily-task
   snapshot, preventing a stale UI selection or concurrent archive from creating a bad assignment.
+- Milestone 23 separates presentation without splitting state authority: standalone Client and
+  Consultant Management rows are first and second in Settings, followed by bare Consultant
+  selection/guidance. The `settings/consultants` Compose Navigation destination
+  renders Add/Rename/Archive/Restore through the same `ConsultantSettingsViewModel`, coordinator,
+  repositories, and validation rules. Returning to Settings observes the same Room/DataStore state.
+  Time-zone UI and its selector dialog are not composed, but their ViewModel/repository/provider
+  implementation remains intact; typed settings still default missing/corrupt mode to device zone.
 - Add a bounded `ClientCsvImportParser` and `ClientImportCoordinator`. Android document access is
   isolated behind a read-only input adapter; parsing is pure, and one repository transaction
   appends/restores normalized names without replacing existing clients. Final active observation
@@ -477,7 +484,7 @@ No item in this section describes released `0.1.0` behavior until its owning v0.
   columns without moving the global bar, reversing task order, or changing accessibility meaning.
 - About reads generated version/stability metadata and renders only
   `WorqOrder v{versionName} - stable`; it creates no external intent or repository link.
-- Reuse one presentation formatter for task-zone `HH:mm` Start/Stop values in interval cards and
+- Reuse one presentation formatter for task-zone `hh:mm a` Start/Stop values in interval cards and
   canonical export. Persistence/editing models retain exact instants and DST occurrence details.
 - Put any running-timer lock-screen integration behind an interface owned by application/timer
   coordination. It observes authoritative active-timer identity and never becomes timer

@@ -31,6 +31,7 @@ import worq.order.ui.settings.SettingsViewModel
 import worq.order.ui.clients.ClientManagementScreen
 import worq.order.ui.clients.ClientManagementViewModel
 import worq.order.ui.employees.ConsultantSettingsViewModel
+import worq.order.ui.employees.ConsultantManagementScreen
 import worq.order.ui.main.MainEffect
 import worq.order.ui.main.MainScreen
 import worq.order.ui.main.MainViewModel
@@ -302,6 +303,26 @@ fun WorqOrderApp() {
                 },
             )
         }
+        composable(AppRoutes.CONSULTANT_MANAGEMENT) {
+            val application =
+                LocalContext.current.applicationContext as WorqOrderApplication
+            val factory =
+                remember(application) {
+                    ConsultantSettingsViewModel.Factory(
+                        employeeRepository = application.container.employeeRepository,
+                        settingsRepository = application.container.settingsRepository,
+                        selectionCoordinator =
+                            application.container.consultantSelectionCoordinator,
+                    )
+                }
+            val viewModel: ConsultantSettingsViewModel = viewModel(factory = factory)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            ConsultantManagementScreen(
+                uiState = uiState,
+                onEvent = viewModel::onEvent,
+                onNavigateBack = navController::popBackStack,
+            )
+        }
     }
 }
 
@@ -381,6 +402,9 @@ private fun SettingsDestination(
         onNavigateBack = navController::popBackStack,
         onOpenClientManagement = {
             navController.navigate(AppRoutes.CLIENT_MANAGEMENT)
+        },
+        onOpenConsultantManagement = {
+            navController.navigate(AppRoutes.CONSULTANT_MANAGEMENT)
         },
         consultantUiState = consultantUiState,
         onConsultantEvent = consultantViewModel::onEvent,

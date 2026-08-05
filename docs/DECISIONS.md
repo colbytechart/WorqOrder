@@ -809,7 +809,7 @@ Routine interval cards omit their redundant Duration row and display **Start Tim
 as task-zone 12-hour `hh:mm a` without changing editor or storage precision. Task Total remains
 above the list and the derived Billing Minutes counter appears directly below it, never per
 interval. Text-entry fields request sentence capitalization from the Android keyboard without
-silently rewriting stored user text. The final About section displays only
+silently rewriting stored user text. The final bare Settings footer displays only
 `WorqOrder v0.2.0 - stable`, derived from build
 metadata, and has no GitHub repository/release link.
 
@@ -845,6 +845,44 @@ and pause for owner approval. Any accepted surface is present only for an open R
 shows WorqOrder identity, active task, and elapsed timer, and scopes swipe dismissal to that active
 interval without stopping it. It may not become timer authority or justify a foreground service,
 wake lock, exact alarm, or app-owned background tick loop solely for display.
+
+### D-073 — Strict 12-hour clock presentation
+
+All human-readable task clock values use task-zone `hh:mm a` with uppercase AM/PM. This includes
+routine interval cards, interval-editor values, and canonical Start time/Stop time export strings
+consumed unchanged by CSV, XLSX, and Google Sheets. Accumulated durations remain `HH:MM:SS` and do
+not use AM/PM. Room continues to store precise UTC epoch boundaries plus the task ZoneId; DST
+occurrence choices and calculation precision are unchanged. Because schema version 3 is still an
+unreleased v0.2.0 format, this finalizes its clock representation without another schema-version
+or Room migration. D-073 supersedes earlier 24-hour export-format wording in D-052, D-065, and
+D-069 without changing their persistence or single-builder decisions.
+
+### D-074 — Consultant selection stays in Settings; directory management has its own route
+
+Settings begins with standalone **Client Management** and **Consultant Management** navigation rows
+in that order. The active-Consultant dropdown, `Choose a Consultant` empty value, and red
+missing-selection guidance follow directly over the Settings background; there is no Consultant or
+Clients card and no inline Consultant description. Add, rename, archive, active-list,
+archived-list, and restore Consultant controls
+move unchanged to the dedicated `settings/consultants` screen, whose Material layout mirrors
+Client Management. Empty Consultant lists use the same indented title/supporting-text layout as
+empty Client lists.
+
+This is presentation and navigation only. Both destinations continue through the same
+`ConsultantSettingsViewModel`, selection coordinator, Employee repository, typed DataStore
+selection, validation, and historical task-snapshot rules. This decision supersedes only the
+inline-directory placement described in D-068; it does not change Consultant behavior or data.
+The final version/stability text is a bare item at the bottom of Settings; there is no About card or
+About title.
+
+### D-075 — Time-zone settings are retained internally but hidden from Settings
+
+The Settings UI does not compose the Time Zone card, effective ZoneId, device/manual choices,
+manual ZoneId picker action, or zone selector dialog. The underlying ViewModel events, repository,
+typed preferences, effective-zone provider, timer guards, and historical ZoneId rules remain in
+the codebase. Missing, first-launch, and corrupt time-zone-mode values continue to default to
+`DEVICE`; this presentation decision does not rewrite an existing stored manual preference or any
+historical task/date/interval data.
 
 ## Deferred decisions
 

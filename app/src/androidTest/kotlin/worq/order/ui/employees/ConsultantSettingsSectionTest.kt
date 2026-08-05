@@ -33,9 +33,10 @@ class ConsultantSettingsSectionTest {
                 selectedConsultantId = "alpha",
             ),
             events::add,
+            management = true,
         )
 
-        composeRule.onNodeWithText("Consultant").assertIsDisplayed()
+        composeRule.onNodeWithText("Consultant Management").assertIsDisplayed()
         composeRule.onNodeWithText("Selected for new tasks").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Rename Alpha").performClick()
         composeRule
@@ -49,7 +50,7 @@ class ConsultantSettingsSectionTest {
     }
 
     @Test
-    fun emptyDirectoryProvidesAddAndSelectionGuidance() {
+    fun emptySelectionProvidesGuidance() {
         val events = mutableListOf<ConsultantSettingsEvent>()
         setContent(
             ConsultantSettingsUiState(isLoading = false),
@@ -59,7 +60,23 @@ class ConsultantSettingsSectionTest {
         composeRule
             .onNodeWithText("Add and select a Consultant before creating a task.")
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun emptyManagementProvidesAddAction() {
+        val events = mutableListOf<ConsultantSettingsEvent>()
+        setContent(
+            ConsultantSettingsUiState(isLoading = false),
+            events::add,
+            management = true,
+        )
         composeRule.onNodeWithText("Add Consultant").performClick()
+        composeRule
+            .onNodeWithText("Add a Consultant to make them available for new tasks.")
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Removed Consultants will appear here and can be restored.")
+            .assertIsDisplayed()
 
         assertEquals(listOf(ConsultantSettingsEvent.OpenAddConsultant), events)
     }
@@ -87,6 +104,7 @@ class ConsultantSettingsSectionTest {
                     ),
             ),
             events::add,
+            management = true,
         )
 
         composeRule
@@ -103,10 +121,22 @@ class ConsultantSettingsSectionTest {
     private fun setContent(
         state: ConsultantSettingsUiState,
         onEvent: (ConsultantSettingsEvent) -> Unit = {},
+        management: Boolean = false,
     ) {
         composeRule.setContent {
             WorqOrderTheme(darkTheme = true) {
-                ConsultantSettingsSection(uiState = state, onEvent = onEvent)
+                if (management) {
+                    ConsultantManagementScreen(
+                        uiState = state,
+                        onEvent = onEvent,
+                        onNavigateBack = {},
+                    )
+                } else {
+                    ConsultantSelectionSection(
+                        uiState = state,
+                        onEvent = onEvent,
+                    )
+                }
             }
         }
     }

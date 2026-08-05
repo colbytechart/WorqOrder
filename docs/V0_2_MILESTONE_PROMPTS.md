@@ -36,7 +36,7 @@ timer. Existing tasks migrate with blank employee, Unspecified Work Type, and bl
 Advance the one canonical export snapshot to schema version 3 with exactly these columns: Start
 date, End date, Consultant, Client, Description, Expense, Work type, Mileage, Interval number,
 Start time, Stop time, Interval duration, Time spent, Billing minutes. Both dates repeat the one
-stored task date as MM/DD/YYYY. Start/Stop are HH:mm; durations remain HH:MM:SS; internal
+stored task date as MM/DD/YYYY. Start/Stop are hh:mm a with uppercase AM/PM; durations remain HH:MM:SS; internal
 timestamps remain precise. Adapt CSV,
 one-off XLSX, and Google to consume the same rows. Known WorqOrder-owned Google schema-2 tabs may
 upgrade atomically to schema 3; unowned or unknown/newer tabs remain protected.
@@ -126,6 +126,19 @@ report behavior/results/files and a commit message, then stop.
 
 ## Milestone 23 — About, simplified intervals, and text-entry capitalization
 
+Status: completed and verified. The final implementation uses one shared strict task-zone
+`hh:mm a` formatter for UI clock values and all three canonical export destinations, leaves
+duration formats and stored precision unchanged, removes the routine interval Duration row,
+adds exact Gradle-derived no-link About text, and requests sentence capitalization without
+rewriting saved text. The gates passed with 190 JVM and 95 connected tests and no failures,
+errors, or skips before the final Settings refinement. Final approved presentation refinements place standalone Client Management and
+Consultant Management rows first and second, followed by bare Consultant selection/guidance; move
+unchanged Consultant directory controls to a dedicated route with Client-style empty states; hide
+the Time Zone card/selector while retaining device-zone defaults and implementation; and render the
+final version as bare footer text without an About card/title. The refreshed final gate passed
+with 190 JVM tests across 38 suites and 97 connected tests, with zero failures, errors, or skips;
+the owner also passed the manual Settings inspection. Milestone 23 is closed.
+
 ```text
 Begin Milestone 23. Read AGENTS.md and current UI/version specifications. Add the final Settings
 About content with only the Gradle-derived text "WorqOrder v0.2.0 - stable". Do not add a GitHub,
@@ -134,7 +147,8 @@ repository, browser, or release link.
 Remove the routine interval Duration field; label interval values Start Time/Stop Time and present
 them in task-zone 12-hour hh:mm a. Keep Task Total above the interval list and place Billing
 Minutes directly below it. Make all text boxes request sentence capitalization from the Android
-keyboard without rewriting saved user text. Keep the same 24-hour HH:mm export values. Preserve
+keyboard without rewriting saved user text. Use the same strict 12-hour hh:mm a clock values in
+the canonical export so CSV, XLSX, and Google Sheets stay identical. Preserve
 full UTC instants, milliseconds, stored ZoneId,
 duration math, interval editor precision, and explicit DST-overlap occurrence information. This is
 presentation/export formatting only; do not truncate stored data.

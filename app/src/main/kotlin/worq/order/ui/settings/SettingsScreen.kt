@@ -50,12 +50,12 @@ import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import worq.order.BuildConfig
 import worq.order.R
 import worq.order.data.ExportDestination
 import worq.order.data.ThemeMode
-import worq.order.data.TimeZoneMode
 import worq.order.ui.employees.ConsultantSettingsEvent
-import worq.order.ui.employees.ConsultantSettingsSection
+import worq.order.ui.employees.ConsultantSelectionSection
 import worq.order.ui.employees.ConsultantSettingsUiState
 import worq.order.ui.theme.WorqOrderDimens
 
@@ -66,6 +66,7 @@ fun SettingsScreen(
     onEvent: (SettingsEvent) -> Unit,
     onNavigateBack: () -> Unit,
     onOpenClientManagement: () -> Unit,
+    onOpenConsultantManagement: () -> Unit,
     consultantUiState: ConsultantSettingsUiState = ConsultantSettingsUiState(),
     onConsultantEvent: (ConsultantSettingsEvent) -> Unit = {},
     showGoogleSetupRequired: Boolean = false,
@@ -93,15 +94,6 @@ fun SettingsScreen(
             listState.animateScrollToItem(googleSectionIndex)
             googleScrollRequestId = 0
         }
-    }
-    if (uiState.isZoneSelectorVisible) {
-        ZoneSelectorDialog(
-            query = uiState.zoneSearchQuery,
-            zones = uiState.zoneOptions,
-            onQueryChanged = { onEvent(SettingsEvent.EditZoneSearch(it)) },
-            onSelect = { onEvent(SettingsEvent.SelectManualZone(it.zoneId)) },
-            onDismiss = { onEvent(SettingsEvent.DismissZoneSelector) },
-        )
     }
     if (showDisconnectConfirmation) {
         AlertDialog(
@@ -184,8 +176,7 @@ fun SettingsScreen(
         ) {
             item {
                 ListItem(
-                    modifier =
-                        Modifier.clickable(onClick = onOpenClientManagement),
+                    modifier = Modifier.clickable(onClick = onOpenClientManagement),
                     leadingContent = {
                         Icon(
                             imageVector = Icons.Default.People,
@@ -200,15 +191,37 @@ fun SettingsScreen(
                     },
                     trailingContent = {
                         Icon(
-                            imageVector =
-                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = null,
                         )
                     },
                 )
             }
             item {
-                ConsultantSettingsSection(
+                ListItem(
+                    modifier = Modifier.clickable(onClick = onOpenConsultantManagement),
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Default.People,
+                            contentDescription = null,
+                        )
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.consultant_management))
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.consultant_management_summary))
+                    },
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                        )
+                    },
+                )
+            }
+            item {
+                ConsultantSelectionSection(
                     uiState = consultantUiState,
                     onEvent = onConsultantEvent,
                 )
@@ -249,63 +262,6 @@ fun SettingsScreen(
                             onEvent(SettingsEvent.SelectTheme(ThemeMode.DARK))
                         },
                     )
-                }
-            }
-            item {
-                SettingsSection(title = stringResource(R.string.time_zone)) {
-                    Text(
-                        text =
-                            stringResource(
-                                R.string.effective_time_zone,
-                                uiState.effectiveZoneId.id,
-                            ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(WorqOrderDimens.ItemPadding),
-                    )
-                    if (uiState.isTimerRunning) {
-                        Text(
-                            text =
-                                stringResource(
-                                    R.string.stop_timer_before_time_zone_change,
-                                ),
-                            color = MaterialTheme.colorScheme.error,
-                            modifier =
-                                Modifier.padding(
-                                    horizontal = WorqOrderDimens.ItemPadding,
-                                ),
-                        )
-                    }
-                    SettingsChoiceRow(
-                        title = stringResource(R.string.use_device_time_zone),
-                        supportingText =
-                            stringResource(R.string.use_device_time_zone_summary),
-                        selected = uiState.timeZoneMode == TimeZoneMode.DEVICE,
-                        enabled = !uiState.isSaving && !uiState.isTimerRunning,
-                        onClick = {
-                            onEvent(SettingsEvent.SelectDeviceTimeZone)
-                        },
-                    )
-                    SettingsChoiceRow(
-                        title = stringResource(R.string.use_manual_time_zone),
-                        supportingText =
-                            uiState.manualZoneId?.id
-                                ?: stringResource(R.string.no_manual_time_zone_selected),
-                        selected = uiState.timeZoneMode == TimeZoneMode.MANUAL,
-                        enabled = !uiState.isSaving && !uiState.isTimerRunning,
-                        onClick = {
-                            onEvent(SettingsEvent.SelectManualTimeZone)
-                        },
-                    )
-                    OutlinedButton(
-                        onClick = { onEvent(SettingsEvent.OpenZoneSelector) },
-                        enabled = !uiState.isSaving && !uiState.isTimerRunning,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(WorqOrderDimens.ItemPadding),
-                    ) {
-                        Text(stringResource(R.string.choose_time_zone))
-                    }
                 }
             }
             item {
@@ -381,6 +337,21 @@ fun SettingsScreen(
                         },
                     )
                 }
+            }
+            item {
+                Text(
+                    text =
+                        stringResource(
+                            R.string.about_version_stability,
+                            BuildConfig.VERSION_NAME,
+                        ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(WorqOrderDimens.ItemPadding),
+                )
             }
         }
     }

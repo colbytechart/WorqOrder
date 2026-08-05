@@ -16,6 +16,7 @@ import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import worq.order.R
+import worq.order.ui.WorqOrderTextInputDefaults
 import worq.order.ui.theme.WorqOrderDimens
 
 @Composable
@@ -70,6 +71,7 @@ fun ClientEditorDialog(
                     },
                     isError = fieldError != null,
                     singleLine = true,
+                    keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
                 )
             }
         },

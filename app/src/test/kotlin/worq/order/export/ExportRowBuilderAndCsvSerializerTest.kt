@@ -132,7 +132,7 @@ class ExportRowBuilderAndCsvSerializerTest {
             first.rows.map { it["Description"] },
         )
         assertEquals(
-            listOf("", "08:00", "09:00", "11:00"),
+            listOf("", "08:00 AM", "09:00 AM", "11:00 AM"),
             first.rows.map { it["Start time"] },
         )
         assertEquals("", first.rows.first()["Interval number"])
@@ -225,8 +225,8 @@ class ExportRowBuilderAndCsvSerializerTest {
         assertEquals("25:00:00", longRow["Interval duration"])
         assertEquals("25:00:00", longRow["Time spent"])
         assertEquals("1500", longRow["Billing minutes"])
-        assertEquals("01:30", repeatedHourRow["Start time"])
-        assertEquals("01:30", repeatedHourRow["Stop time"])
+        assertEquals("01:30 AM", repeatedHourRow["Start time"])
+        assertEquals("01:30 AM", repeatedHourRow["Stop time"])
     }
 
     @Test

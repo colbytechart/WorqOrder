@@ -4,10 +4,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -15,10 +19,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -27,9 +31,12 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -41,74 +48,37 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import worq.order.R
+import worq.order.ui.WorqOrderTextInputDefaults
 import worq.order.ui.theme.WorqOrderDimens
 
 @Composable
-fun ConsultantSettingsSection(
+fun ConsultantSelectionSection(
     uiState: ConsultantSettingsUiState,
     onEvent: (ConsultantSettingsEvent) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column {
-            Text(
-                text = stringResource(R.string.consultant),
-                style = MaterialTheme.typography.titleLarge,
+    when {
+        uiState.isLoading ->
+            CircularProgressIndicator(
                 modifier = Modifier.padding(WorqOrderDimens.CardPadding),
             )
-            HorizontalDivider()
-            when {
-                uiState.isLoading ->
-                    CircularProgressIndicator(
-                        modifier = Modifier.padding(WorqOrderDimens.CardPadding),
-                    )
-                uiState.hasLoadError ->
-                    ConsultantLoadError(
-                        onRetry = { onEvent(ConsultantSettingsEvent.Retry) },
-                    )
-                else ->
-                    ConsultantDirectory(
-                        uiState = uiState,
-                        onEvent = onEvent,
-                    )
-            }
-        }
-    }
-
-    uiState.editor?.let { editor ->
-        ConsultantEditorDialog(
-            editor = editor,
-            onNameChanged = { onEvent(ConsultantSettingsEvent.EditName(it)) },
-            onConfirm = { onEvent(ConsultantSettingsEvent.ConfirmEditor) },
-            onDismiss = { onEvent(ConsultantSettingsEvent.DismissEditor) },
-        )
-    }
-    uiState.archiveConfirmation?.let { confirmation ->
-        ArchiveConsultantDialog(
-            confirmation = confirmation,
-            onConfirm = { onEvent(ConsultantSettingsEvent.ConfirmArchive) },
-            onDismiss = { onEvent(ConsultantSettingsEvent.DismissArchive) },
-        )
-    }
-    uiState.restoreOffer?.let { offer ->
-        RestoreArchivedConsultantDialog(
-            offer = offer,
-            onConfirm = { onEvent(ConsultantSettingsEvent.ConfirmRestoreOffer) },
-            onDismiss = { onEvent(ConsultantSettingsEvent.DismissRestoreOffer) },
-        )
+        uiState.hasLoadError ->
+            ConsultantLoadError(
+                onRetry = { onEvent(ConsultantSettingsEvent.Retry) },
+            )
+        else ->
+            ConsultantSelection(
+                uiState = uiState,
+                onEvent = onEvent,
+            )
     }
 }
 
 @Composable
-private fun ConsultantDirectory(
+private fun ConsultantSelection(
     uiState: ConsultantSettingsUiState,
     onEvent: (ConsultantSettingsEvent) -> Unit,
 ) {
     Column {
-        Text(
-            text = stringResource(R.string.consultant_selection_summary),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(WorqOrderDimens.ItemPadding),
-        )
         uiState.message?.let { message ->
             ConsultantMessage(
                 message = message,
@@ -173,28 +143,129 @@ private fun ConsultantDirectory(
                         .semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
-        FilledTonalButton(
-            onClick = { onEvent(ConsultantSettingsEvent.OpenAddConsultant) },
-            enabled = uiState.pendingConsultantId == null,
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ConsultantManagementScreen(
+    uiState: ConsultantSettingsUiState,
+    onEvent: (ConsultantSettingsEvent) -> Unit,
+    onNavigateBack: () -> Unit,
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.consultant_management)) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.navigate_back),
+                        )
+                    }
+                },
+            )
+        },
+    ) { scaffoldPadding ->
+        Box(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .padding(WorqOrderDimens.ItemPadding),
+                    .fillMaxSize()
+                    .padding(scaffoldPadding),
         ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = null)
-            Text(
-                text = stringResource(R.string.add_consultant),
-                modifier = Modifier.padding(start = WorqOrderDimens.ItemSpacing),
-            )
+            when {
+                uiState.isLoading ->
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                uiState.hasLoadError ->
+                    ConsultantLoadError(
+                        onRetry = { onEvent(ConsultantSettingsEvent.Retry) },
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+                else ->
+                    ConsultantManagementList(
+                        uiState = uiState,
+                        onEvent = onEvent,
+                    )
+            }
         }
-        ConsultantHeading(R.string.active_consultants)
+    }
+
+    uiState.editor?.let { editor ->
+        ConsultantEditorDialog(
+            editor = editor,
+            onNameChanged = { onEvent(ConsultantSettingsEvent.EditName(it)) },
+            onConfirm = { onEvent(ConsultantSettingsEvent.ConfirmEditor) },
+            onDismiss = { onEvent(ConsultantSettingsEvent.DismissEditor) },
+        )
+    }
+    uiState.archiveConfirmation?.let { confirmation ->
+        ArchiveConsultantDialog(
+            confirmation = confirmation,
+            onConfirm = { onEvent(ConsultantSettingsEvent.ConfirmArchive) },
+            onDismiss = { onEvent(ConsultantSettingsEvent.DismissArchive) },
+        )
+    }
+    uiState.restoreOffer?.let { offer ->
+        RestoreArchivedConsultantDialog(
+            offer = offer,
+            onConfirm = { onEvent(ConsultantSettingsEvent.ConfirmRestoreOffer) },
+            onDismiss = { onEvent(ConsultantSettingsEvent.DismissRestoreOffer) },
+        )
+    }
+}
+
+@Composable
+private fun ConsultantManagementList(
+    uiState: ConsultantSettingsUiState,
+    onEvent: (ConsultantSettingsEvent) -> Unit,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding =
+            androidx.compose.foundation.layout.PaddingValues(
+                horizontal = WorqOrderDimens.ScreenPadding,
+                vertical = WorqOrderDimens.ItemSpacing,
+            ),
+        verticalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
+    ) {
+        uiState.message?.let { message ->
+            item(key = "consultant-message") {
+                ConsultantMessage(
+                    message = message,
+                    onDismiss = { onEvent(ConsultantSettingsEvent.DismissMessage) },
+                )
+            }
+        }
+        item(key = "add-consultant") {
+            FilledTonalButton(
+                onClick = { onEvent(ConsultantSettingsEvent.OpenAddConsultant) },
+                enabled = uiState.pendingConsultantId == null,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(imageVector = Icons.Default.Add, contentDescription = null)
+                Text(
+                    text = stringResource(R.string.add_consultant),
+                    modifier = Modifier.padding(start = WorqOrderDimens.ItemSpacing),
+                )
+            }
+        }
+        item(key = "active-heading") {
+            ConsultantHeading(R.string.active_consultants)
+        }
         if (uiState.activeConsultants.isEmpty()) {
-            Text(
-                text = stringResource(R.string.no_active_consultants),
-                modifier = Modifier.padding(WorqOrderDimens.ItemPadding),
-            )
+            item(key = "active-empty") {
+                EmptyConsultantSection(
+                    title = stringResource(R.string.no_active_consultants),
+                    supporting =
+                        stringResource(R.string.no_active_consultants_management_supporting),
+                )
+            }
         } else {
-            uiState.activeConsultants.forEach { consultant ->
+            items(
+                items = uiState.activeConsultants,
+                key = ConsultantItemUi::id,
+            ) { consultant ->
                 ActiveConsultantRow(
                     consultant = consultant,
                     isSelected = consultant.id == uiState.selectedConsultantId,
@@ -211,14 +282,21 @@ private fun ConsultantDirectory(
                 HorizontalDivider()
             }
         }
-        ConsultantHeading(R.string.archived_consultants)
+        item(key = "archived-heading") {
+            ConsultantHeading(R.string.archived_consultants)
+        }
         if (uiState.archivedConsultants.isEmpty()) {
-            Text(
-                text = stringResource(R.string.no_archived_consultants),
-                modifier = Modifier.padding(WorqOrderDimens.ItemPadding),
-            )
+            item(key = "archived-empty") {
+                EmptyConsultantSection(
+                    title = stringResource(R.string.no_archived_consultants),
+                    supporting = stringResource(R.string.no_archived_consultants_supporting),
+                )
+            }
         } else {
-            uiState.archivedConsultants.forEach { consultant ->
+            items(
+                items = uiState.archivedConsultants,
+                key = ConsultantItemUi::id,
+            ) { consultant ->
                 ArchivedConsultantRow(
                     consultant = consultant,
                     isPending = consultant.id == uiState.pendingConsultantId,
@@ -229,6 +307,30 @@ private fun ConsultantDirectory(
                 HorizontalDivider()
             }
         }
+    }
+}
+
+@Composable
+private fun EmptyConsultantSection(
+    title: String,
+    supporting: String,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(WorqOrderDimens.ItemPadding),
+        verticalArrangement = Arrangement.spacedBy(WorqOrderDimens.TaskTextSpacing),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Text(
+            text = supporting,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -349,6 +451,7 @@ private fun ConsultantEditorDialog(
                 },
                 isError = fieldError != null,
                 singleLine = true,
+                keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
             )
         },
         confirmButton = {
@@ -478,9 +581,12 @@ private fun ConsultantMessage(
 }
 
 @Composable
-private fun ConsultantLoadError(onRetry: () -> Unit) {
+private fun ConsultantLoadError(
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
-        modifier = Modifier.padding(WorqOrderDimens.CardPadding),
+        modifier = modifier.padding(WorqOrderDimens.CardPadding),
         verticalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
     ) {
         Text(stringResource(R.string.consultants_load_failed))

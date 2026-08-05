@@ -85,4 +85,17 @@ class WorqOrderNavigationTest {
         composeRule.onNodeWithText("Active Clients").assertIsDisplayed()
         composeRule.onNodeWithText("Add client").assertIsDisplayed()
     }
+
+    @Test
+    fun settingsNavigatesToConsultantManagement() {
+        composeRule.onNodeWithContentDescription("Open settings").performClick()
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(hasText("Consultant Management"))
+        composeRule.onNodeWithText("Consultant Management").performClick()
+
+        composeRule.onNodeWithText("Consultant Management").assertIsDisplayed()
+        composeRule.onNodeWithText("Active Consultants").assertIsDisplayed()
+        composeRule.onNodeWithText("Add Consultant").assertIsDisplayed()
+    }
 }

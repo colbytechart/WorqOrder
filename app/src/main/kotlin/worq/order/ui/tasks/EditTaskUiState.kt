@@ -25,7 +25,6 @@ data class IntervalItemUi(
     val ordinal: Int,
     val startText: String,
     val stopText: String,
-    val durationText: String,
     val isRunning: Boolean,
 )
 

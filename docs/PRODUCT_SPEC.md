@@ -204,7 +204,12 @@ cannot remain hidden above a long active or archived list.
 
 Settings labels the internal Employee directory as **Consultant** and maintains active/archived
 consultants with the same normalization, validation, ordering, rename, archive, and restore
-principles as clients. A current active consultant is selected for new tasks. Each task stores an
+principles as clients. Settings places standalone **Client Management** and **Consultant
+Management** navigation rows first and second. The Consultant row opens a dedicated screen
+containing Add Consultant plus the active and archived management lists. The current-selection
+dropdown and missing-selection warning appear directly over the Settings background below those
+rows, without a Consultant card or explanatory paragraph. A current
+active consultant is selected for new tasks. Each task stores an
 internal employee ID plus the consultant-name snapshot captured on assignment. Renaming or
 archiving a directory entry never changes an earlier task's consultant name or export. New task
 creation is blocked until an active consultant is selected; migrated `0.1.0` tasks remain blank until
@@ -242,12 +247,16 @@ For DST overlaps, the editor must show enough offset/occurrence information to d
 
 Settings contains:
 
-- **Clients:** active list with add/rename/archive and optional archived list with restore. Client Management is the first normal Settings item so the most frequent local-data administration workflow is immediately reachable.
-- **Consultant:** directly below Client Management, backed internally by Employee persistence,
-  with the active selection plus add, rename,
-  archive, archived view, and restore.
+- **Client Management:** the first standalone Settings row opens active add/rename/archive,
+  archived restore, and CSV import.
+- **Consultant Management:** the second standalone Settings row opens add, rename, archive,
+  archived-view, and restore behavior backed internally by Employee persistence.
+- **Consultant selection:** `Choose a Consultant` and the missing-selection warning appear directly
+  below the two management rows over the Settings background, without a surrounding card.
 - **Appearance:** explicit System, Light, and Dark choices, with System as the first-launch default. System follows the device appearance while Light and Dark remain enabled as immediately selectable overrides. Changes are persisted in Preferences DataStore and apply immediately without recreating navigation or timer state.
-- **Time zone:** device-zone mode or manual geographical `ZoneId`, searchable/navigable selector, and effective ID display. Device mode is the first-launch default. Mode/zone changes are blocked during timing. Historical stored dates and zone IDs never move.
+- **Time zone:** no time-zone controls are exposed in Settings. Device-zone mode remains the
+  first-launch and corrupt-value default. Existing time-zone implementation and persisted values
+  remain intact for compatibility; historical stored dates and zone IDs never move.
 - **Export Destination:** CSV, XLSX, or Google Sheets, with CSV as the first-launch and corrupt-value
   fallback after the XLSX milestone.
 - **Google Sheets:** show the complete **Google Sheets Connection** section only while Google Sheets
@@ -386,8 +395,10 @@ authorized consecutive milestones in `IMPLEMENTATION_PLAN.md`:
    matches are restored, duplicates within the file collapse, and the result remains A–Z. A
    malformed, non-CSV, over-limit, or unreasonably large input fails transactionally without a
    partial import or crash. The UI reports added/restored/skipped counts.
-2. **Consultant assignment.** Settings provides a Consultant-labeled directory and current selection directly
-   below Client Management. New tasks require an active consultant. Rename/archive/restore uses the
+2. **Consultant assignment.** Standalone Client Management and Consultant Management rows appear
+   first and second in Settings. The current Consultant dropdown/warning follows directly over the
+   screen background, and Consultant Management opens the dedicated active/archived directory. New tasks require an
+   active consultant. Rename/archive/restore uses the
    approved snapshot rules so historical task consultant names and exports never change
    retroactively. Migrated `0.1.0` tasks remain unassigned/blank until explicitly edited.
 3. **Work Type and Mileage.** Create/Edit Task provides one-choice `On-Site`/`In-Office` controls,
@@ -398,7 +409,7 @@ authorized consecutive milestones in `IMPLEMENTATION_PLAN.md`:
    derived integer in every export.
 5. **Canonical export schema 3.** All three destinations use the same immutable 14-column snapshot
    specified in `EXPORT_SPEC.md`; Start date and End date repeat the stored date as `MM/DD/YYYY`,
-   and Start time/Stop time use task-zone `HH:mm`. Duration values remain accumulated `HH:MM:SS`.
+   and Start time/Stop time use task-zone `hh:mm a`. Duration values remain accumulated `HH:MM:SS`.
    Google-owned schema-2 tabs are safely
    upgraded/replaced on re-export; unowned same-name tabs remain protected.
 6. **Simplified interval presentation and text entry.** Routine interval cards omit Duration and

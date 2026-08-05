@@ -331,3 +331,24 @@ skipped tests. Two test-fixture defects found during the gate were corrected: th
 test now creates the active Consultant it assigns, and the Edit Task Compose test scrolls Billing
 Minutes into the emulator viewport before asserting visibility. Neither correction changes
 production behavior.
+
+## 9. v0.2.0 incremental evidence through Milestone 23
+
+Milestone 23 completed the final no-link About text, routine interval-card simplification,
+sentence-capitalization keyboard requests, and strict task-zone 12-hour clock presentation. One
+shared `ClockTimeFormatter` now owns UI and canonical-export Start/Stop formatting as `hh:mm a`.
+This presentation change does not truncate Room UTC instants, alter ZoneId or DST resolution,
+change duration formatting, or rewrite user-entered text. CSV, one-off XLSX, and Google Sheets
+continue to consume the same immutable canonical snapshot.
+
+The project-local offline gate passed debug assembly, release Kotlin compilation, debug and
+release lint, all 190 JVM tests across 38 suites, and Android-test Kotlin compilation. The owner
+then ran the project-local offline connected gate on `emulator-5554 - 16`; it completed
+successfully. Generated JUnit XML records 95 connected tests with zero failures, zero errors, and
+zero skipped tests. The connected run took 113.4 seconds. After the approved final Settings
+refinement, the project-local offline debug/release, lint, JVM, and Android-test compilation gate
+passed again. The owner then ran the refreshed connected suite and completed the manual Settings
+inspection successfully. Final generated reports record 190 JVM tests across 38 suites and 97
+connected tests, all with zero failures, zero errors, and zero skipped tests; the final connected
+run took 118.33 seconds. No Room schema or DataStore migration was required for this
+presentation/export-format milestone.

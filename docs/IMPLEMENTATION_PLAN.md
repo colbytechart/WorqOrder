@@ -548,8 +548,8 @@ for every implemented change.
   Make text fields request sentence capitalization without rewriting stored text. Retain the full
   persisted UTC instants, stored task ZoneId, and DST occurrence/offset
   information; the interval editor must still expose occurrence details when a fall-back overlap
-  makes them necessary. Keep the already-implemented CSV/XLSX/Google Start/Stop output at the same
-  `HH:mm` precision through the one canonical export formatter.
+  makes them necessary. Apply the same strict 12-hour `hh:mm a` policy to CSV/XLSX/Google
+  Start/Stop output through the one canonical clock formatter.
 - Add an **About** section as the final Settings content. Display only
   `WorqOrder v{BuildConfig.VERSION_NAME} - stable`; add no repository or release link.
 - Replace the current phone-landscape Main arrangement with a two-column layout. In the default
@@ -659,8 +659,26 @@ re-export, and owned schema-2 upgrade tests remain active.
 
 Add final Settings About text only. Remove per-interval Duration, display Start Time/Stop Time as
 12-hour `hh:mm a`, retain Task Total above the list, place Billing Minutes immediately below it,
-and request sentence capitalization for text fields. Preserve exact stored text/instants,
-editing/DST detail, export `HH:mm`, and all calculation precision.
+and request sentence capitalization for text fields. Apply strict task-zone `hh:mm a` to displayed
+and canonical-export Start/Stop values while preserving exact stored text/instants,
+editing/DST detail, and all calculation precision.
+
+Status: implemented and verified. Settings derives the exact no-link About text from Gradle build
+metadata. One shared formatter owns strict task-zone `hh:mm a` clock presentation for interval
+cards, interval editing, and the canonical export snapshot consumed by CSV, XLSX, and Google
+Sheets. Duration formatting and precise Room timestamps remain unchanged. Relevant text inputs
+request sentence capitalization without modifying saved user text. Standalone Client Management
+and Consultant Management rows are first and second in Settings; bare Consultant selection and its
+warning follow. Unchanged add/rename/archive/restore controls live on a dedicated Consultant
+Management route matching Client Management's navigation and list structure. Time-zone controls
+and selector UI are hidden while the intact settings implementation retains device-zone defaults.
+Bare version text is
+the final Settings item without an About card or title. The offline debug/release,
+lint, JVM, Android-test compilation, and connected-emulator gates passed; the generated reports
+recorded 190 JVM tests across 38 suites and 97 connected tests after the final
+Consultant-layout adjustment, with zero failures, errors, or skips. The owner also completed the
+final Settings visual inspection successfully. Milestone 23 is closed; Milestone 24 remains
+unstarted pending explicit owner direction.
 
 ### Milestone 24 — Handed two-column landscape
 

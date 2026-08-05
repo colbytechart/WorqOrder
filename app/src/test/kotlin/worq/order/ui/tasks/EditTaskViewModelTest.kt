@@ -81,8 +81,8 @@ class EditTaskViewModelTest {
             val interval = fixture.viewModel.uiState.value.intervals.single()
             assertEquals("01:00:00", fixture.viewModel.uiState.value.totalDuration)
             assertEquals(60L, fixture.viewModel.uiState.value.billingMinutes)
-            assertFalse(interval.startText.contains("-04:00"))
-            assertFalse(interval.stopText.contains("-04:00"))
+            assertEquals("09:00 AM", interval.startText)
+            assertEquals("10:00 AM", interval.stopText)
 
             fixture.viewModel.onEvent(EditTaskEvent.OpenEditInterval(interval.id))
             fixture.viewModel.onEvent(

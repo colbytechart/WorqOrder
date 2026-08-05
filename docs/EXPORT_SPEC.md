@@ -61,8 +61,8 @@ these exact 14 columns in this exact order:
 | 7 | Work type | `On-Site`, `In-Office`, or blank for migrated `Unspecified` |
 | 8 | Mileage | normalized plain non-negative decimal text, or blank |
 | 9 | Interval number | stable positive ordinal or blank |
-| 10 | Start time | task-zone local clock time `HH:mm`, or blank |
-| 11 | Stop time | task-zone local clock time `HH:mm`, or blank |
+| 10 | Start time | task-zone local clock time `hh:mm a`, or blank |
+| 11 | Stop time | task-zone local clock time `hh:mm a`, or blank |
 | 12 | Interval duration | accumulated `HH:MM:SS`, or blank |
 | 13 | Time spent | exact same value previously named Task Total Duration; accumulated `HH:MM:SS` |
 | 14 | Billing minutes | non-negative base-10 integer |
@@ -70,7 +70,7 @@ these exact 14 columns in this exact order:
 Both date columns intentionally repeat the same independently stored task work date. They are an
 export projection only: WorqOrder does not store a date range and does not change date behavior in
 the app. Start/Stop instants are converted using the task's stored geographical ZoneId and only then reduced
-to 24-hour `HH:mm`. Seconds, fractional seconds, date, offset, and ZoneId are intentionally omitted
+to strict 12-hour `hh:mm a` with uppercase AM/PM. Seconds, fractional seconds, date, offset, and ZoneId are intentionally omitted
 from the export; the complete instants and task ZoneId remain stored in Room. Two fall-back
 occurrences can therefore display the same clock time even though the app retains distinct
 instants.
@@ -136,13 +136,13 @@ Start date,End date,Consultant,Client,Description,Expense,Work type,Mileage,Inte
 A completed interval may serialize as:
 
 ```csv
-07/24/2026,07/24/2026,Alex Rivera,"Acme, Inc.","Repair ""north"" unit",Laptop,On-Site,18.5,1,09:00,10:00,01:00:00,01:00:00,60
+07/24/2026,07/24/2026,Alex Rivera,"Acme, Inc.","Repair ""north"" unit",Laptop,On-Site,18.5,1,09:00 AM,10:00 AM,01:00:00,01:00:00,60
 ```
 
 A task without intervals has blank interval number/start/stop/duration and a zero task total:
 
 ```csv
-07/24/2026,07/24/2026,Alex Rivera,Example Client,Planning,,On-Site,,,,,,,00:00:00,0
+07/24/2026,07/24/2026,Alex Rivera,Example Client,Planning,,On-Site,,,,,,00:00:00,0
 ```
 
 The examples are shown with line breaks for readability; the file record terminator is CRLF.
@@ -492,7 +492,7 @@ not bypassed through billing, paid capacity, background traffic, or unbounded re
 Tests must prove:
 
 - exact schema/header/order and zero-task/zero-interval behavior across all three destinations;
-- commas, quotes, CR/LF, Unicode, both task text fields, long hours, `HH:mm` task-zone clock
+- commas, quotes, CR/LF, Unicode, both task text fields, long hours, `hh:mm a` task-zone clock
   values, and sub-second duration truncation;
 - Main and its event handler reject every export destination while a timer is running;
 - picker cancellation writes nothing, changes no local data, and shows no transient status;

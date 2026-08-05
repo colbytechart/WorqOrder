@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -57,8 +58,9 @@ class EditTaskScreenTest {
             .onNodeWithText("Interval 1")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onAllNodesWithText("Start: 9:00:00 AM").assertCountEquals(2)
-        composeRule.onAllNodesWithText("Stop: 10:00:00 AM").assertCountEquals(2)
+        composeRule.onAllNodesWithText("Start Time: 09:00 AM").assertCountEquals(2)
+        composeRule.onAllNodesWithText("Stop Time: 10:00 AM").assertCountEquals(2)
+        composeRule.onAllNodesWithText("Duration: 01:00:00").assertCountEquals(0)
         composeRule
             .onNodeWithText("Interval 2")
             .performScrollTo()
@@ -88,6 +90,23 @@ class EditTaskScreenTest {
         composeRule
             .onNodeWithText("Stop this task’s timer before editing or deleting it.")
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun intervalEditorUsesTheSameStrictTwelveHourClockPresentation() {
+        setContent(
+            state =
+                readyState().copy(
+                    intervalEditor =
+                        IntervalEditorUiState(
+                            startLocal = LocalDateTime.of(2026, 7, 25, 9, 5, 42, 987_000_000),
+                            stopLocal = LocalDateTime.of(2026, 7, 25, 13, 30, 15),
+                        ),
+                ),
+        )
+
+        composeRule.onNodeWithText("Start Time: 09:05 AM").assertIsDisplayed()
+        composeRule.onNodeWithText("Stop Time: 01:30 PM").assertIsDisplayed()
     }
 
     private fun setContent(
@@ -127,9 +146,8 @@ class EditTaskScreenTest {
     ) = IntervalItemUi(
         id = id,
         ordinal = ordinal,
-        startText = "9:00:00 AM",
-        stopText = "10:00:00 AM",
-        durationText = "01:00:00",
+        startText = "09:00 AM",
+        stopText = "10:00 AM",
         isRunning = false,
     )
 }

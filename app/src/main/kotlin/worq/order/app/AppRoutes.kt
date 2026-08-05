@@ -11,6 +11,7 @@ object AppRoutes {
     const val SETTINGS = "settings"
     const val SETTINGS_GOOGLE_SETUP = "settings/google-setup"
     const val CLIENT_MANAGEMENT = "settings/clients"
+    const val CONSULTANT_MANAGEMENT = "settings/consultants"
 
     val destinationPatterns =
         listOf(
@@ -20,6 +21,7 @@ object AppRoutes {
             SETTINGS,
             SETTINGS_GOOGLE_SETUP,
             CLIENT_MANAGEMENT,
+            CONSULTANT_MANAGEMENT,
         )
 
     fun editTask(taskId: String): String {

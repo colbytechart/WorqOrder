@@ -11,6 +11,7 @@ import worq.order.model.WorkInterval
 import worq.order.model.WorkType
 import worq.order.domain.BillingMinutes
 import worq.order.timer.DurationMath
+import worq.order.util.ClockTimeFormatter
 
 object ExportSchema {
     const val VERSION = 3
@@ -156,14 +157,13 @@ class ExportRowBuilder {
 
 object ExportValueFormatter {
     private val dateFormatter = DateTimeFormatter.ofPattern("MM/dd/uuuu", Locale.ROOT)
-    private val localTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.ROOT)
 
     fun date(date: LocalDate): String = dateFormatter.format(date)
 
     fun localTime(
         instant: Instant,
         zoneId: ZoneId,
-    ): String = localTimeFormatter.format(instant.atZone(zoneId))
+    ): String = ClockTimeFormatter.format(instant, zoneId)
 
     fun duration(duration: Duration): String {
         require(!duration.isNegative) { "Export duration must not be negative" }

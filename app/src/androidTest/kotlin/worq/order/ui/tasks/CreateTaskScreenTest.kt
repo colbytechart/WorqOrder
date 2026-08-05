@@ -90,10 +90,10 @@ class CreateTaskScreenTest {
 
         composeRule
             .onNodeWithTag(CreateTaskScreenTestTags.DESCRIPTION)
-            .performTextInput("Task")
+            .performTextInput("task")
         composeRule
             .onNodeWithTag(CreateTaskScreenTestTags.PURCHASES)
-            .performTextInput("Laptop")
+            .performTextInput("laptop")
         composeRule
             .onNodeWithText("In-Office")
             .performScrollTo()
@@ -105,10 +105,10 @@ class CreateTaskScreenTest {
             .onNodeWithTag(CreateTaskScreenTestTags.CREATE)
             .performClick()
 
-        assertTrue(events.contains(CreateTaskEvent.EditDescription("Task")))
+        assertTrue(events.contains(CreateTaskEvent.EditDescription("task")))
         assertTrue(
             events.contains(
-                CreateTaskEvent.EditHardwareSoftwarePurchases("Laptop"),
+                CreateTaskEvent.EditHardwareSoftwarePurchases("laptop"),
             ),
         )
         assertTrue(events.contains(CreateTaskEvent.SelectWorkType(worq.order.model.WorkType.IN_OFFICE)))

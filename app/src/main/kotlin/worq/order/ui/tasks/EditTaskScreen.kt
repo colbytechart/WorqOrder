@@ -47,7 +47,9 @@ import worq.order.data.MAX_TASK_PURCHASES_CODE_POINTS
 import worq.order.data.TaskMetadataValidationError
 import worq.order.domain.ManualIntervalValidationError
 import worq.order.domain.OverlapOffsetChoice
+import worq.order.ui.WorqOrderTextInputDefaults
 import worq.order.ui.theme.WorqOrderDimens
+import worq.order.util.ClockTimeFormatter
 
 object EditTaskScreenTestTags {
     const val CONSULTANT = "edit_task_consultant"
@@ -216,6 +218,7 @@ private fun EditTaskContent(
             enabled = !uiState.isRunning && !uiState.isSavingMetadata,
             minLines = 2,
             maxLines = 5,
+            keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
             isError =
                 TaskMetadataValidationError.DESCRIPTION_REQUIRED in uiState.metadataErrors ||
                     TaskMetadataValidationError.DESCRIPTION_TOO_LONG in uiState.metadataErrors,
@@ -242,6 +245,7 @@ private fun EditTaskContent(
             enabled = !uiState.isRunning && !uiState.isSavingMetadata,
             minLines = 2,
             maxLines = 6,
+            keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
             isError =
                 TaskMetadataValidationError.PURCHASES_TOO_LONG in uiState.metadataErrors,
             supportingText = {
@@ -385,7 +389,6 @@ private fun IntervalCard(
                     },
                 ),
             )
-            Text(stringResource(R.string.interval_duration, interval.durationText))
             if (interval.isRunning) {
                 Text(
                     text = stringResource(R.string.running),
@@ -534,7 +537,6 @@ private fun IntervalEditorDialog(
     editor: IntervalEditorUiState,
     onEvent: (EditTaskEvent) -> Unit,
 ) {
-    val formatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
     AlertDialog(
         onDismissRequest = { onEvent(EditTaskEvent.DismissIntervalEditor) },
         title = {
@@ -560,7 +562,7 @@ private fun IntervalEditorDialog(
                     Text(
                         stringResource(
                             R.string.interval_start,
-                            formatter.format(editor.startLocal),
+                            ClockTimeFormatter.format(editor.startLocal),
                         ),
                     )
                 }
@@ -585,7 +587,7 @@ private fun IntervalEditorDialog(
                     Text(
                         stringResource(
                             R.string.interval_stop,
-                            formatter.format(editor.stopLocal),
+                            ClockTimeFormatter.format(editor.stopLocal),
                         ),
                     )
                 }

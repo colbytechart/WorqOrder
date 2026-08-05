@@ -39,6 +39,7 @@ import worq.order.data.MAX_TASK_PURCHASES_CODE_POINTS
 import worq.order.data.TaskMetadataValidationError
 import worq.order.ui.clients.ClientEditorDialog
 import worq.order.ui.clients.RestoreArchivedClientDialog
+import worq.order.ui.WorqOrderTextInputDefaults
 import worq.order.ui.theme.WorqOrderDimens
 
 object CreateTaskScreenTestTags {
@@ -181,6 +182,7 @@ fun CreateTaskScreen(
                 enabled = !uiState.isSavingTask,
                 minLines = 2,
                 maxLines = 5,
+                keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
                 isError =
                     TaskMetadataValidationError.DESCRIPTION_REQUIRED in
                         uiState.metadataErrors ||
@@ -214,6 +216,7 @@ fun CreateTaskScreen(
                 enabled = !uiState.isSavingTask,
                 minLines = 2,
                 maxLines = 6,
+                keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
                 isError =
                     TaskMetadataValidationError.PURCHASES_TOO_LONG in
                         uiState.metadataErrors,

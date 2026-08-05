@@ -127,9 +127,8 @@
     <string name="edit_interval_title">Edit Interval</string>
     <string name="delete_interval">Delete interval</string>
     <string name="interval_number">Interval %1$d</string>
-    <string name="interval_start">Start: %1$s</string>
-    <string name="interval_stop">Stop: %1$s</string>
-    <string name="interval_duration">Duration: %1$s</string>
+    <string name="interval_start">Start Time: %1$s</string>
+    <string name="interval_stop">Stop Time: %1$s</string>
     <string name="delete_interval_title">Delete Interval %1$d?</string>
     <string name="delete_interval_message">The recorded time will be removed and the task total will update immediately.</string>
     <string name="interval_no_longer_exists">That interval no longer exists.</string>
@@ -224,6 +223,7 @@
     <string name="google_error_sign_out_partial">Signed out locally. Remove WorqOrder from your Google Account if access remains.</string>
     <string name="client_management">Client Management</string>
     <string name="client_management_summary">Add, rename, remove, or restore clients without changing historical tasks.</string>
+    <string name="about_version_stability">WorqOrder v%1$s - stable</string>
 
     <string name="active_clients">Active Clients</string>
     <string name="archived_clients">Archived Clients</string>
@@ -272,7 +272,8 @@
     <string name="archived_client_status">Removed from new task choices</string>
 
     <string name="consultant">Consultant</string>
-    <string name="consultant_selection_summary">Choose the Consultant assigned to new tasks. Earlier tasks keep the Consultant name captured when they were created.</string>
+    <string name="consultant_management">Consultant Management</string>
+    <string name="consultant_management_summary">Add, rename, remove, or restore Consultants without changing historical tasks.</string>
     <string name="choose_consultant">Choose a Consultant</string>
     <string name="add_consultant">Add Consultant</string>
     <string name="add_consultant_title">Add Consultant</string>
@@ -281,7 +282,9 @@
     <string name="archived_consultants">Archived Consultants</string>
     <string name="no_active_consultants">No Active Consultants</string>
     <string name="no_active_consultants_supporting">Add and select a Consultant before creating a task.</string>
+    <string name="no_active_consultants_management_supporting">Add a Consultant to make them available for new tasks.</string>
     <string name="no_archived_consultants">No Archived Consultants</string>
+    <string name="no_archived_consultants_supporting">Removed Consultants will appear here and can be restored.</string>
     <string name="selected_consultant_status">Selected for new tasks</string>
     <string name="active_consultant_status">Available for new tasks</string>
     <string name="archived_consultant_status">Removed from new task choices</string>

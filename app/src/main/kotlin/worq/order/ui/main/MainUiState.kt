@@ -2,6 +2,7 @@ package worq.order.ui.main
 
 import java.time.LocalDate
 import worq.order.data.ExportDestination
+import worq.order.data.LandscapeHandedness
 
 enum class MainTimerAction {
     START,
@@ -99,6 +100,8 @@ data class MainUiState(
     val taskPendingDeletion: MainTaskItemUi? = null,
     val canExport: Boolean = false,
     val exportDestination: ExportDestination = ExportDestination.CSV,
+    val landscapeHandedness: LandscapeHandedness =
+        LandscapeHandedness.RIGHT_HANDED,
     val googleExportState: MainGoogleExportState =
         MainGoogleExportState.SETUP_REQUIRED,
     val exportProgress: MainExportProgress? = null,

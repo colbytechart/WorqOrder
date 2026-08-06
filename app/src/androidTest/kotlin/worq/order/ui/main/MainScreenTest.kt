@@ -33,6 +33,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import worq.order.data.ExportDestination
+import worq.order.data.LandscapeHandedness
 import worq.order.ui.theme.WorqOrderTheme
 
 @RunWith(AndroidJUnit4::class)
@@ -347,7 +348,7 @@ class MainScreenTest {
     }
 
     @Test
-    fun largeScaleShortLandscapeMovesActionsToTopAndKeepsTasksReachable() {
+    fun largeScaleShortLandscapeUsesTwoColumnsAndKeepsTasksReachable() {
         val tasks =
             (1..8).map { index ->
                 task(
@@ -415,28 +416,39 @@ class MainScreenTest {
                 .assertIsDisplayed()
                 .fetchSemanticsNode()
                 .boundsInRoot
+        val taskPaneBounds =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.LANDSCAPE_TASK_PANE)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        val controlPaneBounds =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.LANDSCAPE_CONTROL_PANE)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
         assertTrue(
-            "Landscape title and Export overlap: " +
-                "title=$titleBounds, export=$exportBounds",
-            titleBounds.right <= exportBounds.left,
+            "Right-handed landscape must place tasks left: " +
+                "tasks=$taskPaneBounds controls=$controlPaneBounds",
+            taskPaneBounds.right <= controlPaneBounds.left,
+        )
+        assertTrue(
+            "Global title bar must remain above both panes: " +
+                "title=$titleBounds settings=$settingsBounds " +
+                "tasks=$taskPaneBounds controls=$controlPaneBounds",
+            titleBounds.bottom <= taskPaneBounds.top &&
+                settingsBounds.bottom <= controlPaneBounds.top,
+        )
+        assertTrue(
+            "Landscape actions must remain in the controls pane",
+            exportBounds.left >= controlPaneBounds.left &&
+                addTaskBounds.right <= controlPaneBounds.right,
         )
         assertTrue(
             "Landscape actions lack separation: " +
                 "export=$exportBounds, add=$addTaskBounds",
             exportBounds.right < addTaskBounds.left,
-        )
-        assertTrue(
-            "Add task overlaps Settings: " +
-                "add=$addTaskBounds, settings=$settingsBounds",
-            addTaskBounds.right <= settingsBounds.left,
-        )
-        assertTrue(
-            "Landscape Export is too narrow: $exportBounds",
-            exportBounds.width >= 144f,
-        )
-        assertTrue(
-            "Landscape Add task is too narrow: $addTaskBounds",
-            addTaskBounds.width >= 144f,
         )
         val timerBeforeScroll =
             composeRule
@@ -464,6 +476,7 @@ class MainScreenTest {
                 "content=$contentBounds",
             contentBounds.height > 0f,
         )
+        assertEquals(taskPaneBounds.bottom, controlPaneBounds.bottom)
 
         composeRule
             .onNodeWithTag(MainScreenTestTags.CONTENT)
@@ -494,6 +507,57 @@ class MainScreenTest {
             .onNodeWithTag(
                 MainScreenTestTags.taskRow("landscape-task-8"),
             ).assertIsDisplayed()
+    }
+
+    @Test
+    fun leftHandedLandscapeMirrorsOnlyTheContentPanes() {
+        composeRule.setContent {
+            Box(
+                modifier =
+                    androidx.compose.ui.Modifier
+                        .width(800.dp)
+                        .height(480.dp),
+            ) {
+                WorqOrderTheme(darkTheme = false) {
+                    MainScreen(
+                        uiState =
+                            MainUiState
+                                .ready()
+                                .copy(
+                                    landscapeHandedness =
+                                        LandscapeHandedness.LEFT_HANDED,
+                                    tasks =
+                                        listOf(
+                                            task(id = "newest"),
+                                            task(id = "oldest"),
+                                        ),
+                                ),
+                        onEvent = {},
+                    )
+                }
+            }
+        }
+
+        val taskPaneBounds =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.LANDSCAPE_TASK_PANE)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+        val controlPaneBounds =
+            composeRule
+                .onNodeWithTag(MainScreenTestTags.LANDSCAPE_CONTROL_PANE)
+                .assertIsDisplayed()
+                .fetchSemanticsNode()
+                .boundsInRoot
+
+        assertTrue(
+            "Left-handed landscape must place controls left: " +
+                "controls=$controlPaneBounds tasks=$taskPaneBounds",
+            controlPaneBounds.right <= taskPaneBounds.left,
+        )
+        composeRule.onNodeWithTag(MainScreenTestTags.taskRow("newest")).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Open settings").assertIsDisplayed()
     }
 
     @Test

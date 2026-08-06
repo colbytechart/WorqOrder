@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -75,9 +76,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -93,6 +96,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import worq.order.R
 import worq.order.data.ExportDestination
+import worq.order.data.LandscapeHandedness
 import worq.order.ui.theme.WorqOrderDimens
 import worq.order.ui.theme.WorqOrderTheme
 
@@ -105,6 +109,8 @@ object MainScreenTestTags {
     const val TASK_LIST = "main_task_list"
     const val EXPORT_ACTION = "main_export_action"
     const val ADD_TASK_ACTION = "main_add_task_action"
+    const val LANDSCAPE_TASK_PANE = "main_landscape_task_pane"
+    const val LANDSCAPE_CONTROL_PANE = "main_landscape_control_pane"
 
     fun taskRow(taskId: String): String = "main_task_$taskId"
 }
@@ -163,22 +169,12 @@ fun MainScreen(
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val useLandscapeTopActions = maxWidth > maxHeight
+        val useLandscapeLayout = maxWidth > maxHeight
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             topBar = {
-                if (useLandscapeTopActions) {
+                if (useLandscapeLayout) {
                     MainLandscapeTopBar(
-                        canExport = uiState.canExport,
-                        isTimerRunning = uiState.isTimerRunning,
-                        exportDestination = uiState.exportDestination,
-                        googleExportState = uiState.googleExportState,
-                        exportProgress = uiState.exportProgress,
-                        displayedDate = uiState.displayedDate,
-                        onExport = { onEvent(MainEvent.Export) },
-                        onCreateTask = {
-                            onEvent(MainEvent.OpenCreateTask)
-                        },
                         onOpenSettings = {
                             onEvent(MainEvent.OpenSettings)
                         },
@@ -207,7 +203,7 @@ fun MainScreen(
                 }
             },
             bottomBar = {
-                if (!useLandscapeTopActions) {
+                if (!useLandscapeLayout) {
                     MainBottomActions(
                         canExport = uiState.canExport,
                         isTimerRunning = uiState.isTimerRunning,
@@ -235,81 +231,15 @@ fun MainScreen(
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun MainLandscapeTopBar(
-    canExport: Boolean,
-    isTimerRunning: Boolean,
-    exportDestination: ExportDestination,
-    googleExportState: MainGoogleExportState,
-    exportProgress: MainExportProgress?,
-    displayedDate: LocalDate,
-    onExport: () -> Unit,
-    onCreateTask: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     TopAppBar(
         title = {
-            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val titleWidth =
-                    if (
-                        maxWidth <
-                        WorqOrderDimens.LandscapeTitleWidthThreshold
-                    ) {
-                        WorqOrderDimens.NarrowLandscapeTitleWidth
-                    } else {
-                        WorqOrderDimens.LandscapeTitleWidth
-                    }
-                val actionWidth =
-                    if (
-                        maxWidth <
-                        WorqOrderDimens.LandscapeTitleWidthThreshold
-                    ) {
-                        WorqOrderDimens.NarrowLandscapeTopActionWidth
-                    } else {
-                        WorqOrderDimens.LandscapeTopActionWidth
-                    }
-                Text(
-                    text = stringResource(R.string.app_name),
-                    modifier =
-                        Modifier
-                            .width(titleWidth)
-                            .align(Alignment.CenterStart),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Row(
-                    modifier =
-                        Modifier
-                            .align(Alignment.Center)
-                            .offset(
-                                x =
-                                    WorqOrderDimens
-                                        .LandscapeTopActionCenterOffset,
-                            ),
-                    horizontalArrangement =
-                        Arrangement.spacedBy(
-                            WorqOrderDimens.LandscapeTopActionSpacing,
-                        ),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    MainExportButton(
-                        canExport = canExport,
-                        isTimerRunning = isTimerRunning,
-                        exportDestination = exportDestination,
-                        googleExportState = googleExportState,
-                        exportProgress = exportProgress,
-                        displayedDate = displayedDate,
-                        onExport = onExport,
-                        compactLabel = true,
-                        modifier =
-                            Modifier.width(actionWidth),
-                    )
-                    MainAddTaskButton(
-                        onCreateTask = onCreateTask,
-                        compact = true,
-                        modifier =
-                            Modifier.width(actionWidth),
-                    )
-                }
-            }
+            Text(
+                text = stringResource(R.string.app_name),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         },
         actions = {
             IconButton(onClick = onOpenSettings) {
@@ -336,165 +266,267 @@ private fun MainContent(
                 .fillMaxSize()
                 .padding(contentPadding),
     ) {
-        val useCompactLandscapeHeader =
-            maxWidth > maxHeight &&
-                maxHeight < WorqOrderDimens.CompactLandscapeHeightThreshold
-        Column(modifier = Modifier.fillMaxSize()) {
-            if (useCompactLandscapeHeader) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(
-                                WorqOrderDimens.CompactPinnedHeaderHeight,
-                            )
-                            .padding(
-                                horizontal = WorqOrderDimens.ScreenPadding,
-                                vertical = WorqOrderDimens.CompactMainHeaderSpacing,
-                            ),
-                    horizontalArrangement =
-                        Arrangement.spacedBy(
-                            WorqOrderDimens.CompactMainHeaderSpacing,
-                        ),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TimerCard(
-                        uiState = uiState,
-                        onStart = { onEvent(MainEvent.StartTimer) },
-                        onStop = { onEvent(MainEvent.StopTimer) },
-                        compact = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    DateSelector(
-                        displayedDate = uiState.displayedDate,
-                        isToday = uiState.isToday,
-                        onPreviousDate = { onEvent(MainEvent.PreviousDate) },
-                        onNextDate = { onEvent(MainEvent.NextDate) },
-                        onChooseDate = { onEvent(MainEvent.OpenDatePicker) },
+        if (maxWidth > maxHeight) {
+            MainLandscapeContent(
+                uiState = uiState,
+                listState = listState,
+                onEvent = onEvent,
+            )
+        } else {
+            MainPortraitContent(
+                uiState = uiState,
+                listState = listState,
+                onEvent = onEvent,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MainPortraitContent(
+    uiState: MainUiState,
+    listState: LazyListState,
+    onEvent: (MainEvent) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        TimerCard(
+            uiState = uiState,
+            onStart = { onEvent(MainEvent.StartTimer) },
+            onStop = { onEvent(MainEvent.StopTimer) },
+            modifier =
+                Modifier.padding(
+                    start = WorqOrderDimens.ScreenPadding,
+                    top = WorqOrderDimens.SectionSpacing,
+                    end = WorqOrderDimens.ScreenPadding,
+                ),
+        )
+        DateSelector(
+            displayedDate = uiState.displayedDate,
+            isToday = uiState.isToday,
+            onPreviousDate = { onEvent(MainEvent.PreviousDate) },
+            onNextDate = { onEvent(MainEvent.NextDate) },
+            onChooseDate = { onEvent(MainEvent.OpenDatePicker) },
+            onReturnToToday = { onEvent(MainEvent.ReturnToToday) },
+            modifier =
+                Modifier
+                    .padding(
+                        start = WorqOrderDimens.ScreenPadding,
+                        top = WorqOrderDimens.ItemSpacing,
+                        end = WorqOrderDimens.ScreenPadding,
+                    ).testTag(MainScreenTestTags.DATE_SELECTOR),
+        )
+        MainTaskListPane(
+            uiState = uiState,
+            listState = listState,
+            onEvent = onEvent,
+            contentPadding =
+                PaddingValues(
+                    horizontal = WorqOrderDimens.ScreenPadding,
+                    vertical = WorqOrderDimens.SectionSpacing,
+                ),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun MainLandscapeContent(
+    uiState: MainUiState,
+    listState: LazyListState,
+    onEvent: (MainEvent) -> Unit,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val compactControls =
+            maxHeight < WorqOrderDimens.CompactLandscapeHeightThreshold ||
+                LocalDensity.current.fontScale >= 1.3f
+        val taskPane: @Composable (Modifier) -> Unit = { modifier ->
+            MainTaskListPane(
+                uiState = uiState,
+                listState = listState,
+                onEvent = onEvent,
+                contentPadding =
+                    PaddingValues(
+                        end = WorqOrderDimens.ScreenPadding,
+                        bottom = WorqOrderDimens.ItemSpacing,
+                    ),
+                modifier =
+                    modifier
+                        .testTag(MainScreenTestTags.LANDSCAPE_TASK_PANE)
+                        .semantics {
+                            isTraversalGroup = true
+                            traversalIndex = 0f
+                        },
+            )
+        }
+        val controlPane: @Composable (Modifier) -> Unit = { modifier ->
+            MainLandscapeControls(
+                uiState = uiState,
+                onEvent = onEvent,
+                compact = compactControls,
+                modifier =
+                    modifier
+                        .testTag(MainScreenTestTags.LANDSCAPE_CONTROL_PANE)
+                        .semantics {
+                            isTraversalGroup = true
+                            traversalIndex = 1f
+                        },
+            )
+        }
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(
+                        horizontal = WorqOrderDimens.ScreenPadding,
+                        vertical =
+                            if (compactControls) {
+                                WorqOrderDimens.ItemSpacing
+                            } else {
+                                WorqOrderDimens.SectionSpacing
+                            },
+                    ),
+            horizontalArrangement =
+                Arrangement.spacedBy(WorqOrderDimens.SectionSpacing),
+        ) {
+            if (
+                uiState.landscapeHandedness ==
+                LandscapeHandedness.RIGHT_HANDED
+            ) {
+                taskPane(Modifier.weight(1f).fillMaxHeight())
+                controlPane(Modifier.weight(1f).fillMaxHeight())
+            } else {
+                controlPane(Modifier.weight(1f).fillMaxHeight())
+                taskPane(Modifier.weight(1f).fillMaxHeight())
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainLandscapeControls(
+    uiState: MainUiState,
+    onEvent: (MainEvent) -> Unit,
+    compact: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
+    ) {
+        TimerCard(
+            uiState = uiState,
+            onStart = { onEvent(MainEvent.StartTimer) },
+            onStop = { onEvent(MainEvent.StopTimer) },
+            compact = compact,
+        )
+        DateSelector(
+            displayedDate = uiState.displayedDate,
+            isToday = uiState.isToday,
+            onPreviousDate = { onEvent(MainEvent.PreviousDate) },
+            onNextDate = { onEvent(MainEvent.NextDate) },
+            onChooseDate = { onEvent(MainEvent.OpenDatePicker) },
+            onReturnToToday = { onEvent(MainEvent.ReturnToToday) },
+            compact = true,
+            modifier = Modifier.testTag(MainScreenTestTags.DATE_SELECTOR),
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement =
+                Arrangement.spacedBy(WorqOrderDimens.BottomActionSpacing),
+        ) {
+            MainExportButton(
+                canExport = uiState.canExport,
+                isTimerRunning = uiState.isTimerRunning,
+                exportDestination = uiState.exportDestination,
+                googleExportState = uiState.googleExportState,
+                exportProgress = uiState.exportProgress,
+                displayedDate = uiState.displayedDate,
+                onExport = { onEvent(MainEvent.Export) },
+                compactLabel = true,
+                modifier = Modifier.weight(1f),
+            )
+            MainAddTaskButton(
+                onCreateTask = { onEvent(MainEvent.OpenCreateTask) },
+                compact = true,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MainTaskListPane(
+    uiState: MainUiState,
+    listState: LazyListState,
+    onEvent: (MainEvent) -> Unit,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
+        LazyColumn(
+            state = listState,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .testTag(MainScreenTestTags.CONTENT),
+            contentPadding = contentPadding,
+            verticalArrangement =
+                Arrangement.spacedBy(WorqOrderDimens.SectionSpacing),
+        ) {
+            if (uiState.isTimerRunning && !uiState.isToday) {
+                item {
+                    RunningTaskBanner(
+                        runningTask = uiState.runningTask,
                         onReturnToToday = {
                             onEvent(MainEvent.ReturnToToday)
                         },
-                        compact = true,
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .testTag(MainScreenTestTags.DATE_SELECTOR),
                     )
                 }
-            } else {
-                TimerCard(
-                    uiState = uiState,
-                    onStart = { onEvent(MainEvent.StartTimer) },
-                    onStop = { onEvent(MainEvent.StopTimer) },
-                    modifier =
-                        Modifier.padding(
-                            start = WorqOrderDimens.ScreenPadding,
-                            top = WorqOrderDimens.SectionSpacing,
-                            end = WorqOrderDimens.ScreenPadding,
-                        ),
-                )
-                DateSelector(
-                    displayedDate = uiState.displayedDate,
-                    isToday = uiState.isToday,
-                    onPreviousDate = { onEvent(MainEvent.PreviousDate) },
-                    onNextDate = { onEvent(MainEvent.NextDate) },
-                    onChooseDate = { onEvent(MainEvent.OpenDatePicker) },
-                    onReturnToToday = {
-                        onEvent(MainEvent.ReturnToToday)
-                    },
-                    modifier =
-                        Modifier
-                            .padding(
-                                start = WorqOrderDimens.ScreenPadding,
-                                top = WorqOrderDimens.ItemSpacing,
-                                end = WorqOrderDimens.ScreenPadding,
-                            ).testTag(MainScreenTestTags.DATE_SELECTOR),
-                )
             }
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-            ) {
-                LazyColumn(
-                    state = listState,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .testTag(MainScreenTestTags.CONTENT),
-                    contentPadding =
-                        PaddingValues(
-                            horizontal = WorqOrderDimens.ScreenPadding,
-                            vertical = WorqOrderDimens.SectionSpacing,
-                        ),
-                    verticalArrangement =
-                        Arrangement.spacedBy(WorqOrderDimens.SectionSpacing),
-                ) {
-                    if (uiState.isTimerRunning && !uiState.isToday) {
-                        item {
-                            RunningTaskBanner(
-                                runningTask = uiState.runningTask,
-                                onReturnToToday = {
-                                    onEvent(MainEvent.ReturnToToday)
-                                },
-                            )
-                        }
-                    }
-                    uiState.message?.let { message ->
-                        item {
-                            MainMessageBanner(
-                                message = message,
-                                onDismiss = {
-                                    onEvent(MainEvent.DismissMessage)
-                                },
-                            )
-                        }
-                    }
-                    uiState.exportFeedback?.let { feedback ->
-                        item {
-                            MainExportFeedbackBanner(
-                                feedback = feedback,
-                                onDismiss = {
-                                    onEvent(MainEvent.DismissExportFeedback)
-                                },
-                                onRetry = { onEvent(MainEvent.Export) },
-                            )
-                        }
-                    }
-                    taskList(
-                        uiState = uiState,
-                        onSelectTask = {
-                            onEvent(MainEvent.SelectTask(it))
-                        },
-                        onOpenTaskMenu = {
-                            onEvent(MainEvent.OpenTaskMenu(it))
-                        },
-                        onCloseTaskMenu = {
-                            onEvent(MainEvent.CloseTaskMenu)
-                        },
-                        onEditTask = { onEvent(MainEvent.EditTask(it)) },
-                        onDeleteTask = {
-                            onEvent(MainEvent.RequestDeleteTask(it))
-                        },
-                        onRetry = { onEvent(MainEvent.RetryData) },
+            uiState.message?.let { message ->
+                item {
+                    MainMessageBanner(
+                        message = message,
+                        onDismiss = { onEvent(MainEvent.DismissMessage) },
                     )
                 }
-                MainContentScrollIndicator(
-                    listState = listState,
-                    modifier =
-                        Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(
-                                end =
-                                    WorqOrderDimens
-                                        .ScrollIndicatorEdgePadding,
-                                top = WorqOrderDimens.ItemSpacing,
-                                bottom = WorqOrderDimens.ItemSpacing,
-                            ),
-                )
             }
+            uiState.exportFeedback?.let { feedback ->
+                item {
+                    MainExportFeedbackBanner(
+                        feedback = feedback,
+                        onDismiss = {
+                            onEvent(MainEvent.DismissExportFeedback)
+                        },
+                        onRetry = { onEvent(MainEvent.Export) },
+                    )
+                }
+            }
+            taskList(
+                uiState = uiState,
+                onSelectTask = { onEvent(MainEvent.SelectTask(it)) },
+                onOpenTaskMenu = { onEvent(MainEvent.OpenTaskMenu(it)) },
+                onCloseTaskMenu = { onEvent(MainEvent.CloseTaskMenu) },
+                onEditTask = { onEvent(MainEvent.EditTask(it)) },
+                onDeleteTask = { onEvent(MainEvent.RequestDeleteTask(it)) },
+                onRetry = { onEvent(MainEvent.RetryData) },
+            )
         }
+        MainContentScrollIndicator(
+            listState = listState,
+            modifier =
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(
+                        end = WorqOrderDimens.ScrollIndicatorEdgePadding,
+                        top = WorqOrderDimens.ItemSpacing,
+                        bottom = WorqOrderDimens.ItemSpacing,
+                    ),
+        )
     }
 }
 
@@ -825,6 +857,7 @@ private fun TimerCard(
 ) {
     val isStopping = uiState.timerAction == MainTimerAction.STOP
     val actionEnabled = if (isStopping) uiState.canStop else uiState.canStart
+    val omitCompactLabel = compact && LocalDensity.current.fontScale >= 1.3f
     val timerDescription =
         stringResource(
             if (isStopping) {
@@ -864,10 +897,13 @@ private fun TimerCard(
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(
-                        text = stringResource(R.string.tracked_time),
-                        style = MaterialTheme.typography.labelMedium,
-                    )
+                    if (!omitCompactLabel) {
+                        Text(
+                            text = stringResource(R.string.tracked_time),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                        )
+                    }
                     TimerValue(
                         timerText = uiState.timerText,
                         timerDescription = timerDescription,

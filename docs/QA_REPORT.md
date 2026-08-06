@@ -352,3 +352,25 @@ inspection successfully. Final generated reports record 190 JVM tests across 38 
 connected tests, all with zero failures, zero errors, and zero skipped tests; the final connected
 run took 118.33 seconds. No Room schema or DataStore migration was required for this
 presentation/export-format milestone.
+
+## 10. v0.2.0 incremental evidence through Milestone 24
+
+Milestone 24 replaces only the `0.1.0` landscape Main composition. A spanning WorqOrder/Settings
+bar remains global. Below it, the default Right-handed mode places the independently scrolling
+task list in the left approximate half and timer/date/Export/Add controls in the right; Left-handed
+mirrors only those content columns. The list retains its right-edge scrollbar and reaches the same
+bottom margin as the action row. Portrait, task ordering, selection/running state, Room, timer
+authority, date behavior, and all export behavior are unchanged.
+
+The existing typed DataStore preference now has Settings radio controls after Appearance and is
+projected immediately through Settings and Main immutable state. First-install and corrupt values
+still fall back to Right-handed. The offline gate passed debug assembly, release Kotlin
+compilation, debug/release lint with zero errors, all 191 JVM tests across 38 suites, and
+Android-test Kotlin compilation. The first connected run exposed one genuine 200%-text,
+640 × 360 dp defect: the redundant compact **Tracked Time** label and vertical padding could push
+the bottom action row outside the control pane. Constrained landscape now tightens vertical
+padding and omits only that redundant visible label while retaining the full timer value and
+screen-reader semantics. The refreshed connected report records 98 tests, zero failures, zero
+errors, zero skips, and 121.476 seconds. The owner then manually verified the intended handed,
+portrait, persistence, task-scroll, timer/date/action, and responsive behavior. Milestone 24 is
+complete; no Room/DataStore migration or dependency change was required.

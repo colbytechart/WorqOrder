@@ -685,6 +685,17 @@ unstarted pending explicit owner direction.
 Add typed handedness preference and the approved responsive two-column landscape layout. Preserve
 portrait and task ordering; test short/large-text/display-scale/API-26/current configurations.
 
+Status: completed and verified. The existing typed
+`LandscapeHandedness` DataStore preference now appears after Appearance with Right-handed default
+and Left-handed alternative. Main observes it through immutable state. Landscape retains a global
+WorqOrder/Settings bar and uses approximately equal task/control columns; Left-handed mirrors only
+those columns, while task order, selection, timing, date, exports, and portrait remain unchanged.
+The task list owns its existing scrollbar and full-height viewport. Offline debug assembly,
+release Kotlin compilation, debug/release lint, 191 JVM tests across 38 suites, and Android-test
+Kotlin compilation passed. The refreshed connected suite records 98 tests with zero failures,
+errors, or skips, and the owner verified the intended behavior manually. Milestone 24 is closed;
+Milestone 25 remains unstarted pending explicit owner direction.
+
 ### Milestone 25 — Automatic Google export official research and design
 
 With explicit internet permission, verify current official Android background-work, notification,

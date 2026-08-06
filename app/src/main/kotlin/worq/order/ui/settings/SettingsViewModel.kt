@@ -17,6 +17,7 @@ import worq.order.data.AppSettings
 import worq.order.data.ExportDestination
 import worq.order.data.GoogleConnectionRepository
 import worq.order.data.GoogleSpreadsheetConnection
+import worq.order.data.LandscapeHandedness
 import worq.order.data.SettingsRepository
 import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
@@ -94,6 +95,8 @@ class SettingsViewModel(
                 }
             is SettingsEvent.SelectExportDestination ->
                 setExportDestination(event.destination)
+            is SettingsEvent.SelectLandscapeHandedness ->
+                setLandscapeHandedness(event.handedness)
             is SettingsEvent.EditSpreadsheetInput ->
                 editorState.update {
                     it.copy(
@@ -201,6 +204,12 @@ class SettingsViewModel(
     private fun setTheme(themeMode: ThemeMode) {
         launchWrite {
             settingsRepository.setThemeMode(themeMode)
+        }
+    }
+
+    private fun setLandscapeHandedness(handedness: LandscapeHandedness) {
+        launchWrite {
+            settingsRepository.setLandscapeHandedness(handedness)
         }
     }
 
@@ -393,6 +402,7 @@ class SettingsViewModel(
             manualZoneId = manualZoneId,
             effectiveZoneId = effectiveZoneId,
             defaultExportDestination = defaultExportDestination,
+            landscapeHandedness = landscapeHandedness,
             isTimerRunning = isTimerRunning,
             isSaving = editor.isSaving,
             isZoneSelectorVisible = editor.isZoneSelectorVisible,

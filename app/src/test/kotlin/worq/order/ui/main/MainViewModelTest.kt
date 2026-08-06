@@ -25,6 +25,7 @@ import worq.order.data.NewDailyTask
 import worq.order.data.ExportDestination
 import worq.order.data.ExportAttemptOutcome
 import worq.order.data.GoogleAccountHint
+import worq.order.data.LandscapeHandedness
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
@@ -463,6 +464,16 @@ class MainViewModelTest {
                 viewModel.uiState.value.exportDestination,
             )
             assertTrue(viewModel.uiState.value.canExport)
+
+            fixture.settings.setLandscapeHandedness(
+                LandscapeHandedness.LEFT_HANDED,
+            )
+            runCurrent()
+
+            assertEquals(
+                LandscapeHandedness.LEFT_HANDED,
+                viewModel.uiState.value.landscapeHandedness,
+            )
 
             val effect = async { viewModel.effects.first() }
             runCurrent()

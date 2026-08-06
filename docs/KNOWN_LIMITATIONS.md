@@ -58,9 +58,10 @@ they are not partially imported.
 ## User-interface scope
 
 - Main and all forms are phone-adaptive and remain scrollable on short, landscape, narrow, and
-  large-text layouts. Landscape moves Export/Add task into the top bar and bounds the compact
-  pinned timer/date row so the independent task-list viewport remains usable. No tablet-specific
-  two-pane or expanded-window layout is provided.
+  large-text layouts. Landscape uses approximately equal handed content columns below a spanning
+  title/settings bar: one independently scrollable task list and one timer/date/action region.
+  Right-handed is the default and Left-handed mirrors only those columns. No tablet-specific
+  layout beyond this responsive two-column Main is provided.
 - At very large font scales, the complete timer value remains one line and may require horizontal
   scrolling; TalkBack receives the entire formatted duration without scrolling.
 - Automated Compose semantics cover labels, selected/running states, validation/error

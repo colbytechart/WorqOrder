@@ -159,6 +159,13 @@ tests, and run all relevant checks. Report results/files and a commit message, t
 
 ## Milestone 24 — Handed two-column landscape
 
+Status: completed and verified. Typed persisted handedness,
+the Settings radio controls, immutable Main projection, global landscape bar, mirrored
+approximately equal task/control columns, independent task scrolling, and responsive compact
+controls are in place. Offline debug/release/lint gates and 191 JVM tests across 38 suites passed.
+The final connected suite records 98 tests with zero failures, errors, or skips, and the owner
+verified both handed modes and responsive behavior manually. Milestone 25 remains unstarted.
+
 ```text
 Begin Milestone 24. Read AGENTS.md, the approved landscape specification/concept notes, and current
 Main implementation. Add Landscape Orientation Settings with Right-handed default/corrupt fallback

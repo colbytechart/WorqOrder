@@ -178,6 +178,10 @@ class FakeSettingsRepository(
                 automaticGoogleExportEnabled = enabled,
                 automaticGoogleTargetDate =
                     state.value.automaticGoogleTargetDate.takeIf { enabled },
+                automaticGoogleTargetZoneId =
+                    state.value.automaticGoogleTargetZoneId.takeIf { enabled },
+                automaticGoogleTargetConnectionKey =
+                    state.value.automaticGoogleTargetConnectionKey.takeIf { enabled },
                 automaticGooglePendingReason =
                     state.value.automaticGooglePendingReason.takeIf { enabled },
             )
@@ -194,10 +198,27 @@ class FakeSettingsRepository(
             )
     }
 
+    override suspend fun setAutomaticGoogleExportTarget(
+        workDate: LocalDate,
+        zoneId: ZoneId,
+        connectionKey: String,
+        pendingReason: AutomaticGooglePendingReason?,
+    ) {
+        state.value =
+            state.value.copy(
+                automaticGoogleTargetDate = workDate,
+                automaticGoogleTargetZoneId = zoneId,
+                automaticGoogleTargetConnectionKey = connectionKey,
+                automaticGooglePendingReason = pendingReason,
+            )
+    }
+
     override suspend fun clearAutomaticGooglePendingExport() {
         state.value =
             state.value.copy(
                 automaticGoogleTargetDate = null,
+                automaticGoogleTargetZoneId = null,
+                automaticGoogleTargetConnectionKey = null,
                 automaticGooglePendingReason = null,
             )
     }

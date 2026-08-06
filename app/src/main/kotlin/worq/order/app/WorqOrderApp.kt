@@ -37,6 +37,7 @@ import worq.order.ui.main.MainScreen
 import worq.order.ui.main.MainViewModel
 import worq.order.ui.settings.SettingsScreen
 import worq.order.ui.settings.SettingsEffect
+import worq.order.ui.settings.SettingsEvent
 import worq.order.ui.tasks.CreateTaskScreen
 import worq.order.ui.tasks.CreateTaskViewModel
 import worq.order.ui.tasks.CreateTaskEffect
@@ -46,9 +47,13 @@ import worq.order.ui.tasks.EditTaskViewModel
 import worq.order.ui.theme.WorqOrderTheme
 import worq.order.export.CsvExportCoordinator
 import worq.order.export.XlsxExportCoordinator
+import worq.order.export.automatic.AutomaticGoogleExportNotifier
 
 @Composable
-fun WorqOrderRoot() {
+fun WorqOrderRoot(
+    openPendingGoogleExport: Boolean = false,
+    onPendingGoogleExportOpened: () -> Unit = {},
+) {
     val application =
         LocalContext.current.applicationContext as WorqOrderApplication
     val factory =
@@ -62,7 +67,7 @@ fun WorqOrderRoot() {
     val darkTheme = resolveDarkTheme(themeMode, isSystemInDarkTheme())
 
     WorqOrderTheme(darkTheme = darkTheme) {
-        WorqOrderApp()
+        WorqOrderApp(openPendingGoogleExport, onPendingGoogleExportOpened)
     }
 }
 
@@ -77,8 +82,20 @@ internal fun resolveDarkTheme(
     }
 
 @Composable
-fun WorqOrderApp() {
+fun WorqOrderApp(
+    openPendingGoogleExport: Boolean = false,
+    onPendingGoogleExportOpened: () -> Unit = {},
+) {
     val navController = rememberNavController()
+
+    LaunchedEffect(openPendingGoogleExport) {
+        if (openPendingGoogleExport) {
+            navController.navigate(AppRoutes.SETTINGS_GOOGLE_SETUP) {
+                launchSingleTop = true
+            }
+            onPendingGoogleExportOpened()
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -346,6 +363,8 @@ private fun SettingsDestination(
                 zoneIdProvider = application.container.zoneIdProvider,
                 googleConnectionRepository =
                     application.container.googleConnectionRepository,
+                automaticGoogleExportManager =
+                    application.container.automaticGoogleExportManager,
             )
         }
     val viewModel: SettingsViewModel = viewModel(factory = factory)
@@ -366,6 +385,16 @@ private fun SettingsDestination(
         remember(application, activity) {
             application.container.createGoogleConnectionCoordinator(activity)
         }
+    val googleSheetsExportCoordinator =
+        remember(application, activity) {
+            application.container.createGoogleSheetsExportCoordinator(activity)
+        }
+    val notificationPermissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted ->
+            viewModel.onEvent(SettingsEvent.NotificationPermissionResult(granted))
+        }
     LaunchedEffect(
         viewModel,
         googleConnectionCoordinator,
@@ -384,6 +413,19 @@ private fun SettingsDestination(
                             googleConnectionCoordinator.disconnectSpreadsheet()
                         SettingsEffect.SignOutOfGoogle ->
                             googleConnectionCoordinator.signOut()
+                        SettingsEffect.RequestNotificationPermission -> {
+                            notificationPermissionLauncher.launch(
+                                AutomaticGoogleExportNotifier.POST_NOTIFICATIONS_PERMISSION,
+                            )
+                            return@collect
+                        }
+                        is SettingsEffect.RetryAutomaticGoogleExport -> {
+                            val exportResult =
+                                googleSheetsExportCoordinator.export(effect.workDate)
+                            application.container.automaticGoogleExportManager
+                                .completeInteractiveExport(effect.workDate, exportResult)
+                            return@collect
+                        }
                     }
                 } catch (cancellation: CancellationException) {
                     viewModel.onGoogleOperationInterrupted()

@@ -75,9 +75,11 @@ class PreferencesSettingsRepositoryTest {
             repository.setSelectedEmployeeId("employee-1")
             repository.setLandscapeHandedness(LandscapeHandedness.LEFT_HANDED)
             repository.setAutomaticGoogleExportEnabled(true)
-            repository.setAutomaticGooglePendingExport(
-                LocalDate.of(2026, 7, 24),
-                AutomaticGooglePendingReason.TIMER_RUNNING,
+            repository.setAutomaticGoogleExportTarget(
+                workDate = LocalDate.of(2026, 7, 24),
+                zoneId = ZoneId.of("America/New_York"),
+                connectionKey = "account\nspreadsheet",
+                pendingReason = AutomaticGooglePendingReason.TIMER_RUNNING,
             )
             scope.cancel()
             scope.coroutineContext.job.join()
@@ -111,6 +113,14 @@ class PreferencesSettingsRepositoryTest {
             assertTrue(restored.automaticGoogleExportEnabled)
             assertEquals(LocalDate.of(2026, 7, 24), restored.automaticGoogleTargetDate)
             assertEquals(
+                ZoneId.of("America/New_York"),
+                restored.automaticGoogleTargetZoneId,
+            )
+            assertEquals(
+                "account\nspreadsheet",
+                restored.automaticGoogleTargetConnectionKey,
+            )
+            assertEquals(
                 AutomaticGooglePendingReason.TIMER_RUNNING,
                 restored.automaticGooglePendingReason,
             )
@@ -125,6 +135,8 @@ class PreferencesSettingsRepositoryTest {
             repository.setThemeMode(ThemeMode.SYSTEM)
             repository.setAutomaticGoogleExportEnabled(false)
             assertNull(repository.readSettings().automaticGoogleTargetDate)
+            assertNull(repository.readSettings().automaticGoogleTargetZoneId)
+            assertNull(repository.readSettings().automaticGoogleTargetConnectionKey)
             assertNull(repository.readSettings().automaticGooglePendingReason)
 
             scope.cancel()

@@ -718,17 +718,27 @@ tokens. No functional scheduling was implemented in Milestone 25.
 
 ### Milestone 26 — Automatic Google daily export implementation
 
-After Milestone 25 approval, implement the conditional Settings switch, approved unique one-time
-WorkManager schedule, durable captured-date/ZoneId oldest-target progression, idempotent
-Google-only work, running-timer/authorization/failure pending states, post-Stop recovery
-notification action, and complete tests. CSV/XLSX remain manual. Inspect merged WorkManager
-permissions/components and test notification grant/denial, Doze/reboot/force-stop, multi-day
-catch-up, manual-export races, and silent success.
+Status: complete in the `milestone26` worktree on 2026-08-06. The final project-local offline and
+connected gate passed with 200 JVM tests and 100 connected tests, all without failures, errors, or
+skips; debug/release lint and assemblies also passed.
+
+The conditional Settings switch, approved unique one-time WorkManager schedule, durable
+captured-date/ZoneId/connection target, Google-only worker, typed pending states, post-Stop
+notification action, and focused automated tests are implemented. CSV/XLSX remain manual.
+WorkManager uses stable `2.11.2`, one non-expedited network-constrained unique request, and no
+operation-level `Result.retry()`. The merged WorkManager permissions/components were inspected.
+The owner completed the first half of the manual device checklist plus the final notification
+denial/scroll-position check; remaining device/OEM timing scenarios are documented as unverified.
 
 The switch is the final conditional control in the Export Destination card below the Google sign-in
 and spreadsheet-connection options. Its exact label is **Auto Export** and its exact supporting text
 is **Automatically export tasks at the end of each day.** It is hidden for CSV/XLSX, defaults off,
 turns scheduling on when enabled, and cancels future automatic work when disabled.
+
+Rejected enablement keeps the Settings list at its current scroll position and renders a specific
+red recovery message directly below Auto Export. Notification permission/app/channel disablement,
+missing spreadsheet connection, wrong destination, and local settings failure do not share a
+generic error.
 
 ### Milestone 27 — Running-timer lock-screen official research and design
 

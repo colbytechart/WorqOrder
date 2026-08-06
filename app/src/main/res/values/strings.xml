@@ -323,4 +323,16 @@
     <string name="add_client_inline">Add client</string>
     <string name="task_client_required">A task must have an active client.</string>
     <string name="task_client_archived_during_edit">The selected client is no longer active. Choose an active client or restore it before saving.</string>
+    <string name="auto_export">Auto Export</string>
+    <string name="auto_export_summary">Automatically export tasks at the end of each day.</string>
+    <string name="auto_export_pending">An automatic Google Sheets export needs your attention.</string>
+    <string name="finish_pending_export">Finish Pending Export</string>
+    <string name="auto_export_error_notifications_disabled">Enable notifications in Settings &gt; Apps &gt; WorqOrder &gt; Notifications to use Auto Export.</string>
+    <string name="auto_export_error_spreadsheet_required">Sign in and connect an editable Google Sheet before enabling Auto Export.</string>
+    <string name="auto_export_error_google_destination_required">Select Google Sheets as the Export Destination before enabling Auto Export.</string>
+    <string name="auto_export_error_local_settings">Auto Export could not be enabled because local settings are unavailable. Try again.</string>
+    <string name="pending_google_export_channel_name">Pending Google Export</string>
+    <string name="pending_google_export_channel_description">Notifies you when an automatic Google Sheets export needs attention.</string>
+    <string name="pending_google_export_title">Automatic export needs attention</string>
+    <string name="pending_google_export_message">Tap to review the pending Google Sheets export.</string>
 </resources>

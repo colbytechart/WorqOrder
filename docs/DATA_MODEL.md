@@ -313,6 +313,8 @@ Approved examples: `12:32` total yields `15`; `13:11 + 3:03:45 + 1:16:00` totals
 | `landscape_handedness` | `RIGHT_HANDED`; alternate `LEFT_HANDED` |
 | `automatic_google_export_enabled` | `false` |
 | `automatic_google_target_epoch_day` | nullable captured local work date |
+| `automatic_google_target_zone_id` | nullable canonical geographical ZoneId captured with target |
+| `automatic_google_connection_fingerprint` | nullable non-secret association used to reject stale work |
 | `automatic_google_pending_reason` | nullable typed non-sensitive state |
 
 Unknown/corrupt values fall back safely. DataStore remains non-authoritative for task/timer data.
@@ -321,8 +323,11 @@ reported complete from the application's perspective. Room and DataStore cannot 
 transaction, so UI state also treats a missing/archived selected ID as unselected and startup/
 observation reconciliation removes any stale preference. None of these operations rewrites an
 existing daily task.
-The automatic-export target must survive process death/reboot and is cleared only after confirmed
-success, explicit cancellation by the user, or a documented superseding schedule decision.
+The automatic-export target must survive process death/reboot. It represents the oldest unresolved
+date and is never replaced by a newer target. Confirmed success advances it by one date when later
+dates are already due; explicit disable/destination-change/disconnect/sign-out cancels it. Corrupt
+or incomplete target tuples fail closed and are reconstructed only through schedule reconciliation,
+never by changing Room data.
 
 ### v0.2 relationships and copy rules
 

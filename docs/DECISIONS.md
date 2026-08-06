@@ -312,7 +312,9 @@ System, Light, and Dark are always-enabled radio choices. System is the first-la
 unknown-value fallback; while selected, it follows the device configuration without disabling the
 two explicit overrides. Client Management is the first normal Settings item, followed by
 Appearance, Time Zone, and Export Destination. The Google Sheets Connection section is rendered
-only while Google Sheets is the selected destination. Section and screen headers use title
+only while Google Sheets is the selected destination. The conditional Google content belongs in
+the Export Destination card; its final row is the **Auto Export** switch described by D-071.
+Section and screen headers use title
 capitalization; body, field, and action copy retains its existing sentence-style wording.
 
 ### D-044 — Milestone 8 CSV snapshot and document delivery
@@ -375,7 +377,9 @@ cleared so Google export remains unavailable.
 While a connection exists, Settings shows its title/ID and Disconnect/Sign Out actions but hides
 the spreadsheet URL/ID and Validate and Connect controls. The entire connection card is hidden
 unless Google Sheets is the selected Export Destination. Selecting Google Sheets automatically
-scrolls the Settings list to the newly revealed connection card.
+scrolls the Settings list to the newly revealed conditional connection content. The **Auto Export**
+row follows all sign-in and spreadsheet-connection options at the bottom of the Export Destination
+card and is absent for CSV/XLSX.
 
 Milestone 10 implements this decision with DataStore keys for the account ID/display
 hint, spreadsheet ID/title, validation timestamp, current-account validation flag, and
@@ -826,8 +830,11 @@ and Export/Add actions. Left-handed mirrors only the content columns. Portrait r
 ### D-071 — Automatic export is Google-only and target-date-captured
 
 CSV and one-off XLSX remain manual. When Google Sheets is selected, its conditional Settings
-section shows an Automatic Daily Export switch, default off; enabling requires authorization and a
-valid connected spreadsheet. Schedule approximately near 11:59 PM
+content ends with a switch labeled exactly **Auto Export** and supporting text exactly
+**Automatically export tasks at the end of each day.** The row is inside the Export Destination
+card below Google sign-in and Sheets connection controls, is hidden for CSV/XLSX, and defaults off;
+enabling requires authorization, a valid connected spreadsheet, and required notification
+capability. Schedule approximately near 11:59 PM
 using the approved Android inexact mechanism. Capture the intended work date and its effective
 ZoneId when scheduling. Execution may occur shortly after midnight but must still export that
 captured prior date, never a newly blank `today`.
@@ -888,6 +895,37 @@ the codebase. Missing, first-launch, and corrupt time-zone-mode values continue 
 `DEVICE`; this presentation decision does not rewrite an existing stored manual preference or any
 historical task/date/interval data.
 
+### D-076 — Automatic Google export uses unique one-time WorkManager jobs
+
+Milestone 25's 2026-08-05 official review selects stable WorkManager `2.11.2`. Use a unique,
+non-expedited, network-constrained `OneTimeWorkRequest` calculated for each effective-zone
+near-end-of-day target, then recalculate the following target. Do not use a fixed 24-hour periodic
+worker, AlarmManager, an exact alarm, a foreground service, or app-owned stopwatch/background
+ticks. Execution is intentionally inexact and may occur after midnight; the durable captured epoch
+day and canonical ZoneId remain authoritative.
+
+The oldest unresolved target cannot be overwritten. It records only non-sensitive target ZoneId,
+date, connection association, and typed pending state. After success, due later dates advance one
+at a time through separate bounded workers. Timer-running, offline, authorization-resolution,
+permission, quota, timeout, server, or ambiguous states fail closed and remain recoverable; they do
+not use WorkManager automatic retry. Manual and automatic Google operations share the same export
+coordinator, canonical snapshot, and idempotent owned-tab replacement.
+
+A worker may call `AuthorizationClient.authorize()` using application context and proceed only
+when Google returns an already-granted short-lived `drive.file` token without interaction. A
+returned `PendingIntent` is never launched in background; it becomes a user-action-required state.
+No token is persisted and no backend, service account, broader scope, billing, or OAuth
+verification workflow is added.
+
+Blocked work uses one content-free **Pending Google Export** notification channel. On API 33+,
+enabling automation requires the user-driven `POST_NOTIFICATIONS` runtime grant; API 26+ requires
+the channel. Notification dismissal never clears pending work, success remains silent, and disabled
+notifications leave the pending target visible in Settings. WorkManager's library-managed normal
+network/reboot/wake-lock support must be visible in the merged-manifest audit, but WorqOrder adds no
+app-owned receiver or wake lock. Google Play services remains an installed-device API dependency;
+this decision does not add Google Play Store distribution, Play App Signing, Play Console setup, or
+a Play release.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.
@@ -897,9 +935,10 @@ historical task/date/interval data.
 - Persistent XLSX mode is obsolete. CSV and XLSX remain manual one-off document exports.
 - At-rest encryption, app-access login/biometric/device-credential/PIN gating, and optional
   screenshot/Recents privacy controls are deferred only to optional Milestone E under D-050/D-051.
-- The exact lock-screen surface and automatic-Google scheduling/auth mechanisms remain unresolved
-  implementation inputs until their official research milestones and owner approvals; their
-  product behavior is fixed by D-071/D-072.
+- The exact lock-screen surface remains an unresolved implementation input until its official
+  research milestone and owner approval; its product behavior is fixed by D-072. The automatic
+  Google scheduling/auth mechanism is now selected by D-076 but remains unimplemented pending
+  explicit owner approval of Milestone 25.
 
 ## Implementation inputs still needed
 

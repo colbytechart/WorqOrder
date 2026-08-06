@@ -72,9 +72,25 @@ they are not partially imported.
 ## Planned v0.2.0 limitations
 
 - Automatic daily export is Google-Sheets-only and best-effort under Android background scheduling.
-  It captures the intended work date, so a delayed run after midnight exports the prior date, but
-  Android/Google authorization, connectivity, Doze, OEM policy, and user settings may require an
-  actionable pending/retry flow rather than guaranteed unattended completion.
+  The approved design uses stable unique one-time WorkManager jobs and captures the intended work
+  date/ZoneId, so a delayed run after midnight exports the prior date. Android/Google
+  authorization, connectivity, Doze, force-stop, OEM policy, and user settings may require an
+  actionable pending flow rather than guaranteed unattended completion. The oldest unresolved date
+  is retained and later dates advance one bounded worker at a time after recovery.
+- Unattended Google authorization is possible only while Play services can return an already-granted
+  short-lived `drive.file` token without interaction. If Google returns an authorization
+  resolution, the user must tap a content-free notification or resume in Settings. WorqOrder does
+  not store refresh tokens or add a backend to bypass this limitation.
+- Pending-export notification delivery is controlled by Android and the user. API-33+ permission
+  denial prevents enabling the feature; later permission/channel revocation or OEM suppression can
+  hide a notice, but it does not clear the durable pending target. Successful automatic exports are
+  intentionally silent.
+- WorkManager's normal library integration includes system-managed scheduling components and
+  bounded execution wake locks. WorqOrder does not own a wake lock, exact alarm, foreground export
+  service, or boot receiver, and automatic work is never used for stopwatch ticks.
+- Google Play services is used as an installed-device authorization API. WorqOrder is not published
+  through Google Play Store and has no Play App Signing, Play Console release, or Play verification
+  dependency.
 - The running-timer lock-screen surface is not guaranteed until its official Android feasibility
   milestone is approved. User/OEM notification and lock-screen privacy settings may suppress any
   platform-approved surface.

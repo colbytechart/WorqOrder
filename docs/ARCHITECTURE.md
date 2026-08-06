@@ -426,17 +426,25 @@ Core failures are represented in UI state and remain retryable. Last export outc
 destination, displayed date, time, and a safe error category/detail. `MainActivity.onResume`
 invokes the application-scoped timer recovery coordinator even when Main is not visible; Main
 initialization/resume, date-change detection, and rule-sensitive operations provide idempotent
-retries. No boot receiver, wake lock, stopwatch WorkManager job, or foreground timer service
-exists.
+retries. No application-owned boot receiver or wake lock, stopwatch WorkManager job, or foreground
+timer service exists.
 
 Version `0.2.0` may add one narrowly scoped, opt-in Android background schedule for Google Sheets
-only. It captures a target epoch day and ZoneId near the end of that date, so an inexact execution
-after midnight still exports the preceding intended date. The scheduling adapter never owns task
-rows or tokens. It invokes the same `ExportSnapshotCoordinator` and Google replacement pipeline as
-manual export. CSV/XLSX remain manual. If Room reports an active timer, the coordinator stores a
-typed pending target instead of exporting and asks the post-Stop notification adapter to expose a
-content-free action. Exact scheduler/auth APIs require official research and owner approval in
-their dedicated milestone.
+only after owner approval of the completed Milestone 25 design. The selected adapter uses stable
+WorkManager `2.11.2`: one uniquely named, non-expedited, network-constrained one-time request per
+captured target, recalculated for each geographical-zone date rather than a fixed 24-hour periodic
+request. It captures the oldest unresolved target epoch day, ZoneId, and connection association,
+so an inexact execution after midnight still exports the preceding intended date. The adapter
+never owns task rows or tokens and advances missed dates one bounded worker at a time.
+
+It invokes the same `ExportSnapshotCoordinator` and Google replacement pipeline as manual export.
+CSV/XLSX remain manual. If Room reports an active timer, Google returns an authorization
+resolution, or a safe terminal operation failure occurs, the coordinator retains typed pending
+state rather than exporting/retrying and asks the API-26+ notification adapter to expose a
+content-free action. API-33+ enablement requires `POST_NOTIFICATIONS`. WorkManager may contribute
+its internal normal scheduling permissions/components and bounded execution wake locks; the app
+does not implement its own receiver/wake lock, exact alarm, foreground service, or background tick.
+No Play Store/App Signing/Console release path is introduced.
 
 ## 15. v0.2.0 architecture boundaries
 

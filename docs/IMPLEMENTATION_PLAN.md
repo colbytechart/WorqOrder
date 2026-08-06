@@ -534,7 +534,9 @@ for every implemented change.
 - Add opt-in automatic export only for Google Sheets. Capture the intended date near 11:59 PM;
   inexact execution shortly after midnight still exports that captured prior date. A running timer
   creates durable pending state and a content-free post-Stop notification action rather than an
-  incomplete export.
+  incomplete export. The conditional Export Destination card ends with **Auto Export** and exact
+  supporting text **Automatically export tasks at the end of each day.** after the Google sign-in
+  and Sheets connection controls; it is absent for CSV/XLSX.
 - Add transactional, append-only client-name CSV import through an Android read-document picker;
   active duplicates are skipped, archived matches restored, and the A–Z list is never replaced.
 - Add the Consultant-labeled directory/current selection, backed by Employee persistence and
@@ -694,20 +696,39 @@ The task list owns its existing scrollbar and full-height viewport. Offline debu
 release Kotlin compilation, debug/release lint, 191 JVM tests across 38 suites, and Android-test
 Kotlin compilation passed. The refreshed connected suite records 98 tests with zero failures,
 errors, or skips, and the owner verified the intended behavior manually. Milestone 24 is closed;
-Milestone 25 remains unstarted pending explicit owner direction.
+Milestone 25 research/design is documented and awaits explicit owner approval before Milestone 26.
 
 ### Milestone 25 — Automatic Google export official research and design
 
-With explicit internet permission, verify current official Android background-work, notification,
-Doze/reboot, and Google authorization constraints. Select the narrowest stable free mechanism,
-document dependencies/permissions and captured-date/pending rules, explain limitations, and pause
-for owner approval. Do not implement scheduling in this milestone.
+Status: research and documentation completed on 2026-08-05; awaiting explicit owner approval.
+
+Official Android and Google sources select stable WorkManager `2.11.2` unique, non-expedited,
+network-constrained one-time work recalculated per local date. The durable oldest target captures
+epoch day, geographical ZoneId, and connection association; delayed execution never substitutes
+execution-time `today`, and due dates catch up one date per bounded worker. Google
+`AuthorizationClient` may proceed unattended only when it returns an already-granted `drive.file`
+token. A returned resolution, running timer, or operation failure becomes typed pending state and a
+content-free user action rather than interactive background UI or automatic retry.
+
+Milestone 26 may add `work-runtime-ktx:2.11.2`, `work-testing:2.11.2`, the API-26+ Pending Google
+Export channel, and API-33+ `POST_NOTIFICATIONS` handling after approval and offline-cache
+preparation. It may not add exact alarms, expedited/foreground work, an app-owned wake lock/boot
+receiver, broader OAuth scope, backend, billing, Play Store/App Signing/Console work, or persistent
+tokens. No functional scheduling was implemented in Milestone 25.
 
 ### Milestone 26 — Automatic Google daily export implementation
 
-After Milestone 25 approval, implement the conditional Settings switch, inexact captured-date
-schedule, idempotent Google-only work, running-timer pending state, post-Stop notification action,
-failure recovery, and complete tests. CSV/XLSX remain manual.
+After Milestone 25 approval, implement the conditional Settings switch, approved unique one-time
+WorkManager schedule, durable captured-date/ZoneId oldest-target progression, idempotent
+Google-only work, running-timer/authorization/failure pending states, post-Stop recovery
+notification action, and complete tests. CSV/XLSX remain manual. Inspect merged WorkManager
+permissions/components and test notification grant/denial, Doze/reboot/force-stop, multi-day
+catch-up, manual-export races, and silent success.
+
+The switch is the final conditional control in the Export Destination card below the Google sign-in
+and spreadsheet-connection options. Its exact label is **Auto Export** and its exact supporting text
+is **Automatically export tasks at the end of each day.** It is hidden for CSV/XLSX, defaults off,
+turns scheduling on when enabled, and cancels future automatic work when disabled.
 
 ### Milestone 27 — Running-timer lock-screen official research and design
 

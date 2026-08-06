@@ -340,7 +340,10 @@ ZoneIds.
 Client Management is the first Settings item and Consultant Management is second, followed by the
 bare Consultant selector/warning and Appearance. No Time Zone card, controls, effective-ID text,
 or selector dialog is exposed. Device zone remains the first-launch/corrupt-value default in typed
-settings. Export Destination follows Appearance, and Google Sheets Connection is visible only when Google Sheets is selected. System is
+settings. Export Destination follows Appearance, and Google Sheets Connection is visible only when
+Google Sheets is selected. Its conditional controls end with an **Auto Export** switch row inside
+the Export Destination card. The row follows the sign-in/connection controls, displays supporting
+text **Automatically export tasks at the end of each day.**, and is absent for CSV/XLSX. System is
 selected by default and follows device Light/Dark configuration changes. Selecting explicit Light
 or Dark overrides the device while all three radio choices remain enabled. Screen, section, card,
 empty-state, and dialog headers use title capitalization without rewriting body/action copy. Every
@@ -779,10 +782,16 @@ formatting remain unchanged.
 
 ### V2-EXPORT-02 Automatic eligibility and captured date
 
-The switch defaults off and appears in the conditional Google section only while Google is
-selected; without authorization/connection it is disabled with setup guidance. CSV and XLSX never
-auto-run. Scheduling captures target date and ZoneId near 11:59 PM. An inexact
-run shortly after midnight exports that captured prior date, never execution-time `today`.
+The switch is labeled **Auto Export**, displays **Automatically export tasks at the end of each
+day.**, defaults off, and appears at the bottom of the Export Destination card after all Google
+sign-in and Sheets connection options only while Google is selected. It is absent for CSV/XLSX;
+without authorization/connection or required notification capability it is disabled with setup
+guidance. Turning it on enables scheduling and turning it off cancels future automatic work safely.
+CSV and XLSX never auto-run. A stable WorkManager `2.11.2` unique, non-expedited,
+network-constrained one-time request captures target date, ZoneId, and connection association near
+11:59 PM. An inexact run shortly after midnight exports that captured prior date, never
+execution-time `today`. Recalculated one-time work stays aligned with geographical DST/zone rules;
+no exact alarm or fixed 24-hour periodic worker exists.
 
 ### V2-EXPORT-03 Pending timer and notification
 
@@ -790,14 +799,28 @@ If any timer is running, the scheduled operation exports nothing and persists th
 pending. After successful Stop, a system notification containing no client/task data appears.
 Tapping resumes/performs or confirms that target export. Dismissal does not mark success or delete
 pending state. A successful automatic export produces no Main-screen status and no success
-notification.
+notification. API-33+ enablement requests `POST_NOTIFICATIONS` in context; denial leaves the switch
+off. API-26+ channel-disabled and later permission-revocation tests prove pending state remains
+recoverable in Google Settings even when Android suppresses the notification.
 
 ### V2-EXPORT-04 Background correctness and idempotence
 
-Ordinary, DST, device/manual-zone-change, Doze, reboot, delayed/missed run, offline/auth-expired,
-disconnect, permission/quota/ambiguous response, and concurrent manual-export tests prove each
-captured date converges to one duplicate-free owned tab without Room mutation or unbounded retry.
-Disabling automation cancels future eligible work safely.
+Ordinary, DST, device/manual-zone-change, Doze, reboot, force-stop/reopen, delayed/missed run,
+offline/auth-expired, returned Google authorization resolution, disconnect,
+notification/worksheet permission, quota/ambiguous response, and concurrent manual-export tests
+prove each captured date converges to one duplicate-free owned tab without Room mutation or
+automatic retry. Multiple missed days preserve the oldest target and advance one date per worker
+until caught up; no target is overwritten and no worker contains an unbounded loop. Disabling
+automation, selecting CSV/XLSX, disconnecting, or signing out cancels future unique work and clears
+automatic pending state safely.
+
+Unit and WorkManager integration tests additionally prove unique-work replacement rules,
+calculated initial delay, network constraint, one-date-per-worker execution, persisted target/ZoneId
+recovery, no interactive `PendingIntent` launch from a worker, one bounded 401 token-clear attempt,
+terminal pending results instead of `Result.retry()`, content-free notification text/stable ID,
+and exact merged-manifest permission expectations. Manual API-26 and current-API checks cover
+notification channels, API-33+ permission grant/deny/revoke, Doze delay, reboot, force-stop/reopen,
+Google grant retained versus resolution required, offline recovery, and silent success.
 
 ### V2-UI-01 Interval clock-time display
 

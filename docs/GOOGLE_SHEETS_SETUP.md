@@ -424,21 +424,66 @@ rather than adding charges, broader scopes, a backend, or a Workspace subscripti
 - [Implement Sign in with Google](https://developer.android.com/identity/sign-in/credential-manager-siwg-implementation)
 - [Manage OAuth clients](https://support.google.com/cloud/answer/15549257)
 
-## 14. Planned `0.2.0` automatic-export setup
+## 14. Approved `0.2.0` automatic-export setup design
 
 No additional Google OAuth scope, billing account, Workspace organization, custom domain, test-user
 list, service account, or backend is approved for automatic export. Continue using only
 `drive.file` and the existing exact-spreadsheet connection.
 
-Milestone 25 must first verify the current official background-authorization model. If Android or
-Google requires a manifest permission, notification channel, scheduler dependency, or developer
-console change, document it step by step here and pause for owner approval before implementation.
+Milestone 25 verified the current official background-authorization model on 2026-08-05. The
+selected implementation is stable WorkManager `2.11.2` plus the existing Google Play services
+`AuthorizationClient`. This is device API usage only; it does not require or permit Google Play
+Store publication, Play App Signing, Play Console configuration, or a Google Play release.
+
+No Google Cloud Console change is required. Keep the existing direct-release Android OAuth client,
+External/In Production audience, enabled Drive/Picker/Sheets APIs, and the sole non-sensitive
+`drive.file` scope. Do not add a test-user gate, verification workflow, billing account, broader
+scope, service account, backend, client secret, or stored refresh token.
+
+Before Milestone 26 implementation, add these version-catalog entries and pre-populate their
+offline artifacts through the repository's established cache-preparation procedure:
+
+```text
+androidx.work:work-runtime-ktx:2.11.2
+androidx.work:work-testing:2.11.2
+```
+
+Milestone 26 must declare `android.permission.POST_NOTIFICATIONS`. On Android 13/API 33 and newer,
+request it in direct response to the user enabling **Auto Export**; on API 26-32 there is
+no notification runtime permission, but the API-26+ **Pending Google Export** notification channel
+must exist. If notification posting is unavailable, do not finish enabling the switch. If the user
+later disables notifications, keep a blocked captured date recoverable in Google Settings rather
+than clearing it or claiming success.
+
+The Settings control is the final conditional row inside the **Export Destination** card, below all
+Google sign-in and Sheets connection options. Label it **Auto Export** and display the exact
+supporting description **Automatically export tasks at the end of each day.** Hide the row entirely
+when CSV or XLSX is selected. Turning it off cancels future automatic work without changing Room or
+the connected spreadsheet.
+
+WorkManager contributes normal internal scheduling components and permissions for network-state,
+reboot rescheduling, and bounded execution wake locks. Milestone 26 must inspect the merged debug
+and release manifests and record the exact result. WorqOrder adds no application-owned boot
+receiver or wake lock and no exact-alarm or foreground-service permission.
+
+The worker obtains `AuthorizationClient` from an application `Context` and requests only
+`drive.file`. When Google returns an access token without resolution, export may proceed. When
+Google returns a `PendingIntent`, persist authorization-required state and use the content-free
+notification to bring the user back to an Activity; never attempt to launch interactive consent
+from background work.
+
 Never invent configuration or add a broader Sheets/Drive scope to make unattended work easier.
 
 The eventual manual verification must prove an enabled schedule exports its captured date even if
 execution is delayed past midnight; never schedules CSV/XLSX; converges with same-date manual
 export; defers while timing; exposes a content-free post-Stop notification action; recovers from
 offline/auth/disconnect/quota states; and produces no Main or notification success message.
+- [Android persistent task scheduling](https://developer.android.com/develop/background-work/background-tasks/persistent)
+- [WorkManager stable releases](https://developer.android.com/jetpack/androidx/releases/work)
+- [WorkManager platform interactions and permissions](https://developer.android.com/reference/androidx/work/package-summary)
+- [Android notification runtime permission](https://developer.android.com/develop/ui/compose/notifications/notification-permission)
+- [Android notification channels](https://developer.android.com/develop/ui/compose/notifications/channels)
+- [Google `AuthorizationClient`](https://developers.google.com/android/reference/com/google/android/gms/auth/api/identity/AuthorizationClient)
 - [Manage OAuth app audience](https://support.google.com/cloud/answer/15549945)
 - [Google Picker for desktop and mobile apps](https://developers.google.com/workspace/drive/picker/guides/desktop-mobile-picker)
 - [Choose Google Sheets API scopes](https://developers.google.com/workspace/sheets/api/scopes)

@@ -262,7 +262,10 @@ validation/export reports permission/not-found status.
 Settings renders Google Sheets Connection only when Google Sheets is the selected Export
 Destination. A connected state hides the URL/ID and Validate and Connect controls; the user must
 Disconnect before connecting a different spreadsheet. Selecting Google Sheets automatically
-scrolls Settings to the newly revealed connection section.
+scrolls Settings to the newly revealed connection section. At the bottom of the same Export
+Destination card, below the sign-in and spreadsheet-connection options, render a switch labeled
+**Auto Export** with supporting text **Automatically export tasks at the end of each day.** Hide the
+entire switch row for CSV and XLSX.
 
 ### Authentication and authorization choice
 
@@ -404,25 +407,30 @@ Automation is opt-in and defaults off. Its switch exists only while Google Sheet
 export destination and remains disabled until an authorized account and connected spreadsheet are
 available. CSV and XLSX remain exclusively manual and never receive background destination access.
 
-Scheduling follows Android's inexact background-execution model; it does not promise an exact
-11:59:00 alarm. When scheduling near the end of a local date, capture all of these durable inputs:
+Scheduling uses stable WorkManager `2.11.2` and a uniquely named, non-expedited
+`OneTimeWorkRequest` with `NetworkType.CONNECTED`; it does not promise an exact 11:59:00 alarm.
+Recalculate and enqueue the next one-time request after each terminal target instead of using a
+fixed 24-hour periodic request, so DST and geographical-zone rules remain explicit. When
+scheduling near the end of a local date, capture all of these durable inputs:
 
 - the target `workDate`/epoch day computed in the then-effective `ZoneId`;
 - that canonical ZoneId string;
-- a unique logical job key for the date and connected spreadsheet association; and
+- a stable unique-work key plus the connected-spreadsheet association/fingerprint; and
 - a non-sensitive pending state, never snapshot rows or a token.
 
 Execution may occur shortly before or after midnight. It always prepares the captured target date,
-not `today` at execution time. Before choosing the Android scheduler/auth mechanism, a dedicated
-milestone must verify current official WorkManager/background and Google authorization guidance,
-then pause for owner approval if fully unattended authorization is not supported by the selected
-stable APIs.
+not `today` at execution time. WorkManager persists/reschedules work across app restart and reboot
+and honors Doze, but force-stop, OEM restrictions, constraints, and network availability can delay
+it. AlarmManager/exact alarms, expedited work, and a foreground service are prohibited here.
 
 At execution:
 
 1. If the target was already confirmed exported by this automatic job, exit idempotently.
 2. Revalidate that automation remains enabled, Google is still the selected destination, the same
-   spreadsheet is connected, and authorization can be obtained through the approved flow.
+   spreadsheet is connected, and authorization can be obtained through the approved flow. A
+   worker may proceed only when `AuthorizationClient.authorize()` returns an already-granted token
+   without interaction. A returned `PendingIntent` becomes authorization-required pending state;
+   it is never launched from the worker.
 3. If no timer is active, build a new authoritative immutable schema-3 snapshot for the captured
    target date and run the same marker-validated replacement protocol as manual Google export.
 4. If any timer is active, do not snapshot or export. Persist the captured date as pending.
@@ -430,15 +438,29 @@ At execution:
    pending WorqOrder export without client/task names. Tapping it opens/resumes the app and
    performs or explicitly confirms Google export for that preserved date. Dismissal leaves the
    pending date recoverable in the app; it never marks success.
-6. A successful automatic write clears the pending date and produces no Main-screen success state
-   and no success notification. Failure stores only a safe typed reason and provides an actionable
-   recovery path; it never mutates Room or retries without a documented bounded policy.
+6. A successful automatic write advances to the next unresolved date and produces no Main-screen
+   success state and no success notification. Failure stores only a safe typed reason and provides
+   an actionable recovery path; it never mutates Room and returns a terminal WorkManager result
+   rather than entering automatic retry/backoff.
 
 Manual and automatic Google operations for the same date converge because both replace the same
 owned schema-3 tab from current Room truth. Concurrent work must be uniquely serialized so a
 single date cannot produce duplicate tabs or rows. Reboot, Doze, time-zone change, offline,
 authorization expiry, disconnect/sign-out, permission loss, quota, and ambiguous response all
 retain the captured-date rule and fail safely.
+
+Only the oldest unresolved target is active. It is never overwritten by a newer scheduled date.
+After success, advance one date at a time; if later dates became due during a multi-day timer or
+offline period, enqueue the next due target immediately. Each worker handles at most one work date,
+so catch-up is durable and bounded rather than an in-process loop. Selecting CSV/XLSX, disabling
+automation, disconnecting, or signing out explicitly cancels unique work and clears automatic
+pending state without changing Room or remote spreadsheet content.
+
+Blocked-state notifications use one API-26+ **Pending Google Export** channel and contain no task,
+client, consultant, account, spreadsheet, date, or exported-row content. On API 33+, enabling
+automation requires `POST_NOTIFICATIONS`; the user can deny it, in which case the switch stays off.
+If notification access is revoked later, pending state remains visible/recoverable in Google
+Settings. Dismissing a notification never dismisses the pending export.
 
 ## 10. Google failure behavior
 

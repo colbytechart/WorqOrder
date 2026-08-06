@@ -258,7 +258,9 @@ Settings contains:
   first-launch and corrupt-value default. Existing time-zone implementation and persisted values
   remain intact for compatibility; historical stored dates and zone IDs never move.
 - **Export Destination:** CSV, XLSX, or Google Sheets, with CSV as the first-launch and corrupt-value
-  fallback after the XLSX milestone.
+  fallback after the XLSX milestone. When Google Sheets is selected, this card also contains the
+  conditional Google sign-in and spreadsheet-connection controls followed by the **Auto Export**
+  switch row.
 - **Google Sheets:** show the complete **Google Sheets Connection** section only while Google Sheets
   is the selected export destination. It contains authorization/sign-in state, sign-out,
   spreadsheet URL/ID input, Validate and Connect, connected title/ID, and Disconnect. Once a
@@ -270,12 +272,22 @@ Settings contains:
 - **About:** final content showing only `WorqOrder v0.2.0 - stable`, derived from build metadata,
   with no GitHub repository or release link.
 
-When Google Sheets is selected, show an opt-in **Automatic Daily Export** switch inside that
-conditional section. It defaults off, is hidden for CSV/XLSX, and cannot be enabled until
-authorization and a valid spreadsheet connection exist. An enabled schedule
+When Google Sheets is selected, show an opt-in switch labeled exactly **Auto Export** at the bottom
+of the **Export Destination** card, below the Google sign-in and Sheets connection options. Its
+supporting description is exactly **Automatically export tasks at the end of each day.** It
+defaults off, is completely hidden for CSV/XLSX, and cannot be enabled until
+authorization, a valid spreadsheet connection, and the notification capability required for
+blocked-work recovery exist. An enabled schedule
 captures the intended effective-zone work date near 11:59 PM. Android may run it approximately or
 shortly after midnight, but it must still export that captured date. Successful automatic export
 shows no Main-screen success status and no success notification.
+
+The approved design uses an inexact, unique WorkManager one-time request recalculated for each
+local date. The oldest unresolved target is never overwritten and later due dates advance one at a
+time after recovery. Google access can complete unattended only when the existing `drive.file`
+grant yields a token without interactive resolution; otherwise a content-free notification returns
+the user to WorqOrder. There is no automatic retry loop, exact alarm, foreground export service,
+backend, stored token, broader scope, or Google Play Store release dependency.
 
 Disconnecting a spreadsheet clears its ID/title association but does not delete the spreadsheet or
 revoke unrelated account access. Sign-out clears the app's Google identity/authorization session

@@ -164,7 +164,8 @@ the Settings radio controls, immutable Main projection, global landscape bar, mi
 approximately equal task/control columns, independent task scrolling, and responsive compact
 controls are in place. Offline debug/release/lint gates and 191 JVM tests across 38 suites passed.
 The final connected suite records 98 tests with zero failures, errors, or skips, and the owner
-verified both handed modes and responsive behavior manually. Milestone 25 remains unstarted.
+verified both handed modes and responsive behavior manually. Milestone 25 research/design is now
+documented and awaits explicit owner approval before Milestone 26.
 
 ```text
 Begin Milestone 24. Read AGENTS.md, the approved landscape specification/concept notes, and current
@@ -185,6 +186,12 @@ commit message, then stop.
 ```
 
 ## Milestone 25 — Automatic Google export official research and design
+
+Status: research and documentation completed on 2026-08-05; awaiting explicit owner approval.
+The selected design is stable WorkManager `2.11.2` unique non-expedited one-time work with a
+network constraint, durable oldest captured date/ZoneId progression, opportunistic silent
+`AuthorizationClient` use, and content-free notification recovery whenever user resolution is
+required. No scheduler implementation was added.
 
 ```text
 Begin Milestone 25 as research/design only. Read AGENTS.md, GOOGLE_INTEGRATION_ADR.md,
@@ -211,21 +218,36 @@ functional scheduler. Present findings and pause for explicit approval.
 
 ```text
 Begin Milestone 26 only after I approve Milestone 25's official design. Read all approved docs and
-current code. Implement the Google-only conditional Settings switch, durable captured target
-date/ZoneId, approved inexact unique scheduling/rescheduling, idempotent schema-3 Google export,
+current code. First add the approved stable WorkManager `2.11.2` runtime/testing aliases and pause
+for the repository's offline-cache preparation. Then implement the Google-only conditional Settings
+switch, durable oldest captured target date/ZoneId/connection association, approved unique
+non-expedited one-time scheduling, one-date-per-worker catch-up, idempotent schema-3 Google export,
 and bounded safe failures. CSV/XLSX must remain manual.
+
+Place the switch as the last conditional row in the Export Destination card, below all Google
+sign-in and spreadsheet-connection options. Its exact label is **Auto Export** and its supporting
+description is exactly **Automatically export tasks at the end of each day.** Hide it completely
+for CSV/XLSX. It defaults off; enabling activates the approved end-of-day schedule and disabling
+cancels future automatic work without altering Room or the connected spreadsheet.
 
 If any timer is running, export nothing and persist the target as pending. After Stop commits,
 show the approved content-free notification. Tapping resumes/performs or confirms that captured
-date; dismissal never claims success or loses recoverable pending state. Successful automatic
-export shows no Main status or success notification. Sign-out/disconnect/disable/zone change,
-offline/auth/permission/quota/ambiguous responses, reboot/Doze/delay, and manual-export races must
-be safe and duplicate-free. Room remains authoritative and tokens remain in memory only.
+date; dismissal never claims success or loses recoverable pending state. `AuthorizationClient`
+may export in the worker only when it returns an already-granted token without interaction; a
+returned `PendingIntent` becomes pending user action. Successful automatic export shows no Main
+status or success notification. Sign-out/disconnect/disable/zone change,
+offline/auth/notification/worksheet permission/quota/ambiguous responses, reboot/Doze/force-stop/
+delay, missed dates, and manual-export races must be safe and duplicate-free. Do not use
+`Result.retry()` for operation failures. Room remains authoritative and tokens remain in memory
+only.
 
-Add unit, Work/scheduler, repository, ViewModel, Compose, accessibility, notification, process/
-reboot simulation, integration, and battery/background tests from the approved design. Run all
-relevant checks, report exact results and remaining device tests, suggest a commit message, then
-stop.
+Add the API-26+ Pending Google Export channel and user-driven API-33+ `POST_NOTIFICATIONS`
+permission flow. Do not add exact alarms, expedited/foreground work, an application-owned wake
+lock/boot receiver, broader Google scope, backend, billing, or any Play Store/App Signing/Console
+release work. Audit WorkManager's merged normal scheduling permissions/components. Add unit,
+Work/scheduler, repository, ViewModel, Compose, accessibility, notification, process/reboot
+simulation, integration, and battery/background tests from the approved design. Run all relevant
+checks, report exact results and remaining device tests, suggest a commit message, then stop.
 ```
 
 ## Milestone 27 — Running-timer lock-screen official research and design

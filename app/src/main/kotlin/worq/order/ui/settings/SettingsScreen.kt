@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -91,7 +92,7 @@ fun SettingsScreen(
                 ExportDestination.GOOGLE_SHEETS &&
             (showGoogleSetupRequired || googleScrollRequestId > 0)
         ) {
-            val googleSectionIndex = if (uiState.message == null) 6 else 7
+            val googleSectionIndex = if (uiState.message == null) 5 else 6
             listState.animateScrollToItem(googleSectionIndex)
             googleScrollRequestId = 0
         }
@@ -353,28 +354,27 @@ fun SettingsScreen(
                             )
                         },
                     )
-                }
-            }
-            if (
-                uiState.defaultExportDestination ==
-                ExportDestination.GOOGLE_SHEETS
-            ) {
-                item {
-                    GoogleSheetsSettingsSection(
-                        uiState = uiState,
-                        onEvent = onEvent,
-                        showSetupRequired = showGoogleSetupRequired,
-                        onDisconnect = {
-                            showDisconnectConfirmation = true
-                        },
-                        onSignOut = {
-                            if (uiState.connectedSpreadsheetId != null) {
-                                showSignOutConfirmation = true
-                            } else {
-                                onEvent(SettingsEvent.SignOutOfGoogle)
-                            }
-                        },
-                    )
+                    if (
+                        uiState.defaultExportDestination ==
+                            ExportDestination.GOOGLE_SHEETS
+                    ) {
+                        HorizontalDivider()
+                        GoogleSheetsSettingsContent(
+                            uiState = uiState,
+                            onEvent = onEvent,
+                            showSetupRequired = showGoogleSetupRequired,
+                            onDisconnect = {
+                                showDisconnectConfirmation = true
+                            },
+                            onSignOut = {
+                                if (uiState.connectedSpreadsheetId != null) {
+                                    showSignOutConfirmation = true
+                                } else {
+                                    onEvent(SettingsEvent.SignOutOfGoogle)
+                                }
+                            },
+                        )
+                    }
                 }
             }
             item {
@@ -397,7 +397,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun GoogleSheetsSettingsSection(
+private fun GoogleSheetsSettingsContent(
     uiState: SettingsUiState,
     onEvent: (SettingsEvent) -> Unit,
     showSetupRequired: Boolean,
@@ -412,19 +412,11 @@ private fun GoogleSheetsSettingsSection(
                 GoogleConnectionUiStatus.SIGNING_OUT,
                 GoogleConnectionUiStatus.DISCONNECTING,
             )
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors =
-            if (showSetupRequired) {
-                androidx.compose.material3.CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                )
-            } else {
-                androidx.compose.material3.CardDefaults.cardColors()
-            },
-    ) {
-        Column(
-            modifier = Modifier.padding(WorqOrderDimens.CardPadding),
+    Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(WorqOrderDimens.CardPadding),
             verticalArrangement =
                 Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
         ) {
@@ -579,9 +571,87 @@ private fun GoogleSheetsSettingsSection(
                     Text(stringResource(R.string.google_sign_out))
                 }
             }
-        }
+            HorizontalDivider()
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .sizeIn(minHeight = WorqOrderDimens.IconButtonSize)
+                        .clickable(
+                            enabled = !operationInProgress && !uiState.isSaving,
+                            role = Role.Switch,
+                        ) {
+                            onEvent(
+                                SettingsEvent.SetAutomaticGoogleExport(
+                                    !uiState.automaticGoogleExportEnabled,
+                                ),
+                            )
+                        },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.auto_export),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        text = stringResource(R.string.auto_export_summary),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = uiState.automaticGoogleExportEnabled,
+                    onCheckedChange = null,
+                    enabled = !operationInProgress && !uiState.isSaving,
+                )
+            }
+            uiState.automaticGoogleExportEnablementError?.let { error ->
+                val errorText = automaticGoogleExportEnablementErrorText(error)
+                Text(
+                    text = errorText,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier =
+                        Modifier.semantics {
+                            this.error(errorText)
+                            liveRegion = LiveRegionMode.Assertive
+                        },
+                )
+            }
+            if (uiState.automaticGooglePendingReason != null) {
+                Text(
+                    text = stringResource(R.string.auto_export_pending),
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+                Button(
+                    onClick = { onEvent(SettingsEvent.RetryAutomaticGoogleExport) },
+                    enabled = !operationInProgress && !uiState.isTimerRunning,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.finish_pending_export))
+                }
+            }
     }
 }
+
+@Composable
+private fun automaticGoogleExportEnablementErrorText(
+    error: AutomaticGoogleExportEnablementError,
+): String =
+    stringResource(
+        when (error) {
+            AutomaticGoogleExportEnablementError.NOTIFICATION_PERMISSION_REQUIRED ->
+                R.string.auto_export_error_notifications_disabled
+            AutomaticGoogleExportEnablementError.SPREADSHEET_CONNECTION_REQUIRED ->
+                R.string.auto_export_error_spreadsheet_required
+            AutomaticGoogleExportEnablementError.GOOGLE_SHEETS_DESTINATION_REQUIRED ->
+                R.string.auto_export_error_google_destination_required
+            AutomaticGoogleExportEnablementError.LOCAL_SETTINGS_UNAVAILABLE ->
+                R.string.auto_export_error_local_settings
+        },
+    )
 
 @Composable
 private fun googleStatusText(status: GoogleConnectionUiStatus): String =

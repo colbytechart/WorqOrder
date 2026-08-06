@@ -822,6 +822,15 @@ and exact merged-manifest permission expectations. Manual API-26 and current-API
 notification channels, API-33+ permission grant/deny/revoke, Doze delay, reboot, force-stop/reopen,
 Google grant retained versus resolution required, offline recovery, and silent success.
 
+Milestone 26 maps these requirements to `AutomaticGoogleExportManager`,
+`WorkManagerAutomaticGoogleExportScheduler`, `AutomaticGoogleExportWorker`, the DataStore target
+tuple, and the conditional Settings controls. Its final close gate must distinguish automated
+coverage from the remaining Android/Google timing and notification device checks.
+
+A rejected Auto Export toggle does not move the Settings list. A red inline message names the
+exact blocker and, for disabled notifications, directs the user to WorqOrder's notification
+settings.
+
 ### V2-UI-01 Interval clock-time display
 
 Routine Task interval cards display completed Start Time and Stop Time values as

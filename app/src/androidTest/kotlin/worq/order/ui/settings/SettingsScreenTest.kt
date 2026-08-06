@@ -309,6 +309,76 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun autoExportSwitchAppearsOnlyForGoogleAndEmitsToggle() {
+        var state by mutableStateOf(
+            SettingsUiState(effectiveZoneId = ZoneId.of("America/New_York")),
+        )
+        val events = mutableListOf<SettingsEvent>()
+        composeRule.setContent {
+            WorqOrderTheme(darkTheme = true) {
+                SettingsScreen(
+                    uiState = state,
+                    onEvent = events::add,
+                    onNavigateBack = {},
+                    onOpenClientManagement = {},
+                    onOpenConsultantManagement = {},
+                )
+            }
+        }
+        composeRule.onAllNodesWithText("Auto Export").assertCountEquals(0)
+
+        state =
+            state.copy(
+                defaultExportDestination =
+                    worq.order.data.ExportDestination.GOOGLE_SHEETS,
+                googleAccountId = "person@example.com",
+                connectedSpreadsheetId = SPREADSHEET_ID,
+                connectedSpreadsheetTitle = "Work Log",
+                googleStatus = GoogleConnectionUiStatus.CONNECTED,
+            )
+        composeRule.waitForIdle()
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(hasText("Auto Export"))
+        composeRule.onNodeWithText("Auto Export").performClick()
+
+        assertTrue(events.contains(SettingsEvent.SetAutomaticGoogleExport(true)))
+    }
+
+    @Test
+    fun autoExportEnablementErrorAppearsInlineWithSpecificRecovery() {
+        setContent(
+            state =
+                SettingsUiState(
+                    effectiveZoneId = ZoneId.of("America/New_York"),
+                    defaultExportDestination =
+                        worq.order.data.ExportDestination.GOOGLE_SHEETS,
+                    googleAccountId = "person@example.com",
+                    connectedSpreadsheetId = SPREADSHEET_ID,
+                    connectedSpreadsheetTitle = "Work Log",
+                    googleStatus = GoogleConnectionUiStatus.CONNECTED,
+                    automaticGoogleExportEnablementError =
+                        AutomaticGoogleExportEnablementError
+                            .NOTIFICATION_PERMISSION_REQUIRED,
+                ),
+        )
+
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(
+                hasText(
+                    "Enable notifications in Settings > Apps > WorqOrder > " +
+                        "Notifications to use Auto Export.",
+                ),
+            )
+        composeRule
+            .onNodeWithText(
+                "Enable notifications in Settings > Apps > WorqOrder > " +
+                    "Notifications to use Auto Export.",
+            ).assertIsDisplayed()
+    }
+
+    @Test
     fun partialSignOutUsesConciseNonRetryableWarning() {
         setContent(
             state =

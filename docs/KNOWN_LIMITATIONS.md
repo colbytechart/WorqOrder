@@ -72,7 +72,7 @@ they are not partially imported.
 ## Planned v0.2.0 limitations
 
 - Automatic daily export is Google-Sheets-only and best-effort under Android background scheduling.
-  The approved design uses stable unique one-time WorkManager jobs and captures the intended work
+  The implementation uses stable unique one-time WorkManager jobs and captures the intended work
   date/ZoneId, so a delayed run after midnight exports the prior date. Android/Google
   authorization, connectivity, Doze, force-stop, OEM policy, and user settings may require an
   actionable pending flow rather than guaranteed unattended completion. The oldest unresolved date
@@ -84,7 +84,9 @@ they are not partially imported.
 - Pending-export notification delivery is controlled by Android and the user. API-33+ permission
   denial prevents enabling the feature; later permission/channel revocation or OEM suppression can
   hide a notice, but it does not clear the durable pending target. Successful automatic exports are
-  intentionally silent.
+  intentionally silent. Settings reports notification, spreadsheet-connection, destination, and
+  local-settings enablement blockers separately. WorkManager timing and the remaining deferred
+  device/OEM scenarios have not all received manual coverage in Milestone 26.
 - WorkManager's normal library integration includes system-managed scheduling components and
   bounded execution wake locks. WorqOrder does not own a wake lock, exact alarm, foreground export
   service, or boot receiver, and automatic work is never used for stopwatch ticks.

@@ -926,6 +926,38 @@ app-owned receiver or wake lock. Google Play services remains an installed-devic
 this decision does not add Google Play Store distribution, Play App Signing, Play Console setup, or
 a Play release.
 
+### D-077 — Milestone 26 implements one durable automatic target
+
+Milestone 26 implements D-076 with stable WorkManager `2.11.2`. Preferences DataStore stores the
+enabled flag plus one oldest target tuple: epoch day, geographical ZoneId, account/spreadsheet
+association, and optional typed pending reason. It stores no token. Enabling captures today's date
+in the effective ZoneId and schedules one uniquely named, non-expedited, connected-network worker
+for 23:59. Delayed execution uses the captured date; each successful worker advances exactly one
+date and schedules the next one-shot target.
+
+The worker uses a background authorizer that accepts only an immediately returned access token.
+Any Google resolution, active timer, or bounded failure becomes durable pending state and returns a
+terminal WorkManager result; operation failures never call `Result.retry()`. Timer-pending work is
+announced only after Stop commits. All other user-action-required states use the same content-free
+notification, whose explicit action opens the pending control in Settings. A user-confirmed retry
+uses the activity authorizer. Manual and automatic Google exports share one application mutex in
+addition to the owned-tab idempotency contract.
+
+The Auto Export switch is hidden unless Google Sheets is selected, defaults off, and appears after
+the Google sign-in/connection controls inside Export Destination. API 33+ requests notification
+permission only after the user tries to enable it. Selecting CSV/XLSX, disabling the switch,
+disconnecting the sheet, or signing out disables and cancels future automatic work without
+touching Room or remote data. Successful background export remains silent.
+
+### D-078 — Auto Export enablement failures remain inline and specific
+
+A rejected Auto Export toggle must not insert content above the Export Destination card or change
+the user's Settings scroll position. The switch remains off and a red accessible message appears
+directly below it. Notification permission or app/channel disablement, missing spreadsheet
+connection, wrong export destination, and local-settings failure each use distinct recovery text.
+When Android can present the runtime notification permission request, WorqOrder requests it; a
+denial or device-setting block directs the user to the app's notification settings.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.
@@ -937,8 +969,8 @@ a Play release.
   screenshot/Recents privacy controls are deferred only to optional Milestone E under D-050/D-051.
 - The exact lock-screen surface remains an unresolved implementation input until its official
   research milestone and owner approval; its product behavior is fixed by D-072. The automatic
-  Google scheduling/auth mechanism is now selected by D-076 but remains unimplemented pending
-  explicit owner approval of Milestone 25.
+  Google scheduling/auth mechanism selected by D-076 is implemented in Milestone 26; its remaining
+  limitations are Android-controlled timing, authorization, and notification behavior.
 
 ## Implementation inputs still needed
 

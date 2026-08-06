@@ -29,6 +29,19 @@ enum class LandscapeHandedness {
 
 enum class AutomaticGooglePendingReason {
     TIMER_RUNNING,
+    AUTHORIZATION_REQUIRED,
+    GOOGLE_PLAY_SERVICES,
+    OFFLINE,
+    TIMEOUT,
+    NOT_FOUND_OR_NOT_GRANTED,
+    PERMISSION_DENIED,
+    RATE_LIMITED,
+    SERVER_FAILURE,
+    MALFORMED_RESPONSE,
+    TAB_NAME_CONFLICT,
+    SCHEMA_CONFLICT,
+    AMBIGUOUS_REMOTE_RESULT,
+    LOCAL_STORAGE,
 }
 
 enum class ExportAttemptOutcome {
@@ -76,6 +89,8 @@ data class AppSettings(
     val landscapeHandedness: LandscapeHandedness = LandscapeHandedness.RIGHT_HANDED,
     val automaticGoogleExportEnabled: Boolean = false,
     val automaticGoogleTargetDate: LocalDate? = null,
+    val automaticGoogleTargetZoneId: ZoneId? = null,
+    val automaticGoogleTargetConnectionKey: String? = null,
     val automaticGooglePendingReason: AutomaticGooglePendingReason? = null,
 )
 
@@ -113,6 +128,13 @@ interface SettingsRepository {
     suspend fun setAutomaticGooglePendingExport(
         workDate: LocalDate,
         reason: AutomaticGooglePendingReason,
+    )
+
+    suspend fun setAutomaticGoogleExportTarget(
+        workDate: LocalDate,
+        zoneId: ZoneId,
+        connectionKey: String,
+        pendingReason: AutomaticGooglePendingReason? = null,
     )
 
     suspend fun clearAutomaticGooglePendingExport()

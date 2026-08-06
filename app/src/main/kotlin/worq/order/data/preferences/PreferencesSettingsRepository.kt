@@ -135,6 +135,8 @@ class PreferencesSettingsRepository(
             preferences[AUTOMATIC_GOOGLE_EXPORT_ENABLED] = enabled
             if (!enabled) {
                 preferences.remove(AUTOMATIC_GOOGLE_TARGET_DATE)
+                preferences.remove(AUTOMATIC_GOOGLE_TARGET_ZONE_ID)
+                preferences.remove(AUTOMATIC_GOOGLE_TARGET_CONNECTION_KEY)
                 preferences.remove(AUTOMATIC_GOOGLE_PENDING_REASON)
             }
         }
@@ -150,9 +152,29 @@ class PreferencesSettingsRepository(
         }
     }
 
+    override suspend fun setAutomaticGoogleExportTarget(
+        workDate: LocalDate,
+        zoneId: ZoneId,
+        connectionKey: String,
+        pendingReason: AutomaticGooglePendingReason?,
+    ) {
+        dataStore.edit { preferences ->
+            preferences[AUTOMATIC_GOOGLE_TARGET_DATE] = workDate.toEpochDay()
+            preferences[AUTOMATIC_GOOGLE_TARGET_ZONE_ID] = zoneId.id
+            preferences[AUTOMATIC_GOOGLE_TARGET_CONNECTION_KEY] = connectionKey
+            if (pendingReason == null) {
+                preferences.remove(AUTOMATIC_GOOGLE_PENDING_REASON)
+            } else {
+                preferences[AUTOMATIC_GOOGLE_PENDING_REASON] = pendingReason.name
+            }
+        }
+    }
+
     override suspend fun clearAutomaticGooglePendingExport() {
         dataStore.edit { preferences ->
             preferences.remove(AUTOMATIC_GOOGLE_TARGET_DATE)
+            preferences.remove(AUTOMATIC_GOOGLE_TARGET_ZONE_ID)
+            preferences.remove(AUTOMATIC_GOOGLE_TARGET_CONNECTION_KEY)
             preferences.remove(AUTOMATIC_GOOGLE_PENDING_REASON)
         }
     }
@@ -187,6 +209,12 @@ class PreferencesSettingsRepository(
         val automaticGoogleTargetDate =
             preferences[AUTOMATIC_GOOGLE_TARGET_DATE]
                 ?.let { epochDay -> runCatching { LocalDate.ofEpochDay(epochDay) }.getOrNull() }
+        val automaticGoogleTargetZoneId =
+            preferences[AUTOMATIC_GOOGLE_TARGET_ZONE_ID]
+                ?.let { storedId -> runCatching { ZoneId.of(storedId) }.getOrNull() }
+        val automaticGoogleTargetConnectionKey =
+            preferences[AUTOMATIC_GOOGLE_TARGET_CONNECTION_KEY]
+                ?.takeIf(String::isNotBlank)
         val automaticGooglePendingReason =
             preferences[AUTOMATIC_GOOGLE_PENDING_REASON]
                 ?.let { stored ->
@@ -203,6 +231,8 @@ class PreferencesSettingsRepository(
             landscapeHandedness = landscapeHandedness,
             automaticGoogleExportEnabled = automaticGoogleExportEnabled,
             automaticGoogleTargetDate = automaticGoogleTargetDate,
+            automaticGoogleTargetZoneId = automaticGoogleTargetZoneId,
+            automaticGoogleTargetConnectionKey = automaticGoogleTargetConnectionKey,
             automaticGooglePendingReason = automaticGooglePendingReason,
         )
     }
@@ -275,6 +305,10 @@ class PreferencesSettingsRepository(
             booleanPreferencesKey("automatic_google_export_enabled")
         val AUTOMATIC_GOOGLE_TARGET_DATE =
             longPreferencesKey("automatic_google_target_epoch_day")
+        val AUTOMATIC_GOOGLE_TARGET_ZONE_ID =
+            stringPreferencesKey("automatic_google_target_zone_id")
+        val AUTOMATIC_GOOGLE_TARGET_CONNECTION_KEY =
+            stringPreferencesKey("automatic_google_target_connection_key")
         val AUTOMATIC_GOOGLE_PENDING_REASON =
             stringPreferencesKey("automatic_google_pending_reason")
     }

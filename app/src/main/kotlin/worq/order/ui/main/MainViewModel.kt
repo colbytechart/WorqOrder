@@ -51,6 +51,7 @@ import worq.order.export.PrepareXlsxExportResult
 import worq.order.export.PreparedCsvExport
 import worq.order.export.PreparedXlsxExport
 import worq.order.export.XlsxExportCoordinator
+import worq.order.export.automatic.AutomaticGoogleExportController
 import worq.order.export.csv.DocumentOutputDestination
 import worq.order.export.csv.DocumentWriteResult
 import worq.order.export.google.GoogleSheetsExportFailure
@@ -125,6 +126,7 @@ class MainViewModel(
     private val xlsxExportCoordinator: XlsxExportCoordinator,
     private val documentOutputDestination: DocumentOutputDestination,
     private val binaryDocumentOutputDestination: BinaryDocumentOutputDestination,
+    private val automaticGoogleExportManager: AutomaticGoogleExportController? = null,
 ) : ViewModel() {
     private val initialToday = currentDateProvider.today()
     private val rawState =
@@ -453,7 +455,10 @@ class MainViewModel(
     private fun stopTimer() {
         runTimerOperation {
             when (timerCoordinator.stop()) {
-                is StopTimerResult.Stopped -> null
+                is StopTimerResult.Stopped -> {
+                    automaticGoogleExportManager?.onTimerStopped()
+                    null
+                }
                 StopTimerResult.NoActiveTimer -> MainMessage.NO_ACTIVE_TIMER
                 StopTimerResult.ActiveTimerChanged -> MainMessage.DATA_UNAVAILABLE
                 is StopTimerResult.ClockChanged -> MainMessage.CLOCK_CHANGED
@@ -1363,6 +1368,7 @@ class MainViewModel(
                 documentOutputDestination = container.documentOutputDestination,
                 binaryDocumentOutputDestination =
                     container.binaryDocumentOutputDestination,
+                automaticGoogleExportManager = container.automaticGoogleExportManager,
             ) as T
         }
     }

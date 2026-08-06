@@ -374,3 +374,38 @@ screen-reader semantics. The refreshed connected report records 98 tests, zero f
 errors, zero skips, and 121.476 seconds. The owner then manually verified the intended handed,
 portrait, persistence, task-scroll, timer/date/action, and responsive behavior. Milestone 24 is
 complete; no Room/DataStore migration or dependency change was required.
+
+## 11. Milestone 26 implementation evidence
+
+Milestone 26 adds stable WorkManager `2.11.2`, the Google-only Auto Export switch, a durable
+DataStore target tuple, silent background authorization, the one-date worker/coordinator,
+content-free pending notification, API-33+ permission request, post-Stop notification hook, and an
+application-wide Google-export mutex. It adds no Room migration, foreground service, exact alarm,
+app-owned wake lock/boot receiver, token storage, broader scope, backend, CSV/XLSX automation, or
+Google Play release dependency.
+
+The generated debug merged manifest was inspected after compilation. WorkManager contributes its
+documented library-owned `WAKE_LOCK`, `ACCESS_NETWORK_STATE`, and `RECEIVE_BOOT_COMPLETED`
+permissions plus Startup initializer, `SystemJobService`, and reschedule receiver. WorqOrder adds
+only `POST_NOTIFICATIONS`; it declares no app-owned wake-lock or boot receiver, exact-alarm
+permission, foreground export service, storage permission, or notification service.
+
+Focused JVM coverage verifies captured target scheduling, distinct enablement blockers,
+active-timer pending behavior, post-Stop notification, silent one-date success/advancement, and
+cancellation/target clearing. Connected coverage verifies the durable target ZoneId/connection
+association, conditional accessible Settings switch, and specific inline notification recovery.
+Rejected Auto Export enablement no longer inserts a message above the Export card, so it does not
+shift the Settings scroll position. Android-wide notification disablement, API-33+ denial, and a
+disabled WorqOrder notification channel are all treated as the notification-specific blocker.
+
+The final project-local offline gate passed: 39 JVM suites contain 200 tests with zero failures,
+errors, or skips; debug and release lint each contain zero errors and 21 existing warnings; and both
+debug and release APK assembly passed. The final connected report contains 100 tests with zero
+failures, errors, or skips in 123.435 seconds. `git diff --check` passed apart from informational
+line-ending conversion warnings.
+
+The owner completed the first half of the supplied manual Auto Export checklist and then verified
+the final notification-denial behavior: the switch remained off, the Settings position did not
+move, and the specific red recovery text appeared. The remaining manual background/error scenarios
+were explicitly deferred for lack of time and are not claimed as passed. Milestone 26 is complete
+with those checks retained as known unverified device coverage.

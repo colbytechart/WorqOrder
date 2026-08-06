@@ -2,9 +2,11 @@ package worq.order.app
 
 import android.content.Context
 import androidx.activity.ComponentActivity
+import androidx.work.WorkManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.sync.Mutex
 import worq.order.data.ActiveTimerRepository
 import worq.order.data.ClientImportRepository
 import worq.order.data.ClientRepository
@@ -36,9 +38,13 @@ import worq.order.export.XlsxExportCoordinator
 import worq.order.export.csv.AndroidDocumentOutputDestination
 import worq.order.export.csv.DocumentOutputDestination
 import worq.order.export.google.AndroidGoogleAccountAuthorizer
+import worq.order.export.google.BackgroundGoogleAccountAuthorizer
 import worq.order.export.google.GoogleConnectionCoordinator
 import worq.order.export.google.GoogleSheetsExportCoordinator
 import worq.order.export.google.RestGoogleSheetsGateway
+import worq.order.export.automatic.AutomaticGoogleExportManager
+import worq.order.export.automatic.AutomaticGoogleExportNotifier
+import worq.order.export.automatic.WorkManagerAutomaticGoogleExportScheduler
 import worq.order.export.xlsx.AndroidBinaryDocumentOutputDestination
 import worq.order.export.xlsx.BinaryDocumentOutputDestination
 import worq.order.timer.ActiveTimerNormalizer
@@ -82,6 +88,7 @@ interface ApplicationContainer {
     val xlsxExportCoordinator: XlsxExportCoordinator
     val documentOutputDestination: DocumentOutputDestination
     val binaryDocumentOutputDestination: BinaryDocumentOutputDestination
+    val automaticGoogleExportManager: AutomaticGoogleExportManager
 
     fun createGoogleConnectionCoordinator(
         activity: ComponentActivity,
@@ -288,6 +295,33 @@ internal class DefaultApplicationContainer(
     private val googleSheetsGateway: RestGoogleSheetsGateway by lazy {
         RestGoogleSheetsGateway()
     }
+    private val googleExportOperationMutex = Mutex()
+
+    private val backgroundGoogleSheetsExportCoordinator: GoogleSheetsExportCoordinator by lazy {
+        GoogleSheetsExportCoordinator(
+            authorizer = BackgroundGoogleAccountAuthorizer(applicationContext),
+            gateway = googleSheetsGateway,
+            connectionRepository = googleConnectionRepository,
+            snapshotProvider = exportSnapshotCoordinator,
+            operationMutex = googleExportOperationMutex,
+        )
+    }
+
+    override val automaticGoogleExportManager: AutomaticGoogleExportManager by lazy {
+        AutomaticGoogleExportManager(
+            settingsRepository = settingsRepository,
+            connectionRepository = googleConnectionRepository,
+            activeTimerRepository = activeTimerRepository,
+            zoneIdProvider = zoneIdProvider,
+            clock = utcClock,
+            exportDate = backgroundGoogleSheetsExportCoordinator::export,
+            workScheduler =
+                WorkManagerAutomaticGoogleExportScheduler(
+                    WorkManager.getInstance(applicationContext),
+                ),
+            notifier = AutomaticGoogleExportNotifier(applicationContext),
+        )
+    }
 
     override fun createGoogleConnectionCoordinator(
         activity: ComponentActivity,
@@ -315,5 +349,6 @@ internal class DefaultApplicationContainer(
             gateway = googleSheetsGateway,
             connectionRepository = googleConnectionRepository,
             snapshotProvider = exportSnapshotCoordinator,
+            operationMutex = googleExportOperationMutex,
         )
 }

@@ -302,6 +302,24 @@ class SettingsViewModelTest {
             assertNull(viewModel.uiState.value.connectedSpreadsheetTitle)
         }
 
+    @Test
+    fun deniedNotificationPermissionUsesInlineAutoExportRecovery() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            viewModel.onEvent(SettingsEvent.NotificationPermissionResult(false))
+            runCurrent()
+
+            assertEquals(
+                AutomaticGoogleExportEnablementError.NOTIFICATION_PERMISSION_REQUIRED,
+                viewModel.uiState.value.automaticGoogleExportEnablementError,
+            )
+            assertNull(viewModel.uiState.value.message)
+        }
+
     private fun kotlinx.coroutines.test.TestScope.collectState(
         viewModel: SettingsViewModel,
     ) {

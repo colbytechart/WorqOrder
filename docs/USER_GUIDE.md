@@ -109,12 +109,17 @@ cannot be materially edited or deleted.
 offers a discard choice. Deleting an interval or task requires confirmation. Deleting a daily task
 does not delete its client or same-series task copies on other dates.
 
-## 7. Appearance and Device Time Zone
+## 7. Appearance, Landscape Orientation, and Device Time Zone
 
 Open **Settings**:
 
 - **Use system setting** follows the device Light/Dark appearance and is the default.
 - **Light** and **Dark** explicitly override it.
+- Under **Landscape Orientation**, **Right-handed** (the default) places Tasks on the left and
+  timer/date/actions on the right. **Left-handed** mirrors those two content areas. The choice
+  applies immediately, persists across launches, and does not change portrait layout or task
+  order.
+
 Time-zone controls are not exposed in Settings. New and default configurations follow the phone's
 current geographical time zone. Existing date/ZoneId persistence remains intact, and historical
 task dates, stored task zones, and intervals are never rewritten.

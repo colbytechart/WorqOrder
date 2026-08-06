@@ -53,6 +53,7 @@ import androidx.compose.ui.semantics.semantics
 import worq.order.BuildConfig
 import worq.order.R
 import worq.order.data.ExportDestination
+import worq.order.data.LandscapeHandedness
 import worq.order.data.ThemeMode
 import worq.order.ui.employees.ConsultantSettingsEvent
 import worq.order.ui.employees.ConsultantSelectionSection
@@ -90,7 +91,7 @@ fun SettingsScreen(
                 ExportDestination.GOOGLE_SHEETS &&
             (showGoogleSetupRequired || googleScrollRequestId > 0)
         ) {
-            val googleSectionIndex = if (uiState.message == null) 5 else 6
+            val googleSectionIndex = if (uiState.message == null) 6 else 7
             listState.animateScrollToItem(googleSectionIndex)
             googleScrollRequestId = 0
         }
@@ -260,6 +261,44 @@ fun SettingsScreen(
                         enabled = !uiState.isSaving,
                         onClick = {
                             onEvent(SettingsEvent.SelectTheme(ThemeMode.DARK))
+                        },
+                    )
+                }
+            }
+            item {
+                SettingsSection(
+                    title = stringResource(R.string.landscape_orientation),
+                ) {
+                    SettingsChoiceRow(
+                        title = stringResource(R.string.right_handed),
+                        supportingText =
+                            stringResource(R.string.right_handed_summary),
+                        selected =
+                            uiState.landscapeHandedness ==
+                                LandscapeHandedness.RIGHT_HANDED,
+                        enabled = !uiState.isSaving,
+                        onClick = {
+                            onEvent(
+                                SettingsEvent.SelectLandscapeHandedness(
+                                    LandscapeHandedness.RIGHT_HANDED,
+                                ),
+                            )
+                        },
+                    )
+                    SettingsChoiceRow(
+                        title = stringResource(R.string.left_handed),
+                        supportingText =
+                            stringResource(R.string.left_handed_summary),
+                        selected =
+                            uiState.landscapeHandedness ==
+                                LandscapeHandedness.LEFT_HANDED,
+                        enabled = !uiState.isSaving,
+                        onClick = {
+                            onEvent(
+                                SettingsEvent.SelectLandscapeHandedness(
+                                    LandscapeHandedness.LEFT_HANDED,
+                                ),
+                            )
                         },
                     )
                 }

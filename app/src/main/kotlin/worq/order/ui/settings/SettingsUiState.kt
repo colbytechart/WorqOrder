@@ -2,6 +2,7 @@ package worq.order.ui.settings
 
 import java.time.ZoneId
 import worq.order.data.ExportDestination
+import worq.order.data.LandscapeHandedness
 import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
 
@@ -57,6 +58,8 @@ data class SettingsUiState(
     val manualZoneId: ZoneId? = null,
     val effectiveZoneId: ZoneId = ZoneId.of("UTC"),
     val defaultExportDestination: ExportDestination = ExportDestination.CSV,
+    val landscapeHandedness: LandscapeHandedness =
+        LandscapeHandedness.RIGHT_HANDED,
     val isTimerRunning: Boolean = false,
     val isSaving: Boolean = false,
     val isZoneSelectorVisible: Boolean = false,
@@ -96,6 +99,10 @@ sealed interface SettingsEvent {
 
     data class SelectExportDestination(
         val destination: ExportDestination,
+    ) : SettingsEvent
+
+    data class SelectLandscapeHandedness(
+        val handedness: LandscapeHandedness,
     ) : SettingsEvent
 
     data class EditSpreadsheetInput(

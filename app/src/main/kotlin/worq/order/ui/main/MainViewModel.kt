@@ -37,6 +37,7 @@ import worq.order.data.ExportAttemptOutcome
 import worq.order.data.ExportDestination
 import worq.order.data.ExportErrorCategory
 import worq.order.data.LastExportAttempt
+import worq.order.data.LandscapeHandedness
 import worq.order.data.GoogleConnectionRepository
 import worq.order.data.SettingsRepository
 import worq.order.data.TaskRepository
@@ -98,6 +99,8 @@ private data class MainRawState(
     val openTaskMenuTaskId: String? = null,
     val taskPendingDeletionId: String? = null,
     val exportDestination: ExportDestination = ExportDestination.CSV,
+    val landscapeHandedness: LandscapeHandedness =
+        LandscapeHandedness.RIGHT_HANDED,
     val googleExportState: MainGoogleExportState =
         MainGoogleExportState.SETUP_REQUIRED,
     val exportProgress: MainExportProgress? = null,
@@ -335,11 +338,17 @@ class MainViewModel(
     private fun observeSettings() {
         settingsRepository
             .observeSettings()
-            .map { it.defaultExportDestination }
+            .map { settings ->
+                settings.defaultExportDestination to
+                    settings.landscapeHandedness
+            }
             .distinctUntilChanged()
-            .onEach { destination ->
+            .onEach { (destination, handedness) ->
                 rawState.update {
-                    it.copy(exportDestination = destination)
+                    it.copy(
+                        exportDestination = destination,
+                        landscapeHandedness = handedness,
+                    )
                 }
             }.launchIn(viewModelScope)
     }
@@ -1308,6 +1317,7 @@ class MainViewModel(
                     !isTimerOperationInProgress &&
                     exportProgress == null,
             exportDestination = exportDestination,
+            landscapeHandedness = landscapeHandedness,
             googleExportState = googleExportState,
             exportProgress = exportProgress,
             exportFeedback = exportFeedback,

@@ -678,6 +678,10 @@ redundant visible **Work Date** label, keeps 48 dp actions, and preserves full t
 This is a presentation-only change: Main state, Room, timing, task ordering, and all three export
 implementations are unchanged.
 
+D-063 documents the released `0.1.0` layout only. For `0.2.0`, D-070 and Milestone 24 supersede
+its top-bar actions and single-column compact-header arrangement with the handed two-column
+landscape composition; its portrait and non-behavioral guarantees remain in force.
+
 ### D-064 — Five-Hz visible timer refresh
 
 Physical release profiling with the timer visible for one hour found 22–26% instantaneous app CPU

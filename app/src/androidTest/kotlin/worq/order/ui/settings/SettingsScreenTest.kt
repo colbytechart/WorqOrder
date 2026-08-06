@@ -23,6 +23,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import worq.order.data.ThemeMode
+import worq.order.data.LandscapeHandedness
 import worq.order.ui.employees.ConsultantSettingsUiState
 import worq.order.ui.theme.WorqOrderTheme
 
@@ -96,11 +97,19 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Light").performClick()
         composeRule
             .onNode(hasScrollAction())
+            .performScrollToNode(hasText("Landscape Orientation"))
+        composeRule.onNodeWithText("Right-handed").assertIsSelected()
+        composeRule.onNodeWithText("Left-handed").performClick()
+        composeRule
+            .onNode(hasScrollAction())
             .performScrollToNode(hasText("Google Sheets"))
         composeRule.onNodeWithText("Google Sheets").performClick()
         assertEquals(
             listOf(
                 SettingsEvent.SelectTheme(ThemeMode.LIGHT),
+                SettingsEvent.SelectLandscapeHandedness(
+                    LandscapeHandedness.LEFT_HANDED,
+                ),
                 SettingsEvent.SelectExportDestination(
                     worq.order.data.ExportDestination.GOOGLE_SHEETS,
                 ),

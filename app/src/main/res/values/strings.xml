@@ -153,6 +153,11 @@
 
     <string name="settings">Settings</string>
     <string name="appearance">Appearance</string>
+    <string name="landscape_orientation">Landscape Orientation</string>
+    <string name="right_handed">Right-handed</string>
+    <string name="right_handed_summary">Tasks on the left and controls on the right</string>
+    <string name="left_handed">Left-handed</string>
+    <string name="left_handed_summary">Controls on the left and tasks on the right</string>
     <string name="system_theme">Use system setting</string>
     <string name="system_theme_summary">Follow this device’s Light or Dark appearance.</string>
     <string name="light_theme">Light</string>

@@ -23,6 +23,7 @@ import androidx.compose.ui.semantics.liveRegion
 import worq.order.R
 import worq.order.data.TaskMetadataValidationError
 import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 import worq.order.ui.theme.WorqOrderDimens
 
 @Composable
@@ -76,6 +77,60 @@ internal fun TaskWorkTypeSelector(
                         )
                     }
                 }
+        }
+    }
+}
+
+@Composable
+internal fun TaskBillingStatusSelector(
+    selected: BillingStatus?,
+    enabled: Boolean,
+    onSelect: (BillingStatus) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
+    ) {
+        Text(
+            text = stringResource(R.string.billing_status),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
+        ) {
+            BillingStatus.entries.forEach { billingStatus ->
+                val isSelected = selected == billingStatus
+                Row(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .selectable(
+                                selected = isSelected,
+                                enabled = enabled,
+                                role = Role.RadioButton,
+                                onClick = { onSelect(billingStatus) },
+                            ),
+                ) {
+                    RadioButton(
+                        selected = isSelected,
+                        enabled = enabled,
+                        onClick = null,
+                    )
+                    Text(
+                        text =
+                            stringResource(
+                                when (billingStatus) {
+                                    BillingStatus.BILLABLE -> R.string.billing_status_billable
+                                    BillingStatus.DO_NOT_BILL -> R.string.billing_status_do_not_bill
+                                    BillingStatus.DO_NOT_CHARGE ->
+                                        R.string.billing_status_do_not_charge
+                                },
+                            ),
+                    )
+                }
+            }
         }
     }
 }

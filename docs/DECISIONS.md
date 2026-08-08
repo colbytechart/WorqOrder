@@ -857,6 +857,19 @@ shows WorqOrder identity, active task, and elapsed timer, and scopes swipe dismi
 interval without stopping it. It may not become timer authority or justify a foreground service,
 wake lock, exact alarm, or app-owned background tick loop solely for display.
 
+Milestone 27 completed that official review on 2026-08-08. The recommended API-26-through-target
+contract is a silent, low-importance, non-ongoing standard notification with Android's own
+chronometer, `CATEGORY_STOPWATCH`, private full content, and a redacted public version. It is a
+notification-shade surface eligible for lock-screen display, not a guaranteed lock-screen-only
+widget. A `deleteIntent` persists only the dismissed active interval ID; Room remains authoritative.
+API-33+ permission denial, channel/user/OEM privacy controls, and force-stop can suppress it. A
+one-shot `BOOT_COMPLETED` receiver may restore it after first unlock without a foreground service,
+alarm, wake lock, or tick loop. AppWidget, custom `RemoteViews`, full-screen intent, foreground
+service, and API-36-only promoted Live Update approaches are rejected as the baseline. The detailed
+evidence and tradeoffs are in `LOCK_SCREEN_SURFACE_ADR.md`. The owner approved all four tradeoffs on
+2026-08-08. That selects the design but does not start Milestone 28, which still requires an
+explicit milestone request.
+
 ### D-073 — Strict 12-hour clock presentation
 
 All human-readable task clock values use task-zone `hh:mm a` with uppercase AM/PM. This includes
@@ -958,6 +971,21 @@ connection, wrong export destination, and local-settings failure each use distin
 When Android can present the runtime notification permission request, WorqOrder requests it; a
 denial or device-setting block directs the user to the app's notification settings.
 
+### D-079 — Billing Status is nullable history and required-default new metadata
+
+Milestone 27 first adds daily-task **Billing Status** with exactly three user/export values:
+`Billable`, `Do not bill`, and `Do not charge`. Create Task defaults to `Billable`; Edit Task uses
+the same exclusive three-choice radio presentation between Work Type and Mileage. The Room value
+is nullable so every task migrated through the explicit non-destructive `MIGRATION_3_4` remains
+blank rather than receiving invented billing history. Rollover and midnight continuation copy the
+source value, including null.
+
+All export destinations advance together from canonical schema 3 to schema 4. The exact new
+15-column order inserts **Billing Status** between **Work type** and **Mileage**. The shared
+`ExportRowBuilder` remains the only projection boundary; CSV, one-off XLSX, manual Google export,
+and automatic Google export cannot diverge. Owned Google tabs marked with known schema 2 or 3 may
+be atomically replaced and upgraded to schema 4; unknown/newer and unowned tabs remain protected.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.
@@ -967,8 +995,9 @@ denial or device-setting block directs the user to the app's notification settin
 - Persistent XLSX mode is obsolete. CSV and XLSX remain manual one-off document exports.
 - At-rest encryption, app-access login/biometric/device-credential/PIN gating, and optional
   screenshot/Recents privacy controls are deferred only to optional Milestone E under D-050/D-051.
-- The exact lock-screen surface remains an unresolved implementation input until its official
-  research milestone and owner approval; its product behavior is fixed by D-072. The automatic
+- The lock-screen implementation is design-approved but remains deferred until Milestone 28 is
+  explicitly requested. Its selected standard-notification contract is recorded in D-072 and
+  `LOCK_SCREEN_SURFACE_ADR.md`; no surface code has been added. The automatic
   Google scheduling/auth mechanism selected by D-076 is implemented in Milestone 26; its remaining
   limitations are Android-controlled timing, authorization, and notification behavior.
 

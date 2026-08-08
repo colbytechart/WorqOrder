@@ -31,6 +31,12 @@ enum class WorkType {
     UNSPECIFIED,
 }
 
+enum class BillingStatus {
+    BILLABLE,
+    DO_NOT_BILL,
+    DO_NOT_CHARGE,
+}
+
 data class DailyTask(
     val id: String,
     val seriesId: String,
@@ -40,6 +46,7 @@ data class DailyTask(
     val employeeId: String? = null,
     val employeeNameSnapshot: String = "",
     val workType: WorkType = WorkType.UNSPECIFIED,
+    val billingStatus: BillingStatus? = null,
     val mileage: String? = null,
     val workDate: LocalDate,
     val zoneId: ZoneId,

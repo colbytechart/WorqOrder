@@ -204,6 +204,7 @@ abstract class TaskDao {
                 employeeId = source.employeeId,
                 employeeNameSnapshot = source.employeeNameSnapshot,
                 workType = source.workType,
+                billingStatus = source.billingStatus,
                 mileage = source.mileage,
                 workDateEpochDay = workDateEpochDay,
                 zoneId = zoneId,
@@ -223,6 +224,7 @@ abstract class TaskDao {
             employee_id = :employeeId,
             employee_name_snapshot = :employeeNameSnapshot,
             work_type = :workType,
+            billing_status = :billingStatus,
             mileage = :mileage,
             updated_at_epoch_ms = :updatedAtEpochMs
         WHERE id = :taskId
@@ -236,6 +238,7 @@ abstract class TaskDao {
         employeeId: String?,
         employeeNameSnapshot: String,
         workType: String,
+        billingStatus: String?,
         mileage: String?,
         updatedAtEpochMs: Long,
     ): Int
@@ -248,6 +251,7 @@ abstract class TaskDao {
         hardwareSoftwarePurchases: String,
         employeeId: String?,
         workType: String,
+        billingStatus: String?,
         mileage: String?,
         updatedAtEpochMs: Long,
     ): TaskMetadataWriteEntityResult {
@@ -283,6 +287,7 @@ abstract class TaskDao {
                 employeeId = assignedEmployeeId,
                 employeeNameSnapshot = employeeName,
                 workType = workType,
+                billingStatus = billingStatus,
                 mileage = mileage,
                 updatedAtEpochMs = updatedAtEpochMs,
             ) != 1

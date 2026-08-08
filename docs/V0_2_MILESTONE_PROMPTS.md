@@ -252,8 +252,25 @@ checks, report exact results and remaining device tests, suggest a commit messag
 
 ## Milestone 27 — Running-timer lock-screen official research and design
 
+Status: Complete. Billing Status implementation and verification passed. Official Android research
+and `LOCK_SCREEN_SURFACE_ADR.md` completed 2026-08-08; the owner approved all four design tradeoffs
+the same day. No lock-screen code was added, and Milestone 28 remains stopped until explicitly
+requested.
+
 ```text
-Begin Milestone 27 as research/design only. Read AGENTS.md, timer/lifecycle rules, and current app.
+Begin Milestone 27 by implementing the separately approved Billing Status addition, then stop for
+verification before beginning the lock-screen research. Add nullable per-task Billing Status with
+exact UI/export values Billable, Do not bill, and Do not charge. New tasks default to Billable;
+every migrated task remains blank. Place the exclusive three-choice control between Work Type and
+Mileage in Create/Edit, copy the value (including null) through rollover/midnight continuation,
+add non-destructive Room MIGRATION_3_4, and advance the shared CSV/XLSX/Google export projection to
+schema 4 with Billing Status between Work type and Mileage. Known owned Google schema-2/schema-3
+tabs may upgrade atomically; destination adapters must not diverge. Add migration, repository,
+domain, ViewModel, Compose, canonical export, and Google planner tests. Run relevant offline and
+connected checks, report results, and pause.
+
+Only after the owner accepts that implementation, continue Milestone 27 as research/design only.
+Read AGENTS.md, timer/lifecycle rules, and current app.
 Before internet access, explain the required official Android research and request only the
 narrowest permission. Base the review on current official Android Clock timer/alarm behavior and
 stable notification/chronometer/lock-screen/AppWidget APIs across API 26 through the target API.
@@ -271,7 +288,7 @@ Implement no lock-screen code. Explain user-visible tradeoffs and pause for my e
 ## Milestone 28 — Approved running-timer lock-screen surface
 
 ```text
-Begin Milestone 28 only after I approve Milestone 27's official mechanism. Implement exactly that
+Begin Milestone 28 only after I approve or revise `LOCK_SCREEN_SURFACE_ADR.md`. Implement exactly that
 running-only surface with WorqOrder icon/name, active task name, and elapsed timer. Use Room's
 active interval and persisted timestamps; never make notification/widget state authoritative or
 write ticks. Swiping dismisses only the current interval's surface and does not Stop; a later Start

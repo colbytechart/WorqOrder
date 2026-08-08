@@ -71,6 +71,8 @@ data class DailyTaskEntity(
         defaultValue = "'UNSPECIFIED'",
     )
     val workType: String = "UNSPECIFIED",
+    @ColumnInfo(name = "billing_status")
+    val billingStatus: String? = null,
     @ColumnInfo(name = "mileage")
     val mileage: String? = null,
     @ColumnInfo(name = "work_date_epoch_day")

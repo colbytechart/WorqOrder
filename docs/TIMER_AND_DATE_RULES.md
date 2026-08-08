@@ -140,7 +140,8 @@ Given an open segment starting at `segmentStart` and a normalization endpoint `n
 3. While `nextBoundary < now` (or `<= now` when normalizing without immediately stopping):
    - close the current segment at `nextBoundary`;
    - find/create the next date's task with the same series ID, copied employee ID/name snapshot,
-     client, short description, hardware/software-purchases text, Work Type, Mileage, and the
+     client, short description, hardware/software-purchases text, Work Type, Billing Status
+     (including blank), Mileage, and the
      pinned boundary ZoneId;
    - create the next interval at `nextBoundary`, open unless another boundary/end is known;
    - assign a new stable interval ID and next ordinal on that daily task;
@@ -169,7 +170,8 @@ on which the timing selection was made, and its effective ZoneId.
 2. Calculate today with the effective zone.
 3. Query `(seriesId, todayEpochDay, effectiveZoneId)`.
 4. If missing, insert a task that copies the source daily task's employee ID/name snapshot, client,
-   short description, hardware/software-purchases text, Work Type, and Mileage, stores today's
+   short description, hardware/software-purchases text, Work Type, Billing Status (including
+   blank), and Mileage, stores today's
    epoch day and effective ZoneId, and keeps the series ID. Do not re-resolve a renamed Employee or
    repurpose a same-date copy whose stored assignment zone differs.
 5. On a uniqueness race, query and use the already-inserted row.

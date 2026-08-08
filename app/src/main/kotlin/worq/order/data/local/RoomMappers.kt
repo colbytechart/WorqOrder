@@ -14,6 +14,7 @@ import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 
 internal fun ClientEntity.toModel(): Client =
     Client(
@@ -47,6 +48,7 @@ internal fun DailyTaskEntity.toModel(): DailyTask =
         employeeId = employeeId,
         employeeNameSnapshot = employeeNameSnapshot,
         workType = WorkType.valueOf(workType),
+        billingStatus = billingStatus?.let(BillingStatus::valueOf),
         mileage = mileage,
         workDate = LocalDate.ofEpochDay(workDateEpochDay),
         zoneId = ZoneId.of(zoneId),

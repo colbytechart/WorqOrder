@@ -59,6 +59,9 @@ authoritative. Exports are copies and never feed data back into Room.
   employee name captured when assigned so later employee rename/archive cannot rewrite history.
 - **Work Type:** task metadata with `On-Site` as the new-task default and `In-Office` as the other
   selectable value. Migrated tasks may remain `Unspecified` until edited.
+- **Billing Status:** task metadata with exact choices `Billable`, `Do not bill`, and
+  `Do not charge`. New tasks default to `Billable`; migrated tasks remain unassigned/blank until
+  explicitly edited.
 - **Mileage:** optional non-negative decimal task metadata stored without floating-point or
   locale-dependent conversion.
 - **Billing Minutes:** derived task information: zero for no recorded time, otherwise the exact
@@ -135,6 +138,8 @@ A plus/FAB opens a task-creation screen or accessible dialog containing:
 - an optional text field labeled **Hardware / Software Purchases**, trimmed when nonblank, maximum 400 characters; and
 - the currently selected active **Consultant**, required for creation;
 - a **Work Type:** radio group containing **On-Site** and **In-Office**, defaulting to On-Site;
+- a **Billing Status** radio group containing **Billable**, **Do not bill**, and **Do not charge**,
+  defaulting new tasks to Billable;
 - an optional **Mileage** decimal field that uses the numeric-decimal keyboard and accepts only a
   validated non-negative decimal representation; and
 - **Create** and **Cancel** actions.
@@ -218,7 +223,7 @@ explicitly edited.
 ## 6. Tasks and interval editing
 
 A task-edit screen changes the daily task's consultant assignment, client, short description,
-**Hardware / Software Purchases**, Work Type, and Mileage and lists intervals chronologically. It
+**Hardware / Software Purchases**, Work Type, Billing Status, and Mileage and lists intervals chronologically. It
 supports manually adding an interval, editing a completed interval's start/stop, and deleting a
 completed interval through the same validation path.
 
@@ -303,7 +308,7 @@ and does not alter Room.
   fresh user-mediated create-document result.
 - Versioned, non-destructive migrations and Room schema exports begin at database version 1.
 - Selection persists as a preferred task-series ID plus the last concrete daily-task ID and the date/zone context in which that task was selected. Invalid references are repaired safely. The displayed date is not persisted; normal startup displays today.
-- When the effective local date or geographical zone changes, an eligible timing selection lazily finds or creates its new daily task using `(series ID, work date, assignment ZoneId)` uniqueness, copies the prior daily task's current client, short description, and hardware/software-purchases text, and becomes selected. A task intentionally selected outside its own stored date/zone context remains view-only instead of being rolled. The zone context prevents a task assigned under a different zone from being silently repurposed.
+- When the effective local date or geographical zone changes, an eligible timing selection lazily finds or creates its new daily task using `(series ID, work date, assignment ZoneId)` uniqueness, copies the prior daily task's current client, short description, hardware/software-purchases text, Consultant snapshot, Work Type, Billing Status (including blank), and Mileage, and becomes selected. A task intentionally selected outside its own stored date/zone context remains view-only instead of being rolled. The zone context prevents a task assigned under a different zone from being silently repurposed.
 - The current required production sequence does not add WorqOrder-managed at-rest encryption to
   Room or DataStore. Android's app sandbox remains the local access boundary; optional Milestone
   E retains the separately authorized encryption and non-destructive migration plan.
@@ -316,8 +321,8 @@ and does not alter Room.
 
 - CSV, XLSX, and Google Sheets use the same row model and stable column order defined in
   `EXPORT_SPEC.md`.
-- Version `0.2.0` advances the shared visible schema to exactly 14 columns: Start date, End date,
-  Consultant, Client, Description, Expense, Work type, Mileage, Interval number, Start time, Stop
+- Version `0.2.0` advances the shared visible schema to exactly 15 columns: Start date, End date,
+  Consultant, Client, Description, Expense, Work type, Billing Status, Mileage, Interval number, Start time, Stop
   time, Interval duration, Time spent, and Billing minutes. Both date values repeat the task's one
   stored work date as `MM/DD/YYYY`; this export projection does not change in-app date behavior.
   Destination adapters do not independently select or format fields.
@@ -413,13 +418,15 @@ authorized consecutive milestones in `IMPLEMENTATION_PLAN.md`:
    active consultant. Rename/archive/restore uses the
    approved snapshot rules so historical task consultant names and exports never change
    retroactively. Migrated `0.1.0` tasks remain unassigned/blank until explicitly edited.
-3. **Work Type and Mileage.** Create/Edit Task provides one-choice `On-Site`/`In-Office` controls,
+3. **Work Type, Billing Status, and Mileage.** Create/Edit Task provides one-choice `On-Site`/`In-Office` controls,
    defaulting new tasks to `On-Site`, plus an optional validated decimal Mileage field that opens
-   a numeric-decimal keyboard. Existing tasks migrate to `Unspecified` and blank Mileage.
+   a numeric-decimal keyboard. Between those controls, Billing Status provides `Billable`,
+   `Do not bill`, or `Do not charge`, defaulting new tasks to `Billable`. Existing tasks migrate
+   to `Unspecified`, blank Billing Status, and blank Mileage.
 4. **Billing Minutes.** Show zero until time exists, then round the task's exact combined interval
    duration upward to 15-minute increments. Do not persist a redundant counter. Include the
    derived integer in every export.
-5. **Canonical export schema 3.** All three destinations use the same immutable 14-column snapshot
+5. **Canonical export schema 4.** All three destinations use the same immutable 15-column snapshot
    specified in `EXPORT_SPEC.md`; Start date and End date repeat the stored date as `MM/DD/YYYY`,
    and Start time/Stop time use task-zone `hh:mm a`. Duration values remain accumulated `HH:MM:SS`.
    Google-owned schema-2 tabs are safely
@@ -437,11 +444,17 @@ authorized consecutive milestones in `IMPLEMENTATION_PLAN.md`:
    right half stacks timer, date controls, and Export/Add actions. Left-handed mirrors only those
    two functional columns. The task list remains independently scrollable under large
    text/display sizes; portrait remains unchanged.
-9. **Running-timer lock-screen surface.** Before implementation, research current official Android
-   stable mechanisms based on native Clock timer/alarm behavior, explain notification/widget and
-   permission implications, and pause for owner approval. Any approved surface shows app identity,
-   active task, and elapsed timer only while running; swipe dismissal must not stop the Room timer.
-   Do not add a foreground service merely to update a stopwatch.
+9. **Running-timer system surface.** Milestone 27's official review recommends a silent,
+   dismissible standard notification with Android's system chronometer; a portable
+   lock-screen-only AppWidget does not exist across API 26-36. If approved for Milestone 28, the
+   notification also appears in the shade and is eligible for the lock screen, subject to runtime
+   permission, channel, privacy, user, and OEM policy. Private content shows app identity, the
+   active task Description, and accumulated elapsed total; the redacted public version omits the
+   task Description. Swiping hides only that active interval's surface and never stops the Room
+   timer. Reboot recovery occurs after first unlock through a one-shot boot receiver; force-stop
+   recovery waits for the next user launch. Do not add a foreground service or app-owned tick loop.
+   The owner-approved design and rejected alternatives are in `LOCK_SCREEN_SURFACE_ADR.md`;
+   implementation remains deferred until Milestone 28 is explicitly requested.
 10. **Automatic Google daily export.** The opt-in Google-only scheduler captures the intended
     effective-zone date near the end of that date. Approximate execution after midnight still
     exports the captured prior date, never a newly blank day. Owned-tab replacement keeps the

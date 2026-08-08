@@ -9,12 +9,13 @@ import java.util.Locale
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 import worq.order.domain.BillingMinutes
 import worq.order.timer.DurationMath
 import worq.order.util.ClockTimeFormatter
 
 object ExportSchema {
-    const val VERSION = 3
+    const val VERSION = 4
 
     val headers: List<String> =
         listOf(
@@ -25,6 +26,7 @@ object ExportSchema {
             "Description",
             "Expense",
             "Work type",
+            "Billing Status",
             "Mileage",
             "Interval number",
             "Start time",
@@ -139,6 +141,7 @@ class ExportRowBuilder {
                     task.description,
                     task.hardwareSoftwarePurchases,
                     ExportValueFormatter.workType(task.workType),
+                    ExportValueFormatter.billingStatus(task.billingStatus),
                     task.mileage.orEmpty(),
                     interval?.ordinal?.toString().orEmpty(),
                     interval?.start?.let {
@@ -185,5 +188,13 @@ object ExportValueFormatter {
             WorkType.ON_SITE -> "On-Site"
             WorkType.IN_OFFICE -> "In-Office"
             WorkType.UNSPECIFIED -> ""
+        }
+
+    fun billingStatus(billingStatus: BillingStatus?): String =
+        when (billingStatus) {
+            BillingStatus.BILLABLE -> "Billable"
+            BillingStatus.DO_NOT_BILL -> "Do not bill"
+            BillingStatus.DO_NOT_CHARGE -> "Do not charge"
+            null -> ""
         }
 }

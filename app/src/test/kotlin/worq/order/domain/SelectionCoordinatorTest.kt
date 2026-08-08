@@ -13,6 +13,7 @@ import worq.order.data.NewDailyTask
 import worq.order.data.SelectedTaskState
 import worq.order.model.DailyTask
 import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 import worq.order.testing.FakeActiveTimerRepository
 import worq.order.testing.FakeSelectedTaskRepository
 import worq.order.testing.FakeTaskRepository
@@ -61,6 +62,7 @@ class SelectionCoordinatorTest {
             assertEquals(source.employeeId, copy.employeeId)
             assertEquals(source.employeeNameSnapshot, copy.employeeNameSnapshot)
             assertEquals(source.workType, copy.workType)
+            assertEquals(source.billingStatus, copy.billingStatus)
             assertEquals(source.mileage, copy.mileage)
             assertEquals(TODAY, copy.workDate)
             assertEquals(NEW_YORK, copy.zoneId)
@@ -250,6 +252,7 @@ class SelectionCoordinatorTest {
                     employeeId = "employee-1",
                     employeeNameSnapshot = "Alex Rivera",
                     workType = WorkType.ON_SITE,
+                    billingStatus = BillingStatus.DO_NOT_BILL,
                     mileage = "18.5",
                     workDate = date,
                     zoneId = zoneId,

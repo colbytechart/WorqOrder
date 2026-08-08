@@ -368,6 +368,7 @@ abstract class ActiveTimerDao {
                     employeeId = task.employeeId,
                     employeeNameSnapshot = task.employeeNameSnapshot,
                     workType = task.workType,
+                    billingStatus = task.billingStatus,
                     mileage = task.mileage,
                     workDateEpochDay = continuation.workDateEpochDay,
                     zoneId = continuation.zoneId,

@@ -186,9 +186,20 @@ object WorqOrderMigrations {
             }
         }
 
+    /** Adds nullable Billing Status; released and existing v0.2 tasks remain unassigned. */
+    val MIGRATION_3_4 =
+        object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE daily_tasks ADD COLUMN billing_status TEXT",
+                )
+            }
+        }
+
     val ALL: Array<Migration> =
         arrayOf(
             MIGRATION_1_2,
             MIGRATION_2_3,
+            MIGRATION_3_4,
         )
 }

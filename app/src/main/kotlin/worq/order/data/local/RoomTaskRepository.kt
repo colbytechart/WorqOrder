@@ -22,6 +22,7 @@ import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 import worq.order.timer.UtcClock
 
 class RoomTaskRepository(
@@ -133,6 +134,7 @@ class RoomTaskRepository(
         hardwareSoftwarePurchases: String,
         employeeId: String?,
         workType: WorkType,
+        billingStatus: BillingStatus?,
         mileage: String?,
     ): UpdateTaskMetadataResult {
         require(taskId.isNotBlank()) { "taskId must not be blank" }
@@ -142,6 +144,7 @@ class RoomTaskRepository(
                 description = description,
                 hardwareSoftwarePurchases = hardwareSoftwarePurchases,
                 workType = workType,
+                billingStatus = billingStatus,
                 mileage = mileage,
             )
         val result =
@@ -152,6 +155,7 @@ class RoomTaskRepository(
                 hardwareSoftwarePurchases = metadata.hardwareSoftwarePurchases,
                 employeeId = employeeId,
                 workType = metadata.workType.name,
+                billingStatus = metadata.billingStatus?.name,
                 mileage = metadata.mileage,
                 updatedAtEpochMs = clock.now().toEpochMilli(),
             )
@@ -251,6 +255,7 @@ class RoomTaskRepository(
                 description = description,
                 hardwareSoftwarePurchases = hardwareSoftwarePurchases,
                 workType = workType,
+                billingStatus = billingStatus,
                 mileage = mileage,
             )
         val nowEpochMs = clock.now().toEpochMilli()
@@ -263,6 +268,7 @@ class RoomTaskRepository(
             employeeId = employeeId,
             employeeNameSnapshot = employeeNameSnapshot,
             workType = metadata.workType.name,
+            billingStatus = metadata.billingStatus?.name,
             mileage = metadata.mileage,
             workDateEpochDay = workDate.toEpochDay(),
             zoneId = zoneId.id,
@@ -275,6 +281,7 @@ class RoomTaskRepository(
         description: String,
         hardwareSoftwarePurchases: String,
         workType: WorkType = WorkType.UNSPECIFIED,
+        billingStatus: BillingStatus? = null,
         mileage: String? = null,
     ): NormalizedTaskMetadata =
         when (
@@ -283,6 +290,7 @@ class RoomTaskRepository(
                     description = description,
                     hardwareSoftwarePurchases = hardwareSoftwarePurchases,
                     workType = workType,
+                    billingStatus = billingStatus,
                     mileage = mileage,
                 )
         ) {

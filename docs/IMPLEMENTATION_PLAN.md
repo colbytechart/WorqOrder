@@ -542,8 +542,8 @@ for every implemented change.
 - Add the Consultant-labeled directory/current selection, backed by Employee persistence and
   immutable employee-name task snapshots, and
   non-destructive versioned Room migration from the `0.1.0` schema.
-- Add per-task Work Type and Mileage, derived Billing Minutes, and shared schema-version-3 export
-  with 14 exact columns across CSV/XLSX/Google, including identical `MM/DD/YYYY` Start date and End
+- Add per-task Work Type, nullable Billing Status, and Mileage, derived Billing Minutes, and shared
+  schema-version-4 export with 15 exact columns across CSV/XLSX/Google, including identical `MM/DD/YYYY` Start date and End
   date values derived from the one stored work date.
 - Simplify routine Task interval cards by omitting Duration and showing Start Time/Stop Time in
   task-zone 12-hour `hh:mm a`. Keep Task Total above the list and Billing Minutes directly below.
@@ -578,9 +578,9 @@ for every implemented change.
 
 ### v0.2.0 verification gate
 
-- Test version-2-to-new-schema migration with existing tasks/intervals and an open timer; client
-  CSV parser/import atomicity; consultant snapshot history; Work Type/Mileage; Billing Minutes;
-  and exact 14-column destination equivalence.
+- Test version-1/version-2/version-3-to-new-schema migration with existing tasks/intervals and an
+  open timer; client CSV parser/import atomicity; consultant snapshot history; Work Type/Billing
+  Status/Mileage; Billing Minutes; and exact 15-column destination equivalence.
 - Test midnight scheduling across ordinary days, spring-forward/fall-back, manual/device ZoneId
   changes, missed execution, Doze, reboot, offline/auth expiry, concurrent manual export, and
   repeated delivery. Each successful date must converge to one duplicate-free tab.
@@ -742,15 +742,26 @@ generic error.
 
 ### Milestone 27 — Running-timer lock-screen official research and design
 
-With explicit internet permission, review current official Android Clock-like timer/alarm,
-notification, chronometer, lock-screen, widget, permission, and dismissal behavior. Present the
-feasible alternatives and pause for explicit owner approval. Do not implement the surface here.
+Billing Status implementation and verification are complete: nullable historical value, Billable
+new-task default, three exact exclusive choices between Work Type and Mileage, non-destructive Room
+`3 -> 4`, rollover/midnight copying, and one shared 15-column schema-4 CSV/XLSX/Google projection.
+
+Official Android Clock-like timer/alarm, notification, chronometer, lock-screen, AppWidget,
+permission, dismissal, process, reboot, force-stop, and Live Update research was completed on
+2026-08-08. `LOCK_SCREEN_SURFACE_ADR.md` recommends a silent, non-ongoing standard notification
+with system chronometer, private/redacted content, per-interval dismissal, and one-shot post-unlock
+boot recovery. No surface code was implemented. The owner approved all four tradeoffs on
+2026-08-08, completing Milestone 27. Milestone 28 remains stopped until explicitly requested.
 
 ### Milestone 28 — Approved running-timer lock-screen surface
 
-Implement only the Milestone-27-approved mechanism. Room remains timer authority; dismissal is
-per-interval and Stop cleans up. Test permission denial, privacy suppression, process/reboot,
-dismissal/restart, task naming, CPU/battery, and absence of tick persistence/background loops.
+Implement only the owner-approved version of `LOCK_SCREEN_SURFACE_ADR.md`. If accepted unchanged,
+use a dedicated silent Running Timer channel, one standard private/redacted notification and system
+chronometer, direct Main tap, delete-intent per-interval dismissal, contextual API-33+ permission
+handling, app/resume reconciliation, and one-shot post-unlock boot recovery. Room remains timer
+authority; dismissal is per-interval and Stop cleans up. Test permission/channel denial, privacy
+suppression, process/reboot/force-stop, dismissal/restart, task naming, CPU/battery, and absence of
+tick persistence/background loops. Do not implement before explicit owner approval.
 
 ### Milestone 29 — v0.2 integration and release readiness
 

@@ -135,6 +135,15 @@ class EditTaskViewModel(
                         message = null,
                     )
                 }
+            is EditTaskEvent.SelectBillingStatus ->
+                mutableUiState.update {
+                    it.copy(
+                        billingStatus = event.billingStatus,
+                        metadataErrors = emptySet(),
+                        hasUnsavedMetadataChanges = true,
+                        message = null,
+                    )
+                }
             is EditTaskEvent.EditMileage ->
                 if (MileageNormalizer.acceptsInput(event.value)) {
                     mutableUiState.update {
@@ -277,6 +286,8 @@ class EditTaskViewModel(
                             },
                         workType =
                             if (refreshMetadata) task.workType else state.workType,
+                        billingStatus =
+                            if (refreshMetadata) task.billingStatus else state.billingStatus,
                         mileage =
                             if (refreshMetadata) task.mileage.orEmpty() else state.mileage,
                         totalDuration = detail.completedDurationText(),
@@ -314,6 +325,7 @@ class EditTaskViewModel(
                 description = state.description,
                 hardwareSoftwarePurchases = state.hardwareSoftwarePurchases,
                 workType = state.workType,
+                billingStatus = state.billingStatus,
                 mileage = state.mileage,
             )
         val errors =
@@ -350,6 +362,7 @@ class EditTaskViewModel(
                             state.hardwareSoftwarePurchases,
                         employeeId = consultantId,
                         workType = state.workType,
+                        billingStatus = state.billingStatus,
                         mileage = state.mileage,
                     )
                 }.getOrElse {

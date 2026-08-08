@@ -1,6 +1,7 @@
 package worq.order.data
 
 import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 
 const val MAX_TASK_DESCRIPTION_CODE_POINTS = 400
 const val MAX_TASK_PURCHASES_CODE_POINTS = 400
@@ -18,6 +19,7 @@ data class NormalizedTaskMetadata(
     val description: String,
     val hardwareSoftwarePurchases: String,
     val workType: WorkType = WorkType.UNSPECIFIED,
+    val billingStatus: BillingStatus? = null,
     val mileage: String? = null,
 )
 
@@ -36,6 +38,7 @@ object TaskMetadataValidator {
         description: String,
         hardwareSoftwarePurchases: String,
         workType: WorkType = WorkType.UNSPECIFIED,
+        billingStatus: BillingStatus? = null,
         mileage: String? = null,
     ): TaskMetadataValidationResult {
         val normalizedDescription = description.trim()
@@ -80,6 +83,7 @@ object TaskMetadataValidator {
                     description = normalizedDescription,
                     hardwareSoftwarePurchases = normalizedPurchases,
                     workType = workType,
+                    billingStatus = billingStatus,
                     mileage = normalizedMileage,
                 ),
             )

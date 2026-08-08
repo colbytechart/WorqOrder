@@ -99,6 +99,10 @@
     <string name="work_type_on_site">On-Site</string>
     <string name="work_type_in_office">In-Office</string>
     <string name="mileage">Mileage</string>
+    <string name="billing_status">Billing Status</string>
+    <string name="billing_status_billable">Billable</string>
+    <string name="billing_status_do_not_bill">Do not bill</string>
+    <string name="billing_status_do_not_charge">Do not charge</string>
     <string name="mileage_malformed">Enter a non-negative number using at most one decimal point.</string>
     <string name="mileage_too_large">Mileage can contain at most 9 digits before the decimal point.</string>
     <string name="mileage_too_precise">Mileage can contain at most 3 digits after the decimal point.</string>

@@ -711,9 +711,10 @@ These tests become active with their owning `0.2.0` milestones and do not rewrit
 
 ### V2-DATA-01 Non-destructive update
 
-A populated version-2 database upgrades without losing clients, tasks, intervals, selections, or
-an open timer. Existing tasks receive null/blank Employee, `Unspecified` Work Type, and blank
-Mileage. The new schema is exported; no destructive fallback exists.
+A populated version-1, version-2, or version-3 database upgrades without losing clients, tasks,
+intervals, selections, or an open timer. Existing tasks receive null/blank Employee,
+`Unspecified` Work Type, blank Billing Status, and blank Mileage. The new schema is exported; no
+destructive fallback exists.
 
 ### V2-CLIENT-01 CSV import appends safely
 
@@ -755,22 +756,24 @@ keeps Create disabled while no valid selection exists. At save time Room recheck
 Client and active Employee and captures the Employee's current name in the same transaction that
 inserts the daily task.
 
-### V2-TASK-01 Work Type, Mileage, and Billing Minutes
+### V2-TASK-01 Work Type, Billing Status, Mileage, and Billing Minutes
 
 New tasks default to On-Site and can choose In-Office. Mileage opens a decimal numeric keyboard,
 accepts only the approved canonical non-negative decimal syntax, and round-trips through edit.
+Billing Status is an exclusive `Billable`/`Do not bill`/`Do not charge` choice between Work Type
+and Mileage; new tasks default to Billable while migrated tasks remain blank until edited.
 Billing Minutes equals `0` at zero duration and otherwise rounds the exact combined interval total
 up to a 15-minute multiple, including boundary and long-duration cases. It is derived rather than
 persisted and never changes timestamp precision.
 
-### V2-EXPORT-01 Canonical schema 3
+### V2-EXPORT-01 Canonical schema 4
 
 CSV, one-off XLSX, and Google Sheets expose exactly these headers/values in order: Start date, End
-date, Consultant, Client, Description, Expense, Work type, Mileage, Interval number, Start time,
+date, Consultant, Client, Description, Expense, Work type, Billing Status, Mileage, Interval number, Start time,
 Stop time, Interval duration, Time spent, Billing minutes. Both date fields equal the same stored
 task date formatted `MM/DD/YYYY`. Export Start/Stop are `hh:mm a`; durations are `HH:MM:SS`; Billing
-minutes follows V2-TASK-01. Known owned
-schema-2 Google tabs upgrade atomically; unowned or newer/unknown tabs remain untouched conflicts.
+minutes follows V2-TASK-01. Known owned schema-2/schema-3 Google tabs upgrade atomically;
+unowned or newer/unknown tabs remain untouched conflicts.
 
 ### V2-TASK-02 Interval presentation and text-entry capitalization
 
@@ -865,18 +868,33 @@ the control half does not overlap, clip, or remove any required action.
 
 ### V2-UI-04 Running-timer lock-screen surface
 
-If the current official Android platform supports the owner-approved behavior, starting a timer
-shows a lock-screen-capable surface containing the WorqOrder icon/name, active task name, and
-elapsed timer. It appears only while an interval is open. Stop removes it. Swiping it away hides
-it for that active interval without stopping, closing, duplicating, or changing the Room interval;
-a later Start may show a new surface.
+Under the owner-approved `LOCK_SCREEN_SURFACE_ADR.md`, starting a timer posts one silent, dismissible,
+standard notification containing WorqOrder identity, the active task Description, and a
+system-rendered accumulated elapsed timer. It appears in the shade and is eligible for the lock
+screen; it is not described as a lock-screen-only widget. Its private full content and redacted
+public version behave according to Android/user privacy settings. It appears only while an interval
+is open. Stop removes it. Swiping it away records that active interval ID and hides the surface
+without stopping, closing, duplicating, or changing the Room interval; a later Start may show a new
+surface.
 
-Permission denial, OS lock-screen privacy suppression, process death, reboot, screen lock/unlock,
-and task metadata changes fail safely. The app never claims that the surface is visible when user
-or device policy hides it, never writes tick values to Room/DataStore, and never adds a foreground
-service or continuous app-owned background loop solely to update elapsed text. Official API
-research must document whether the implementation is a lock-screen-visible notification or a
-supported lock-screen widget before code begins.
+API-33+ permission denial, channel disablement, OS lock-screen privacy suppression, process death,
+reboot/first unlock, force-stop/relaunch, screen lock/unlock, and task metadata constraints fail
+safely. Start remains usable without notification permission. A system-killed process needs no tick
+repost; app resume reconciles against Room. The approved one-shot boot receiver reposts only after
+first unlock and only when Room still has an undismissed active interval. Force-stop cannot recover
+until the user relaunches the package. The app never claims visibility when user/device policy hides
+it, never writes tick values to Room/DataStore, and never adds a foreground service, custom
+notification layout, exact alarm, wake lock, or continuous app-owned background loop solely to
+update elapsed text.
+
+Automated and device tests cover the separate Running Timer channel, concise permission/channel
+recovery guidance, private/public content, direct Main tap, swipe `deleteIntent`, per-interval
+dismissal across recreation/process death/reboot, Stop cleanup, later-Start reappearance, midnight
+continuation, wall-clock changes, API 26/current target, TalkBack, notification-disabled states, and
+CPU/memory/battery behavior. Platform typography and compact chronometer formatting are not asserted
+beyond displaying an advancing elapsed value. A process-absent midnight test confirms the surface
+continues without an application wake and then reconciles to the new daily task total on resume;
+the documented visible reset is accepted and no duplicate split is created.
 
 ## 14. Optional Milestone E — data protection, app access, and privacy
 

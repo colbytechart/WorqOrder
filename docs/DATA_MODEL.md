@@ -11,7 +11,7 @@
 - Booleans are SQLite integers through Room.
 - Every mutable entity has `createdAtEpochMs` and `updatedAtEpochMs`; updates use the injected UTC clock.
 - Entities are persistence details. Repositories map them to domain models and validate strings/time values before writes.
-- Room schema versions 1 through 3 store these primitive values directly and require no type converters. Domain mappings reconstruct `Instant`, `LocalDate`, and `ZoneId` deterministically.
+- Room schema versions 1 through 4 store these primitive values directly and require no type converters. Domain mappings reconstruct `Instant`, `LocalDate`, and `ZoneId` deterministically.
 
 ## 2. Entity relationship overview
 
@@ -211,7 +211,7 @@ Implemented schema details:
   `app/schemas/worq.order.data.local.WorqOrderDatabase/3.json`;
 - production construction uses `Room.databaseBuilder` without startup deletion, seeding, or destructive fallback; and
 - there is no `0 -> 1` migration because version 1 is the first schema. Production construction
-  registers the explicit `MIGRATION_1_2` and `MIGRATION_2_3`; every later change must add another
+  registers the explicit `MIGRATION_1_2`, `MIGRATION_2_3`, and `MIGRATION_3_4`; every later change must add another
   explicit forward migration and instrumentation test.
 
 Implemented first schema evolution:
@@ -272,10 +272,12 @@ authority for an already-created task.
 | `employee_id` | TEXT nullable FK | selected active consultant; null for migrated `0.1.0` tasks |
 | `employee_name_snapshot` | TEXT | immutable-at-assignment display/export value; empty for migrated tasks |
 | `work_type` | TEXT | `ON_SITE`, `IN_OFFICE`, or migrated `UNSPECIFIED` |
+| `billing_status` | TEXT nullable | `BILLABLE`, `DO_NOT_BILL`, `DO_NOT_CHARGE`, or null for every migrated task |
 | `mileage` | TEXT nullable | validated normalized non-negative decimal text; null means not entered |
 
-New task creation requires an active selected employee and defaults Work Type to `ON_SITE`.
-Editing a daily task may correct its employee, Work Type, or Mileage. Employee rename/archive does
+New task creation requires an active selected employee, defaults Work Type to `ON_SITE`, and
+defaults Billing Status to `BILLABLE`. Editing a daily task may correct its employee, Work Type,
+Billing Status, or Mileage. Employee rename/archive does
 not rewrite `employee_name_snapshot` on prior tasks; future tasks use the employee's then-current
 name. This preserves historical exports while retaining the directory relationship where it is
 still valid. Removing an employee is archive/deactivation, not destructive deletion.
@@ -285,7 +287,7 @@ at most one decimal separator in the UI, normalize the stored/exported value wit
 grouping, reject negative, exponent, NaN, infinity, and malformed values, and define a reasonable
 at most 9 integer digits and 3 meaningful fractional digits; input is bounded to 32 characters
 before parsing. Strip redundant leading/trailing zeroes and store zero as `0`. Existing tasks migrate with blank
-Mileage and `UNSPECIFIED` Work Type rather than inventing historical facts.
+Mileage, `UNSPECIFIED` Work Type, and null Billing Status rather than inventing historical facts.
 
 ### Derived Billing Minutes
 
@@ -338,9 +340,11 @@ Client   1 ---- * DailyTask 1 ---- * WorkInterval
 ```
 
 Daily rollover and midnight continuation copy the source daily task's employee ID/name snapshot,
-Work Type, Mileage, client, description, and purchases into the new daily copy. They do not
+Work Type, Billing Status (including null), Mileage, client, description, and purchases into the new daily copy. They do not
 re-resolve the employee name from the current directory and never alter the preceding task.
 
-The explicit `MIGRATION_2_3` is tested from a populated version-2 database containing
+The explicit `MIGRATION_2_3` remains tested from a populated version-2 database containing
 active/archived clients, multiple tasks and intervals, and an open active timer. Destructive
-migration remains prohibited.
+migration remains prohibited. Milestone 27 adds `MIGRATION_3_4`, which adds only the nullable
+`billing_status` column. Populated version-1, version-2, and version-3 upgrade paths preserve their
+entire task/interval/active-timer graph and leave Billing Status null.

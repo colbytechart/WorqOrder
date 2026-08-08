@@ -98,6 +98,15 @@ class CreateTaskViewModel(
                         message = null,
                     )
                 }
+            is CreateTaskEvent.SelectBillingStatus ->
+                mutableUiState.update {
+                    it.copy(
+                        billingStatus = event.billingStatus,
+                        metadataErrors = emptySet(),
+                        hasUnsavedTaskChanges = true,
+                        message = null,
+                    )
+                }
             is CreateTaskEvent.EditMileage ->
                 if (MileageNormalizer.acceptsInput(event.value)) {
                     mutableUiState.update {
@@ -405,6 +414,7 @@ class CreateTaskViewModel(
                 description = state.description,
                 hardwareSoftwarePurchases = state.hardwareSoftwarePurchases,
                 workType = state.workType,
+                billingStatus = state.billingStatus,
                 mileage = state.mileage,
             )
         val metadataErrors =
@@ -445,6 +455,7 @@ class CreateTaskViewModel(
                         workDate = state.workDate,
                         employeeId = consultantId,
                         workType = state.workType,
+                        billingStatus = state.billingStatus,
                         mileage = state.mileage,
                     )
                 }.getOrElse {

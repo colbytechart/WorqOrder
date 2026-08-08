@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 
 class TaskMetadataValidatorTest {
     @Test
@@ -66,16 +67,18 @@ class TaskMetadataValidatorTest {
     }
 
     @Test
-    fun normalizesMileageAndRetainsWorkType() {
+    fun normalizesMileageAndRetainsWorkTypeAndBillingStatus() {
         val valid =
             TaskMetadataValidator.validate(
                 description = "Task",
                 hardwareSoftwarePurchases = "",
                 workType = WorkType.IN_OFFICE,
+                billingStatus = BillingStatus.DO_NOT_BILL,
                 mileage = "0012.500",
             ) as TaskMetadataValidationResult.Valid
 
         assertEquals(WorkType.IN_OFFICE, valid.metadata.workType)
+        assertEquals(BillingStatus.DO_NOT_BILL, valid.metadata.billingStatus)
         assertEquals("12.5", valid.metadata.mileage)
 
         val invalid =

@@ -14,6 +14,7 @@ import worq.order.data.UpdateTaskMetadataResult
 import worq.order.model.DailyTask
 import worq.order.model.WorkInterval
 import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 import worq.order.timer.CurrentDateProvider
 import worq.order.timer.EffectiveZoneIdProvider
 
@@ -93,6 +94,7 @@ class TaskMutationCoordinator(
         workDate: LocalDate,
         employeeId: String?,
         workType: WorkType = WorkType.ON_SITE,
+        billingStatus: BillingStatus = BillingStatus.BILLABLE,
         mileage: String? = null,
     ): CreateTaskOperationResult {
         zoneIdProvider.awaitZoneId()
@@ -106,6 +108,7 @@ class TaskMutationCoordinator(
                         description = description,
                         hardwareSoftwarePurchases = hardwareSoftwarePurchases,
                         workType = workType,
+                        billingStatus = billingStatus,
                         mileage = mileage,
                     )
             ) {
@@ -124,6 +127,7 @@ class TaskMutationCoordinator(
                                 metadata.hardwareSoftwarePurchases,
                             employeeId = employeeId,
                             workType = metadata.workType,
+                            billingStatus = metadata.billingStatus,
                             mileage = metadata.mileage,
                             workDate = workDate,
                             zoneId = zoneIdProvider.zoneId(),
@@ -155,6 +159,7 @@ class TaskMutationCoordinator(
         hardwareSoftwarePurchases: String,
         employeeId: String? = null,
         workType: WorkType = WorkType.UNSPECIFIED,
+        billingStatus: BillingStatus? = null,
         mileage: String? = null,
     ): UpdateTaskOperationResult {
         val metadata =
@@ -164,6 +169,7 @@ class TaskMutationCoordinator(
                         description = description,
                         hardwareSoftwarePurchases = hardwareSoftwarePurchases,
                         workType = workType,
+                        billingStatus = billingStatus,
                         mileage = mileage,
                     )
             ) {
@@ -180,6 +186,7 @@ class TaskMutationCoordinator(
                     hardwareSoftwarePurchases = metadata.hardwareSoftwarePurchases,
                     employeeId = employeeId,
                     workType = metadata.workType,
+                    billingStatus = metadata.billingStatus,
                     mileage = metadata.mileage,
                 )
         ) {

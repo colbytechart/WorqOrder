@@ -31,6 +31,7 @@ import worq.order.testing.FakeZoneIdProvider
 import worq.order.testing.MainDispatcherRule
 import worq.order.timer.CurrentDateProvider
 import worq.order.model.Employee
+import worq.order.model.BillingStatus
 import worq.order.model.WorkType
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -54,6 +55,9 @@ class EditTaskViewModelTest {
             )
             fixture.viewModel.onEvent(EditTaskEvent.SelectConsultant("employee-2"))
             fixture.viewModel.onEvent(EditTaskEvent.SelectWorkType(WorkType.IN_OFFICE))
+            fixture.viewModel.onEvent(
+                EditTaskEvent.SelectBillingStatus(BillingStatus.DO_NOT_CHARGE),
+            )
             fixture.viewModel.onEvent(EditTaskEvent.EditMileage("012.500"))
             fixture.viewModel.onEvent(EditTaskEvent.SaveMetadata)
             runCurrent()
@@ -65,6 +69,7 @@ class EditTaskViewModelTest {
             assertEquals("Software license", changed.hardwareSoftwarePurchases)
             assertEquals("employee-2", changed.employeeId)
             assertEquals(WorkType.IN_OFFICE, changed.workType)
+            assertEquals(BillingStatus.DO_NOT_CHARGE, changed.billingStatus)
             assertEquals("12.5", changed.mileage)
             assertFalse(fixture.viewModel.uiState.value.hasUnsavedMetadataChanges)
             assertEquals(listOf(EditTaskEffect.NavigateBack), effects)
@@ -187,6 +192,7 @@ class EditTaskViewModelTest {
                     employeeId = "employee-1",
                     employeeNameSnapshot = "Alex Rivera",
                     workType = WorkType.ON_SITE,
+                    billingStatus = null,
                     mileage = "5",
                     workDate = TODAY,
                     zoneId = ZONE,

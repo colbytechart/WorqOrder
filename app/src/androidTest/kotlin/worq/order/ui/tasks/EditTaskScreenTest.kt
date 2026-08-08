@@ -4,6 +4,8 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -20,6 +22,7 @@ import org.junit.runner.RunWith
 import worq.order.ui.clients.ClientItemUi
 import worq.order.ui.employees.ConsultantItemUi
 import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 import worq.order.ui.theme.WorqOrderTheme
 
 @RunWith(AndroidJUnit4::class)
@@ -54,6 +57,10 @@ class EditTaskScreenTest {
             .assertIsDisplayed()
         composeRule.onNodeWithText("Alex Rivera").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("On-Site").performScrollTo().assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Do not charge")
+            .performScrollTo()
+            .assertIsSelected()
         composeRule
             .onNodeWithText("Interval 1")
             .performScrollTo()
@@ -109,6 +116,15 @@ class EditTaskScreenTest {
         composeRule.onNodeWithText("Stop Time: 01:30 PM").assertIsDisplayed()
     }
 
+    @Test
+    fun migratedTaskDoesNotInventBillingStatusSelection() {
+        setContent(state = readyState().copy(billingStatus = null))
+
+        composeRule.onNodeWithText("Billable").performScrollTo().assertIsNotSelected()
+        composeRule.onNodeWithText("Do not bill").assertIsNotSelected()
+        composeRule.onNodeWithText("Do not charge").assertIsNotSelected()
+    }
+
     private fun setContent(
         state: EditTaskUiState,
         onEvent: (EditTaskEvent) -> Unit = {},
@@ -135,6 +151,7 @@ class EditTaskScreenTest {
             description = "Description",
             hardwareSoftwarePurchases = "Laptop",
             workType = WorkType.ON_SITE,
+            billingStatus = BillingStatus.DO_NOT_CHARGE,
             mileage = "12.5",
             totalDuration = "02:00:00",
             billingMinutes = 120,

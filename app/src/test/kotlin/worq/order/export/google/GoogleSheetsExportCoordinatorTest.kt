@@ -163,6 +163,7 @@ class GoogleSheetsExportCoordinatorTest {
                                 "Task",
                                 "",
                                 "On-Site",
+                                "Billable",
                                 "",
                                 "1",
                                 "09:00 AM",

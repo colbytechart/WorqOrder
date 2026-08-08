@@ -113,23 +113,32 @@ Before `0.2.0` release, the effective notice must add:
 
 - employee directory IDs/names/archive timestamps, the current employee preference, and per-task
   employee ID/name snapshot;
-- per-task Work Type and Mileage; Billing Minutes is derived from existing intervals rather than
+- per-task Work Type, nullable Billing Status, and Mileage; Billing Minutes is derived from existing intervals rather than
   stored independently;
 - read-only access to one user-selected CSV document when **Import From CSV** is invoked. The
   bounded file is parsed in process only to append/restore client names; it is not uploaded,
   retained, or used to import tasks. WorqOrder does not persist the document permission;
 - Landscape Orientation and opt-in Automatic Daily Google Export preferences plus a non-sensitive
   captured/pending target date;
-- a 14-column external table: Start date, End date, Consultant, Client, Description, Expense, Work
-  type, Mileage, Interval number, Start time, Stop time, Interval duration, Time spent, and Billing
+- a 15-column external table: Start date, End date, Consultant, Client, Description, Expense, Work
+  type, Billing Status, Mileage, Interval number, Start time, Stop time, Interval duration, Time spent, and Billing
   minutes. Both exported date columns repeat the same stored task date; and
 - optional Google-only scheduled transmission near the end of the captured work date. A successful
   automatic export is silent. Pending/error notifications must contain no employee/client/task
   content. CSV and XLSX remain manual.
 
-The planned running-timer lock-screen surface may display the active task name on the device lock
-screen only after an official platform review and explicit owner approval. Its final permission,
-visibility, dismissal, and privacy wording must be added here before release. Users/OEM policy may
-hide it. Optional Milestone E encryption/app-lock/screenshot/Recents controls are release-agnostic
+Milestone 27's owner-approved design uses a private running-timer notification.
+Its full content contains the active task Description and elapsed total; it contains no Client,
+Consultant, Expense, Mileage, or other task metadata. A redacted public version omits the task
+Description and shows only WorqOrder identity, **Timer running**, and elapsed time. Android may show
+the full private version on the lock screen when the user permits sensitive content, so the task
+Description must be treated as information intentionally exposed outside the app in that setting.
+The notification also exists in the notification shade and may bridge to paired notification
+surfaces unless platform/user settings prevent it. Permission denial, channel disablement,
+lock-screen privacy, screen-sharing protection, force-stop, and OEM policy may hide it. Swipe
+dismissal stores only the active interval ID and never changes Room task or interval data. Reboot
+recovery waits until first unlock so WorqOrder does not copy the task Description into
+device-protected storage. Full details are in `LOCK_SCREEN_SURFACE_ADR.md`; no implementation exists
+until Milestone 28 is explicitly requested. Optional Milestone E encryption/app-lock/screenshot/Recents controls are release-agnostic
 backburner items outside `0.2.0` and every other release scope until explicitly assigned; this
 notice must not imply otherwise.

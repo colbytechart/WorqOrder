@@ -263,6 +263,11 @@ private fun EditTaskContent(
             enabled = !uiState.isRunning && !uiState.isSavingMetadata,
             onSelect = { onEvent(EditTaskEvent.SelectWorkType(it)) },
         )
+        TaskBillingStatusSelector(
+            selected = uiState.billingStatus,
+            enabled = !uiState.isRunning && !uiState.isSavingMetadata,
+            onSelect = { onEvent(EditTaskEvent.SelectBillingStatus(it)) },
+        )
         TaskMileageField(
             value = uiState.mileage,
             validationErrors = uiState.metadataErrors,

@@ -48,6 +48,7 @@ import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 import worq.order.timer.EffectiveZoneIdProvider
 import worq.order.timer.MonotonicTimeSource
 import worq.order.timer.UtcClock
@@ -463,6 +464,7 @@ class FakeTaskRepository : TaskRepository {
                     employeeId = newTask.employeeId,
                     employeeNameSnapshot = newTask.employeeNameSnapshot,
                     workType = newTask.workType,
+                    billingStatus = newTask.billingStatus,
                     mileage = newTask.mileage,
                     workDate = newTask.workDate,
                     zoneId = newTask.zoneId,
@@ -513,6 +515,7 @@ class FakeTaskRepository : TaskRepository {
         hardwareSoftwarePurchases: String,
         employeeId: String?,
         workType: WorkType,
+        billingStatus: BillingStatus?,
         mileage: String?,
     ): UpdateTaskMetadataResult =
         mutex.withLock {
@@ -537,8 +540,9 @@ class FakeTaskRepository : TaskRepository {
                                         current.employeeNameSnapshot
                                     } else {
                                         employeeId.orEmpty()
-                                    },
+                                },
                                 workType = workType,
+                                billingStatus = billingStatus,
                                 mileage = mileage,
                             )
                     )

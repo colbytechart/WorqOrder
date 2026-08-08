@@ -6,6 +6,7 @@ import worq.order.ui.clients.ArchivedClientRestoreOffer
 import worq.order.ui.clients.ClientEditorUiState
 import worq.order.ui.clients.ClientItemUi
 import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 
 enum class CreateTaskMessage {
     DATA_UNAVAILABLE,
@@ -30,6 +31,7 @@ data class CreateTaskUiState(
     val description: String = "",
     val hardwareSoftwarePurchases: String = "",
     val workType: WorkType = WorkType.ON_SITE,
+    val billingStatus: BillingStatus = BillingStatus.BILLABLE,
     val mileage: String = "",
     val metadataErrors: Set<TaskMetadataValidationError> = emptySet(),
     val isSavingTask: Boolean = false,
@@ -65,6 +67,10 @@ sealed interface CreateTaskEvent {
 
     data class SelectWorkType(
         val workType: WorkType,
+    ) : CreateTaskEvent
+
+    data class SelectBillingStatus(
+        val billingStatus: BillingStatus,
     ) : CreateTaskEvent
 
     data class EditMileage(

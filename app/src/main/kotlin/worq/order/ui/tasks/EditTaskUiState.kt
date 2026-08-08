@@ -8,6 +8,7 @@ import worq.order.domain.ManualIntervalValidationError
 import worq.order.domain.OverlapOffsetChoice
 import worq.order.ui.clients.ClientItemUi
 import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 import worq.order.ui.employees.ConsultantItemUi
 
 enum class IntervalEndpoint {
@@ -70,6 +71,7 @@ data class EditTaskUiState(
     val description: String = "",
     val hardwareSoftwarePurchases: String = "",
     val workType: WorkType = WorkType.UNSPECIFIED,
+    val billingStatus: BillingStatus? = null,
     val mileage: String = "",
     val metadataErrors: Set<TaskMetadataValidationError> = emptySet(),
     val totalDuration: String = "00:00:00",
@@ -128,6 +130,10 @@ sealed interface EditTaskEvent {
 
     data class SelectWorkType(
         val workType: WorkType,
+    ) : EditTaskEvent
+
+    data class SelectBillingStatus(
+        val billingStatus: BillingStatus,
     ) : EditTaskEvent
 
     data class EditMileage(

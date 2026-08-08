@@ -10,6 +10,7 @@ import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 
 data class NewDailyTask(
     val clientId: String,
@@ -18,6 +19,7 @@ data class NewDailyTask(
     val employeeId: String? = null,
     val employeeNameSnapshot: String = "",
     val workType: WorkType = WorkType.UNSPECIFIED,
+    val billingStatus: BillingStatus? = null,
     val mileage: String? = null,
     val workDate: LocalDate,
     val zoneId: ZoneId,
@@ -121,6 +123,7 @@ interface TaskRepository {
         hardwareSoftwarePurchases: String,
         employeeId: String?,
         workType: WorkType,
+        billingStatus: BillingStatus? = null,
         mileage: String?,
     ): UpdateTaskMetadataResult
 

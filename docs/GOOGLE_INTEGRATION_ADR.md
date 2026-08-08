@@ -523,7 +523,7 @@ export safely while retaining CSV until the owner revisits the decision.
 The owner approved an opt-in Google-Sheets-only automatic daily export. CSV and XLSX remain manual.
 The job captures an intended work date/ZoneId near 11:59 PM and may execute shortly after midnight
 while still exporting that captured prior date. It uses the same `drive.file` grant, connected
-spreadsheet, canonical schema-3 snapshot, and marked-tab replacement as manual export. It never
+spreadsheet, current canonical schema-4 snapshot, and marked-tab replacement as manual export. It never
 stores a raw access/refresh token.
 
 Milestone 25 rechecked current official Android and Google documentation on 2026-08-05 and selects

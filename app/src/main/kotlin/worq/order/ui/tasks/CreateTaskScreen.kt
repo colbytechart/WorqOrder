@@ -235,6 +235,11 @@ fun CreateTaskScreen(
                 enabled = !uiState.isSavingTask,
                 onSelect = { onEvent(CreateTaskEvent.SelectWorkType(it)) },
             )
+            TaskBillingStatusSelector(
+                selected = uiState.billingStatus,
+                enabled = !uiState.isSavingTask,
+                onSelect = { onEvent(CreateTaskEvent.SelectBillingStatus(it)) },
+            )
             TaskMileageField(
                 value = uiState.mileage,
                 validationErrors = uiState.metadataErrors,

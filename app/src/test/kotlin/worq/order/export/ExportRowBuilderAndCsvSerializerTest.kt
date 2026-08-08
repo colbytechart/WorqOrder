@@ -10,6 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import worq.order.export.csv.CsvSerializer
 import worq.order.model.Client
+import worq.order.model.BillingStatus
 import worq.order.model.DailyTask
 import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
@@ -34,6 +35,7 @@ class ExportRowBuilderAndCsvSerializerTest {
                 "Description",
                 "Expense",
                 "Work type",
+                "Billing Status",
                 "Mileage",
                 "Interval number",
                 "Start time",
@@ -44,7 +46,7 @@ class ExportRowBuilderAndCsvSerializerTest {
             ),
             ExportSchema.headers,
         )
-        assertEquals(3, snapshot.schemaVersion)
+        assertEquals(4, snapshot.schemaVersion)
         assertEquals(
             ExportSchema.headers.joinToString(",") + "\r\n",
             csv,
@@ -136,6 +138,7 @@ class ExportRowBuilderAndCsvSerializerTest {
             first.rows.map { it["Start time"] },
         )
         assertEquals("", first.rows.first()["Interval number"])
+        assertEquals("", first.rows.first()["Billing Status"])
         assertEquals("", first.rows.first()["Interval duration"])
         assertEquals("00:00:00", first.rows.first()["Time spent"])
         assertEquals("0", first.rows.first()["Billing minutes"])
@@ -261,7 +264,7 @@ class ExportRowBuilderAndCsvSerializerTest {
             "2026-07-24T13:30:00Z",
             snapshot.exportedAt.toString(),
         )
-        assertEquals(3, snapshot.schemaVersion)
+        assertEquals(4, snapshot.schemaVersion)
     }
 
     @Test
@@ -288,18 +291,19 @@ class ExportRowBuilderAndCsvSerializerTest {
     }
 
     @Test
-    fun employeeWorkTypeMileageAndBillingUseCanonicalSchemaOnce() {
+    fun consultantWorkTypeBillingStatusMileageAndBillingMinutesUseCanonicalSchemaOnce() {
         val detail =
             detail(
-                taskId = "v3",
+                taskId = "v4",
                 employee = "Alex Rivera",
                 workType = WorkType.ON_SITE,
+                billingStatus = BillingStatus.DO_NOT_CHARGE,
                 mileage = "18.5",
                 intervals =
                     listOf(
                         interval(
-                            id = "v3-interval",
-                            taskId = "v3",
+                            id = "v4-interval",
+                            taskId = "v4",
                             ordinal = 1,
                             start = Instant.parse("2026-07-24T12:00:00Z"),
                             stop = Instant.parse("2026-07-24T12:12:32Z"),
@@ -314,6 +318,7 @@ class ExportRowBuilderAndCsvSerializerTest {
         assertEquals("07/24/2026", row["End date"])
         assertEquals("Alex Rivera", row["Consultant"])
         assertEquals("On-Site", row["Work type"])
+        assertEquals("Do not charge", row["Billing Status"])
         assertEquals("18.5", row["Mileage"])
         assertEquals("00:12:32", row["Time spent"])
         assertEquals("15", row["Billing minutes"])
@@ -332,6 +337,7 @@ class ExportRowBuilderAndCsvSerializerTest {
         purchases: String = "",
         employee: String = "",
         workType: WorkType = WorkType.UNSPECIFIED,
+        billingStatus: BillingStatus? = null,
         mileage: String? = null,
         createdAt: Instant = Instant.parse("2026-07-24T10:00:00Z"),
         intervals: List<WorkInterval> = emptyList(),
@@ -355,6 +361,7 @@ class ExportRowBuilderAndCsvSerializerTest {
                 hardwareSoftwarePurchases = purchases,
                 employeeNameSnapshot = employee,
                 workType = workType,
+                billingStatus = billingStatus,
                 mileage = mileage,
                 workDate = workDate,
                 zoneId = zoneId,

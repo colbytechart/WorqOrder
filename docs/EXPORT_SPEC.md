@@ -44,11 +44,11 @@ dataset into one in-memory string before the create-document picker opens. Chang
 picker opens cannot change that pending payload. XLSX and Google adapters consume the same
 dataset object.
 
-## 3. Canonical export schema version 3 (`0.2.0`)
+## 3. Canonical export schema version 4 (`0.2.0`)
 
-Schema version 3 is internal compatibility metadata. It is used by WorqOrder markers and export
+Schema version 4 is internal compatibility metadata. It is used by WorqOrder markers and export
 adapters but is not a visible data column. Version `0.2.0` advances every destination together to
-these exact 14 columns in this exact order:
+these exact 15 columns in this exact order:
 
 | # | Column | Encoding |
 | ---: | --- | --- |
@@ -59,13 +59,14 @@ these exact 14 columns in this exact order:
 | 5 | Description | short task description |
 | 6 | Expense | optional hardware/software-purchases task text; blank when none |
 | 7 | Work type | `On-Site`, `In-Office`, or blank for migrated `Unspecified` |
-| 8 | Mileage | normalized plain non-negative decimal text, or blank |
-| 9 | Interval number | stable positive ordinal or blank |
-| 10 | Start time | task-zone local clock time `hh:mm a`, or blank |
-| 11 | Stop time | task-zone local clock time `hh:mm a`, or blank |
-| 12 | Interval duration | accumulated `HH:MM:SS`, or blank |
-| 13 | Time spent | exact same value previously named Task Total Duration; accumulated `HH:MM:SS` |
-| 14 | Billing minutes | non-negative base-10 integer |
+| 8 | Billing Status | `Billable`, `Do not bill`, `Do not charge`, or blank for migrated history |
+| 9 | Mileage | normalized plain non-negative decimal text, or blank |
+| 10 | Interval number | stable positive ordinal or blank |
+| 11 | Start time | task-zone local clock time `hh:mm a`, or blank |
+| 12 | Stop time | task-zone local clock time `hh:mm a`, or blank |
+| 13 | Interval duration | accumulated `HH:MM:SS`, or blank |
+| 14 | Time spent | exact same value previously named Task Total Duration; accumulated `HH:MM:SS` |
+| 15 | Billing minutes | non-negative base-10 integer |
 
 Both date columns intentionally repeat the same independently stored task work date. They are an
 export projection only: WorqOrder does not store a date range and does not change date behavior in
@@ -119,30 +120,30 @@ that exact granted URI. The UI distinguishes success, retryable write failure, a
 a partial provider document could not be removed; cancellation simply returns to unchanged Main
 content.
 
-CSV faithfully preserves the consultant snapshot, client, description, expense, Work type, and
-Mileage text. Some spreadsheet programs interpret cells beginning with `=`, `+`, `-`, or `@` as
+CSV faithfully preserves the consultant snapshot, client, description, expense, Work type,
+Billing Status, and Mileage text. Some spreadsheet programs interpret cells beginning with `=`, `+`, `-`, or `@` as
 formulas when opening CSV. RFC quoting does not prevent that behavior. Silently prefixing text
-would change exported data, so formula-injection transformation is not part of schema version 3;
+would change exported data, so formula-injection transformation is not part of schema version 4;
 flag it in release security review and document safe import behavior.
 
-### Schema-version 3 examples
+### Schema-version 4 examples
 
 The first record is always the following exact header:
 
 ```csv
-Start date,End date,Consultant,Client,Description,Expense,Work type,Mileage,Interval number,Start time,Stop time,Interval duration,Time spent,Billing minutes
+Start date,End date,Consultant,Client,Description,Expense,Work type,Billing Status,Mileage,Interval number,Start time,Stop time,Interval duration,Time spent,Billing minutes
 ```
 
 A completed interval may serialize as:
 
 ```csv
-07/24/2026,07/24/2026,Alex Rivera,"Acme, Inc.","Repair ""north"" unit",Laptop,On-Site,18.5,1,09:00 AM,10:00 AM,01:00:00,01:00:00,60
+07/24/2026,07/24/2026,Alex Rivera,"Acme, Inc.","Repair ""north"" unit",Laptop,On-Site,Billable,18.5,1,09:00 AM,10:00 AM,01:00:00,01:00:00,60
 ```
 
 A task without intervals has blank interval number/start/stop/duration and a zero task total:
 
 ```csv
-07/24/2026,07/24/2026,Alex Rivera,Example Client,Planning,,On-Site,,,,,,00:00:00,0
+07/24/2026,07/24/2026,Alex Rivera,Example Client,Planning,,On-Site,Billable,,,,,,00:00:00,0
 ```
 
 The examples are shown with line breaks for readability; the file record terminator is CRLF.
@@ -177,7 +178,7 @@ existing workbook.
 - Android launches `ActivityResultContracts.CreateDocument` for every export. It stores no
   document URI, persistable grant, workbook name, or connection status.
 - Each new workbook contains exactly one visible worksheet named
-  `WorqOrder_YYYY-MM-DD`. Row 1 contains the exact 14 canonical headers and row 2 onward contains
+  `WorqOrder_YYYY-MM-DD`. Row 1 contains the exact 15 canonical headers and row 2 onward contains
   the same canonical rows used by CSV and Google Sheets.
 - User text, dates, times, interval numbers, and durations are literal inline-string cells.
   Formula-like values beginning with `=`, `+`, `-`, or `@` never become formulas. Formatted
@@ -208,7 +209,7 @@ The implemented package contains these fixed parts in deterministic order:
 5. `xl/styles.xml`
 6. `xl/worksheets/sheet1.xml`
 
-For schema version 3, `sheet1.xml` declares `A1:N<last-row>`, writes the header with the package's
+For schema version 4, `sheet1.xml` declares `A1:O<last-row>`, writes the header with the package's
 bold text style, and
 writes every canonical value as an `inlineStr` cell with `xml:space="preserve"`. SpreadsheetML
 escape sequences preserve carriage returns and otherwise-illegal XML control characters; literal
@@ -340,11 +341,11 @@ same-named tab unowned. A valid marker with missing, duplicate, or incompatible 
 metadata is a schema conflict. This keeps visible content and row positions equivalent to
 CSV/XLSX while retaining safe ownership checks. The export timestamp and task ZoneIds remain
 internal snapshot/model data; they are intentionally not visible cells or ownership keys in
-schema version 3. The table is application-owned. Users are warned that edits inside a marked tab
+schema version 4. The table is application-owned. Users are warned that edits inside a marked tab
 will be replaced on the next export. Other tabs are never touched.
 
 Google Sheets has no published fixed sheet-count limit, but the connected spreadsheet has a
-10-million-cell total limit. Add each date sheet with exactly 14 columns and only enough rows for
+10-million-cell total limit. Add each date sheet with exactly 15 columns and only enough rows for
 its header/data, and resize it on re-export so unused grid allocation does not consume the
 spreadsheet unnecessarily.
 
@@ -377,11 +378,11 @@ spreadsheet unnecessarily.
 1. If the exact tab exists, read its marker/schema/date developer metadata from the sheet resource
    that owns it.
 2. If marker is absent/different, return `TabNameConflict`; do not clear/write/rename the tab.
-3. If the marker/date is valid and schema is `2`, treat it as a known WorqOrder-owned predecessor:
-   atomically replace it with schema-3 metadata, headers, and rows. A newer/unknown schema or
+3. If the marker/date is valid and schema is `2` or `3`, treat it as a known WorqOrder-owned predecessor:
+   atomically replace it with schema-4 metadata, headers, and rows. A newer/unknown schema or
    incompatible date remains a conflict and is not overwritten.
 4. Send one atomic `spreadsheets.batchUpdate` containing an `UpdateSheetPropertiesRequest` that
-   right-sizes the owned grid to exactly 14 columns and `1 + dataRowCount` rows, followed by an
+   right-sizes the owned grid to exactly 15 columns and `1 + dataRowCount` rows, followed by an
    `UpdateCellsRequest` that replaces the complete header/data table. Shrinking removes obsolete
    trailing rows/cells.
 5. Write rows in the shared stable sort order; do not independently sort or format at the gateway.
@@ -431,7 +432,7 @@ At execution:
    worker may proceed only when `AuthorizationClient.authorize()` returns an already-granted token
    without interaction. A returned `PendingIntent` becomes authorization-required pending state;
    it is never launched from the worker.
-3. If no timer is active, build a new authoritative immutable schema-3 snapshot for the captured
+3. If no timer is active, build a new authoritative immutable schema-4 snapshot for the captured
    target date and run the same marker-validated replacement protocol as manual Google export.
 4. If any timer is active, do not snapshot or export. Persist the captured date as pending.
 5. After a successful Stop transaction, post a content-free system notification that indicates a
@@ -444,7 +445,7 @@ At execution:
    rather than entering automatic retry/backoff.
 
 Manual and automatic Google operations for the same date converge because both replace the same
-owned schema-3 tab from current Room truth. Concurrent work must be uniquely serialized so a
+owned schema-4 tab from current Room truth. Concurrent work must be uniquely serialized so a
 single date cannot produce duplicate tabs or rows. Reboot, Doze, time-zone change, offline,
 authorization expiry, disconnect/sign-out, permission loss, quota, and ambiguous response all
 retain the captured-date rule and fail safely.
@@ -523,7 +524,7 @@ Tests must prove:
   bounded-memory behavior, and no app-private plaintext staging;
 - one connected spreadsheet only;
 - URL/ID parsing and validation;
-- create marked date tab with invisible metadata, exact 14-column visible table, re-export
+- create marked date tab with invisible metadata, exact 15-column visible table, re-export
   replacement, obsolete-row clearing/grid resizing, and stable shared ordering;
 - unchanged re-export has no duplicate rows;
 - local edit/delete is reflected by replacement;
@@ -535,10 +536,10 @@ Tests must prove:
 - offline, auth expiration, permission, rate-limit, server, and ambiguous-response states are useful/retryable; and
 - all failures leave Room task data unchanged.
 
-Version `0.2.0` additionally tests consultant snapshot stability, Work type, normalized/blank
-Mileage, Billing minutes at zero/positive/boundary/long totals, exact 14 renamed headers and
+Version `0.2.0` additionally tests consultant snapshot stability, Work type, nullable/exact Billing
+Status, normalized/blank Mileage, Billing minutes at zero/positive/boundary/long totals, exact 15 renamed headers and
 duplicated `MM/DD/YYYY` Start date/End date values,
-schema-2 owned-tab upgrade to schema 3, unowned-tab protection, and equivalent CSV/XLSX/Google
+schema-2/schema-3 owned-tab upgrade to schema 4, unowned-tab protection, and equivalent CSV/XLSX/Google
 values. Automatic-export tests cover captured-date execution before/after midnight, inexact delay,
 running-timer pending state, post-Stop notification action, notification dismissal, reboot/Doze,
 zone changes, disconnect/sign-out, authorization/offline/quota failure, manual/automatic races,

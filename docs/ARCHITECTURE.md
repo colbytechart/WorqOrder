@@ -197,7 +197,7 @@ DAO and canonical export ordering remain independently stable.
   under the timer-operation lock, normalizes crossed boundaries, reads the transactional Room
   snapshot, and returns the one immutable destination-neutral dataset. Main permits this workflow
   only when Room-derived active state is loaded and empty.
-- `ExportRowBuilder`: owns schema version 3 in `0.2.0`, the exact 14 visible columns, duplicated
+- `ExportRowBuilder`: owns schema version 4 in `0.2.0`, the exact 15 visible columns, duplicated
   `MM/DD/YYYY` Start/End dates, task-zone export `hh:mm a`,
   accumulated `HH:MM:SS`, zero-interval rows, and deterministic internal-key sorting.
 - `CsvExportCoordinator`: consumes the prepared snapshot and only serializes/packages the pending
@@ -290,8 +290,8 @@ Milestone 12 adds a one-off XLSX document boundary:
 - Compose launches `ActivityResultContracts.CreateDocument` with the official XLSX MIME type for
   every export; no storage permission or retained URI grant is requested.
 - A focused internal OOXML writer packages the already-canonical snapshot into one new workbook
-  containing one `WorqOrder_YYYY-MM-DD` worksheet and the exact shared canonical table (14 columns
-  beginning with schema version 3 in `0.2.0`).
+  containing one `WorqOrder_YYYY-MM-DD` worksheet and the exact shared canonical table (15 columns
+  beginning with schema version 4 after Billing Status is added in `0.2.0`).
 - The writer never opens or modifies an existing workbook, writes formulas, or stages plaintext
   on app-private disk. Cancellation occurs before output; a failed write uses the same best-effort
   partial-document cleanup boundary as CSV.
@@ -473,13 +473,14 @@ No item in this section describes released `0.1.0` behavior until its owning v0.
   appends/restores normalized names without replacing existing clients. Final active observation
   remains A–Z.
 - Milestone 22 extends shared task metadata validation with Work Type and canonical decimal
-  Mileage. `TaskMutationCoordinator` passes the complete normalized edit into one Room repository
+  Mileage. Milestone 27 adds nullable Billing Status with a Billable new-task default and blank
+  migrated history. `TaskMutationCoordinator` passes the complete normalized edit into one Room repository
   transaction, where both Client and Consultant are rechecked as active and the Consultant name
   snapshot is captured before the stopped task is updated. Create Task requires the coordinated
   active Consultant and defaults Work Type to On-Site. `BillingMinutes` remains pure derived logic;
   Edit Task recalculates it from observed exact interval totals and never persists or ticks it.
-- `ExportRowBuilder` is the only schema-3 field-selection/formatting boundary. All destinations
-  receive the same 14 strings and keep exact internal instants outside the projection.
+- `ExportRowBuilder` is the only schema-4 field-selection/formatting boundary. All destinations
+  receive the same 15 strings and keep exact internal instants outside the projection.
 - Extend the typed settings model with `LandscapeOrientation.RIGHT_HANDED` and
   `LandscapeOrientation.LEFT_HANDED`; the repository owns serialization, default/fallback, and
   Flow observation. Composables never read preference keys directly.
@@ -497,11 +498,18 @@ No item in this section describes released `0.1.0` behavior until its owning v0.
 - Put any running-timer lock-screen integration behind an interface owned by application/timer
   coordination. It observes authoritative active-timer identity and never becomes timer
   authority. Dismissal state is scoped to the active interval ID.
-- Research current official Android Clock-like timer/alarm presentation before choosing a stable
-  notification/AppWidget mechanism. Prefer system-rendered elapsed time so the app does not
-  schedule ticks. Do not add a foreground service, wake lock, alarm, or WorkManager loop solely to
-  maintain the surface. Treat permission, channel, lock-screen privacy, OEM suppression, process
-  death, reboot, and swipe dismissal as explicit states rather than promising visibility.
+- Milestone 27 recommends a standard, silent, non-ongoing `NotificationCompat` notification and
+  system-rendered chronometer; see `LOCK_SCREEN_SURFACE_ADR.md`. A dedicated low-importance channel
+  owns sound/vibration/badge behavior. Full content is private and contains only WorqOrder identity,
+  active task Description, and accumulated elapsed total; a public version redacts the Description.
+- A notification `deleteIntent` writes only the dismissed active interval ID to typed Preferences
+  DataStore. Start/Stop/recovery coordinators reconcile notification state with Room. A one-shot
+  post-unlock `BOOT_COMPLETED` receiver may recover an eligible surface after reboot; it does not
+  introduce direct-boot data duplication or continuous work. Do not add a foreground service, wake
+  lock, alarm, custom `RemoteViews`, or WorkManager loop solely to maintain the surface. Permission,
+  channel, lock-screen privacy, OEM suppression, process death, reboot, force-stop, and swipe
+  dismissal remain explicit presentation states. The design is owner-approved; implementation
+  awaits an explicit request to start Milestone 28.
 
 ## 16. Optional Milestone E boundary
 

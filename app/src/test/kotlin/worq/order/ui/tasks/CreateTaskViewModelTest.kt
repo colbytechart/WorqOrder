@@ -34,6 +34,7 @@ import worq.order.data.TaskMetadataValidationError
 import worq.order.data.AppSettings
 import worq.order.domain.ConsultantSelectionCoordinator
 import worq.order.model.Employee
+import worq.order.model.BillingStatus
 import worq.order.model.WorkType
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -116,6 +117,9 @@ class CreateTaskViewModelTest {
                 CreateTaskEvent.EditHardwareSoftwarePurchases(" Laptop "),
             )
             fixture.viewModel.onEvent(CreateTaskEvent.SelectWorkType(WorkType.IN_OFFICE))
+            fixture.viewModel.onEvent(
+                CreateTaskEvent.SelectBillingStatus(BillingStatus.DO_NOT_BILL),
+            )
             fixture.viewModel.onEvent(CreateTaskEvent.EditMileage("012.500"))
             fixture.viewModel.onEvent(CreateTaskEvent.CreateTask)
             fixture.viewModel.onEvent(CreateTaskEvent.CreateTask)
@@ -130,6 +134,7 @@ class CreateTaskViewModelTest {
             )
             assertEquals("employee-1", tasks.single().task.employeeId)
             assertEquals(WorkType.IN_OFFICE, tasks.single().task.workType)
+            assertEquals(BillingStatus.DO_NOT_BILL, tasks.single().task.billingStatus)
             assertEquals("12.5", tasks.single().task.mileage)
             assertEquals(
                 tasks.single().task.id,

@@ -21,7 +21,7 @@ class GoogleSheetsBatchJsonEncoderTest {
                             sheetId = 42,
                             title = "WorqOrder_2026-07-24",
                             rowCount = 2,
-                            columnCount = 14,
+                            columnCount = 15,
                         ),
                         GoogleSheetsBatchRequest.CreateSheetMetadata(
                             sheetId = 42,

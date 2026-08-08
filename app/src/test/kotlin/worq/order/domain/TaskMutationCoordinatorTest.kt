@@ -17,6 +17,7 @@ import worq.order.testing.FakeTaskRepository
 import worq.order.testing.FakeUtcClock
 import worq.order.testing.FakeZoneIdProvider
 import worq.order.timer.CurrentDateProvider
+import worq.order.model.BillingStatus
 
 class TaskMutationCoordinatorTest {
     @Test
@@ -36,6 +37,7 @@ class TaskMutationCoordinatorTest {
             val created = result as CreateTaskOperationResult.Created
             assertEquals("Install workstation", created.task.description)
             assertEquals("Laptop", created.task.hardwareSoftwarePurchases)
+            assertEquals(BillingStatus.BILLABLE, created.task.billingStatus)
             assertTrue(created.selectedForTiming)
             assertEquals(created.task.id, fixture.selection.readSelection()?.taskId)
         }

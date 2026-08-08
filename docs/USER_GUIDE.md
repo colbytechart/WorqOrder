@@ -48,7 +48,10 @@ creating a task.** Directory changes keep historical task Consultant snapshots i
 3. Select an active client.
 4. Enter a required **Short description**.
 5. Optionally enter **Hardware / Software Purchases**.
-6. Choose **Create**.
+6. Choose **Work Type**.
+7. Choose **Billing Status**: **Billable** (the default), **Do not bill**, or **Do not charge**.
+8. Optionally enter **Mileage**.
+9. Choose **Create**.
 
 Both text fields allow up to 400 characters. The new task belongs to the date that was displayed
 when creation opened. A new task for today becomes selected automatically. A historical or future
@@ -93,6 +96,8 @@ The Edit Task screen allows you to:
 
 - change the active client;
 - change the short description or purchase notes;
+- change Work Type, Billing Status, or Mileage (migrated tasks may initially have blank Billing
+  Status);
 - view the read-only work date, task ZoneId, and total duration;
 - view interval Start Time and Stop Time in 12-hour `hh:mm AM/PM` form without seconds;
 - add a completed manual interval;

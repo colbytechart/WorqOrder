@@ -639,6 +639,7 @@ class WorqOrderDatabaseTest {
                     hardwareSoftwarePurchases = " Laptop and IDE ",
                     employeeId = "employee-1",
                     workType = worq.order.model.WorkType.IN_OFFICE,
+                    billingStatus = worq.order.model.BillingStatus.DO_NOT_BILL,
                     mileage = "0012.500",
                 )
             assertTrue(updated is worq.order.data.UpdateTaskMetadataResult.Updated)
@@ -648,6 +649,7 @@ class WorqOrderDatabaseTest {
             assertEquals("employee-1", task.employeeId)
             assertEquals("Alex Rivera", task.employeeNameSnapshot)
             assertEquals("IN_OFFICE", task.workType)
+            assertEquals("DO_NOT_BILL", task.billingStatus)
             assertEquals("12.5", task.mileage)
 
             database.employeeDao().archive("employee-1", TEST_NOW.toEpochMilli())
@@ -767,6 +769,7 @@ class WorqOrderDatabaseTest {
                 employeeId = "employee-1",
                 employeeNameSnapshot = "Alex Rivera",
                 workType = "ON_SITE",
+                billingStatus = "DO_NOT_CHARGE",
                 mileage = "18.5",
                 workDateEpochDay = LocalDate.of(2026, 7, 24).toEpochDay(),
             )
@@ -825,6 +828,7 @@ class WorqOrderDatabaseTest {
             assertEquals("employee-1", continuationTask.employeeId)
             assertEquals("Alex Rivera", continuationTask.employeeNameSnapshot)
             assertEquals("ON_SITE", continuationTask.workType)
+            assertEquals("DO_NOT_CHARGE", continuationTask.billingStatus)
             assertEquals("18.5", continuationTask.mileage)
             assertEquals(LocalDate.of(2026, 7, 25).toEpochDay(), continuationTask.workDateEpochDay)
             assertEquals(TEST_ZONE.id, continuationTask.zoneId)
@@ -1101,6 +1105,11 @@ class WorqOrderDatabaseTest {
                 .open(VERSION_THREE_SCHEMA_ASSET_PATH)
                 .bufferedReader()
                 .use { it.readText() }
+        val versionFour =
+            testContext.assets
+                .open(VERSION_FOUR_SCHEMA_ASSET_PATH)
+                .bufferedReader()
+                .use { it.readText() }
 
         assertTrue(versionOne.contains("\"version\": 1"))
         assertTrue(versionTwo.contains("\"version\": 2"))
@@ -1110,10 +1119,12 @@ class WorqOrderDatabaseTest {
         assertTrue(versionThree.contains("\"version\": 3"))
         assertTrue(versionThree.contains("\"tableName\": \"employees\""))
         assertTrue(versionThree.contains("\"columnName\": \"employee_name_snapshot\""))
+        assertTrue(versionFour.contains("\"version\": 4"))
+        assertTrue(versionFour.contains("\"columnName\": \"billing_status\""))
     }
 
     @Test
-    fun migrationOneToThreePreservesPopulatedTaskAndActiveTimer() =
+    fun migrationOneToFourPreservesPopulatedTaskAndActiveTimer() =
         runBlocking {
             context.deleteDatabase(MIGRATION_TEST_DATABASE)
             createPopulatedVersionOneDatabase()
@@ -1127,6 +1138,7 @@ class WorqOrderDatabaseTest {
                     ).addMigrations(
                         WorqOrderMigrations.MIGRATION_1_2,
                         WorqOrderMigrations.MIGRATION_2_3,
+                        WorqOrderMigrations.MIGRATION_3_4,
                     )
                     .allowMainThreadQueries()
                     .build()
@@ -1137,6 +1149,7 @@ class WorqOrderDatabaseTest {
                 assertNull(task.employeeId)
                 assertEquals("", task.employeeNameSnapshot)
                 assertEquals("UNSPECIFIED", task.workType)
+                assertNull(task.billingStatus)
                 assertNull(task.mileage)
                 val intervals =
                     migrated.workIntervalDao()
@@ -1153,7 +1166,7 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
-    fun migrationTwoToThreePreservesReleasedGraphAndAddsSafeDefaults() =
+    fun migrationTwoToFourPreservesReleasedGraphAndAddsSafeDefaults() =
         runBlocking {
             context.deleteDatabase(MIGRATION_TEST_DATABASE)
             createPopulatedVersionTwoDatabase()
@@ -1164,7 +1177,10 @@ class WorqOrderDatabaseTest {
                         context,
                         WorqOrderDatabase::class.java,
                         MIGRATION_TEST_DATABASE,
-                    ).addMigrations(WorqOrderMigrations.MIGRATION_2_3)
+                    ).addMigrations(
+                        WorqOrderMigrations.MIGRATION_2_3,
+                        WorqOrderMigrations.MIGRATION_3_4,
+                    )
                     .allowMainThreadQueries()
                     .build()
             try {
@@ -1174,6 +1190,7 @@ class WorqOrderDatabaseTest {
                 assertNull(task.employeeId)
                 assertEquals("", task.employeeNameSnapshot)
                 assertEquals("UNSPECIFIED", task.workType)
+                assertNull(task.billingStatus)
                 assertNull(task.mileage)
                 assertEquals(
                     listOf("migration-complete", "migration-active"),
@@ -1308,6 +1325,7 @@ class WorqOrderDatabaseTest {
         employeeId: String? = null,
         employeeNameSnapshot: String = "",
         workType: String = "UNSPECIFIED",
+        billingStatus: String? = null,
         mileage: String? = null,
         workDateEpochDay: Long = TEST_DATE.toEpochDay(),
         zoneId: String = TEST_ZONE.id,
@@ -1322,6 +1340,7 @@ class WorqOrderDatabaseTest {
                 employeeId = employeeId,
                 employeeNameSnapshot = employeeNameSnapshot,
                 workType = workType,
+                billingStatus = billingStatus,
                 mileage = mileage,
                 workDateEpochDay = workDateEpochDay,
                 zoneId = zoneId,
@@ -1430,5 +1449,7 @@ class WorqOrderDatabaseTest {
             "worq.order.data.local.WorqOrderDatabase/2.json"
         const val VERSION_THREE_SCHEMA_ASSET_PATH =
             "worq.order.data.local.WorqOrderDatabase/3.json"
+        const val VERSION_FOUR_SCHEMA_ASSET_PATH =
+            "worq.order.data.local.WorqOrderDatabase/4.json"
     }
 }

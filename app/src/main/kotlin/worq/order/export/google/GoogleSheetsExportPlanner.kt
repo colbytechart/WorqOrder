@@ -130,7 +130,7 @@ internal object GoogleSheetsExportPlanner {
         val schemaUpgradeRequest =
             when (schemaEntry.value) {
                 snapshot.schemaVersion.toString() -> null
-                LEGACY_SCHEMA_VERSION.toString() -> {
+                in LEGACY_SCHEMA_VERSIONS -> {
                     val metadataId =
                         schemaEntry.metadataId
                             ?: return GoogleSheetsPlanResult.SchemaConflict(tabName)
@@ -179,5 +179,5 @@ internal object GoogleSheetsExportPlanner {
         return candidate
     }
 
-    private const val LEGACY_SCHEMA_VERSION = 2
+    private val LEGACY_SCHEMA_VERSIONS = setOf("2", "3")
 }

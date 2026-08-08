@@ -24,6 +24,7 @@ class GoogleSheetsExportPlannerTest {
                             "=Literal description",
                             "Laptop",
                             "On-Site",
+                            "Billable",
                             "12.5",
                             "1",
                             "09:00 AM",
@@ -56,13 +57,13 @@ class GoogleSheetsExportPlannerTest {
         assertEquals("WorqOrder_2026-07-24", result.plan.tabName)
         val add = requests[0] as GoogleSheetsBatchRequest.AddSheet
         assertEquals(2, add.rowCount)
-        assertEquals(14, add.columnCount)
+        assertEquals(15, add.columnCount)
         assertEquals(result.plan.tabName, add.title)
         assertEquals(
             setOf(
                 GoogleSheetsExportPlanner.APPLICATION_MARKER_KEY to
                     GoogleSheetsExportPlanner.APPLICATION_MARKER_VALUE,
-                GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY to "3",
+                GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY to "4",
                 GoogleSheetsExportPlanner.WORK_DATE_KEY to "2026-07-24",
             ),
             requests
@@ -110,7 +111,7 @@ class GoogleSheetsExportPlannerTest {
             GoogleSheetsBatchRequest.ResizeSheet(
                 sheetId = originalSheetId,
                 rowCount = 1,
-                columnCount = 14,
+                columnCount = 15,
             ),
             result.plan.requests[1],
         )
@@ -186,6 +187,7 @@ class GoogleSheetsExportPlannerTest {
                                     "",
                                     "",
                                     "",
+                                    "",
                                     "00:00:00",
                                     "0",
                                 ),
@@ -198,7 +200,7 @@ class GoogleSheetsExportPlannerTest {
             GoogleSheetsBatchRequest.ResizeSheet(
                 sheetId = sheetId,
                 rowCount = 2,
-                columnCount = 14,
+                columnCount = 15,
             ),
             result.plan.requests[0],
         )
@@ -226,6 +228,7 @@ class GoogleSheetsExportPlannerTest {
                             "",
                             "Client",
                             "Task",
+                            "",
                             "",
                             "",
                             "",
@@ -316,34 +319,40 @@ class GoogleSheetsExportPlannerTest {
     }
 
     @Test
-    fun knownOwnedSchemaTwoTabUpgradesMetadataAndReplacesAtomically() {
+    fun knownOwnedSchemaTwoAndThreeTabsUpgradeMetadataAndReplaceAtomically() {
         val sheetId = 44
         val schemaMetadataId = 704
         val base = ownedStructure(sheetId)
-        val legacy =
-            base.copy(
-                developerMetadata =
-                    base.developerMetadata.map { metadata ->
-                        if (metadata.key == GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY) {
-                            metadata.copy(value = "2", metadataId = schemaMetadataId)
-                        } else {
-                            metadata
-                        }
-                    },
+        listOf("2", "3").forEach { legacyVersion ->
+            val legacy =
+                base.copy(
+                    developerMetadata =
+                        base.developerMetadata.map { metadata ->
+                            if (metadata.key == GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY) {
+                                metadata.copy(
+                                    value = legacyVersion,
+                                    metadataId = schemaMetadataId,
+                                )
+                            } else {
+                                metadata
+                            }
+                        },
+                )
+
+            val result =
+                GoogleSheetsExportPlanner.plan(legacy, snapshot()) as
+                    GoogleSheetsPlanResult.Ready
+
+            assertEquals(
+                GoogleSheetsBatchRequest.UpdateSheetMetadataValue(
+                    metadataId = schemaMetadataId,
+                    value = "4",
+                ),
+                result.plan.requests.first(),
             )
-
-        val result =
-            GoogleSheetsExportPlanner.plan(legacy, snapshot()) as GoogleSheetsPlanResult.Ready
-
-        assertEquals(
-            GoogleSheetsBatchRequest.UpdateSheetMetadataValue(
-                metadataId = schemaMetadataId,
-                value = "3",
-            ),
-            result.plan.requests.first(),
-        )
-        assertTrue(result.plan.requests[1] is GoogleSheetsBatchRequest.ResizeSheet)
-        assertTrue(result.plan.requests[2] is GoogleSheetsBatchRequest.ReplaceCells)
+            assertTrue(result.plan.requests[1] is GoogleSheetsBatchRequest.ResizeSheet)
+            assertTrue(result.plan.requests[2] is GoogleSheetsBatchRequest.ReplaceCells)
+        }
     }
 
     @Test
@@ -393,7 +402,7 @@ class GoogleSheetsExportPlannerTest {
                     metadata(
                         sheetId,
                         GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY,
-                        "3",
+                        "4",
                     ),
                     metadata(
                         sheetId,

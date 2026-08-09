@@ -20,8 +20,11 @@ Client 1 ──────── * DailyTask 1 ──────── * WorkI
                          │                         │
                          └── seriesId              └── 0..1 ActiveTimer (singleton pointer)
 
-Preferences DataStore: theme, zone mode, export default, selection hints,
-connected spreadsheet metadata, last export outcome
+Employee 1 -------- * DailyTask (nullable for migrated history)
+
+Preferences DataStore: theme, zone mode, export default, Consultant selection,
+landscape handedness, automatic-export target, selection hints, connected spreadsheet metadata,
+running-notification dismissal, last export outcome
 ```
 
 The required production sequence stores this logical model in ordinary app-private Room and
@@ -149,7 +152,7 @@ Preferences are version-tolerant typed values with safe defaults:
 | `theme_mode` | `SYSTEM` by default; explicit `LIGHT` and `DARK` overrides |
 | `time_zone_mode` | `DEVICE` by default |
 | `manual_zone_id` | valid ZoneId string; ignored in device mode |
-| `default_export_destination` | `CSV` by default; valid values become `CSV`, `XLSX`, and `GOOGLE_SHEETS` in Milestone 12 |
+| `default_export_destination` | `CSV` by default; valid values are `CSV`, `XLSX`, and `GOOGLE_SHEETS` |
 | `selected_series_id` | nullable UUID hint |
 | `selected_task_id` | nullable UUID hint |
 | `connected_spreadsheet_id` | nullable validated ID |
@@ -204,11 +207,12 @@ Migration tests populate clients, archived clients, multiple task series/dates, 
 Implemented schema details:
 
 - production database name: `worqorder.db`;
-- Room annotation: `version = 3`, `exportSchema = true`;
+- Room annotation: `version = 4`, `exportSchema = true`;
 - committed schemas:
   `app/schemas/worq.order.data.local.WorqOrderDatabase/1.json`,
-  `app/schemas/worq.order.data.local.WorqOrderDatabase/2.json`, and
-  `app/schemas/worq.order.data.local.WorqOrderDatabase/3.json`;
+  `app/schemas/worq.order.data.local.WorqOrderDatabase/2.json`,
+  `app/schemas/worq.order.data.local.WorqOrderDatabase/3.json`, and
+  `app/schemas/worq.order.data.local.WorqOrderDatabase/4.json`;
 - production construction uses `Room.databaseBuilder` without startup deletion, seeding, or destructive fallback; and
 - there is no `0 -> 1` migration because version 1 is the first schema. Production construction
   registers the explicit `MIGRATION_1_2`, `MIGRATION_2_3`, and `MIGRATION_3_4`; every later change must add another

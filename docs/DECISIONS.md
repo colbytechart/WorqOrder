@@ -995,6 +995,22 @@ All export destinations advance together from canonical schema 3 to schema 4. Th
 and automatic Google export cannot diverge. Owned Google tabs marked with known schema 2 or 3 may
 be atomically replaced and upgraded to schema 4; unknown/newer and unowned tabs remain protected.
 
+### D-080 — Approved Credential Manager transitive preview exception for `0.2.0`
+
+The declared identity stack remains stable: `androidx.credentials:credentials:1.6.0`,
+`androidx.credentials:credentials-play-services-auth:1.6.0`, Google ID `1.2.0`, and Google Play
+services Auth `21.6.0`. The resolved stable AndroidX Google-provider adapter transitively includes
+`com.google.android.gms:play-services-identity-credentials:16.0.0-alpha08`. WorqOrder neither
+declares nor directly calls that preview artifact.
+
+The owner explicitly approved this one transitive exception for the official `0.2.0` release after
+Milestone 29 identified it in both resolved runtime graphs. Excluding it, forcing a separately
+versioned provider artifact, or replacing the proven identity stack at the release boundary would
+risk breaking Credential Manager and Google sign-in. The clean debug/release gate passes and the
+2026-08-09 OSV query returned no vulnerability record for this artifact or any of the 180 resolved
+debug/release Maven coordinates. This decision does not authorize any direct preview dependency or
+future transitive preview change; either requires a new documented review and owner decision.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.

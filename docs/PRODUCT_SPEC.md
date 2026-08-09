@@ -1,6 +1,6 @@
 # WorqOrder Product Specification
 
-Status: released `0.1.0` baseline plus approved `0.2.0` development specification
+Status: released `0.1.0` baseline plus implemented `0.2.0` release-candidate specification
 Product: WorqOrder for Android  
 Minimum Android version: API 26  
 Authoritative data store: local Room database
@@ -21,7 +21,9 @@ authoritative. Exports are copies and never feed data back into Room.
 - Daily task creation, selection, metadata editing, confirmation-based deletion, and interval editing.
 - One globally active timer with activity/process recovery and local-midnight splitting.
 - Active and archived client management.
-- Device or manually chosen geographical time zone.
+- Device geographical time zone in the production UI, with historical stored ZoneIds preserved.
+  The existing manual-zone data/domain capability remains internal and is not exposed in `0.2.0`
+  Settings.
 - Explicit Light and Dark themes, applied immediately.
 - UTF-8 CSV and focused XLSX export through Android scoped/user-mediated storage flows.
 - One connected Google spreadsheet, with one application-owned worksheet tab per date.

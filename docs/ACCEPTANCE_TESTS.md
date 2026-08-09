@@ -442,7 +442,7 @@ without visible feedback.
 ### CSV-11 Shared snapshot boundary
 
 `ExportSnapshotCoordinator` performs normalization/read/build once and returns the immutable
-canonical dataset (nine columns in released `0.1.0`, 14 in planned `0.2.0`). CSV serialization
+canonical dataset (nine columns in released `0.1.0`, 15 in implemented schema-version-4 `0.2.0`). CSV serialization
 changes no field/order/value. XLSX/Google adapters
 consume the same object rather than rebuilding destination-specific rows.
 

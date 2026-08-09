@@ -364,7 +364,7 @@ Use only the disposable marked-test and conflict spreadsheets from section 9:
 2. With a completely blank test spreadsheet, verify its original first tab is renamed/reused as
    `WorqOrder_YYYY-MM-DD`; no unused blank default tab remains. With a separate spreadsheet that
    has any existing content, verify that content/tab is preserved and a new date tab is added.
-   Row 1 must contain the exact nine schema-version-2 headers and row 2 onward must match a CSV
+   Row 1 must contain the exact 15 schema-version-4 headers and row 2 onward must match a CSV
    captured from the same unchanged local data.
 3. Export the unchanged date again. Verify the existing marked tab is recognized, no ownership
    conflict is shown, and no second tab or duplicate row appears.
@@ -462,9 +462,11 @@ when CSV or XLSX is selected. Turning it off cancels future automatic work witho
 the connected spreadsheet.
 
 WorkManager contributes normal internal scheduling components and permissions for network-state,
-reboot rescheduling, and bounded execution wake locks. Milestone 26 must inspect the merged debug
-and release manifests and record the exact result. WorqOrder adds no application-owned boot
-receiver or wake lock and no exact-alarm or foreground-service permission.
+reboot rescheduling, and bounded execution wake locks. Milestone 26 inspected the merged debug and
+release manifests. Automatic export adds no application-owned boot receiver or wake lock and no
+exact-alarm or foreground-service permission. Separately, the running-timer surface owns one
+non-exported, one-shot post-unlock boot receiver that reads Room and restores only the notification;
+it does not schedule export or run a counter.
 
 The worker obtains `AuthorizationClient` from an application `Context` and requests only
 `drive.file`. When Google returns an access token without resolution, export may proceed. When

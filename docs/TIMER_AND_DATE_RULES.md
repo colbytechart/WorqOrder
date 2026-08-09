@@ -259,7 +259,9 @@ Normalize/check on:
 - Start and Stop;
 - before changing a rule-sensitive task/interval;
 - after Stop, before exporting the displayed date; export remains disabled while active; and
-- after device boot only when the user next launches the app (no boot receiver required).
+- after device boot through the one-shot post-unlock running-notification receiver, and again when
+  the user next launches the app. The receiver invokes the same idempotent Room recovery path and
+  does not run a stopwatch loop.
 
 The application-scoped `TimerRecoveryCoordinator` performs each recovery in this order:
 
@@ -280,8 +282,9 @@ An open interval without the singleton pointer, a singleton with zero/multiple o
 or a mismatched/closed referenced interval is an explicit persistence-invariant error. It is not
 silently discarded or treated as stopped, and a new Start remains blocked.
 
-No alarm, wake lock, boot receiver, foreground service, continuous background loop, WorkManager
-tick, or per-tick persistence is used.
+No alarm, application-owned wake lock, foreground service, continuous background loop,
+WorkManager tick, or per-tick persistence is used. The sole manifest boot receiver performs one
+post-unlock recovery/reconciliation for the running notification and then finishes.
 
 ## 14. v0.2 automatic-export target dates
 

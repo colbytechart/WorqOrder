@@ -11,12 +11,12 @@ owner on this repository's official [Releases page](../../releases).
 
 1. On the Android phone, open this repository's **Releases** page.
 2. Open the latest release and download the APK asset, such as
-   `WorqOrder-0.1.0.apk`. Do not download the source-code archive when you want to install the app.
+   `WorqOrder-0.2.0.apk`. Do not download the source-code archive when you want to install the app.
 3. Optionally compare the release's published SHA-256 value with the downloaded APK. On a
    computer with PowerShell:
 
    ```powershell
-   Get-FileHash -Algorithm SHA256 -LiteralPath '.\WorqOrder-0.1.0.apk'
+   Get-FileHash -Algorithm SHA256 -LiteralPath '.\WorqOrder-0.2.0.apk'
    ```
 
 4. Open the downloaded APK on the phone.
@@ -36,16 +36,24 @@ signing identity.
 
 ## Features
 
-- Create daily client tasks with a short description and hardware/software-purchase notes.
+- Create daily client tasks with Consultant, Work Type, Billing Status, Mileage, description, and
+  hardware/software-purchase metadata.
 - Run one globally authoritative timer, with repeated intervals and accumulated totals.
+- See the active timer in a silent, dismissible Android notification while platform/user settings
+  permit it.
 - Recover active timing after backgrounding, activity recreation, process death, and reboot.
 - Browse dates and edit completed tasks and intervals using stored geographical time-zone rules.
-- Add, rename, archive, and restore clients without damaging historical task relationships.
+- Add, rename, archive, restore, and CSV-import clients without damaging historical task
+  relationships.
+- Manage active/archived Consultants while preserving each task's assignment-time name.
+- View derived Billing Minutes rounded upward to 15-minute increments.
 - Follow the system appearance or explicitly choose Light or Dark.
-- Use the device time zone or select a geographical `ZoneId`.
+- Use the device's geographical time zone while preserving every task's assigned historical zone.
+- Choose Right- or Left-handed two-column landscape layouts.
 - Export the displayed date as UTF-8 CSV or a new XLSX workbook.
 - Connect one editable Google spreadsheet and replace one WorqOrder-owned worksheet per date
   without duplicate rows.
+- Optionally schedule a best-effort captured-date Google export near each day's end.
 
 See the [User Guide](docs/USER_GUIDE.md) for complete operating instructions.
 
@@ -66,17 +74,23 @@ information.
 
 ## Export Behavior
 
-All destinations consume one immutable canonical snapshot and the same nine columns:
+All destinations consume one immutable canonical snapshot and the same 15 columns:
 
-1. Work Date
-2. Client Name
-3. Description
-4. Hardware / Software Purchases
-5. Interval Number
-6. Start Local
-7. Stop Local
-8. Interval Duration Formatted
-9. Task Total Duration Formatted
+1. Start date
+2. End date
+3. Consultant
+4. Client
+5. Description
+6. Expense
+7. Work type
+8. Billing Status
+9. Mileage
+10. Interval number
+11. Start time
+12. Stop time
+13. Interval duration
+14. Time spent
+15. Billing minutes
 
 CSV and XLSX use Android's create-document interface, so the user chooses each output location.
 Every XLSX export creates a new workbook. Google Sheets writes to one connected spreadsheet and
@@ -146,14 +160,16 @@ belongs in the APK.
 From PowerShell in the repository root:
 
 ```powershell
+Set-Location 'T:\_SC Video\PROJECTS\2026\DNA Work Order App\app\WorqOrder'
 $env:JAVA_HOME = 'S:\Program Files\Android\Android Studio\jbr'
 $env:ANDROID_HOME = 'C:\Users\colby\AppData\Local\Android\Sdk'
 $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 $env:GRADLE_USER_HOME = (Resolve-Path -LiteralPath '.gradle').Path
+$projectUserHome = (Resolve-Path -LiteralPath '.android-user').Path
 
-.\gradlew.bat --offline :app:assembleDebug :app:testDebugUnitTest
-.\gradlew.bat --offline :app:lintDebug :app:lintRelease
-.\gradlew.bat --offline :app:connectedDebugAndroidTest
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:assembleDebug :app:testDebugUnitTest
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:lintDebug :app:lintRelease
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:connectedDebugAndroidTest
 ```
 
 The connected test command requires an unlocked emulator or device. See
@@ -166,7 +182,7 @@ Release signing uses an owner-controlled keystore stored outside the repository.
 passwords. Then run:
 
 ```powershell
-.\gradlew.bat --offline clean :app:assembleRelease
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline clean :app:assembleRelease
 ```
 
 Never create a new signing key for an update. Losing the permanent key prevents existing users

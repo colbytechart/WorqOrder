@@ -7,8 +7,8 @@
 - Minimum SDK: 26
 - Target SDK: 36
 - Compile SDK: 36.1
-- Initial version: `0.1.0`
-- Version code: `1`
+- Current release: `0.2.0`
+- Version code: `2`
 - License: GPLv3
 - Distribution artifact: owner-signed APK attached to a GitHub Release
 
@@ -33,6 +33,7 @@ $env:JAVA_HOME = 'S:\Program Files\Android\Android Studio\jbr'
 $env:ANDROID_HOME = 'C:\Users\colby\AppData\Local\Android\Sdk'
 $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 $env:GRADLE_USER_HOME = (Resolve-Path -LiteralPath '.gradle').Path
+$projectUserHome = (Resolve-Path -LiteralPath '.android-user').Path
 ```
 
 Host-specific paths are examples and are not portable repository configuration.
@@ -66,7 +67,7 @@ permanent key.
 
 ## 4. Google Configuration
 
-The owner configuration for `0.1.0` is:
+The owner configuration for `0.2.0` is:
 
 - Google Auth Platform audience: External;
 - publishing status: In Production;
@@ -107,12 +108,12 @@ Important invariants:
 With the environment from section 2:
 
 ```powershell
-.\gradlew.bat --offline clean
-.\gradlew.bat --offline :app:testDebugUnitTest
-.\gradlew.bat --offline :app:lintDebug :app:lintRelease
-.\gradlew.bat --offline :app:assembleDebug :app:assembleDebugAndroidTest
-.\gradlew.bat --offline :app:connectedDebugAndroidTest
-.\gradlew.bat --offline :app:assembleRelease
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline clean
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:testDebugUnitTest
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:lintDebug :app:lintRelease
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:assembleDebug :app:assembleDebugAndroidTest
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:connectedDebugAndroidTest
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:assembleRelease
 ```
 
 Connected tests require an unlocked emulator/device. The Room schema files in `app/schemas` must
@@ -147,11 +148,13 @@ the SHA-256 alongside the APK. Do not publish the keystore or passwords.
    date, re-export it, disconnect, reconnect, and sign out.
 5. Complete the manual API/accessibility/performance checks in `docs/RELEASE_CHECKLIST.md`.
 6. Verify the APK signature and SHA-256.
-7. Copy/rename the artifact to `WorqOrder-0.1.0.apk` without modifying its bytes.
-8. Commit with `chore: prepare WorqOrder 0.1.0 release`.
-9. Create annotated tag `v0.1.0` on the verified commit.
-10. Create a GitHub Release from that tag; attach the APK and publish its SHA-256 in the notes.
-11. Test the public download and installation instructions on another supported phone if
+7. Copy/rename the artifact to `WorqOrder-0.2.0.apk` without modifying its bytes.
+8. Commit with `chore: prepare WorqOrder 0.2.0 release`.
+9. Merge `milestone29` into `v0.2.0-development`, then merge the reviewed integration branch into
+   `main`.
+10. Create annotated tag `v0.2.0` on the verified commit in `main`.
+11. Create a GitHub Release from that tag; attach the APK and publish its SHA-256 in the notes.
+12. Test the public download and installation instructions on another supported phone if
     available.
 
 Build outputs are intentionally ignored and are not committed to Git.
@@ -182,5 +185,5 @@ Never delete/reseed production data to recover a migration or storage failure.
 - Keep logs free of client/task contents, tokens, spreadsheet IDs, and raw Google responses.
 - Update `README.md`, `CHANGELOG.md`, privacy documentation, decisions, and tests for releases.
 
-Optional Milestones 18 and 19 are not production prerequisites and must not begin without explicit
-owner authorization.
+Optional Milestone E is an unscheduled, release-agnostic backburner item and must not begin without
+explicit owner authorization.

@@ -93,13 +93,16 @@ they are not partially imported.
 - Google Play services is used as an installed-device authorization API. WorqOrder is not published
   through Google Play Store and has no Play App Signing, Play Console release, or Play verification
   dependency.
-- Milestone 27 selected an owner-approved standard running-timer notification, but no code exists
-  until Milestone 28 is explicitly requested. Android provides no portable automatically placed lock-screen-only
-  AppWidget across API 26-36: the recommended surface also appears in the notification shade.
-  Permission/channel/user/OEM privacy settings can suppress it or redact the task Description.
+- Milestone 28 implements the owner-approved standard running-timer notification. Android provides
+  no portable automatically placed lock-screen-only AppWidget across API 26-36: the surface also
+  appears in the notification shade.
+  Permission/channel/user/OEM privacy settings can suppress it or redact Client and task
+  Description.
   After reboot it cannot return before first unlock; after force-stop it cannot return until the
   user launches WorqOrder. The system, not WorqOrder, controls exact notification typography and
-  compact chronometer formatting. If midnight passes while no WorqOrder component is executing,
+  compact chronometer position/formatting. Granting notification permission is reconciled when
+  WorqOrder regains window focus; if its process no longer exists, the next launch does so. If
+  midnight passes while no WorqOrder component is executing,
   the notification cannot reflect the daily split until the next recovery trigger and may visibly
   reset when Room normalization occurs. See `LOCK_SCREEN_SURFACE_ADR.md`.
 - Migrated tasks cannot invent historical Consultant (internally Employee), Work Type, Billing

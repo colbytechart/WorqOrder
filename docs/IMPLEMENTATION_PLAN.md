@@ -751,17 +751,17 @@ permission, dismissal, process, reboot, force-stop, and Live Update research was
 2026-08-08. `LOCK_SCREEN_SURFACE_ADR.md` recommends a silent, non-ongoing standard notification
 with system chronometer, private/redacted content, per-interval dismissal, and one-shot post-unlock
 boot recovery. No surface code was implemented. The owner approved all four tradeoffs on
-2026-08-08, completing Milestone 27. Milestone 28 remains stopped until explicitly requested.
+2026-08-08, completing Milestone 27. The owner subsequently started Milestone 28.
 
 ### Milestone 28 — Approved running-timer lock-screen surface
 
-Implement only the owner-approved version of `LOCK_SCREEN_SURFACE_ADR.md`. If accepted unchanged,
-use a dedicated silent Running Timer channel, one standard private/redacted notification and system
-chronometer, direct Main tap, delete-intent per-interval dismissal, contextual API-33+ permission
-handling, app/resume reconciliation, and one-shot post-unlock boot recovery. Room remains timer
-authority; dismissal is per-interval and Stop cleans up. Test permission/channel denial, privacy
-suppression, process/reboot/force-stop, dismissal/restart, task naming, CPU/battery, and absence of
-tick persistence/background loops. Do not implement before explicit owner approval.
+Implementation and verification are complete. It uses the approved dedicated silent Running Timer channel,
+one standard private/redacted notification and system chronometer, direct Main tap, delete-intent
+per-interval dismissal, contextual API-33+ permission handling, app/resume/date reconciliation, and
+one-shot post-unlock boot recovery. Room remains timer authority; dismissal is per-interval and Stop
+cleans up. The final gate passed 208 JVM tests, 102 connected tests, debug lint, and debug/release
+assembly. Manual permission/channel, privacy, process/reboot/force-stop, dismissal/restart, content,
+and short resource checks passed. No tick persistence or continuous background loop was added.
 
 ### Milestone 29 — v0.2 integration and release readiness
 

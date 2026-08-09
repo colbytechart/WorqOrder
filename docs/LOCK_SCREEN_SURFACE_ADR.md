@@ -1,6 +1,6 @@
 # Running-Timer Lock-Screen Surface ADR
 
-Status: **approved design; implementation deferred to explicitly requested Milestone 28**  
+Status: **approved, implemented, and verified in Milestone 28**
 Research completed: **2026-08-08**  
 Owner approved all four documented tradeoffs: **2026-08-08**  
 Applies to: **WorqOrder 0.2.0, Milestones 27 and 28**
@@ -140,12 +140,12 @@ The owner-approved Milestone 28 contract is:
    launcher badge disabled.
 2. One standard `NotificationCompat` notification categorized as `CATEGORY_STOPWATCH`; do not use
    custom `RemoteViews`, `setOngoing(true)`, a foreground service, or periodic updates.
-3. Full private content containing the WorqOrder system header/icon, active task **Description**
-   (the existing model has no separate task-name field), and a system-rendered chronometer for the
-   selected task's accumulated completed-plus-active duration.
-4. `VISIBILITY_PRIVATE` plus a redacted public version containing WorqOrder identity, **Timer
-   running**, and elapsed time but no task/client/consultant/expense text. The full task description
-   appears on a secure lock screen only when the user's Android privacy settings permit it.
+3. Full private content containing WorqOrder identity, active **Client** plus task **Description**
+   on the supporting line, and a system-rendered chronometer for the selected task's accumulated
+   completed-plus-active duration.
+4. `VISIBILITY_PRIVATE` plus a redacted public version containing only WorqOrder identity and the
+   system chronometer. Its supporting line is blank, so neither Client nor Description appears
+   when Android hides sensitive notification content.
 5. A direct Activity `PendingIntent` that opens WorqOrder Main. Do not use a notification
    trampoline and do not add Stop or edit actions.
 6. A `deleteIntent` receiver that durably records only the dismissed active interval ID in typed
@@ -193,3 +193,28 @@ Milestone 27. On 2026-08-08, the owner approved the notification-shade presence,
 private/redacted lock-screen behavior, contextual permission request, and post-unlock boot receiver.
 That approval selects the design but does not itself start Milestone 28; implementation begins only
 after the owner explicitly requests the next milestone.
+
+## 6. Milestone 28 implementation record
+
+The owner explicitly started Milestone 28 on 2026-08-08. The implementation follows this ADR:
+
+- `RunningTimerNotificationCoordinator` reconstructs presentation from Room, the current clock,
+  and the process-local monotonic timer anchor. It never stores an elapsed display value.
+- `AndroidRunningTimerNotificationGateway` owns the silent low-importance channel, private/public
+  standard notifications, direct Main tap, and system chronometer. Android owns the compact
+  chronometer position. The main title is **WorqOrder**; the private supporting line is
+  **Client · Description**, while the public supporting line is completely blank.
+- `PreferencesRunningTimerNotificationPreferences` stores only the dismissed active interval ID.
+- Start posts or requests API-33+ permission without blocking timing; Stop cancels and clears stale
+  dismissal state. Application startup, Activity resume, date normalization, and the post-unlock
+  boot receiver reconcile against Room. Regaining Activity window focus after Android Settings
+  also reconciles an already-running timer when the user grants permission; it does not poll or
+  keep the process alive.
+- The manifest adds only `RECEIVE_BOOT_COMPLETED` and two non-exported receivers. No service,
+  alarm, wake lock, widget host, custom notification layout, or tick worker was added.
+
+The final project-local gate passed 208 JVM tests and 102 connected tests with zero failures,
+errors, or skips, plus debug lint and debug/release assembly. Manual checks passed notification
+permission denial/recovery, channel and privacy behavior, private/public content, accumulated
+chronometer, direct navigation, swipe dismissal, Stop cleanup, new-interval reappearance,
+background/lock/Recents, process/reboot/force-stop recovery, and a short resource check.

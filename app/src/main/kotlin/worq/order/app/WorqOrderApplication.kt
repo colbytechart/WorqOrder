@@ -16,6 +16,8 @@ class WorqOrderApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         applicationScope.launch {
+            runCatching { container.timerRecoveryCoordinator.recover() }
+            runCatching { container.runningTimerNotificationController.reconcile() }
             runCatching { container.automaticGoogleExportManager.reconcile() }
         }
     }

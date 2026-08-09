@@ -43,6 +43,12 @@ class MainActivity : ComponentActivity() {
                     .container
                     .timerRecoveryCoordinator
                     .recover()
+                runCatching {
+                    (application as WorqOrderApplication)
+                        .container
+                        .runningTimerNotificationController
+                        .reconcile()
+                }
                 (application as WorqOrderApplication)
                     .container
                     .automaticGoogleExportManager
@@ -56,8 +62,23 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus) return
+        lifecycleScope.launch {
+            runCatching {
+                (application as WorqOrderApplication)
+                    .container
+                    .runningTimerNotificationController
+                    .reconcile()
+            }
+        }
+    }
+
     companion object {
         const val ACTION_OPEN_PENDING_GOOGLE_EXPORT =
             "worq.order.action.OPEN_PENDING_GOOGLE_EXPORT"
+        const val ACTION_OPEN_RUNNING_TIMER =
+            "worq.order.action.OPEN_RUNNING_TIMER"
     }
 }

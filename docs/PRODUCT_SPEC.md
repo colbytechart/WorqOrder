@@ -444,17 +444,18 @@ authorized consecutive milestones in `IMPLEMENTATION_PLAN.md`:
    right half stacks timer, date controls, and Export/Add actions. Left-handed mirrors only those
    two functional columns. The task list remains independently scrollable under large
    text/display sizes; portrait remains unchanged.
-9. **Running-timer system surface.** Milestone 27's official review recommends a silent,
+9. **Running-timer system surface.** Milestone 27's official review selected, and Milestone 28
+   implements, a silent,
    dismissible standard notification with Android's system chronometer; a portable
-   lock-screen-only AppWidget does not exist across API 26-36. If approved for Milestone 28, the
+   lock-screen-only AppWidget does not exist across API 26-36. The
    notification also appears in the shade and is eligible for the lock screen, subject to runtime
-   permission, channel, privacy, user, and OEM policy. Private content shows app identity, the
-   active task Description, and accumulated elapsed total; the redacted public version omits the
-   task Description. Swiping hides only that active interval's surface and never stops the Room
+   permission, channel, privacy, user, and OEM policy. Private content shows app identity, Client,
+   active task Description, and accumulated elapsed total; the redacted public version leaves the
+   supporting line blank and omits both Client and Description. Swiping hides only that active interval's surface and never stops the Room
    timer. Reboot recovery occurs after first unlock through a one-shot boot receiver; force-stop
    recovery waits for the next user launch. Do not add a foreground service or app-owned tick loop.
-   The owner-approved design and rejected alternatives are in `LOCK_SCREEN_SURFACE_ADR.md`;
-   implementation remains deferred until Milestone 28 is explicitly requested.
+   The owner-approved design, implementation record, and rejected alternatives are in
+   `LOCK_SCREEN_SURFACE_ADR.md`. Device/OEM visibility remains outside WorqOrder's control.
 10. **Automatic Google daily export.** The opt-in Google-only scheduler captures the intended
     effective-zone date near the end of that date. Approximate execution after midnight still
     exports the captured prior date, never a newly blank day. Owned-tab replacement keeps the

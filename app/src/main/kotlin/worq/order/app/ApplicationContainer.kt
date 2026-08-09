@@ -24,6 +24,7 @@ import worq.order.data.local.RoomEmployeeRepository
 import worq.order.data.local.RoomTaskRepository
 import worq.order.data.local.WorqOrderDatabase
 import worq.order.data.preferences.PreferencesGoogleConnectionRepository
+import worq.order.data.preferences.PreferencesRunningTimerNotificationPreferences
 import worq.order.data.preferences.PreferencesSelectedTaskRepository
 import worq.order.data.preferences.PreferencesSettingsRepository
 import worq.order.data.preferences.worqOrderPreferencesDataStore
@@ -60,6 +61,9 @@ import worq.order.timer.TimerCoordinator
 import worq.order.timer.TimerOperationLock
 import worq.order.timer.TimerRecoveryCoordinator
 import worq.order.timer.UtcClock
+import worq.order.timer.notification.AndroidRunningTimerNotificationGateway
+import worq.order.timer.notification.RunningTimerNotificationController
+import worq.order.timer.notification.RunningTimerNotificationCoordinator
 
 /**
  * Application-scoped dependency boundary.
@@ -83,6 +87,7 @@ interface ApplicationContainer {
     val timerCoordinator: TimerCoordinator
     val activeTimerNormalizer: ActiveTimerNormalizer
     val timerRecoveryCoordinator: TimerRecoveryCoordinator
+    val runningTimerNotificationController: RunningTimerNotificationController
     val exportSnapshotCoordinator: ExportSnapshotCoordinator
     val csvExportCoordinator: CsvExportCoordinator
     val xlsxExportCoordinator: XlsxExportCoordinator
@@ -264,6 +269,20 @@ internal class DefaultApplicationContainer(
             selectionCoordinator = selectionCoordinator,
             zoneIdProvider = zoneIdProvider,
             clock = utcClock,
+        )
+    }
+
+    override val runningTimerNotificationController: RunningTimerNotificationController by lazy {
+        RunningTimerNotificationCoordinator(
+            activeTimerRepository = activeTimerRepository,
+            taskRepository = taskRepository,
+            preferences =
+                PreferencesRunningTimerNotificationPreferences(
+                    applicationContext.worqOrderPreferencesDataStore,
+                ),
+            gateway = AndroidRunningTimerNotificationGateway(applicationContext),
+            clock = utcClock,
+            liveTimerSession = liveTimerSession,
         )
     }
 

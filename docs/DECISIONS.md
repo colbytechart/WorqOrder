@@ -867,8 +867,17 @@ one-shot `BOOT_COMPLETED` receiver may restore it after first unlock without a f
 alarm, wake lock, or tick loop. AppWidget, custom `RemoteViews`, full-screen intent, foreground
 service, and API-36-only promoted Live Update approaches are rejected as the baseline. The detailed
 evidence and tradeoffs are in `LOCK_SCREEN_SURFACE_ADR.md`. The owner approved all four tradeoffs on
-2026-08-08. That selects the design but does not start Milestone 28, which still requires an
-explicit milestone request.
+2026-08-08. The owner then explicitly started Milestone 28. The implementation uses the selected
+standard notification, typed per-interval dismissal state, contextual permission request,
+application/resume/date reconciliation, and a non-exported post-unlock boot receiver. It adds no
+timer service, alarm, wake lock, custom layout, or background tick. Device verification remains.
+
+Manual verification showed that granting notification permission in Android Settings did not
+always repost until a later Stop/Start, so Activity window-focus recovery now reconciles the open
+Room interval when WorqOrder returns from system Settings. The owner then finalized the standard
+layout: **WorqOrder** is the main title beside Android's platform-controlled compact chronometer;
+the private supporting line contains **Client · Description**, and the public supporting line is
+blank. Custom `RemoteViews` remains rejected.
 
 ### D-073 — Strict 12-hour clock presentation
 
@@ -995,9 +1004,8 @@ be atomically replaced and upgraded to schema 4; unknown/newer and unowned tabs 
 - Persistent XLSX mode is obsolete. CSV and XLSX remain manual one-off document exports.
 - At-rest encryption, app-access login/biometric/device-credential/PIN gating, and optional
   screenshot/Recents privacy controls are deferred only to optional Milestone E under D-050/D-051.
-- The lock-screen implementation is design-approved but remains deferred until Milestone 28 is
-  explicitly requested. Its selected standard-notification contract is recorded in D-072 and
-  `LOCK_SCREEN_SURFACE_ADR.md`; no surface code has been added. The automatic
+- The running-timer surface is implemented under D-072 and `LOCK_SCREEN_SURFACE_ADR.md`; Android
+  permission/channel/privacy/OEM policy still controls whether it appears or is redacted. The automatic
   Google scheduling/auth mechanism selected by D-076 is implemented in Milestone 26; its remaining
   limitations are Android-controlled timing, authorization, and notification behavior.
 

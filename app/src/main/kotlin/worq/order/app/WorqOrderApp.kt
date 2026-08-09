@@ -143,6 +143,15 @@ fun WorqOrderApp(
                         ),
                     )
                 }
+            val runningTimerNotificationPermissionLauncher =
+                rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission(),
+                ) { granted ->
+                    viewModel.onEvent(
+                        worq.order.ui.main.MainEvent
+                            .RunningTimerNotificationPermissionResult(granted),
+                    )
+                }
 
             LaunchedEffect(
                 viewModel,
@@ -182,6 +191,10 @@ fun WorqOrderApp(
                                 }
                             viewModel.onGoogleSheetsExportResult(result)
                         }
+                        MainEffect.RequestRunningTimerNotificationPermission ->
+                            runningTimerNotificationPermissionLauncher.launch(
+                                android.Manifest.permission.POST_NOTIFICATIONS,
+                            )
                     }
                 }
             }

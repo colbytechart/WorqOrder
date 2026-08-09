@@ -9,6 +9,11 @@
     <string name="stop">Stop</string>
     <string name="timer_running_semantics">Tracked time %1$s. Timer running.</string>
     <string name="timer_stopped_semantics">Tracked time %1$s. Timer stopped.</string>
+    <string name="running_timer_notification_channel_name">Running Timer</string>
+    <string name="running_timer_notification_channel_description">Shows the active WorqOrder timer.</string>
+    <string name="running_timer_notification_private_text">%1$s · %2$s</string>
+    <string name="running_timer_notification_permission_required">Timer is running. Allow WorqOrder notifications to show it on the lock screen.</string>
+    <string name="running_timer_notification_settings_required">Timer is running. Enable notifications in Settings &gt; Apps &gt; WorqOrder &gt; Notifications to show it on the lock screen.</string>
 
     <string name="work_date">Work Date</string>
     <string name="today">Today</string>

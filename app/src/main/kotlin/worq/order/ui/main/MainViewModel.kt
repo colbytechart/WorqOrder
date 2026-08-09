@@ -71,6 +71,8 @@ import worq.order.timer.TimerCoordinator
 import worq.order.timer.TimerRecoveryCoordinator
 import worq.order.timer.TimerRecoveryResult
 import worq.order.timer.UtcClock
+import worq.order.timer.notification.RunningTimerNotificationController
+import worq.order.timer.notification.RunningTimerNotificationResult
 
 private sealed interface MainLoad<out T> {
     data object Loading : MainLoad<Nothing>
@@ -127,6 +129,7 @@ class MainViewModel(
     private val documentOutputDestination: DocumentOutputDestination,
     private val binaryDocumentOutputDestination: BinaryDocumentOutputDestination,
     private val automaticGoogleExportManager: AutomaticGoogleExportController? = null,
+    private val runningTimerNotificationController: RunningTimerNotificationController? = null,
 ) : ViewModel() {
     private val initialToday = currentDateProvider.today()
     private val rawState =
@@ -258,6 +261,8 @@ class MainViewModel(
                 refreshLifecycleState()
             }
             MainEvent.LifecycleResumed -> refreshLifecycleState()
+            is MainEvent.RunningTimerNotificationPermissionResult ->
+                onRunningTimerNotificationPermissionResult(event.granted)
         }
     }
 
@@ -442,7 +447,7 @@ class MainViewModel(
             refreshClockContext()
             selectionCoordinator.reconcileForToday()
             when (timerCoordinator.start()) {
-                is StartTimerResult.Started -> null
+                is StartTimerResult.Started -> reconcileRunningTimerNotificationAfterStart()
                 StartTimerResult.NoSelectedTask -> MainMessage.SELECT_A_TASK_FIRST
                 StartTimerResult.SelectedTaskMissing -> MainMessage.SELECTED_TASK_MISSING
                 is StartTimerResult.TaskNotEligibleToday ->
@@ -456,7 +461,8 @@ class MainViewModel(
         runTimerOperation {
             when (timerCoordinator.stop()) {
                 is StopTimerResult.Stopped -> {
-                    automaticGoogleExportManager?.onTimerStopped()
+                    runCatching { runningTimerNotificationController?.onTimerStopped() }
+                    runCatching { automaticGoogleExportManager?.onTimerStopped() }
                     null
                 }
                 StopTimerResult.NoActiveTimer -> MainMessage.NO_ACTIVE_TIMER
@@ -488,6 +494,46 @@ class MainViewModel(
                 it.copy(
                     isTimerOperationInProgress = false,
                     message = message,
+                )
+            }
+        }
+    }
+
+    private suspend fun reconcileRunningTimerNotificationAfterStart(): MainMessage? =
+        when (
+            runCatching { runningTimerNotificationController?.reconcile() }
+                .getOrNull()
+        ) {
+            RunningTimerNotificationResult.RuntimePermissionRequired -> {
+                mutableEffects.emit(MainEffect.RequestRunningTimerNotificationPermission)
+                null
+            }
+            RunningTimerNotificationResult.DisabledInSettings ->
+                MainMessage.TIMER_NOTIFICATION_SETTINGS_REQUIRED
+            else -> null
+        }
+
+    private fun onRunningTimerNotificationPermissionResult(granted: Boolean) {
+        if (!granted) {
+            rawState.update {
+                it.copy(message = MainMessage.TIMER_NOTIFICATION_PERMISSION_REQUIRED)
+            }
+            return
+        }
+        viewModelScope.launch {
+            val result =
+                runCatching { runningTimerNotificationController?.reconcile() }
+                    .getOrNull()
+            rawState.update {
+                it.copy(
+                    message =
+                        when (result) {
+                            RunningTimerNotificationResult.DisabledInSettings ->
+                                MainMessage.TIMER_NOTIFICATION_SETTINGS_REQUIRED
+                            RunningTimerNotificationResult.RuntimePermissionRequired ->
+                                MainMessage.TIMER_NOTIFICATION_PERMISSION_REQUIRED
+                            else -> null
+                        },
                 )
             }
         }
@@ -548,6 +594,7 @@ class MainViewModel(
                         }
                     is TimerRecoveryResult.Recovered -> Unit
                 }
+                runCatching { runningTimerNotificationController?.reconcile() }
             }
         }
     }
@@ -586,6 +633,7 @@ class MainViewModel(
                         }
                     is TimerRecoveryResult.Recovered -> Unit
                 }
+                runCatching { runningTimerNotificationController?.reconcile() }
             }
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -1369,6 +1417,8 @@ class MainViewModel(
                 binaryDocumentOutputDestination =
                     container.binaryDocumentOutputDestination,
                 automaticGoogleExportManager = container.automaticGoogleExportManager,
+                runningTimerNotificationController =
+                    container.runningTimerNotificationController,
             ) as T
         }
     }

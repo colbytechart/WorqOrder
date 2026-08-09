@@ -1777,6 +1777,10 @@ private fun MainMessage.stringResource(): Int =
         MainMessage.DATA_UNAVAILABLE -> R.string.data_unavailable
         MainMessage.TASK_NOT_FOUND -> R.string.task_no_longer_exists
         MainMessage.RUNNING_TASK_LOCKED -> R.string.running_task_edit_blocked
+        MainMessage.TIMER_NOTIFICATION_PERMISSION_REQUIRED ->
+            R.string.running_timer_notification_permission_required
+        MainMessage.TIMER_NOTIFICATION_SETTINGS_REQUIRED ->
+            R.string.running_timer_notification_settings_required
     }
 
 @Preview(showBackground = true)

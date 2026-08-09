@@ -254,8 +254,8 @@ checks, report exact results and remaining device tests, suggest a commit messag
 
 Status: Complete. Billing Status implementation and verification passed. Official Android research
 and `LOCK_SCREEN_SURFACE_ADR.md` completed 2026-08-08; the owner approved all four design tradeoffs
-the same day. No lock-screen code was added, and Milestone 28 remains stopped until explicitly
-requested.
+the same day. No lock-screen code was added during Milestone 27; the owner subsequently started
+Milestone 28.
 
 ```text
 Begin Milestone 27 by implementing the separately approved Billing Status addition, then stop for
@@ -286,6 +286,10 @@ Implement no lock-screen code. Explain user-visible tradeoffs and pause for my e
 ```
 
 ## Milestone 28 — Approved running-timer lock-screen surface
+
+Status: Complete. The final gate passed 208 JVM and 102 connected tests, lint, and debug/release
+assembly. The owner completed the focused permission, privacy, content, dismissal, lifecycle,
+recovery, and short resource checklist successfully.
 
 ```text
 Begin Milestone 28 only after I approve or revise `LOCK_SCREEN_SURFACE_ADR.md`. Implement exactly that

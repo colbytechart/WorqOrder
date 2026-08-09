@@ -500,16 +500,22 @@ No item in this section describes released `0.1.0` behavior until its owning v0.
   authority. Dismissal state is scoped to the active interval ID.
 - Milestone 27 recommends a standard, silent, non-ongoing `NotificationCompat` notification and
   system-rendered chronometer; see `LOCK_SCREEN_SURFACE_ADR.md`. A dedicated low-importance channel
-  owns sound/vibration/badge behavior. Full content is private and contains only WorqOrder identity,
-  active task Description, and accumulated elapsed total; a public version redacts the Description.
+  owns sound/vibration/badge behavior. Full content is private and contains WorqOrder identity,
+  Client, task Description, and accumulated elapsed total; a public version redacts both Client and
+  Description and leaves the supporting line blank.
 - A notification `deleteIntent` writes only the dismissed active interval ID to typed Preferences
   DataStore. Start/Stop/recovery coordinators reconcile notification state with Room. A one-shot
   post-unlock `BOOT_COMPLETED` receiver may recover an eligible surface after reboot; it does not
   introduce direct-boot data duplication or continuous work. Do not add a foreground service, wake
   lock, alarm, custom `RemoteViews`, or WorkManager loop solely to maintain the surface. Permission,
   channel, lock-screen privacy, OEM suppression, process death, reboot, force-stop, and swipe
-  dismissal remain explicit presentation states. The design is owner-approved; implementation
-  awaits an explicit request to start Milestone 28.
+  dismissal remain explicit presentation states. Milestone 28 implements this boundary through
+  `RunningTimerNotificationCoordinator`, `AndroidRunningTimerNotificationGateway`, one typed
+  DataStore dismissal repository, and two non-exported broadcast receivers. Room remains the only
+  timer authority. Activity window-focus recovery requests reconciliation after returning from
+  system permission settings without polling. Android retains control of compact chronometer
+  placement; WorqOrder is the title and Client plus Description form the private supporting line.
+  Final focused retesting remains.
 
 ## 16. Optional Milestone E boundary
 

@@ -127,18 +127,18 @@ Before `0.2.0` release, the effective notice must add:
   automatic export is silent. Pending/error notifications must contain no employee/client/task
   content. CSV and XLSX remain manual.
 
-Milestone 27's owner-approved design uses a private running-timer notification.
-Its full content contains the active task Description and elapsed total; it contains no Client,
-Consultant, Expense, Mileage, or other task metadata. A redacted public version omits the task
-Description and shows only WorqOrder identity, **Timer running**, and elapsed time. Android may show
-the full private version on the lock screen when the user permits sensitive content, so the task
-Description must be treated as information intentionally exposed outside the app in that setting.
+Milestone 28 implements Milestone 27's owner-approved private running-timer notification design.
+Its full content contains Client, active task Description, and elapsed total; it contains no
+Consultant, Expense, Mileage, Billing Status, or other task metadata. A redacted public version
+shows only WorqOrder identity and elapsed time, with a completely blank supporting line. Android
+may show the full private version on the lock screen when the user permits sensitive content, so
+Client and Description must be treated as information intentionally exposed outside the app in
+that setting.
 The notification also exists in the notification shade and may bridge to paired notification
 surfaces unless platform/user settings prevent it. Permission denial, channel disablement,
 lock-screen privacy, screen-sharing protection, force-stop, and OEM policy may hide it. Swipe
 dismissal stores only the active interval ID and never changes Room task or interval data. Reboot
 recovery waits until first unlock so WorqOrder does not copy the task Description into
-device-protected storage. Full details are in `LOCK_SCREEN_SURFACE_ADR.md`; no implementation exists
-until Milestone 28 is explicitly requested. Optional Milestone E encryption/app-lock/screenshot/Recents controls are release-agnostic
+device-protected storage. Full implementation details are in `LOCK_SCREEN_SURFACE_ADR.md`. Optional Milestone E encryption/app-lock/screenshot/Recents controls are release-agnostic
 backburner items outside `0.2.0` and every other release scope until explicitly assigned; this
 notice must not imply otherwise.

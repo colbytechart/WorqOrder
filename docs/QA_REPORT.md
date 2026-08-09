@@ -409,3 +409,20 @@ the final notification-denial behavior: the switch remained off, the Settings po
 move, and the specific red recovery text appeared. The remaining manual background/error scenarios
 were explicitly deferred for lack of time and are not claimed as passed. Milestone 26 is complete
 with those checks retained as known unverified device coverage.
+
+## 12. Milestone 28 implementation evidence
+
+Milestone 28 implements the approved Room-backed running-timer notification. One silent,
+low-importance standard notification uses Android's system chronometer and no application tick.
+Its private form shows **WorqOrder** with **Client · Description**; its public/redacted supporting
+line is blank. Swipe dismissal persists only the active interval ID in typed Preferences DataStore.
+Start, Stop, application startup, Activity resume/window focus, date normalization, and a one-shot
+post-unlock boot receiver reconcile presentation against Room. No foreground service, exact alarm,
+wake lock, custom notification layout, or WorkManager timer loop was added.
+
+The final project-local offline gate passed debug lint, 208 JVM tests, 102 connected tests, and
+debug/release assembly with zero test failures, errors, or skips. A transient Windows incremental
+release-packaging failure was rerun in isolation and `:app:packageRelease` passed; signing
+validation remained intact. The owner passed the supplied notification permission/channel,
+private/redacted content, accumulated timer, tap, dismissal, Stop/new Start, background/lock,
+Recents/process, reboot, force-stop, and short resource checklist. Milestone 28 is complete.

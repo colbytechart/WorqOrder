@@ -869,10 +869,10 @@ the control half does not overlap, clip, or remove any required action.
 ### V2-UI-04 Running-timer lock-screen surface
 
 Under the owner-approved `LOCK_SCREEN_SURFACE_ADR.md`, starting a timer posts one silent, dismissible,
-standard notification containing WorqOrder identity, the active task Description, and a
+standard notification containing WorqOrder identity, active Client plus task Description, and a
 system-rendered accumulated elapsed timer. It appears in the shade and is eligible for the lock
-screen; it is not described as a lock-screen-only widget. Its private full content and redacted
-public version behave according to Android/user privacy settings. It appears only while an interval
+screen; it is not described as a lock-screen-only widget. Its private supporting line contains
+Client plus Description; its public supporting line is blank. It appears only while an interval
 is open. Stop removes it. Swiping it away records that active interval ID and hides the surface
 without stopping, closing, duplicating, or changing the Room interval; a later Start may show a new
 surface.
@@ -895,6 +895,12 @@ CPU/memory/battery behavior. Platform typography and compact chronometer formatt
 beyond displaying an advancing elapsed value. A process-absent midnight test confirms the surface
 continues without an application wake and then reconciles to the new daily task total on resume;
 the documented visible reset is accepted and no duplicate split is created.
+
+Milestone 28 verification passed 208 JVM tests and 102 connected tests with zero failures, errors,
+or skips. The owner also passed the focused permission denial/re-enable, channel, private/redacted
+content, accumulated chronometer, direct tap, swipe dismissal, Stop cleanup, new-interval,
+background/lock, Recents/process, reboot, force-stop, and short resource checks. Final private
+content is **Client · Description**; the redacted supporting line is blank.
 
 ## 14. Optional Milestone E — data protection, app access, and privacy
 

@@ -1,6 +1,6 @@
 # WorqOrder User Guide
 
-Version: `0.1.0`
+Version: `0.2.0`
 
 ## 1. What WorqOrder Stores
 
@@ -28,6 +28,16 @@ From an active client row:
 
 Open **Archived Clients** and choose **Restore** to make a removed client selectable again. If an
 active client has the same normalized name, resolve the name conflict first.
+
+To append client names from a CSV:
+
+1. Choose **Import From CSV** in Client Management.
+2. Select a `.csv` document in Android's picker.
+3. Review the added, restored, and skipped counts.
+
+Every nonblank CSV cell is treated as a client name. Existing clients are never overwritten or
+removed; duplicates are skipped, archived matches are restored, and active clients remain sorted
+A–Z. Invalid, malformed, non-CSV, or over-limit files make no partial changes.
 
 ### Manage Consultants
 
@@ -77,6 +87,11 @@ The displayed duration is calculated from time sources; the app does not write d
 A running timer remains logically active when the app is backgrounded, the screen is locked, the
 activity is recreated, the process is killed, or the device reboots. Reopen WorqOrder to
 reconstruct the visible value from the persisted interval.
+
+When notification access is available, a silent **Running Timer** notification shows WorqOrder,
+the Android-managed elapsed chronometer, and—when sensitive notification content is allowed—the
+Client and task description. Swiping it away hides only that interval's notification; it does not
+stop timing. Stop removes it. Android privacy/channel/OEM settings can suppress or redact it.
 
 ## 5. Browse Dates
 
@@ -174,6 +189,17 @@ spreadsheet must be editable by the signed-in account.
 **Disconnect spreadsheet** forgets the spreadsheet but leaves the Google account signed in.
 **Sign out** clears the local Google identity state and also disconnects the spreadsheet. Neither
 action changes local tasks or the remote spreadsheet.
+
+### Automatic Google Export
+
+After Google Sheets is authorized and connected, **Auto Export** appears at the bottom of Export
+Destination. Turning it on schedules a best-effort export of each captured work date near its end.
+Android may execute shortly after midnight, but WorqOrder still exports the captured prior date.
+Successful automatic export is silent. If timing or authorization blocks the operation, the date
+remains pending and WorqOrder provides an actionable, content-free recovery notification or
+Settings state. CSV and XLSX are always manual. Force-stop, offline state, Android/OEM background
+restrictions, notification settings, or an interactive Google authorization requirement can delay
+completion.
 
 ## 11. Export to Google Sheets
 

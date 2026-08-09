@@ -1,165 +1,244 @@
-# WorqOrder Release Checklist
+# WorqOrder `0.2.0` Release Checklist
 
-Status: Milestone 17 release candidate in verification
-Initial release: `0.1.0` (`versionCode = 1`)
+Status: all pre-publication gates passed; ready for reviewed integration, tag, and GitHub Release
+Release: `0.2.0` (`versionCode = 2`)
+Upgrade baseline: public `0.1.0` (`versionCode = 1`)
 Application ID: `worq.order`
-Distribution: directly signed APK attached to a GitHub Release
+Distribution: owner-signed APK attached to a GitHub Release
 
-## 1. Permanent release policies
+## 1. Permanent policies
 
 - WorqOrder remains free and open source under GPLv3.
-- Distribution is a directly signed APK from the public GitHub repository.
-- Android application backup remains disabled.
-- Room remains authoritative; CSV, XLSX, and Google Sheets are one-way exports.
-- No signing key, password, token, client secret, `local.properties`, or real
-  `keystore.properties` enters Git.
-- Google support uses only the non-sensitive `drive.file` file-data scope and standard
-  no-additional-cost quota. No billing, paid quota, organization, Workspace subscription, or
-  custom domain is required.
-
-## 2. Release signing configuration
-
-The permanent keystore is generated and backed up by the owner outside the repository. The
-repository contains only `keystore.properties.example`.
-
-For a local release build:
-
-1. Copy `keystore.properties.example` to `keystore.properties` in the repository root.
-2. Replace every placeholder with the local values:
-
-   ```properties
-   storeFile=X:/secure/external/path/worqorder-release.jks
-   storePassword=LOCAL_KEYSTORE_PASSWORD
-   keyAlias=worqorder-release
-   keyPassword=LOCAL_KEY_PASSWORD
-   ```
-
-3. Use a forward-slash absolute path on Windows. The keystore itself remains outside the
-   repository.
-4. Confirm the local properties file is ignored:
-
-   ```powershell
-   git check-ignore -v .\keystore.properties
-   ```
-
-   The permanent keystore must resolve outside the repository; because it is external, it is not a
-   Git candidate and `git check-ignore` does not apply to it.
-5. Never paste passwords into a command, tracked file, issue, log, or chat. Restrict access to
-   `keystore.properties` on the development machine and remove it before sharing a workspace
-   archive.
-6. Run `git status --short --untracked-files=all`; neither the real properties file nor keystore
-   may appear.
-
-The release signing configuration is always attached to the release variant. When the ignored
-properties file is absent, the configuration points to a deliberately nonexistent placeholder so
-AGP's built-in `validateSigningRelease` fails instead of producing an unsigned release. An
-incomplete properties file fails during configuration, and an invalid path/alias/password fails
-signing validation. Debug builds do not require release signing.
-
-## 3. Google production configuration
-
-Confirmed by the owner on 2026-07-29:
-
-- Audience is External and In Production.
-- No OAuth branding verification is pending.
-- Google Sheets API, Google Drive API, and Google Picker API are enabled.
-- `drive.file` is the only configured file-data scope.
-- The Android direct-release client uses package `worq.order` and the permanent release SHA-1.
-- The existing Web client ID remains supplied only through ignored local/CI configuration.
-- No billing account or paid service is required.
-- A fresh Google account that was never listed as a test user is ready for the final signed-APK
-  connection/export test.
-
-No owner-managed test list gates users in the confirmed production state. Individual access can
-still be blocked by user consent refusal, missing spreadsheet edit permission, account/Workspace
-policy, Advanced Protection, Google service availability, or future policy changes.
-
-## 4. Release Variant Decisions
-
-- Release version is `0.1.0` / code `1`.
-- Release is not debuggable.
-- Code/resource shrinking remains disabled for `0.1.0`. The app is small enough for direct
-  distribution, and enabling R8 for the first time at the release boundary would add reflection,
-  serialization, Google, Room, and OOXML regression risk without an established size requirement.
-- Default optimized ProGuard rules remain configured for a later separately tested decision.
-- Debug logging is not used for sensitive responses or tokens.
+- Distribution remains a directly signed APK from the public GitHub repository; there is no
+  Google Play release, Play App Signing, Play Console, or owner-managed tester list.
 - Android backup remains disabled.
-- Android 12+ cloud backup and device transfer explicitly exclude all app-private storage domains.
-- The release key remains external and the real `keystore.properties` remains ignored.
-- A signed release APK has already passed AGP signing validation and `apksigner` verification;
-  final checksum evidence is regenerated after the clean release gate.
+- Room remains authoritative. CSV, XLSX, and Google Sheets are one-way plaintext exports.
+- CSV and XLSX remain manual; only the connected Google spreadsheet can use opt-in automatic
+  export.
+- No signing key, password, token, client secret, `local.properties`, real
+  `keystore.properties`, APK, or AAB enters Git.
+- Google support remains `drive.file` only, External/In Production, no billing, no paid quota,
+  and no Workspace/organization/custom-domain requirement.
 
-## 5. Completed Release Gate
+## 2. Identity and signing preflight
 
-Milestone 17 completed and recorded:
+Confirm in `app/build.gradle.kts`:
 
-- representative multi-hour CPU, memory, and thermal observation;
-- APK signature, certificate fingerprint, artifact size, and SHA-256 verification;
-- final user, privacy, developer handoff, changelog, README, and GitHub installation guidance.
+- `applicationId = "worq.order"`
+- `namespace = "worq.order"`
+- `versionName = "0.2.0"`
+- `versionCode = 2`
+- `minSdk = 26`, `targetSdk = 36`, compile SDK `36.1`
+- release is not debuggable and uses the permanent release signing configuration
 
-The current dependency/advisory gate is complete: 36 exact runtime/build/test Maven
-package-version pairs returned no known OSV vulnerabilities on 2026-07-29. Official release
-indexes were reviewed, the proven stable dependency matrix was retained, and Gradle wrapper
-distribution/JAR integrity is pinned or verified against Gradle's published SHA-256 values.
+The permanent keystore remains outside the repository. The ignored root `keystore.properties`
+contains its path and credentials. Verify without printing secrets:
 
-The clean device-independent build, JVM/lint/release checks, and the post-backup-rule connected
-instrumentation gate are complete. After the final landscape/large-scale refinement, the complete
-API 36.1 connected report contains 79 tests with zero failures, errors, or skips.
-
-The minimum-SDK API 26 Pixel 1 gate is complete after correcting two viewport-dependent assertions
-and one real short-landscape usability defect. The focused 17-test Main suite and complete
-79-test suite passed with zero failures/errors/skips, followed by a successful release smoke and
-manual landscape check.
-
-The complete 79-test suite also passes on the Pixel 10 Android 17/API 37.1 emulator. This is
-forward-compatibility evidence. The distinct Pixel 10 API 36.1 current-target suite also passes
-all 79 tests, followed by successful portrait/landscape task-creation and timer smoke checks.
-Minimum, target, and next-API runtime gates are complete.
-
-Human TalkBack, large text, display scaling, and the final compact-landscape visual checks pass.
-Landscape keeps WorqOrder left, centers the responsive Export/Add task pair, anchors Settings
-right, pins timer/date controls, and leaves the task list independently scrollable.
-
-The owner-signed `0.1.0` release passed sign-in with a fresh account that had never been listed as
-an OAuth tester. Spreadsheet connection, first export, same-date duplicate-free re-export,
-connection restoration after restart, sign-out/disconnect, and local/remote data preservation all
-passed without owner intervention.
-
-The owner-signed release APK also passed a populated same-signature package replacement with a
-running timer. Client, task, purchases, appearance preference, selected/running state, interval,
-and accumulated total survived without duplicate tasks or intervals. Explicit Room migration
-instrumentation separately covers the version 1-to-2 schema transition.
-
-The three natural date-boundary device checks were not performed for `0.1.0`, were later removed
-from the future backlog by owner decision, and are not `0.1.0` release gates: reopening on the next
-real day, crossing one natural midnight,
-and recovering across multiple real midnights. Automated real-zone, DST, multi-boundary,
-idempotence, process-recovery, and transaction tests continue to cover the rules.
-
-Physical release profiling initially found excessive visible-timer CPU at the original 50 ms
-cadence. After moving presentation refresh to 200 ms, approximately 20 minutes of foreground
-timing consumed 30.27 seconds of process CPU (about 2.5% average), one battery percentage point,
-and no temperature increase. Android later reclaimed the locked/background process as expected;
-Room remains the active-timer authority.
-
-The final no-fraction presentation regression completed on API 36.1 with 79 connected tests, zero
-failures/errors/skips, plus 154 passing JVM tests and passing debug/release lint. The final signed
-APK is 16,059,788 bytes and verifies with one RSA-4096 APK-v2 signer:
-
-```text
-SHA-256  93F83CB4A089425A739AED92C8817BD6A93D210190A97F57D1085B51E6999995
-Cert SHA-1  57:51:0C:CB:30:01:A7:E7:0C:43:91:C9:16:A8:0A:0C:C6:03:BB:19
+```powershell
+git check-ignore -v .\keystore.properties
+git status --short --untracked-files=all
 ```
 
-## 6. Publish Checklist
+Neither the properties file nor keystore may appear in Git status. Do not replace the permanent
+key: `0.2.0` must use the same signer as `0.1.0` so Android accepts an in-place update.
 
-After every remaining gate passes:
+## 3. Google production preflight
 
-1. Confirm `git diff --check` and review every tracked change.
-2. Copy the verified APK to the release asset name `WorqOrder-0.1.0.apk` without modifying bytes.
-3. Publish the final SHA-256 alongside that asset.
-4. Commit with `chore: prepare WorqOrder 0.1.0 release`.
-5. Create annotated tag `v0.1.0` on the verified commit.
-6. Create the GitHub Release and attach only the signed APK, checksum, release notes, and source
-   archives GitHub derives from the tag.
-7. Download the public asset and repeat signature/checksum/install verification.
+The owner-confirmed production configuration must remain:
+
+- Audience **External**, publishing status **In Production**.
+- No active branding/verification requirement.
+- Google Sheets API, Drive API, and Picker API enabled.
+- Only `https://www.googleapis.com/auth/drive.file` configured/requested.
+- Direct-release Android OAuth client bound to `worq.order` and the permanent release SHA-1.
+- Web client ID supplied only through ignored local/CI configuration.
+- No billing account, paid service, custom domain, or test-user intervention.
+
+Before release, install the signed APK and repeat sign-in/connection/export with an eligible
+Google account that was never manually added as a tester.
+
+## 4. Clean automated gate
+
+In a new PowerShell session:
+
+```powershell
+Set-Location 'T:\_SC Video\PROJECTS\2026\DNA Work Order App\app\WorqOrder'
+
+$env:JAVA_HOME = 'S:\Program Files\Android\Android Studio\jbr'
+$env:ANDROID_HOME = 'C:\Users\colby\AppData\Local\Android\Sdk'
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+$env:GRADLE_USER_HOME = (Resolve-Path -LiteralPath '.gradle').Path
+$projectUserHome = (Resolve-Path -LiteralPath '.android-user').Path
+
+& .\gradlew.bat "-Duser.home=$projectUserHome" --stop
+& .\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon clean
+& .\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon `
+    :app:testDebugUnitTest `
+    :app:lintDebug `
+    :app:lintRelease `
+    :app:assembleDebug `
+    :app:assembleDebugAndroidTest `
+    :app:assembleRelease
+```
+
+With one unlocked emulator/device attached:
+
+```powershell
+& .\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon `
+    :app:connectedDebugAndroidTest
+```
+
+There is no configured formatter task. Run:
+
+```powershell
+git diff --check
+```
+
+All failures must be fixed or explicitly classified as release blockers. Do not use a lint
+baseline or skip failing tests to manufacture a green gate.
+
+## 5. Runtime and upgrade matrix
+
+Required release evidence:
+
+1. API 26 emulator: complete connected suite plus create/edit/timer/CSV or XLSX smoke.
+2. Current target environment (API 36.1): complete connected suite and primary workflow smoke.
+3. Available next API (for example API 37.x): install/start/create/timer/orientation smoke.
+4. Portrait and both Right-/Left-handed landscape layouts, including large text/display scaling.
+5. Running Timer notification permission, private/redacted content, swipe, Stop, process, reboot,
+   and force-stop behavior.
+6. Auto Export switch visibility/eligibility, pending notification, and at least one live
+   captured-date Google export or accepted documented best-effort limitation.
+7. Client CSV import with valid, duplicate/archived, invalid, and cancel samples.
+8. CSV, XLSX, and Google schema-4 output with representative task metadata.
+
+### Signed `0.1.0` to `0.2.0` update
+
+On a disposable release-test device/profile:
+
+1. Install the public owner-signed `WorqOrder-0.1.0.apk`.
+2. Create active and archived clients, multiple dated tasks, repeated intervals, purchases text,
+   selection, theme/export settings, and one running timer.
+3. Do not uninstall or clear storage.
+4. Install the owner-signed `0.2.0` APK over it.
+5. Confirm every old client, task, interval, stored date/zone, selection, setting, and running
+   timer remains intact with no duplicate rows or intervals.
+6. Confirm migrated tasks honestly show blank Consultant/Billing Status/Mileage and Unspecified
+   Work Type until explicitly edited.
+7. Create a new Consultant and new task; confirm On-Site and Billable defaults and normal
+   `0.2.0` operation.
+8. Stop the migrated timer and verify its accumulated total and interval endpoint.
+
+Automated Room instrumentation separately proves populated `1→4` and released `2→4` migrations,
+including an open timer. The signed replacement test proves package/signing/DataStore/runtime
+integration and cannot be replaced solely by the database fixture.
+
+## 6. Security and repository gate
+
+- Inspect the merged debug/release manifests. Expected direct permissions are `INTERNET`,
+  `POST_NOTIFICATIONS`, and `RECEIVE_BOOT_COMPLETED`; WorkManager may contribute its documented
+  normal scheduling components/permissions.
+- Confirm both WorqOrder receivers are non-exported.
+- Confirm `allowBackup=false` and full cloud/device-transfer exclusions.
+- Search tracked files and generated release resources for private keys, OAuth secrets, access or
+  refresh tokens, real user emails, private spreadsheet IDs, authorization headers, and sensitive
+  logs.
+- Confirm no Firebase, backend, broad storage permission, destructive Room fallback, Apache POI,
+  foreground timer service, exact alarm, or app-owned wake lock.
+- Perform a current dependency/advisory review with explicitly approved network access; record the
+  date and results in `SECURITY_REVIEW.md` and `QA_REPORT.md`.
+
+## 7. Artifact verification
+
+After the clean release build:
+
+```powershell
+$apk = (Resolve-Path '.\app\build\outputs\apk\release\app-release.apk').Path
+$buildTools = Get-ChildItem "$env:ANDROID_HOME\build-tools" -Directory |
+    Sort-Object { [version]$_.Name } -Descending |
+    Select-Object -First 1
+
+& (Join-Path $buildTools.FullName 'apksigner.bat') verify --verbose --print-certs $apk
+Get-FileHash -Algorithm SHA256 -LiteralPath $apk
+Get-Item -LiteralPath $apk | Select-Object FullName, Length, LastWriteTimeUtc
+```
+
+Confirm exactly one signer and that its certificate SHA-1 matches both `0.1.0` and the release
+Android OAuth client. Record the APK size and SHA-256. Copy it without changing bytes:
+
+```powershell
+Copy-Item -LiteralPath $apk -Destination '.\WorqOrder-0.2.0.apk'
+Get-FileHash -Algorithm SHA256 -LiteralPath '.\WorqOrder-0.2.0.apk'
+```
+
+The copied asset remains ignored and must not be committed.
+
+Verified final `0.2.0` artifact:
+
+- source path: `app/build/outputs/apk/release/app-release.apk`
+- GitHub asset name: `WorqOrder-0.2.0.apk`
+- size: `16,477,861` bytes
+- SHA-256: `92F8F92D9327B2089D8FAE23DF181CF74CD606BE20C6531296182CE7711B305A`
+- signer: one RSA-4096 signer using APK Signature Scheme v2
+- certificate SHA-1:
+  `57:51:0C:CB:30:01:A7:E7:0C:43:91:C9:16:A8:0A:0C:C6:03:BB:19`
+
+The package identity, permanent signer match, signed `0.1.0` upgrade, release installation, and
+functional smoke checks passed. Do not rebuild or modify the APK before uploading it; doing so
+would change the checksum.
+
+## 8. Integration-branch and GitHub release sequence
+
+Do not merge until every required gate above is green.
+
+1. Commit Milestone 29 on `milestone29`:
+
+   ```powershell
+   git status --short
+   git add <reviewed-files>
+   git commit -m "chore: prepare WorqOrder 0.2.0 release"
+   git push -u origin milestone29
+   ```
+
+2. Open and merge a pull request from `milestone29` into `v0.2.0-development`.
+3. Update local integration state and verify ancestry:
+
+   ```powershell
+   git switch v0.2.0-development
+   git pull --ff-only origin v0.2.0-development
+   git merge-base --is-ancestor milestone29 v0.2.0-development
+   git status --short --branch
+   ```
+
+4. Open the final reviewed pull request from `v0.2.0-development` into `main`. The base must be
+   `main`; the compare branch must be `v0.2.0-development`.
+5. Review the complete `0.1.0...0.2.0` diff and checks, then merge without deleting `main` history.
+6. Update local `main`, verify the integration branch is an ancestor, and tag the exact verified
+   release commit:
+
+   ```powershell
+   git switch main
+   git pull --ff-only origin main
+   git merge-base --is-ancestor v0.2.0-development main
+   git tag -a v0.2.0 -m "WorqOrder 0.2.0"
+   git push origin v0.2.0
+   ```
+
+7. On GitHub, open **Releases → Draft a new release**, select existing tag `v0.2.0`, title it
+   **WorqOrder 0.2.0**, and attach `WorqOrder-0.2.0.apk`.
+8. Put the exact SHA-256 in the release notes with the major changes and known limitations. Do not
+   mark it as a pre-release if this is the accepted stable build.
+9. Publish, download the public APK asset, recompute its SHA-256, verify its signature, and install
+   it over a retained `0.1.0` or release-candidate installation.
+10. Confirm the public source archives are generated from `v0.2.0` and that no secret/artifact was
+    committed.
+
+## 9. Release evidence record
+
+All pre-publication evidence is recorded in `QA_REPORT.md`: commands and test counts, API/device
+configurations, manual results, signed update, fresh-account Google behavior, dependency/advisory
+review, accepted limitations, and the final artifact identity, size, signer, and SHA-256.
+
+After publishing, append confirmation that the downloaded public asset reproduces the recorded
+SHA-256, verifies with the same signer, installs, and launches. That post-publication check is not a
+reason to delay the reviewed commit, integration merge, tag, or GitHub Release.

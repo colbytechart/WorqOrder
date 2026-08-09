@@ -1,6 +1,6 @@
 # Privacy and Data
 
-Effective for WorqOrder `0.1.0`
+Effective for WorqOrder `0.2.0`
 
 ## 1. Summary
 
@@ -16,11 +16,14 @@ Google identity, spreadsheet connection, or Google Sheets export.
 The app stores the following in its app-private storage:
 
 - client IDs, names, active/archive state, and timestamps;
-- task IDs/series IDs, client relationship, work date, stored geographical ZoneId, description,
-  hardware/software-purchase text, and timestamps;
+- Consultant directory IDs/names/archive state, plus the current Consultant selection;
+- task IDs/series IDs, client and optional Consultant relationships, assignment-time Consultant
+  snapshot, work date, stored geographical ZoneId, description, hardware/software-purchase text,
+  Work Type, nullable Billing Status, canonical Mileage, and timestamps;
 - interval IDs, ordinal, UTC start/stop timestamps, manual-edit flag, and timestamps;
 - the singleton active-timer pointer;
-- appearance, time-zone, export-destination, and task-selection preferences;
+- appearance, time-zone, landscape-handedness, export-destination, automatic-Google target/pending,
+  notification-dismissal, and task-selection preferences;
 - non-secret connected-spreadsheet metadata such as spreadsheet ID/title and connection time; and
 - limited account display metadata when supplied by the Google identity flow.
 
@@ -46,22 +49,32 @@ connection and export feature.
 Google's own terms and privacy policy apply to the user's Google account and spreadsheet. Account
 or organization policies may independently block authorization.
 
+Client Management may read one user-selected CSV through Android's document picker. WorqOrder
+parses it only in process to append or restore validated client names; it does not upload or retain
+the document, persist its URI permission, or import tasks.
+
 ## 4. External Exports
 
 CSV and XLSX documents are written only after the user chooses a destination through Android's
 document interface. Google Sheets exports go only to the connected spreadsheet.
 
-All three destinations receive the same nine visible fields:
+All three destinations receive the same 15 visible fields:
 
-1. Work Date
-2. Client Name
-3. Description
-4. Hardware / Software Purchases
-5. Interval Number
-6. Start Local
-7. Stop Local
-8. Interval Duration Formatted
-9. Task Total Duration Formatted
+1. Start date
+2. End date
+3. Consultant
+4. Client
+5. Description
+6. Expense
+7. Work type
+8. Billing Status
+9. Mileage
+10. Interval number
+11. Start time
+12. Stop time
+13. Interval duration
+14. Time spent
+15. Billing minutes
 
 These external documents are plaintext/readable copies. They are not end-to-end encrypted by
 WorqOrder. Anyone with access to the selected file location or spreadsheet may be able to read
@@ -84,7 +97,7 @@ backup/restore or device-transfer recovery.
 
 ## 6. Security Boundaries
 
-Android's application sandbox is the local access boundary. WorqOrder `0.1.0` does not add its own
+Android's application sandbox is the local access boundary. WorqOrder `0.2.0` does not add its own
 at-rest encryption layer to Room or DataStore. Android backup is disabled, credentials and signing
 keys are not embedded, broad storage permissions are not requested, and no cleartext network
 traffic is enabled.
@@ -107,25 +120,13 @@ Use this repository's issue tracker for privacy questions or reports. Changes to
 storage, permissions, OAuth scopes, or network destinations must be documented in this file, the
 product decisions, and release notes before distribution.
 
-## 9. Approved `0.2.0` privacy update (not yet effective)
+## 9. `0.2.0` notification and automation details
 
-Before `0.2.0` release, the effective notice must add:
-
-- employee directory IDs/names/archive timestamps, the current employee preference, and per-task
-  employee ID/name snapshot;
-- per-task Work Type, nullable Billing Status, and Mileage; Billing Minutes is derived from existing intervals rather than
-  stored independently;
-- read-only access to one user-selected CSV document when **Import From CSV** is invoked. The
-  bounded file is parsed in process only to append/restore client names; it is not uploaded,
-  retained, or used to import tasks. WorqOrder does not persist the document permission;
-- Landscape Orientation and opt-in Automatic Daily Google Export preferences plus a non-sensitive
-  captured/pending target date;
-- a 15-column external table: Start date, End date, Consultant, Client, Description, Expense, Work
-  type, Billing Status, Mileage, Interval number, Start time, Stop time, Interval duration, Time spent, and Billing
-  minutes. Both exported date columns repeat the same stored task date; and
-- optional Google-only scheduled transmission near the end of the captured work date. A successful
-  automatic export is silent. Pending/error notifications must contain no employee/client/task
-  content. CSV and XLSX remain manual.
+Billing Minutes is derived from interval durations rather than stored independently. Automatic
+Google export is opt-in and stores only a non-sensitive captured target date, ZoneId, connection
+association, and typed pending reason. It may transmit the captured date near or shortly after its
+end. Successful automatic export is silent. Pending/error notifications contain no Consultant,
+client, task, date, spreadsheet, or exported-row content. CSV and XLSX remain manual.
 
 Milestone 28 implements Milestone 27's owner-approved private running-timer notification design.
 Its full content contains Client, active task Description, and elapsed total; it contains no

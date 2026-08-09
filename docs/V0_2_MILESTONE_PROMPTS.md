@@ -309,6 +309,10 @@ Run all relevant checks, report exact results/limitations/files and a commit mes
 
 ## Milestone 29 — v0.2 integration and release readiness
 
+Status: In progress. Repository/configuration/documentation audit, clean 208-test JVM/build/lint
+gate, official dependency review, and 180-coordinate OSV scan pass. Device, signed-update, live
+Google, and final artifact evidence remain.
+
 ```text
 Begin Milestone 29. Read AGENTS.md, all docs, v0.2 decisions, and the complete repository. Audit
 only implemented v0.2 requirements and preserve working XLSX/Google behavior. Verify a real update

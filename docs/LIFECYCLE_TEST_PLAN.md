@@ -41,7 +41,8 @@ next step explicitly tests continued recovery.
 2. With the timer running, rotate the device twice.
    - Expected: one running interval; display continues without resetting or jumping.
 3. Press Home for at least one minute and reopen WorqOrder.
-   - Expected: elapsed includes the background minute; no notification/service appears.
+   - Expected: elapsed includes the background minute; the optional running-timer notification may
+     remain visible, but no service or app-owned background tick loop is running.
 4. Lock the screen for at least one minute, unlock, and reopen.
    - Expected: elapsed includes screen-off sleep; one interval remains open.
 5. Start a timer, open another WorqOrder destination, background and resume there, then return Main.
@@ -58,13 +59,16 @@ next step explicitly tests continued recovery.
    Relaunch from the launcher.
    - Expected: Room reconstructs the timer; no duplicate interval.
 3. Start a timer, reboot the device, and launch WorqOrder after boot.
-   - Expected: no work/notification occurs before launch; on launch elapsed includes downtime and
-     missed local midnights are split.
+   - Expected: the one-shot post-unlock receiver may restore the running-timer notification from
+     Room. On launch, elapsed includes downtime and missed local midnights are split. No
+     foreground service or continuous boot-time loop is started.
 
 ### C. Date boundaries
 
-1. Before Start, choose a manual geographical ZoneId whose local midnight is near enough to wait
-   naturally. Start before midnight and keep Main visible across the boundary.
+1. In a controlled test build or existing migrated installation with a stored manual geographical
+   ZoneId, choose a zone whose local midnight is near enough to wait naturally. The production
+   `0.2.0` Settings UI intentionally exposes device-zone mode only. Start before midnight and keep
+   Main visible across the boundary.
    - Expected: the first post-boundary refresh creates one continuation on the new daily task.
 2. Repeat but lock/background through midnight and resume afterward.
    - Expected: resume performs the same single split.
@@ -79,8 +83,8 @@ next step explicitly tests continued recovery.
 1. In device-zone mode, Start, then change Android's device ZoneId while the timer runs.
    - Expected: the active task remains pinned to the Start zone. Stop, then confirm Settings/Main
      adopt the new device zone without moving historical tasks.
-2. Stop, select a manual geographical ZoneId, start a task assigned in that zone, background and
-   resume.
+2. In a controlled test build or existing installation that already stores a manual geographical
+   ZoneId, start a task assigned in that zone, background, and resume.
    - Expected: today/boundaries use the manual zone, independent of the device zone.
 3. Start and keep WorqOrder alive, then move wall time forward and backward while elapsed realtime
    advances normally.
@@ -98,7 +102,7 @@ bottom action.
 - Expected: the action is disabled and reads **Stop Timer to Export**.
 - Attempting to dispatch the export event programmatically launches no picker or Google request.
 - After Stop, export is enabled and contains the authoritative completed Stop Local and duration.
-- CSV/XLSX/Google still receive the same nine headers, order, and canonical values.
+- CSV/XLSX/Google still receive the same 15 schema-version-4 headers, order, and canonical values.
 
 ## 4. Evidence to record
 

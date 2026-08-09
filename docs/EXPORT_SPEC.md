@@ -324,7 +324,7 @@ Visible layout:
 
 | Cell/range | Content |
 | --- | --- |
-| row 1 | the 14 exact canonical column headers |
+| row 1 | the 15 exact canonical column headers |
 | row 2 onward | canonical export rows |
 
 The ownership values are stored as sheet-scoped, `PROJECT`-visible developer metadata created by
@@ -333,7 +333,7 @@ WorqOrder's Google Cloud project, not as visible cells:
 | Metadata key | Required value |
 | --- | --- |
 | `worqorder_export_marker` | `WORQORDER_EXPORT` |
-| `worqorder_export_schema` | `3` |
+| `worqorder_export_schema` | `4` |
 | `worqorder_export_work_date` | the tab's `YYYY-MM-DD` date |
 
 All three keys must occur exactly once at that sheet location. A missing/different marker makes a
@@ -363,10 +363,10 @@ spreadsheet unnecessarily.
 4. Send one `POST
    /v4/spreadsheets/{spreadsheetId}:batchUpdate` containing, in order:
    - either an `UpdateSheetPropertiesRequest` that renames/right-sizes the confirmed blank first
-     sheet, or an `AddSheetRequest` with a collision-free non-negative sheet ID, exact title, 14
+     sheet, or an `AddSheetRequest` with a collision-free non-negative sheet ID, exact title, 15
      columns, and `1 + dataRowCount` rows;
    - three `CreateDeveloperMetadataRequest` entries for the exact keys/values above; and
-   - one `UpdateCellsRequest` covering row 1 through the final data row and columns 1 through 14.
+   - one `UpdateCellsRequest` covering row 1 through the final data row and columns 1 through 15.
 5. Every cell is a `userEnteredValue.stringValue`. This is the `UpdateCellsRequest` equivalent of
    a raw literal write: formula-like client/task text is not parsed as a formula, and the gateway
    does not independently format any canonical value.
@@ -390,8 +390,8 @@ spreadsheet unnecessarily.
 
 Replacement, not append-only merging, is authoritative. This resolves contradictory earlier append wording and ensures edits, deleted intervals, deleted tasks, and changed metadata are reflected without duplicates. Repeating unchanged export produces the same visible table.
 
-Use raw string cell values for all 14 canonical fields so consultant, client, task text, Work type,
-and Mileage are not evaluated as formulas and CSV/XLSX/Google content remains equivalent. Do not
+Use raw string cell values for all 15 canonical fields so consultant, client, task text, Work type,
+Billing Status, and Mileage are not evaluated as formulas and CSV/XLSX/Google content remains equivalent. Do not
 create a new spreadsheet document at export.
 
 Milestone 11 implements the sequence above through `GoogleSheetsExportCoordinator`, the pure

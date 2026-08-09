@@ -15,8 +15,10 @@ they are not partially imported.
   next resumes. The app does not wake exactly at midnight.
 - Swiping from Recents is not a guaranteed process kill on every Android/OEM build. Correctness
   does not depend on whether Android retains or kills the process.
-- Reboot recovery begins only when the user launches WorqOrder. There is no boot receiver,
-  notification, alarm, wake lock, WorkManager stopwatch job, or foreground service.
+- After reboot, a one-shot receiver performs Room recovery after the first unlock and may restore
+  an eligible running-timer notification. Before first unlock there is no presentation. A later
+  launch performs the same idempotent recovery again. There is no alarm, application-owned wake
+  lock, WorkManager stopwatch job, foreground service, or background ticking loop.
 - While one process remains alive, Android elapsed realtime keeps the visible timer monotonic and
   includes sleep. After process death/reboot, no prior monotonic reading is meaningful, so UTC wall
   time is the only reconstruction source.
@@ -85,11 +87,14 @@ they are not partially imported.
   denial prevents enabling the feature; later permission/channel revocation or OEM suppression can
   hide a notice, but it does not clear the durable pending target. Successful automatic exports are
   intentionally silent. Settings reports notification, spreadsheet-connection, destination, and
-  local-settings enablement blockers separately. WorkManager timing and the remaining deferred
-  device/OEM scenarios have not all received manual coverage in Milestone 26.
+  local-settings enablement blockers separately. WorkManager timing remains best-effort under the
+  documented Android/OEM constraints. Milestone 26 automated coverage passed; the owner accepted
+  the documented subset of manual timing checks and deferred the remaining OEM/background
+  variations to defect-driven follow-up.
 - WorkManager's normal library integration includes system-managed scheduling components and
   bounded execution wake locks. WorqOrder does not own a wake lock, exact alarm, foreground export
-  service, or boot receiver, and automatic work is never used for stopwatch ticks.
+  service, or automatic-export boot receiver, and automatic work is never used for stopwatch
+  ticks. The separate running-notification boot receiver is one-shot after first unlock.
 - Google Play services is used as an installed-device authorization API. WorqOrder is not published
   through Google Play Store and has no Play App Signing, Play Console release, or Play verification
   dependency.

@@ -98,21 +98,14 @@ Do not add one “use case” class per repository getter. Add named domain serv
 
 ## 4. Application container
 
-`WorqOrderApplication` owns one lazily constructed application-scoped container. As of Milestone
-13, the container constructs one retained `WorqOrderDatabase`, Room-backed client/task/active-timer
-repositories, typed settings and selection Preferences DataStore repositories, UTC/device/manual-zone/elapsed
-realtime adapters, one shared timer-operation mutex, one process-local live timer session,
-`SelectionCoordinator`, `TimerCoordinator`, `ActiveTimerNormalizer`,
-`TimerRecoveryCoordinator`, and
-`TaskMutationCoordinator`.
-
-Later milestones extend the same boundary with:
-
-- destination-neutral export snapshot coordinator/row builder and CSV serializer;
-- document-output adapter;
-- Google authorization coordinator and `GoogleSheetsGateway`; and
-- focused XLSX writer; and
-- dispatcher provider where tests require deterministic dispatchers.
+`WorqOrderApplication` owns one lazily constructed application-scoped container. The completed
+`0.2.0` container constructs one retained `WorqOrderDatabase`; Room-backed client, Consultant,
+task, and active-timer repositories; typed settings, selection, Google-connection, and
+notification-dismissal DataStore repositories; UTC/device-zone/elapsed-realtime adapters; one
+shared timer-operation mutex; one process-local live timer session; selection, task mutation,
+timer normalization/recovery, and notification coordinators; one canonical export snapshot
+pipeline; CSV/XLSX document adapters; Google authorization/Sheets gateways; and the opt-in
+automatic-Google-export manager and WorkManager scheduler.
 
 ViewModel factories request only their direct dependencies. Android framework types stay in adapters/gateways, not pure domain services. A DI framework is not planned; reconsider only if container wiring becomes demonstrably unsafe or unmaintainable.
 
@@ -426,11 +419,12 @@ Core failures are represented in UI state and remain retryable. Last export outc
 destination, displayed date, time, and a safe error category/detail. `MainActivity.onResume`
 invokes the application-scoped timer recovery coordinator even when Main is not visible; Main
 initialization/resume, date-change detection, and rule-sensitive operations provide idempotent
-retries. No application-owned boot receiver or wake lock, stopwatch WorkManager job, or foreground
-timer service exists.
+retries. The only application-owned boot receiver is the non-exported, one-shot post-unlock
+running-notification recovery receiver. It performs no ticking. No application-owned wake lock,
+stopwatch WorkManager job, exact alarm, or foreground timer service exists.
 
-Version `0.2.0` may add one narrowly scoped, opt-in Android background schedule for Google Sheets
-only after owner approval of the completed Milestone 25 design. The selected adapter uses stable
+Version `0.2.0` includes one narrowly scoped, opt-in Android background schedule for Google Sheets.
+The selected adapter uses stable
 WorkManager `2.11.2`: one uniquely named, non-expedited, network-constrained one-time request per
 captured target, recalculated for each geographical-zone date rather than a fixed 24-hour periodic
 request. It captures the oldest unresolved target epoch day, ZoneId, and connection association,
@@ -515,7 +509,7 @@ No item in this section describes released `0.1.0` behavior until its owning v0.
   timer authority. Activity window-focus recovery requests reconciliation after returning from
   system permission settings without polling. Android retains control of compact chronometer
   placement; WorqOrder is the title and Client plus Description form the private supporting line.
-  Final focused retesting remains.
+  Its final focused automated and manual Milestone 28 verification passed.
 
 ## 16. Optional Milestone E boundary
 

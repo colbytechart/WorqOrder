@@ -223,7 +223,7 @@ The owner then ran the complete API 36.1 connected suite. Generated XML records 
 failures/errors/skips, and 99.826 seconds. The owner also confirmed the updated no-fraction
 presentation.
 
-Final signed artifact:
+`0.1.0` final signed artifact:
 
 - path: `app/build/outputs/apk/release/app-release.apk`
 - size: 16,059,788 bytes
@@ -426,3 +426,92 @@ release-packaging failure was rerun in isolation and `:app:packageRelease` passe
 validation remained intact. The owner passed the supplied notification permission/channel,
 private/redacted content, accumulated timer, tap, dismissal, Stop/new Start, background/lock,
 Recents/process, reboot, force-stop, and short resource checklist. Milestone 28 is complete.
+
+## 13. Milestone 29 release-readiness audit
+
+Status: pre-publication release gate passed. The repository-local preflight confirms a
+`milestone29` branch based on
+the accepted `v0.2.0-development` integration tip through Milestone 28. `main` remains the public
+`0.1.0` line and the integration branch is 22 commits ahead.
+
+The local implementation/configuration audit confirms `worq.order`, version `0.2.0`/code 2,
+minimum API 26, target API 36, compile SDK 36.1, Room schema 4, committed schemas 1–4, explicit
+`1→2→3→4` migrations, canonical export schema 4 with 15 columns, release signing attached and
+fail-closed when local signing inputs are absent, disabled Android backup, and exact stable
+version-catalog pins. Tracked-file scans found no credentials, private keys, APK/AAB artifacts,
+Firebase, Apache POI, destructive migration fallback, broad storage permission, foreground timer
+service, exact alarm, app-owned wake lock, sensitive production logging, or OAuth scope beyond
+`drive.file`. The only `allowMainThreadQueries()` calls are instrumentation fixtures.
+
+The audit corrected stale 0.1.0 documentation that still described nine-column exports, Room
+version 2/3, no notification/boot/background scheduling, and the prior artifact/version names.
+No production behavior or dependency changed during this documentation pass.
+
+All pre-publication evidence required for release readiness is now recorded below. Downloading and
+re-verifying the public GitHub asset remains a post-publication integrity check and cannot be
+completed before the Release exists.
+
+The first clean Milestone 29 gate passed on 2026-08-09. Gradle produced the debug,
+instrumentation-test, and signed release APKs; all 208 JVM tests across 40 suites passed with zero
+failures, errors, or skips; debug and release lint each reported zero errors and 22 warnings; and
+`git diff --check` reported no whitespace errors. The line-ending messages are informational Git
+LF-to-CRLF working-copy notices. Resolved debug/release dependency reports contained 180 unique
+Maven coordinates. The owner-approved, read-only OSV batch query returned zero vulnerability
+records. D-080 records the one explicit transitive preview exception supplied by stable AndroidX
+Credentials 1.6.0.
+
+The owner then ran the complete `connectedDebugAndroidTest` suite separately on the Android 8/API
+26 emulator and the Android 16/API 36.1 emulator. Both builds passed, followed by successful manual
+smoke checks for Consultant/Client setup, full task metadata including Billing Status, timer and
+notification behavior, task editing, interval presentation, landscape reachability, export,
+notification permission/privacy, handed layouts, large text/display scaling, and conditional Auto
+Export presentation. The retained final API-36.1 XML records 102 tests, zero failures, zero errors,
+zero skips, and 149.758 seconds. The API-26 pass is owner-confirmed; its generated report was
+replaced by the subsequent connected run.
+
+The owner completed the real signed-update gate on a disposable emulator. Android accepted the
+new owner-signed `0.2.0` release APK over the public owner-signed `0.1.0` APK without uninstalling
+or clearing data. Active/archived Clients, dated tasks, repeated intervals, selection, preferences,
+and an open timer survived; no task or interval duplicated; migrated metadata retained its honest
+blank/Unspecified defaults; the open timer stopped with the correct accumulated value; and a newly
+created `0.2.0` task used the expected Consultant, On-Site, and Billable behavior. The follow-up
+schema-4 export smoke also passed.
+
+The owner then completed the release-signed production Google/export gate with a non-test Google
+account and disposable editable spreadsheet. Sign-in required no tester-list or owner intervention;
+exact-spreadsheet validation/connection passed; first export reused the blank default worksheet;
+the exact 15-column schema-4 headers and values matched CSV and XLSX; same-date re-export remained
+idempotent; edited local data authoritatively replaced obsolete rows; running-timer export stayed
+locked; disconnect/reconnect and sign-out-driven disconnect preserved Room; and the conditional
+Auto Export switch enabled, disabled, and hid correctly without a false success notification. All
+requested live Google, CSV, XLSX, recovery, and equivalence checks passed.
+
+The owner completed the final identity, signature, artifact, install, and smoke checks. The APK
+reports package `worq.order`, version name `0.2.0`, version code `2`, application label
+`WorqOrder`, compile SDK 36, and target SDK 36. `apksigner` verified APK Signature Scheme v2 with
+one RSA-4096 signer. The certificate SHA-1 matches the public `0.1.0` APK, the permanent release
+keystore, and the production Android OAuth client. The absent v1/v3/v4/SourceStamp signatures are
+expected for the API-26+ direct-GitHub APK workflow; v4 would be a separate incremental-install
+sidecar and is not required for ordinary installation.
+
+Final `0.2.0` signed artifact:
+
+- path: `app/build/outputs/apk/release/app-release.apk`
+- intended GitHub asset name: `WorqOrder-0.2.0.apk`
+- size: 16,477,861 bytes
+- SHA-256: `92F8F92D9327B2089D8FAE23DF181CF74CD606BE20C6531296182CE7711B305A`
+- signature: APK Signature Scheme v2, one RSA-4096 signer
+- signing certificate SHA-1:
+  `57:51:0C:CB:30:01:A7:E7:0C:43:91:C9:16:A8:0A:0C:C6:03:BB:19`
+
+The owner confirmed all remaining release-candidate installation, functional, and smoke checks
+passed. No known pre-publication release blocker remains. After publication, the downloaded GitHub
+asset must reproduce the SHA-256 above, verify with the same signer, install, and launch.
+
+Generated debug and release merged manifests were audited. Direct WorqOrder permissions remain
+`INTERNET`, `POST_NOTIFICATIONS`, and `RECEIVE_BOOT_COMPLETED`; backup is disabled; release is not
+debuggable; and both WorqOrder receivers are non-exported. WorkManager contributes its normal
+network, boot, wake-lock, `FOREGROUND_SERVICE`, job service, system foreground service, and
+reschedule components. WorqOrder never promotes the automatic-export worker to foreground work and
+does not use that library service for timer display. Other exported library components are guarded
+by `DUMP`, `BIND_JOB_SERVICE`, or Google revocation permissions.

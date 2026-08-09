@@ -8,22 +8,32 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
+import worq.order.model.WorkType
+import worq.order.model.BillingStatus
+import worq.order.domain.BillingMinutes
 import worq.order.timer.DurationMath
+import worq.order.util.ClockTimeFormatter
 
 object ExportSchema {
-    const val VERSION = 2
+    const val VERSION = 4
 
     val headers: List<String> =
         listOf(
-            "Work Date",
-            "Client Name",
+            "Start date",
+            "End date",
+            "Consultant",
+            "Client",
             "Description",
-            "Hardware / Software Purchases",
-            "Interval Number",
-            "Start Local",
-            "Stop Local",
-            "Interval Duration Formatted",
-            "Task Total Duration Formatted",
+            "Expense",
+            "Work type",
+            "Billing Status",
+            "Mileage",
+            "Interval number",
+            "Start time",
+            "Stop time",
+            "Interval duration",
+            "Time spent",
+            "Billing minutes",
         )
 }
 
@@ -120,13 +130,19 @@ class ExportRowBuilder {
         val task = taskWithClient.task
         val client = taskWithClient.client
         val stop = interval?.stop
+        val exportDate = ExportValueFormatter.date(task.workDate)
         return ExportRow(
             values =
                 listOf(
-                    task.workDate.toString(),
+                    exportDate,
+                    exportDate,
+                    task.employeeNameSnapshot,
                     client.name,
                     task.description,
                     task.hardwareSoftwarePurchases,
+                    ExportValueFormatter.workType(task.workType),
+                    ExportValueFormatter.billingStatus(task.billingStatus),
+                    task.mileage.orEmpty(),
                     interval?.ordinal?.toString().orEmpty(),
                     interval?.start?.let {
                         ExportValueFormatter.localTime(it, task.zoneId)
@@ -136,18 +152,21 @@ class ExportRowBuilder {
                     }.orEmpty(),
                     intervalDuration?.let(ExportValueFormatter::duration).orEmpty(),
                     ExportValueFormatter.duration(taskTotal),
+                    BillingMinutes.fromDuration(taskTotal).toString(),
                 ),
         )
     }
 }
 
 object ExportValueFormatter {
-    private val localTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.ROOT)
+    private val dateFormatter = DateTimeFormatter.ofPattern("MM/dd/uuuu", Locale.ROOT)
+
+    fun date(date: LocalDate): String = dateFormatter.format(date)
 
     fun localTime(
         instant: Instant,
         zoneId: ZoneId,
-    ): String = localTimeFormatter.format(instant.atZone(zoneId))
+    ): String = ClockTimeFormatter.format(instant, zoneId)
 
     fun duration(duration: Duration): String {
         require(!duration.isNegative) { "Export duration must not be negative" }
@@ -163,4 +182,19 @@ object ExportValueFormatter {
             seconds,
         )
     }
+
+    fun workType(workType: WorkType): String =
+        when (workType) {
+            WorkType.ON_SITE -> "On-Site"
+            WorkType.IN_OFFICE -> "In-Office"
+            WorkType.UNSPECIFIED -> ""
+        }
+
+    fun billingStatus(billingStatus: BillingStatus?): String =
+        when (billingStatus) {
+            BillingStatus.BILLABLE -> "Billable"
+            BillingStatus.DO_NOT_BILL -> "Do not bill"
+            BillingStatus.DO_NOT_CHARGE -> "Do not charge"
+            null -> ""
+        }
 }

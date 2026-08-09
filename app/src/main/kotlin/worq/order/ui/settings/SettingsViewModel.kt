@@ -17,6 +17,7 @@ import worq.order.data.AppSettings
 import worq.order.data.ExportDestination
 import worq.order.data.GoogleConnectionRepository
 import worq.order.data.GoogleSpreadsheetConnection
+import worq.order.data.LandscapeHandedness
 import worq.order.data.SettingsRepository
 import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
@@ -25,6 +26,8 @@ import worq.order.timer.EffectiveZoneIdProvider
 import worq.order.timer.GeographicalZoneIds
 import worq.order.export.google.GoogleConnectionFailure
 import worq.order.export.google.GoogleConnectionOperationResult
+import worq.order.export.automatic.AutomaticGoogleExportController
+import worq.order.export.automatic.AutomaticGoogleExportSettingResult
 
 private data class SettingsEditorState(
     val isSaving: Boolean = false,
@@ -35,6 +38,8 @@ private data class SettingsEditorState(
     val googleOperationStatus: GoogleConnectionUiStatus? = null,
     val googleStatusOverride: GoogleConnectionUiStatus? = null,
     val googleMessage: GoogleSettingsMessage? = null,
+    val automaticGoogleExportEnablementError:
+        AutomaticGoogleExportEnablementError? = null,
 )
 
 class SettingsViewModel(
@@ -42,6 +47,7 @@ class SettingsViewModel(
     private val activeTimerRepository: ActiveTimerRepository,
     private val zoneIdProvider: EffectiveZoneIdProvider,
     private val googleConnectionRepository: GoogleConnectionRepository,
+    private val automaticGoogleExportManager: AutomaticGoogleExportController? = null,
 ) : ViewModel() {
     private val editorState = MutableStateFlow(SettingsEditorState())
     private val mutableEffects =
@@ -94,6 +100,8 @@ class SettingsViewModel(
                 }
             is SettingsEvent.SelectExportDestination ->
                 setExportDestination(event.destination)
+            is SettingsEvent.SelectLandscapeHandedness ->
+                setLandscapeHandedness(event.handedness)
             is SettingsEvent.EditSpreadsheetInput ->
                 editorState.update {
                     it.copy(
@@ -119,6 +127,23 @@ class SettingsViewModel(
                     status = GoogleConnectionUiStatus.SIGNING_OUT,
                     effect = SettingsEffect.SignOutOfGoogle,
                 )
+            is SettingsEvent.SetAutomaticGoogleExport ->
+                setAutomaticGoogleExport(event.enabled)
+            is SettingsEvent.NotificationPermissionResult ->
+                if (event.granted) setAutomaticGoogleExport(true) else {
+                    editorState.update {
+                        it.copy(
+                            automaticGoogleExportEnablementError =
+                                AutomaticGoogleExportEnablementError
+                                    .NOTIFICATION_PERMISSION_REQUIRED,
+                        )
+                    }
+                }
+            SettingsEvent.RetryAutomaticGoogleExport -> {
+                uiState.value.automaticGoogleTargetDate?.let { date ->
+                    mutableEffects.tryEmit(SettingsEffect.RetryAutomaticGoogleExport(date))
+                }
+            }
             SettingsEvent.DismissGoogleMessage ->
                 editorState.update {
                     it.copy(
@@ -132,6 +157,13 @@ class SettingsViewModel(
     }
 
     fun onGoogleOperationResult(result: GoogleConnectionOperationResult) {
+        if (
+            result == GoogleConnectionOperationResult.Disconnected ||
+            result == GoogleConnectionOperationResult.SignedOut ||
+            result == GoogleConnectionOperationResult.SignOutPartiallyCompleted
+        ) {
+            viewModelScope.launch { automaticGoogleExportManager?.setEnabled(false) }
+        }
         editorState.update { editor ->
             when (result) {
                 is GoogleConnectionOperationResult.SignedIn ->
@@ -204,6 +236,12 @@ class SettingsViewModel(
         }
     }
 
+    private fun setLandscapeHandedness(handedness: LandscapeHandedness) {
+        launchWrite {
+            settingsRepository.setLandscapeHandedness(handedness)
+        }
+    }
+
     private fun selectManualTimeZoneMode() {
         if (uiState.value.isTimerRunning) {
             showTimerRunningMessage()
@@ -245,6 +283,53 @@ class SettingsViewModel(
     private fun setExportDestination(destination: ExportDestination) {
         launchWrite {
             settingsRepository.setDefaultExportDestination(destination)
+            if (destination != ExportDestination.GOOGLE_SHEETS) {
+                automaticGoogleExportManager?.setEnabled(false)
+            }
+        }
+    }
+
+    private fun setAutomaticGoogleExport(enabled: Boolean) {
+        if (editorState.value.isSaving) return
+        viewModelScope.launch {
+            editorState.update {
+                it.copy(
+                    isSaving = true,
+                    automaticGoogleExportEnablementError = null,
+                )
+            }
+            val result =
+                runCatching {
+                    automaticGoogleExportManager?.setEnabled(enabled)
+                        ?: AutomaticGoogleExportSettingResult.Failed
+                }
+                    .getOrDefault(AutomaticGoogleExportSettingResult.Failed)
+            editorState.update { editor ->
+                editor.copy(
+                    isSaving = false,
+                    automaticGoogleExportEnablementError =
+                        when (result) {
+                            AutomaticGoogleExportSettingResult.SpreadsheetConnectionRequired ->
+                                AutomaticGoogleExportEnablementError
+                                    .SPREADSHEET_CONNECTION_REQUIRED
+                            AutomaticGoogleExportSettingResult.GoogleSheetsDestinationRequired ->
+                                AutomaticGoogleExportEnablementError
+                                    .GOOGLE_SHEETS_DESTINATION_REQUIRED
+                            AutomaticGoogleExportSettingResult.NotificationPermissionRequired -> {
+                                mutableEffects.tryEmit(SettingsEffect.RequestNotificationPermission)
+                                null
+                            }
+                            AutomaticGoogleExportSettingResult.NotificationSettingsRequired ->
+                                AutomaticGoogleExportEnablementError
+                                    .NOTIFICATION_PERMISSION_REQUIRED
+                            AutomaticGoogleExportSettingResult.Failed ->
+                                AutomaticGoogleExportEnablementError.LOCAL_SETTINGS_UNAVAILABLE
+                            AutomaticGoogleExportSettingResult.Enabled,
+                            AutomaticGoogleExportSettingResult.Disabled,
+                            -> null
+                        },
+                )
+            }
         }
     }
 
@@ -393,6 +478,7 @@ class SettingsViewModel(
             manualZoneId = manualZoneId,
             effectiveZoneId = effectiveZoneId,
             defaultExportDestination = defaultExportDestination,
+            landscapeHandedness = landscapeHandedness,
             isTimerRunning = isTimerRunning,
             isSaving = editor.isSaving,
             isZoneSelectorVisible = editor.isZoneSelectorVisible,
@@ -414,6 +500,11 @@ class SettingsViewModel(
             connectedSpreadsheetId = googleConnection.spreadsheetId,
             connectedSpreadsheetTitle = googleConnection.spreadsheetTitle,
             googleMessage = editor.googleMessage,
+            automaticGoogleExportEnabled = automaticGoogleExportEnabled,
+            automaticGoogleTargetDate = automaticGoogleTargetDate,
+            automaticGooglePendingReason = automaticGooglePendingReason,
+            automaticGoogleExportEnablementError =
+                editor.automaticGoogleExportEnablementError,
         )
 
     class Factory(
@@ -421,6 +512,7 @@ class SettingsViewModel(
         private val activeTimerRepository: ActiveTimerRepository,
         private val zoneIdProvider: EffectiveZoneIdProvider,
         private val googleConnectionRepository: GoogleConnectionRepository,
+        private val automaticGoogleExportManager: AutomaticGoogleExportController,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -430,6 +522,7 @@ class SettingsViewModel(
                 activeTimerRepository = activeTimerRepository,
                 zoneIdProvider = zoneIdProvider,
                 googleConnectionRepository = googleConnectionRepository,
+                automaticGoogleExportManager = automaticGoogleExportManager,
             ) as T
         }
     }

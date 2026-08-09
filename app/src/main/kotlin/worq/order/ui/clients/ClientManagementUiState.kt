@@ -1,5 +1,7 @@
 package worq.order.ui.clients
 
+import worq.order.domain.ClientCsvImportFailure
+
 data class ClientItemUi(
     val id: String,
     val name: String,
@@ -17,6 +19,18 @@ enum class ClientManagementMessage {
     RESTORE_NAME_CONFLICT,
 }
 
+data class ClientImportSummaryUi(
+    val addedCount: Int,
+    val restoredCount: Int,
+    val skippedCount: Int,
+)
+
+data class ClientImportFailureUi(
+    val failure: ClientCsvImportFailure,
+    val recordNumber: Int?,
+    val columnNumber: Int?,
+)
+
 data class ClientManagementUiState(
     val isLoading: Boolean = true,
     val hasLoadError: Boolean = false,
@@ -27,6 +41,9 @@ data class ClientManagementUiState(
     val restoreOffer: ArchivedClientRestoreOffer? = null,
     val pendingClientId: String? = null,
     val message: ClientManagementMessage? = null,
+    val isImporting: Boolean = false,
+    val importSummary: ClientImportSummaryUi? = null,
+    val importFailure: ClientImportFailureUi? = null,
 )
 
 sealed interface ClientManagementEvent {
@@ -63,4 +80,10 @@ sealed interface ClientManagementEvent {
     data object DismissRestoreOffer : ClientManagementEvent
 
     data object DismissMessage : ClientManagementEvent
+
+    data class ImportCsvDocumentSelected(
+        val documentUri: String?,
+    ) : ClientManagementEvent
+
+    data object DismissImportStatus : ClientManagementEvent
 }

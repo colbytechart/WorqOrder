@@ -116,35 +116,51 @@ internal object GoogleSheetsExportPlanner {
         if (markerValues != listOf(APPLICATION_MARKER_VALUE)) {
             return GoogleSheetsPlanResult.TabNameConflict(tabName)
         }
-        val schemaValues =
-            metadata
-                .filter { it.key == SCHEMA_VERSION_KEY }
-                .map { it.value }
+        val schemaEntries = metadata.filter { it.key == SCHEMA_VERSION_KEY }
         val dateValues =
             metadata
                 .filter { it.key == WORK_DATE_KEY }
                 .map { it.value }
         if (
-            schemaValues != listOf(snapshot.schemaVersion.toString()) ||
-            dateValues != listOf(snapshot.workDate.toString())
+            schemaEntries.size != 1 || dateValues != listOf(snapshot.workDate.toString())
         ) {
             return GoogleSheetsPlanResult.SchemaConflict(tabName)
         }
+        val schemaEntry = schemaEntries.single()
+        val schemaUpgradeRequest =
+            when (schemaEntry.value) {
+                snapshot.schemaVersion.toString() -> null
+                in LEGACY_SCHEMA_VERSIONS -> {
+                    val metadataId =
+                        schemaEntry.metadataId
+                            ?: return GoogleSheetsPlanResult.SchemaConflict(tabName)
+                    GoogleSheetsBatchRequest.UpdateSheetMetadataValue(
+                        metadataId = metadataId,
+                        value = snapshot.schemaVersion.toString(),
+                    )
+                }
+                else -> return GoogleSheetsPlanResult.SchemaConflict(tabName)
+            }
         return GoogleSheetsPlanResult.Ready(
             GoogleSheetsBatchPlan(
                 tabName = tabName,
                 requests =
-                    listOf(
-                        GoogleSheetsBatchRequest.ResizeSheet(
-                            sheetId = existing.sheetId,
-                            rowCount = requiredRows,
-                            columnCount = ExportSchema.headers.size,
-                        ),
-                        GoogleSheetsBatchRequest.ReplaceCells(
-                            sheetId = existing.sheetId,
-                            rows = rows,
-                        ),
-                    ),
+                    buildList {
+                        schemaUpgradeRequest?.let(::add)
+                        add(
+                            GoogleSheetsBatchRequest.ResizeSheet(
+                                sheetId = existing.sheetId,
+                                rowCount = requiredRows,
+                                columnCount = ExportSchema.headers.size,
+                            ),
+                        )
+                        add(
+                            GoogleSheetsBatchRequest.ReplaceCells(
+                                sheetId = existing.sheetId,
+                                rows = rows,
+                            ),
+                        )
+                    },
             ),
         )
     }
@@ -162,4 +178,6 @@ internal object GoogleSheetsExportPlanner {
         }
         return candidate
     }
+
+    private val LEGACY_SCHEMA_VERSIONS = setOf("2", "3")
 }

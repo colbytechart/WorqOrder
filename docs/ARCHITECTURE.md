@@ -73,30 +73,39 @@ export                 export row model/builder and orchestration
 export.csv             serializer and document destination
 export.xlsx            focused OOXML workbook writer and document destination
 export.google          authorization and Sheets gateway
-security               reserved for separately authorized optional Milestone 19
+security               reserved for separately authorized optional Milestone E
+ui.employees           employee directory and current-assignment settings
+import.csv             bounded client-name CSV parser and document input adapter
+automation             captured-date Google scheduling/pending-state coordination
+notification           lock-screen/pending-export presentation adapters after approval
 model                   UI/domain models that are not persistence entities
 util                    narrow formatting/parsing helpers
 ```
+
+### Client CSV import boundary (`0.2.0` Milestone 20)
+
+Client Management launches Android `OpenDocument` with only the approved CSV MIME types. The
+Android document source verifies both the provider-reported display-name extension and MIME type,
+then performs a bounded one-shot read on `Dispatchers.IO`; it neither copies nor retains the file
+and does not persist URI access. `ClientCsvParser` strictly decodes UTF-8 and creates positioned
+cells while enforcing the documented byte/record/cell limits. `ClientCsvImportCoordinator` reuses
+`ClientNameNormalizer`, ignores blank cells, rejects the entire plan on any invalid name, and
+collapses canonical duplicates before persistence. `RoomClientImportRepository` delegates once to
+the `ClientDao` transaction, which skips active matches, restores archived matches, and inserts new
+rows atomically. Existing task and interval repositories are not part of this path.
 
 Do not add one “use case” class per repository getter. Add named domain services where multiple entities, clocks, transactions, or invariants are involved.
 
 ## 4. Application container
 
-`WorqOrderApplication` owns one lazily constructed application-scoped container. As of Milestone
-13, the container constructs one retained `WorqOrderDatabase`, Room-backed client/task/active-timer
-repositories, typed settings and selection Preferences DataStore repositories, UTC/device/manual-zone/elapsed
-realtime adapters, one shared timer-operation mutex, one process-local live timer session,
-`SelectionCoordinator`, `TimerCoordinator`, `ActiveTimerNormalizer`,
-`TimerRecoveryCoordinator`, and
-`TaskMutationCoordinator`.
-
-Later milestones extend the same boundary with:
-
-- destination-neutral export snapshot coordinator/row builder and CSV serializer;
-- document-output adapter;
-- Google authorization coordinator and `GoogleSheetsGateway`; and
-- focused XLSX writer; and
-- dispatcher provider where tests require deterministic dispatchers.
+`WorqOrderApplication` owns one lazily constructed application-scoped container. The completed
+`0.2.0` container constructs one retained `WorqOrderDatabase`; Room-backed client, Consultant,
+task, and active-timer repositories; typed settings, selection, Google-connection, and
+notification-dismissal DataStore repositories; UTC/device-zone/elapsed-realtime adapters; one
+shared timer-operation mutex; one process-local live timer session; selection, task mutation,
+timer normalization/recovery, and notification coordinators; one canonical export snapshot
+pipeline; CSV/XLSX document adapters; Google authorization/Sheets gateways; and the opt-in
+automatic-Google-export manager and WorkManager scheduler.
 
 ViewModel factories request only their direct dependencies. Android framework types stay in adapters/gateways, not pure domain services. A DI framework is not planned; reconsider only if container wiring becomes demonstrably unsafe or unmaintainable.
 
@@ -181,7 +190,8 @@ DAO and canonical export ordering remain independently stable.
   under the timer-operation lock, normalizes crossed boundaries, reads the transactional Room
   snapshot, and returns the one immutable destination-neutral dataset. Main permits this workflow
   only when Room-derived active state is loaded and empty.
-- `ExportRowBuilder`: owns schema version 2, the exact nine visible columns, task-zone `HH:mm`,
+- `ExportRowBuilder`: owns schema version 4 in `0.2.0`, the exact 15 visible columns, duplicated
+  `MM/DD/YYYY` Start/End dates, task-zone export `hh:mm a`,
   accumulated `HH:MM:SS`, zero-interval rows, and deterministic internal-key sorting.
 - `CsvExportCoordinator`: consumes the prepared snapshot and only serializes/packages the pending
   UTF-8 CSV before the picker opens.
@@ -255,7 +265,7 @@ does not contain task rows, active-timer state, passwords, service-account mater
 tokens, or refresh tokens.
 
 The required production sequence uses ordinary app-private Preferences DataStore files protected
-by Android's application sandbox. Separately authorized optional Milestone 19 may add
+by Android's application sandbox. Separately authorized optional Milestone E may add
 Keystore-backed at-rest protection while preserving these typed repository APIs; ViewModels and
 composables must never handle raw keys or cryptographic payloads.
 
@@ -273,7 +283,8 @@ Milestone 12 adds a one-off XLSX document boundary:
 - Compose launches `ActivityResultContracts.CreateDocument` with the official XLSX MIME type for
   every export; no storage permission or retained URI grant is requested.
 - A focused internal OOXML writer packages the already-canonical snapshot into one new workbook
-  containing one `WorqOrder_YYYY-MM-DD` worksheet and the exact shared nine-column table.
+  containing one `WorqOrder_YYYY-MM-DD` worksheet and the exact shared canonical table (15 columns
+  beginning with schema version 4 after Billing Status is added in `0.2.0`).
 - The writer never opens or modifies an existing workbook, writes formulas, or stages plaintext
   on app-private disk. Cancellation occurs before output; a failed write uses the same best-effort
   partial-document cleanup boundary as CSV.
@@ -286,7 +297,7 @@ CSV and XLSX files are unencrypted external artifacts once handed to the user-se
 
 The current production plan does not implement WorqOrder-managed at-rest encryption for Room or
 DataStore and must not claim that it does. Android's application sandbox is the present local
-access boundary. Optional Milestone 19 retains this separately authorized design:
+access boundary. Optional Milestone E retains this separately authorized design:
 
 - non-exportable Android Keystore material anchors versioned, purpose-bound encryption keys;
 - authenticated encryption protects sensitive app-private Room/DataStore data at rest, including
@@ -307,7 +318,7 @@ that proof. No login, biometric, app PIN, or account gate is implied by optional
 
 User-directed CSV/XLSX files and readable Google Sheets cells are plaintext external copies.
 Google traffic uses TLS and Google-managed authorization, but readable Sheets export is not
-end-to-end encrypted by WorqOrder. Optional Milestone 19 would not extend local encryption to
+end-to-end encrypted by WorqOrder. Optional Milestone E would not extend local encryption to
 those exports.
 
 ## 10. Google boundary
@@ -334,9 +345,11 @@ Google support is a replaceable gateway outside the offline core.
   plan to one atomic batch, while `RestGoogleSheetsGateway` performs the narrow structure read and
   confirmed write. No class outside the shared snapshot builder selects or formats exported
   fields.
-- Google calls are explicit user actions, use bounded/no automatic retry, and stay within the
-  no-cost standard tier. Do not attach billing, request a paid quota increase, or implement a path
-  that can generate charges. Quota exhaustion is a safe failure and CSV remains available.
+- Released `0.1.0` Google calls are explicit user actions. Version `0.2.0` adds only the opt-in,
+  captured-date automatic operation described in sections 14–15; it is bounded and uses no
+  unapproved retry loop. All calls stay within the no-cost standard tier. Do not attach billing,
+  request a paid quota increase, or implement a path that can generate charges. Quota exhaustion
+  is a safe failure and CSV remains available.
 - The supported distribution is an owner-signed APK delivered from GitHub. Debug and
   direct-release OAuth identities bind to the exact package/signing SHA-1 that produces each
   artifact.
@@ -369,10 +382,10 @@ broaden scope or enable billing—stop and revisit the Google feature.
 - No storage permission is expected under the selected SAF/scoped approach.
 - CSV and XLSX are explicitly unencrypted user-selected external files. Readable Google Sheets
   cells rely on Google account/access controls and are not app-level end-to-end encrypted.
-- Optional user-presence/app-access gating is isolated to post-project Milestone 18 and requires a
+- Optional user-presence/app-access gating is isolated to optional Milestone E and requires a
   new explicit owner authorization.
-- Optional app-private at-rest encryption is isolated to post-project Milestone 19, after
-  Milestone 18, and also requires new explicit owner authorization.
+- Optional app-private at-rest encryption is isolated to optional Milestone E and also requires
+  new explicit owner authorization.
 
 ## 12. Dependency policy
 
@@ -380,7 +393,7 @@ The implementation dependency set should remain limited to Android/Jetpack Compo
 lifecycle/navigation, coroutines, Room, DataStore, test libraries, the smallest stable Google
 identity/Sheets stack that satisfies the gateway, and the focused XLSX implementation proven in
 its owning milestone gate. Encryption components are not production dependencies unless optional
-Milestone 19 is authorized. Avoid Apache POI, broad Excel stacks, redundant cryptography
+Milestone E is authorized. Avoid Apache POI, broad Excel stacks, redundant cryptography
 frameworks, date libraries, DI frameworks, Firebase BOM, reflection-heavy mapping layers, and
 general-purpose networking stacks unless a separately approved decision demonstrates the need.
 
@@ -396,36 +409,112 @@ All versions live in the version catalog. Renovation is a separate reviewed chan
 - ViewModel tests combine fake repositories/gateways and deterministic time.
 - Compose UI tests cover the main workflows, disabled states, confirmation, settings, picker/authorization launch effects, and accessibility semantics.
 - Fake `Clock`, monotonic source, zone provider, document destination, and Google gateway are first-class test fixtures.
-- If optional Milestone 19 is authorized, its instrumentation adds populated migration, key
+- If optional Milestone E is authorized, its instrumentation adds populated migration, key
   lifecycle/failure, DB/WAL/SHM/DataStore plaintext-canary scans, backup configuration, and
   performance/regression fixtures.
 
 ## 14. Operational behavior
 
-Core failures are represented in UI state and remain retryable. Last export outcome stores destination, displayed date, time, and a safe error category/detail. There is no background auto-sync or scheduled export. `MainActivity.onResume` invokes the application-scoped timer recovery coordinator even when Main is not visible; Main initialization/resume, date-change detection, and rule-sensitive operations provide idempotent retries. No boot receiver, alarm, wake lock, WorkManager stopwatch job, or foreground timer service exists.
+Core failures are represented in UI state and remain retryable. Last export outcome stores
+destination, displayed date, time, and a safe error category/detail. `MainActivity.onResume`
+invokes the application-scoped timer recovery coordinator even when Main is not visible; Main
+initialization/resume, date-change detection, and rule-sensitive operations provide idempotent
+retries. The only application-owned boot receiver is the non-exported, one-shot post-unlock
+running-notification recovery receiver. It performs no ticking. No application-owned wake lock,
+stopwatch WorkManager job, exact alarm, or foreground timer service exists.
 
-## 15. Optional Milestone 18 architecture boundaries
+Version `0.2.0` includes one narrowly scoped, opt-in Android background schedule for Google Sheets.
+The selected adapter uses stable
+WorkManager `2.11.2`: one uniquely named, non-expedited, network-constrained one-time request per
+captured target, recalculated for each geographical-zone date rather than a fixed 24-hour periodic
+request. It captures the oldest unresolved target epoch day, ZoneId, and connection association,
+so an inexact execution after midnight still exports the preceding intended date. The adapter
+never owns task rows or tokens and advances missed dates one bounded worker at a time.
 
-No item in this section exists in the `0.1.0` production implementation.
+It invokes the same `ExportSnapshotCoordinator` and Google replacement pipeline as manual export.
+CSV/XLSX remain manual. If Room reports an active timer, Google returns an authorization
+resolution, or a safe terminal operation failure occurs, the coordinator retains typed pending
+state rather than exporting/retrying and asks the API-26+ notification adapter to expose a
+content-free action. API-33+ enablement requires `POST_NOTIFICATIONS`. WorkManager may contribute
+its internal normal scheduling permissions/components and bounded execution wake locks; the app
+does not implement its own receiver/wake lock, exact alarm, foreground service, or background tick.
+No Play Store/App Signing/Console release path is introduced.
 
+## 15. v0.2.0 architecture boundaries
+
+No item in this section describes released `0.1.0` behavior until its owning v0.2 milestone lands.
+
+- Add `EmployeeRepository` and Room-backed active/archive operations, exposed to users as
+  **Consultant** management. `DailyTask` stores both the
+  optional employee relationship and assignment-time name snapshot. Directory changes never
+  cascade text changes into historical tasks.
+- Milestone 21 adds `ConsultantSelectionCoordinator` between the Consultant Settings ViewModel,
+  `EmployeeRepository`, and typed `SettingsRepository`. It validates persisted selections against
+  active Room rows, clears stale/archived selections, and clears the current selection after a
+  selected Consultant is archived. Create Task observes this coordinated state, blocks with a
+  Settings route when none is valid, and supplies the selected Employee ID to the Room transaction.
+  The transaction rechecks the Employee is active and captures its current name into the daily-task
+  snapshot, preventing a stale UI selection or concurrent archive from creating a bad assignment.
+- Milestone 23 separates presentation without splitting state authority: standalone Client and
+  Consultant Management rows are first and second in Settings, followed by bare Consultant
+  selection/guidance. The `settings/consultants` Compose Navigation destination
+  renders Add/Rename/Archive/Restore through the same `ConsultantSettingsViewModel`, coordinator,
+  repositories, and validation rules. Returning to Settings observes the same Room/DataStore state.
+  Time-zone UI and its selector dialog are not composed, but their ViewModel/repository/provider
+  implementation remains intact; typed settings still default missing/corrupt mode to device zone.
+- Add a bounded `ClientCsvImportParser` and `ClientImportCoordinator`. Android document access is
+  isolated behind a read-only input adapter; parsing is pure, and one repository transaction
+  appends/restores normalized names without replacing existing clients. Final active observation
+  remains A–Z.
+- Milestone 22 extends shared task metadata validation with Work Type and canonical decimal
+  Mileage. Milestone 27 adds nullable Billing Status with a Billable new-task default and blank
+  migrated history. `TaskMutationCoordinator` passes the complete normalized edit into one Room repository
+  transaction, where both Client and Consultant are rechecked as active and the Consultant name
+  snapshot is captured before the stopped task is updated. Create Task requires the coordinated
+  active Consultant and defaults Work Type to On-Site. `BillingMinutes` remains pure derived logic;
+  Edit Task recalculates it from observed exact interval totals and never persists or ticks it.
+- `ExportRowBuilder` is the only schema-4 field-selection/formatting boundary. All destinations
+  receive the same 15 strings and keep exact internal instants outside the projection.
 - Extend the typed settings model with `LandscapeOrientation.RIGHT_HANDED` and
   `LandscapeOrientation.LEFT_HANDED`; the repository owns serialization, default/fallback, and
   Flow observation. Composables never read preference keys directly.
 - Keep portrait Main on its production layout. A window-aware landscape root chooses one
-  two-column composition and mirrors column placement from the typed preference. The task
-  `LazyColumn` retains stable keys and independent state; the controls column owns exactly four
-  stacked regions and consumes the same immutable Main state/events as portrait.
-- About reads the build version from generated build configuration and constructs a fixed-origin,
-  version-tagged GitHub Release URI through one tested helper. It launches an external view intent;
-  no repository/network gateway or credential is added.
-- Reuse one presentation formatter for task-zone `HH:mm` Start/Stop values wherever practical.
-  Export schema/model selection remains centralized in `ExportRowBuilder`, and persistence models
-  retain exact instants.
-- Put any running-timer lock-screen integration behind an interface owned by the application/timer
-  coordination boundary. It observes authoritative active-timer identity and never becomes timer
+  approximately equal two-column composition and mirrors column placement from the typed
+  preference. In Right-handed mode the independently scrolling task `LazyColumn` fills the left
+  column down to the shared action bottom margin and retains its attached right-edge scrollbar.
+  A spanning top bar keeps WorqOrder at the far left and Settings at the far right. Below it, the
+  control column owns timer, date, and Export/Add regions. Left-handed mirrors the two content
+  columns without moving the global bar, reversing task order, or changing accessibility meaning.
+- About reads generated version/stability metadata and renders only
+  `WorqOrder v{versionName} - stable`; it creates no external intent or repository link.
+- Reuse one presentation formatter for task-zone `hh:mm a` Start/Stop values in interval cards and
+  canonical export. Persistence/editing models retain exact instants and DST occurrence details.
+- Put any running-timer lock-screen integration behind an interface owned by application/timer
+  coordination. It observes authoritative active-timer identity and never becomes timer
   authority. Dismissal state is scoped to the active interval ID.
-- Research official current Android behavior before choosing a notification/AppWidget mechanism.
-  Prefer system-rendered elapsed-time capability so the app does not schedule ticks. Do not add a
-  foreground service, wake lock, alarm, or WorkManager loop solely to maintain the lock-screen
-  surface. Treat notification permission, channel, lock-screen privacy, OEM suppression, process
-  death, and reboot as explicit states rather than claiming guaranteed visibility.
+- Milestone 27 recommends a standard, silent, non-ongoing `NotificationCompat` notification and
+  system-rendered chronometer; see `LOCK_SCREEN_SURFACE_ADR.md`. A dedicated low-importance channel
+  owns sound/vibration/badge behavior. Full content is private and contains WorqOrder identity,
+  Client, task Description, and accumulated elapsed total; a public version redacts both Client and
+  Description and leaves the supporting line blank.
+- A notification `deleteIntent` writes only the dismissed active interval ID to typed Preferences
+  DataStore. Start/Stop/recovery coordinators reconcile notification state with Room. A one-shot
+  post-unlock `BOOT_COMPLETED` receiver may recover an eligible surface after reboot; it does not
+  introduce direct-boot data duplication or continuous work. Do not add a foreground service, wake
+  lock, alarm, custom `RemoteViews`, or WorkManager loop solely to maintain the surface. Permission,
+  channel, lock-screen privacy, OEM suppression, process death, reboot, force-stop, and swipe
+  dismissal remain explicit presentation states. Milestone 28 implements this boundary through
+  `RunningTimerNotificationCoordinator`, `AndroidRunningTimerNotificationGateway`, one typed
+  DataStore dismissal repository, and two non-exported broadcast receivers. Room remains the only
+  timer authority. Activity window-focus recovery requests reconciliation after returning from
+  system permission settings without polling. Android retains control of compact chronometer
+  placement; WorqOrder is the title and Client plus Description form the private supporting line.
+  Its final focused automated and manual Milestone 28 verification passed.
+
+## 16. Optional Milestone E boundary
+
+Milestone E is an unscheduled, release-agnostic backburner item outside every release scope until
+the owner explicitly assigns it. It alone owns optional local at-rest encryption, application locking through an approved
+biometric/device-credential/PIN design, and screenshot/Recents privacy options. These concerns
+remain adapters around current repository/navigation boundaries, require separate explicit owner
+authorization, and may not be inferred from ordinary security or release work.

@@ -2,6 +2,7 @@ package worq.order.ui.main
 
 import java.time.LocalDate
 import worq.order.data.ExportDestination
+import worq.order.data.LandscapeHandedness
 
 enum class MainTimerAction {
     START,
@@ -59,6 +60,8 @@ enum class MainMessage {
     DATA_UNAVAILABLE,
     TASK_NOT_FOUND,
     RUNNING_TASK_LOCKED,
+    TIMER_NOTIFICATION_PERMISSION_REQUIRED,
+    TIMER_NOTIFICATION_SETTINGS_REQUIRED,
 }
 
 data class MainTaskItemUi(
@@ -99,6 +102,8 @@ data class MainUiState(
     val taskPendingDeletion: MainTaskItemUi? = null,
     val canExport: Boolean = false,
     val exportDestination: ExportDestination = ExportDestination.CSV,
+    val landscapeHandedness: LandscapeHandedness =
+        LandscapeHandedness.RIGHT_HANDED,
     val googleExportState: MainGoogleExportState =
         MainGoogleExportState.SETUP_REQUIRED,
     val exportProgress: MainExportProgress? = null,
@@ -174,6 +179,10 @@ sealed interface MainEvent {
     data object RetryData : MainEvent
 
     data object LifecycleResumed : MainEvent
+
+    data class RunningTimerNotificationPermissionResult(
+        val granted: Boolean,
+    ) : MainEvent
 }
 
 sealed interface MainEffect {
@@ -200,4 +209,6 @@ sealed interface MainEffect {
     data class NavigateToEditTask(
         val taskId: String,
     ) : MainEffect
+
+    data object RequestRunningTimerNotificationPermission : MainEffect
 }

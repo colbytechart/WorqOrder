@@ -13,6 +13,8 @@ import worq.order.data.TaskRepository
 import worq.order.data.UpdateTaskMetadataResult
 import worq.order.model.DailyTask
 import worq.order.model.WorkInterval
+import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 import worq.order.timer.CurrentDateProvider
 import worq.order.timer.EffectiveZoneIdProvider
 
@@ -27,6 +29,8 @@ sealed interface CreateTaskOperationResult {
     ) : CreateTaskOperationResult
 
     data object ClientUnavailable : CreateTaskOperationResult
+
+    data object ConsultantUnavailable : CreateTaskOperationResult
 }
 
 sealed interface UpdateTaskOperationResult {
@@ -41,6 +45,8 @@ sealed interface UpdateTaskOperationResult {
     data object TaskNotFound : UpdateTaskOperationResult
 
     data object ClientUnavailable : UpdateTaskOperationResult
+
+    data object ConsultantUnavailable : UpdateTaskOperationResult
 
     data object RunningTask : UpdateTaskOperationResult
 }
@@ -86,14 +92,24 @@ class TaskMutationCoordinator(
         description: String,
         hardwareSoftwarePurchases: String,
         workDate: LocalDate,
+        employeeId: String?,
+        workType: WorkType = WorkType.ON_SITE,
+        billingStatus: BillingStatus = BillingStatus.BILLABLE,
+        mileage: String? = null,
     ): CreateTaskOperationResult {
         zoneIdProvider.awaitZoneId()
+        if (employeeId.isNullOrBlank()) {
+            return CreateTaskOperationResult.ConsultantUnavailable
+        }
         val metadata =
             when (
                 val validation =
                     TaskMetadataValidator.validate(
                         description = description,
                         hardwareSoftwarePurchases = hardwareSoftwarePurchases,
+                        workType = workType,
+                        billingStatus = billingStatus,
+                        mileage = mileage,
                     )
             ) {
                 is TaskMetadataValidationResult.Valid -> validation.metadata
@@ -109,6 +125,10 @@ class TaskMutationCoordinator(
                             description = metadata.description,
                             hardwareSoftwarePurchases =
                                 metadata.hardwareSoftwarePurchases,
+                            employeeId = employeeId,
+                            workType = metadata.workType,
+                            billingStatus = metadata.billingStatus,
+                            mileage = metadata.mileage,
                             workDate = workDate,
                             zoneId = zoneIdProvider.zoneId(),
                         ),
@@ -117,6 +137,8 @@ class TaskMutationCoordinator(
                 is CreateDailyTaskResult.Created -> result.task
                 CreateDailyTaskResult.ClientUnavailable ->
                     return CreateTaskOperationResult.ClientUnavailable
+                CreateDailyTaskResult.EmployeeUnavailable ->
+                    return CreateTaskOperationResult.ConsultantUnavailable
             }
         val selected =
             if (created.workDate == currentDateProvider.today()) {
@@ -135,6 +157,10 @@ class TaskMutationCoordinator(
         clientId: String,
         description: String,
         hardwareSoftwarePurchases: String,
+        employeeId: String? = null,
+        workType: WorkType = WorkType.UNSPECIFIED,
+        billingStatus: BillingStatus? = null,
+        mileage: String? = null,
     ): UpdateTaskOperationResult {
         val metadata =
             when (
@@ -142,6 +168,9 @@ class TaskMutationCoordinator(
                     TaskMetadataValidator.validate(
                         description = description,
                         hardwareSoftwarePurchases = hardwareSoftwarePurchases,
+                        workType = workType,
+                        billingStatus = billingStatus,
+                        mileage = mileage,
                     )
             ) {
                 is TaskMetadataValidationResult.Valid -> validation.metadata
@@ -155,6 +184,10 @@ class TaskMutationCoordinator(
                     clientId = clientId,
                     description = metadata.description,
                     hardwareSoftwarePurchases = metadata.hardwareSoftwarePurchases,
+                    employeeId = employeeId,
+                    workType = metadata.workType,
+                    billingStatus = metadata.billingStatus,
+                    mileage = metadata.mileage,
                 )
         ) {
             is UpdateTaskMetadataResult.Updated ->
@@ -163,6 +196,8 @@ class TaskMutationCoordinator(
                 UpdateTaskOperationResult.TaskNotFound
             UpdateTaskMetadataResult.ClientUnavailable ->
                 UpdateTaskOperationResult.ClientUnavailable
+            UpdateTaskMetadataResult.EmployeeUnavailable ->
+                UpdateTaskOperationResult.ConsultantUnavailable
             UpdateTaskMetadataResult.RunningTask ->
                 UpdateTaskOperationResult.RunningTask
         }

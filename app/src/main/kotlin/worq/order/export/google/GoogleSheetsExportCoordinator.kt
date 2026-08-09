@@ -2,6 +2,8 @@ package worq.order.export.google
 
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import worq.order.data.GoogleConnectionRepository
 import worq.order.export.ExportSnapshotProvider
 import worq.order.export.PrepareExportSnapshotResult
@@ -11,8 +13,12 @@ class GoogleSheetsExportCoordinator(
     private val gateway: GoogleSheetsExportGateway,
     private val connectionRepository: GoogleConnectionRepository,
     private val snapshotProvider: ExportSnapshotProvider,
+    private val operationMutex: Mutex = Mutex(),
 ) {
-    suspend fun export(workDate: LocalDate): GoogleSheetsExportOperationResult {
+    suspend fun export(workDate: LocalDate): GoogleSheetsExportOperationResult =
+        operationMutex.withLock { exportLocked(workDate) }
+
+    private suspend fun exportLocked(workDate: LocalDate): GoogleSheetsExportOperationResult {
         val connection =
             localResult { connectionRepository.readConnection() }
                 .getOrElse {

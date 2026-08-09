@@ -3,6 +3,17 @@ package worq.order.data.local
 import androidx.room.ColumnInfo
 import androidx.room.Embedded
 
+enum class TaskCreationWriteStatus {
+    CREATED,
+    CLIENT_UNAVAILABLE,
+    EMPLOYEE_UNAVAILABLE,
+}
+
+data class TaskCreationEntityResult(
+    val status: TaskCreationWriteStatus,
+    val task: DailyTaskEntity? = null,
+)
+
 data class TaskWithClientEntity(
     @Embedded
     val task: DailyTaskEntity,
@@ -53,6 +64,7 @@ enum class TaskMetadataWriteStatus {
     UPDATED,
     TASK_NOT_FOUND,
     CLIENT_UNAVAILABLE,
+    EMPLOYEE_UNAVAILABLE,
     RUNNING_TASK,
 }
 

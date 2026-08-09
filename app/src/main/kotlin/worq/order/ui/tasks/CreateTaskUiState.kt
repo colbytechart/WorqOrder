@@ -5,6 +5,8 @@ import worq.order.data.TaskMetadataValidationError
 import worq.order.ui.clients.ArchivedClientRestoreOffer
 import worq.order.ui.clients.ClientEditorUiState
 import worq.order.ui.clients.ClientItemUi
+import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 
 enum class CreateTaskMessage {
     DATA_UNAVAILABLE,
@@ -12,6 +14,8 @@ enum class CreateTaskMessage {
     RESTORE_NAME_CONFLICT,
     CLIENT_REQUIRED,
     CLIENT_ARCHIVED,
+    CONSULTANT_REQUIRED,
+    CONSULTANT_ARCHIVED,
 }
 
 data class CreateTaskUiState(
@@ -20,8 +24,15 @@ data class CreateTaskUiState(
     val hasClientLoadError: Boolean = false,
     val activeClients: List<ClientItemUi> = emptyList(),
     val selectedClientId: String? = null,
+    val isLoadingConsultant: Boolean = true,
+    val hasConsultantLoadError: Boolean = false,
+    val selectedConsultantId: String? = null,
+    val selectedConsultantName: String? = null,
     val description: String = "",
     val hardwareSoftwarePurchases: String = "",
+    val workType: WorkType = WorkType.ON_SITE,
+    val billingStatus: BillingStatus = BillingStatus.BILLABLE,
+    val mileage: String = "",
     val metadataErrors: Set<TaskMetadataValidationError> = emptySet(),
     val isSavingTask: Boolean = false,
     val hasUnsavedTaskChanges: Boolean = false,
@@ -54,6 +65,18 @@ sealed interface CreateTaskEvent {
         val value: String,
     ) : CreateTaskEvent
 
+    data class SelectWorkType(
+        val workType: WorkType,
+    ) : CreateTaskEvent
+
+    data class SelectBillingStatus(
+        val billingStatus: BillingStatus,
+    ) : CreateTaskEvent
+
+    data class EditMileage(
+        val value: String,
+    ) : CreateTaskEvent
+
     data object CreateTask : CreateTaskEvent
 
     data object RequestClose : CreateTaskEvent
@@ -63,6 +86,8 @@ sealed interface CreateTaskEvent {
     data object DismissDiscard : CreateTaskEvent
 
     data object OpenAddClient : CreateTaskEvent
+
+    data object OpenConsultantSettings : CreateTaskEvent
 
     data class EditNewClientName(
         val name: String,
@@ -81,4 +106,6 @@ sealed interface CreateTaskEvent {
 
 sealed interface CreateTaskEffect {
     data object NavigateBack : CreateTaskEffect
+
+    data object NavigateToSettings : CreateTaskEffect
 }

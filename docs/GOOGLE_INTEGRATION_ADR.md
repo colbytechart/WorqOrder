@@ -1,8 +1,8 @@
 # ADR: Google Identity, Authorization, Picker, and Sheets Access
 
-Status: accepted for Milestones 10 and 11
+Status: accepted for Milestones 10, 11, and the Milestone 25 automatic-export design
 Decision date: 2026-07-26
-Official guidance reviewed: 2026-07-26
+Official guidance reviewed: 2026-08-05
 
 ## 1. Context
 
@@ -517,6 +517,148 @@ export safely while retaining CSV until the owner revisits the decision.
 - [Google ID SDK release notes](https://developers.google.com/identity/android-credential-manager/releases)
 - [Google Play services release notes](https://developers.google.com/android/guides/releases)
 - [AuthorizationClient reference](https://developers.google.com/android/reference/com/google/android/gms/auth/api/identity/AuthorizationClient)
+
+## 16. `0.2.0` automatic-export research addendum
+
+The owner approved an opt-in Google-Sheets-only automatic daily export. CSV and XLSX remain manual.
+The job captures an intended work date/ZoneId near 11:59 PM and may execute shortly after midnight
+while still exporting that captured prior date. It uses the same `drive.file` grant, connected
+spreadsheet, current canonical schema-4 snapshot, and marked-tab replacement as manual export. It never
+stores a raw access/refresh token.
+
+Milestone 25 rechecked current official Android and Google documentation on 2026-08-05 and selects
+the following design for owner approval. This section is design authority for Milestone 26; it does
+not mean scheduling has been implemented.
+
+### 16.1 Scheduler selection
+
+Use stable AndroidX WorkManager `2.11.2` with a non-expedited `CoroutineWorker` and
+`NetworkType.CONNECTED`. Enqueue one uniquely named `OneTimeWorkRequest` with a calculated initial
+delay to the next effective-zone near-end-of-day target. Do not use a 24-hour
+`PeriodicWorkRequest`: periodic timing is inexact and a fixed interval drifts across daylight-saving
+and manual/device-zone changes. After one captured target reaches a terminal state, calculate the
+next target from geographical `ZoneId` rules and enqueue another unique one-time request.
+
+WorkManager is the official persistent-work recommendation, stores its schedule durably, restores
+it across app restarts and device reboot, and honors Doze. Its delay is a minimum, not an exact
+wall-clock appointment. A run may therefore occur after midnight; the worker must use its durable
+captured epoch day and ZoneId rather than recomputing `today` when it starts.
+
+Use one stable unique-work name and `ExistingWorkPolicy.REPLACE` only for an explicit schedule
+reconciliation (enable, disable, destination/connection change, or a newer not-yet-pending target).
+Never replace an older unresolved pending target. Manual and automatic Google writes must share one
+application export mutex/coordinator and the same marker-checked batch replacement, so races
+converge without duplicate rows.
+
+Do not use AlarmManager, an exact-alarm permission, expedited work, a foreground service, an
+application-owned boot receiver, or application-owned wake locks. WorkManager itself contributes
+its normal internal network/reboot/wake-lock manifest support and acquires a bounded system/library
+wake lock only while a worker executes; Milestone 26 must inspect and document the merged manifest.
+This is background-export infrastructure, never a stopwatch tick mechanism.
+
+### 16.2 Durable target and backlog rule
+
+The stored automatic-export state represents the oldest unresolved target and includes:
+
+- target epoch day;
+- captured canonical ZoneId;
+- an expected connected-spreadsheet association/fingerprint;
+- scheduled versus typed pending state; and
+- non-sensitive attempt/error metadata only.
+
+It never contains task rows or credentials. A failed or blocked target is not overwritten by the
+next day. After it succeeds, the coordinator advances one local date at a time; if later target
+dates became due while the oldest target was unresolved, it schedules the next due date
+immediately and catches up through the same bounded, one-date-per-worker protocol. This prevents a
+multi-day running timer or several offline days from silently losing a daily target without
+creating an unbounded loop inside one worker. Disabling automation, selecting CSV/XLSX,
+disconnecting, or signing out is an explicit user decision that cancels future unique work and
+clears automatic pending state without changing Room or the spreadsheet.
+
+### 16.3 Background authorization boundary
+
+`Identity.getAuthorizationClient(Context)` is valid from a worker. Call `authorize()` for the one
+existing `drive.file` scope. If the eligible account and grant remain available, Google can return
+a short-lived access token without interaction and the worker may export. Keep that token only in
+memory and discard it after the operation.
+
+Unattended authorization is opportunistic, not guaranteed. If `authorize()` returns a
+`PendingIntent`, a worker must not launch it. Preserve the captured target as
+authorization-required and post the approved content-free notification. Its tap opens WorqOrder,
+where an Activity can launch the Google resolution and retry the same captured date. A 401 clears
+the exact token and permits at most one silent reauthorization attempt; another resolution or
+failure becomes pending. No refresh token, server authorization code, service account, backend,
+broad scope, Firebase dependency, or token in DataStore/Room is allowed.
+
+This use of Google Play services is an installed-device API dependency. It does not introduce
+Google Play Store publication, Play App Signing, Play Console setup, or a Play release/verification
+workflow. Direct GitHub APK distribution, the production External OAuth audience, and the existing
+non-sensitive `drive.file` configuration remain unchanged.
+
+### 16.4 Notification and recovery policy
+
+Create one **Pending Google Export** notification channel on API 26+ and declare
+`POST_NOTIFICATIONS`; request that runtime permission only on API 33+ when the user enables
+the **Auto Export** switch. The switch appears at the bottom of the conditional Google content in
+the Export Destination card, below sign-in and spreadsheet-connection controls, and uses supporting
+text **Automatically export tasks at the end of each day.** It may become enabled only after the app can post the notification
+needed for blocked work. Before posting, check whether app/channel notifications remain enabled.
+
+Notification text contains no client, task, consultant, spreadsheet, account, or exported row
+content. It says only that a WorqOrder export needs attention and that tapping will continue it.
+Use one stable notification ID so repeated recovery states replace rather than multiply notices.
+Dismissal never clears pending state. If permission/channel access is later revoked, automatic
+success may still remain silent, but any blocked target stays recoverable in Google Settings on the
+next foreground launch; WorqOrder must not claim that Android can guarantee a notification the user
+or OEM has suppressed.
+
+An active Room timer is checked before authorization or snapshot creation. If present, export
+nothing and store `TIMER_RUNNING`. After Stop commits, post the recovery notification. Offline,
+authorization-required, permission, rate-limit, server, timeout, and ambiguous failures also keep
+the target with a typed safe reason. Use `Result.success()` after persisting such a terminal pending
+state rather than WorkManager automatic retry. User action is the retry boundary; there is no
+unbounded retry, paid quota, or repeated background network loop.
+
+### 16.5 Limits and alternatives rejected
+
+- Execution near 11:59 PM is best effort and can be delayed by Doze, constraints, force-stop, OEM
+  restrictions, or lack of connectivity.
+- User force-stop prevents dependable background execution until WorqOrder is opened again;
+  startup reconciliation must restore the oldest target.
+- AlarmManager was rejected because exact execution is not required and exact alarms are more
+  disruptive to Doze/battery policy.
+- A fixed periodic worker was rejected because it cannot preserve local-wall-time intent across DST
+  and zone changes as clearly as recalculated one-time work.
+- A backend/refresh-token/service-account design was rejected by the free, local-first, no-backend
+  product policy.
+- `Result.retry()` was rejected for operation failures because the project prohibits uncontrolled
+  automatic retries and paid quota risk.
+
+### 16.6 Approved implementation dependencies and permissions
+
+Milestone 26 may add only these new aliases after the owner approves this design and prepares the
+offline Gradle cache:
+
+- `androidx.work:work-runtime-ktx:2.11.2`;
+- `androidx.work:work-testing:2.11.2` for Android tests.
+
+The explicit application permission addition is `android.permission.POST_NOTIFICATIONS` for API
+33+ runtime use. WorkManager's merged normal permissions/components must be audited as described
+above. Do not add `SCHEDULE_EXACT_ALARM`, `USE_EXACT_ALARM`, a foreground-service permission, broad
+storage permission, or any Google scope beyond `drive.file`.
+
+### 16.7 Official sources reviewed for this addendum
+
+- [Android persistent task scheduling](https://developer.android.com/develop/background-work/background-tasks/persistent)
+- [Define WorkManager requests and constraints](https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work)
+- [Manage unique WorkManager work](https://developer.android.com/develop/background-work/background-tasks/persistent/how-to/manage-work)
+- [WorkManager stable releases](https://developer.android.com/jetpack/androidx/releases/work)
+- [WorkManager platform interactions and permissions](https://developer.android.com/reference/androidx/work/package-summary)
+- [Android notification runtime permission](https://developer.android.com/develop/ui/compose/notifications/notification-permission)
+- [Android notification channels](https://developer.android.com/develop/ui/compose/notifications/channels)
+- [Google `AuthorizationClient`](https://developers.google.com/android/reference/com/google/android/gms/auth/api/identity/AuthorizationClient)
+- [Google Identity Android client entry points](https://developers.google.com/android/reference/com/google/android/gms/auth/api/identity/Identity)
+- [Google Drive scope selection](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)
 - [Choose Google Sheets API scopes](https://developers.google.com/workspace/sheets/api/scopes)
 - [Choose Google Drive API scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)
 - [Google Picker for desktop and mobile apps](https://developers.google.com/workspace/drive/picker/guides/desktop-mobile-picker)

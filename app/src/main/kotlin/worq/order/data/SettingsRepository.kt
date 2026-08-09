@@ -22,6 +22,28 @@ enum class ExportDestination {
     GOOGLE_SHEETS,
 }
 
+enum class LandscapeHandedness {
+    RIGHT_HANDED,
+    LEFT_HANDED,
+}
+
+enum class AutomaticGooglePendingReason {
+    TIMER_RUNNING,
+    AUTHORIZATION_REQUIRED,
+    GOOGLE_PLAY_SERVICES,
+    OFFLINE,
+    TIMEOUT,
+    NOT_FOUND_OR_NOT_GRANTED,
+    PERMISSION_DENIED,
+    RATE_LIMITED,
+    SERVER_FAILURE,
+    MALFORMED_RESPONSE,
+    TAB_NAME_CONFLICT,
+    SCHEMA_CONFLICT,
+    AMBIGUOUS_REMOTE_RESULT,
+    LOCAL_STORAGE,
+}
+
 enum class ExportAttemptOutcome {
     SUCCESS,
     CANCELED,
@@ -63,6 +85,13 @@ data class AppSettings(
     val manualZoneId: ZoneId? = null,
     val defaultExportDestination: ExportDestination = ExportDestination.CSV,
     val lastExportAttempt: LastExportAttempt? = null,
+    val selectedEmployeeId: String? = null,
+    val landscapeHandedness: LandscapeHandedness = LandscapeHandedness.RIGHT_HANDED,
+    val automaticGoogleExportEnabled: Boolean = false,
+    val automaticGoogleTargetDate: LocalDate? = null,
+    val automaticGoogleTargetZoneId: ZoneId? = null,
+    val automaticGoogleTargetConnectionKey: String? = null,
+    val automaticGooglePendingReason: AutomaticGooglePendingReason? = null,
 )
 
 sealed interface TimeZoneSettingResult {
@@ -89,4 +118,24 @@ interface SettingsRepository {
     suspend fun setDefaultExportDestination(destination: ExportDestination)
 
     suspend fun recordLastExportAttempt(attempt: LastExportAttempt)
+
+    suspend fun setSelectedEmployeeId(employeeId: String?)
+
+    suspend fun setLandscapeHandedness(handedness: LandscapeHandedness)
+
+    suspend fun setAutomaticGoogleExportEnabled(enabled: Boolean)
+
+    suspend fun setAutomaticGooglePendingExport(
+        workDate: LocalDate,
+        reason: AutomaticGooglePendingReason,
+    )
+
+    suspend fun setAutomaticGoogleExportTarget(
+        workDate: LocalDate,
+        zoneId: ZoneId,
+        connectionKey: String,
+        pendingReason: AutomaticGooglePendingReason? = null,
+    )
+
+    suspend fun clearAutomaticGooglePendingExport()
 }

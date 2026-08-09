@@ -342,6 +342,7 @@ class WorqOrderDatabaseTest {
     fun taskSeriesDateZoneKeyIsUniqueAndDifferentZoneRemainsDistinct() =
         runBlocking {
             insertClient(id = "client-1")
+            insertEmployee(id = "employee-1", name = "Alex Rivera")
             insertTask(id = "task-1", clientId = "client-1")
 
             expectConstraintFailure {
@@ -368,6 +369,7 @@ class WorqOrderDatabaseTest {
     fun multipleIntervalsUseStableOrdinalsAndChronologicalDetailOrder() =
         runBlocking {
             insertClient(id = "client-1")
+            insertEmployee(id = "employee-1", name = "Alex Rivera")
             insertTask(id = "task-1", clientId = "client-1")
 
             val later =
@@ -615,6 +617,7 @@ class WorqOrderDatabaseTest {
     fun taskMetadataAndManualIntervalsUseTransactionalGuards() =
         runBlocking {
             insertClient(id = "client-1")
+            insertEmployee(id = "employee-1", name = "Alex Rivera")
             insertTask(id = "task-1", clientId = "client-1")
             val repository =
                 RoomTaskRepository(
@@ -634,11 +637,38 @@ class WorqOrderDatabaseTest {
                     clientId = "client-1",
                     description = " Updated task ",
                     hardwareSoftwarePurchases = " Laptop and IDE ",
+                    employeeId = "employee-1",
+                    workType = worq.order.model.WorkType.IN_OFFICE,
+                    billingStatus = worq.order.model.BillingStatus.DO_NOT_BILL,
+                    mileage = "0012.500",
                 )
             assertTrue(updated is worq.order.data.UpdateTaskMetadataResult.Updated)
             val task = requireNotNull(database.taskDao().readTask("task-1"))
             assertEquals("Updated task", task.description)
             assertEquals("Laptop and IDE", task.hardwareSoftwarePurchases)
+            assertEquals("employee-1", task.employeeId)
+            assertEquals("Alex Rivera", task.employeeNameSnapshot)
+            assertEquals("IN_OFFICE", task.workType)
+            assertEquals("DO_NOT_BILL", task.billingStatus)
+            assertEquals("12.5", task.mileage)
+
+            database.employeeDao().archive("employee-1", TEST_NOW.toEpochMilli())
+            assertEquals(
+                worq.order.data.UpdateTaskMetadataResult.EmployeeUnavailable,
+                repository.updateTaskMetadata(
+                    taskId = "task-1",
+                    clientId = "client-1",
+                    description = "Must not persist",
+                    hardwareSoftwarePurchases = "",
+                    employeeId = "employee-1",
+                    workType = worq.order.model.WorkType.ON_SITE,
+                    mileage = "1",
+                ),
+            )
+            assertEquals(
+                "Updated task",
+                database.taskDao().readTask("task-1")?.description,
+            )
 
             val added =
                 repository.addManualInterval(
@@ -707,6 +737,9 @@ class WorqOrderDatabaseTest {
                     clientId = "client-1",
                     description = "Changed",
                     hardwareSoftwarePurchases = "",
+                    employeeId = null,
+                    workType = worq.order.model.WorkType.UNSPECIFIED,
+                    mileage = null,
                 ),
             )
             assertEquals(
@@ -728,10 +761,16 @@ class WorqOrderDatabaseTest {
     fun activeTimerNormalizationCreatesDailyContinuationAndIsIdempotent() =
         runBlocking {
             insertClient(id = "client-1")
+            insertEmployee(id = "employee-1", name = "Alex Rivera")
             insertTask(
                 id = "task-day-1",
                 clientId = "client-1",
                 hardwareSoftwarePurchases = "Laptop",
+                employeeId = "employee-1",
+                employeeNameSnapshot = "Alex Rivera",
+                workType = "ON_SITE",
+                billingStatus = "DO_NOT_CHARGE",
+                mileage = "18.5",
                 workDateEpochDay = LocalDate.of(2026, 7, 24).toEpochDay(),
             )
             val repository =
@@ -786,6 +825,11 @@ class WorqOrderDatabaseTest {
             assertEquals("client-1", continuationTask.clientId)
             assertEquals("Task task-day-1", continuationTask.description)
             assertEquals("Laptop", continuationTask.hardwareSoftwarePurchases)
+            assertEquals("employee-1", continuationTask.employeeId)
+            assertEquals("Alex Rivera", continuationTask.employeeNameSnapshot)
+            assertEquals("ON_SITE", continuationTask.workType)
+            assertEquals("DO_NOT_CHARGE", continuationTask.billingStatus)
+            assertEquals("18.5", continuationTask.mileage)
             assertEquals(LocalDate.of(2026, 7, 25).toEpochDay(), continuationTask.workDateEpochDay)
             assertEquals(TEST_ZONE.id, continuationTask.zoneId)
             assertEquals("interval-day-2", normalized.interval.id)
@@ -1056,16 +1100,31 @@ class WorqOrderDatabaseTest {
                 .open(VERSION_TWO_SCHEMA_ASSET_PATH)
                 .bufferedReader()
                 .use { it.readText() }
+        val versionThree =
+            testContext.assets
+                .open(VERSION_THREE_SCHEMA_ASSET_PATH)
+                .bufferedReader()
+                .use { it.readText() }
+        val versionFour =
+            testContext.assets
+                .open(VERSION_FOUR_SCHEMA_ASSET_PATH)
+                .bufferedReader()
+                .use { it.readText() }
 
         assertTrue(versionOne.contains("\"version\": 1"))
         assertTrue(versionTwo.contains("\"version\": 2"))
         assertTrue(versionTwo.contains("\"tableName\": \"clients\""))
         assertTrue(versionTwo.contains("\"tableName\": \"active_timer\""))
         assertTrue(versionTwo.contains("\"columnName\": \"hardware_software_purchases\""))
+        assertTrue(versionThree.contains("\"version\": 3"))
+        assertTrue(versionThree.contains("\"tableName\": \"employees\""))
+        assertTrue(versionThree.contains("\"columnName\": \"employee_name_snapshot\""))
+        assertTrue(versionFour.contains("\"version\": 4"))
+        assertTrue(versionFour.contains("\"columnName\": \"billing_status\""))
     }
 
     @Test
-    fun migrationOneToTwoPreservesPopulatedTaskAndActiveTimer() =
+    fun migrationOneToFourPreservesPopulatedTaskAndActiveTimer() =
         runBlocking {
             context.deleteDatabase(MIGRATION_TEST_DATABASE)
             createPopulatedVersionOneDatabase()
@@ -1076,13 +1135,22 @@ class WorqOrderDatabaseTest {
                         context,
                         WorqOrderDatabase::class.java,
                         MIGRATION_TEST_DATABASE,
-                    ).addMigrations(WorqOrderMigrations.MIGRATION_1_2)
+                    ).addMigrations(
+                        WorqOrderMigrations.MIGRATION_1_2,
+                        WorqOrderMigrations.MIGRATION_2_3,
+                        WorqOrderMigrations.MIGRATION_3_4,
+                    )
                     .allowMainThreadQueries()
                     .build()
             try {
                 val task = requireNotNull(migrated.taskDao().readTask("migration-task"))
                 assertEquals("Existing description", task.description)
                 assertEquals("", task.hardwareSoftwarePurchases)
+                assertNull(task.employeeId)
+                assertEquals("", task.employeeNameSnapshot)
+                assertEquals("UNSPECIFIED", task.workType)
+                assertNull(task.billingStatus)
+                assertNull(task.mileage)
                 val intervals =
                     migrated.workIntervalDao()
                         .readIntervalsForOverlapValidation("migration-task")
@@ -1096,6 +1164,65 @@ class WorqOrderDatabaseTest {
                 context.deleteDatabase(MIGRATION_TEST_DATABASE)
             }
         }
+
+    @Test
+    fun migrationTwoToFourPreservesReleasedGraphAndAddsSafeDefaults() =
+        runBlocking {
+            context.deleteDatabase(MIGRATION_TEST_DATABASE)
+            createPopulatedVersionTwoDatabase()
+
+            val migrated =
+                Room
+                    .databaseBuilder(
+                        context,
+                        WorqOrderDatabase::class.java,
+                        MIGRATION_TEST_DATABASE,
+                    ).addMigrations(
+                        WorqOrderMigrations.MIGRATION_2_3,
+                        WorqOrderMigrations.MIGRATION_3_4,
+                    )
+                    .allowMainThreadQueries()
+                    .build()
+            try {
+                val task = requireNotNull(migrated.taskDao().readTask("migration-task"))
+                assertEquals("Existing description", task.description)
+                assertEquals("", task.hardwareSoftwarePurchases)
+                assertNull(task.employeeId)
+                assertEquals("", task.employeeNameSnapshot)
+                assertEquals("UNSPECIFIED", task.workType)
+                assertNull(task.billingStatus)
+                assertNull(task.mileage)
+                assertEquals(
+                    listOf("migration-complete", "migration-active"),
+                    migrated.workIntervalDao()
+                        .readIntervalsForOverlapValidation("migration-task")
+                        .map(WorkIntervalEntity::id),
+                )
+                assertEquals(
+                    "migration-active",
+                    migrated.activeTimerDao().readActiveTimer()?.intervalId,
+                )
+                assertTrue(migrated.employeeDao().observeAllEmployees().first().isEmpty())
+            } finally {
+                migrated.close()
+                context.deleteDatabase(MIGRATION_TEST_DATABASE)
+            }
+        }
+
+    private fun createPopulatedVersionTwoDatabase() {
+        createPopulatedVersionOneDatabase()
+        context.openOrCreateDatabase(
+            MIGRATION_TEST_DATABASE,
+            Context.MODE_PRIVATE,
+            null,
+        ).use { database ->
+            database.execSQL(
+                "ALTER TABLE daily_tasks " +
+                    "ADD COLUMN hardware_software_purchases TEXT NOT NULL DEFAULT ''",
+            )
+            database.version = 2
+        }
+    }
 
     private fun createPopulatedVersionOneDatabase() {
         val sqlite =
@@ -1195,6 +1322,11 @@ class WorqOrderDatabaseTest {
         clientId: String,
         seriesId: String = "series-1",
         hardwareSoftwarePurchases: String = "",
+        employeeId: String? = null,
+        employeeNameSnapshot: String = "",
+        workType: String = "UNSPECIFIED",
+        billingStatus: String? = null,
+        mileage: String? = null,
         workDateEpochDay: Long = TEST_DATE.toEpochDay(),
         zoneId: String = TEST_ZONE.id,
     ) {
@@ -1205,10 +1337,33 @@ class WorqOrderDatabaseTest {
                 clientId = clientId,
                 description = "Task $id",
                 hardwareSoftwarePurchases = hardwareSoftwarePurchases,
+                employeeId = employeeId,
+                employeeNameSnapshot = employeeNameSnapshot,
+                workType = workType,
+                billingStatus = billingStatus,
+                mileage = mileage,
                 workDateEpochDay = workDateEpochDay,
                 zoneId = zoneId,
                 createdAtEpochMs = 1_000,
                 updatedAtEpochMs = 1_000,
+            ),
+        )
+    }
+
+    private suspend fun insertEmployee(
+        id: String,
+        name: String,
+    ) {
+        database.employeeDao().insert(
+            EmployeeEntity(
+                id = id,
+                name = name,
+                canonicalName = name.lowercase(),
+                activeNameKey = name.lowercase(),
+                isActive = true,
+                createdAtEpochMs = 1_000,
+                updatedAtEpochMs = 1_000,
+                archivedAtEpochMs = null,
             ),
         )
     }
@@ -1277,6 +1432,7 @@ class WorqOrderDatabaseTest {
         val EXPECTED_TABLES =
             setOf(
                 "clients",
+                "employees",
                 "daily_tasks",
                 "work_intervals",
                 "active_timer",
@@ -1291,5 +1447,9 @@ class WorqOrderDatabaseTest {
             "worq.order.data.local.WorqOrderDatabase/1.json"
         const val VERSION_TWO_SCHEMA_ASSET_PATH =
             "worq.order.data.local.WorqOrderDatabase/2.json"
+        const val VERSION_THREE_SCHEMA_ASSET_PATH =
+            "worq.order.data.local.WorqOrderDatabase/3.json"
+        const val VERSION_FOUR_SCHEMA_ASSET_PATH =
+            "worq.order.data.local.WorqOrderDatabase/4.json"
     }
 }

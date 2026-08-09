@@ -45,6 +45,20 @@ Render at least two hour digits, but never truncate larger hours: `07:03:09`, `1
 Negative duration is an invariant error, not displayable time. Persisted start/stop instants and
 all duration arithmetic remain millisecond-precise.
 
+Version `0.2.0` derives Billing Minutes from the exact task total before presentation truncation:
+
+```text
+0 ms      -> 0
+positive  -> ceil(totalMilliseconds / 900_000) * 15
+```
+
+It is never stored as a ticking/denormalized counter. Live task presentation may include the open
+interval contribution; exports still require Stop and calculate from completed intervals only.
+Routine task detail keeps Task Total above the interval list and Billing Minutes directly below.
+Individual interval cards omit their Duration field and render Start Time/Stop Time as task-zone
+12-hour `hh:mm a`; interval editing uses the same strict clock presentation. The canonical export
+also uses `hh:mm a`, while all persisted/calculation precision remains unchanged.
+
 ## 4. Starting
 
 `TimerCoordinator.start()` obtains one `nowInstant` under the application-scoped timer mutex:
@@ -125,8 +139,10 @@ Given an open segment starting at `segmentStart` and a normalization endpoint `n
 2. Compute `nextBoundary = segmentDate.plusDays(1).atStartOfDay(zone).toInstant()`.
 3. While `nextBoundary < now` (or `<= now` when normalizing without immediately stopping):
    - close the current segment at `nextBoundary`;
-   - find/create the next date's task with the same series ID, copied client, short description,
-     and hardware/software-purchases text, and the pinned boundary ZoneId;
+   - find/create the next date's task with the same series ID, copied employee ID/name snapshot,
+     client, short description, hardware/software-purchases text, Work Type, Billing Status
+     (including blank), Mileage, and the
+     pinned boundary ZoneId;
    - create the next interval at `nextBoundary`, open unless another boundary/end is known;
    - assign a new stable interval ID and next ordinal on that daily task;
    - retarget `active_timer` to the new open interval;
@@ -153,9 +169,11 @@ on which the timing selection was made, and its effective ZoneId.
 1. Read the preferred series and its last concrete daily task.
 2. Calculate today with the effective zone.
 3. Query `(seriesId, todayEpochDay, effectiveZoneId)`.
-4. If missing, insert a task that copies the source daily task's current client, short description,
-   and hardware/software-purchases text, stores today's epoch day and the effective ZoneId, and
-   keeps the series ID. Do not repurpose a same-date copy whose stored assignment zone differs.
+4. If missing, insert a task that copies the source daily task's employee ID/name snapshot, client,
+   short description, hardware/software-purchases text, Work Type, Billing Status (including
+   blank), and Mileage, stores today's
+   epoch day and effective ZoneId, and keeps the series ID. Do not re-resolve a renamed Employee or
+   repurpose a same-date copy whose stored assignment zone differs.
 5. On a uniqueness race, query and use the already-inserted row.
 6. Persist the new concrete task selection.
 
@@ -241,7 +259,9 @@ Normalize/check on:
 - Start and Stop;
 - before changing a rule-sensitive task/interval;
 - after Stop, before exporting the displayed date; export remains disabled while active; and
-- after device boot only when the user next launches the app (no boot receiver required).
+- after device boot through the one-shot post-unlock running-notification receiver, and again when
+  the user next launches the app. The receiver invokes the same idempotent Room recovery path and
+  does not run a stopwatch loop.
 
 The application-scoped `TimerRecoveryCoordinator` performs each recovery in this order:
 
@@ -262,5 +282,23 @@ An open interval without the singleton pointer, a singleton with zero/multiple o
 or a mismatched/closed referenced interval is an explicit persistence-invariant error. It is not
 silently discarded or treated as stopped, and a new Start remains blocked.
 
-No alarm, wake lock, boot receiver, foreground service, continuous background loop, WorkManager
-tick, or per-tick persistence is used.
+No alarm, application-owned wake lock, foreground service, continuous background loop,
+WorkManager tick, or per-tick persistence is used. The sole manifest boot receiver performs one
+post-unlock recovery/reconciliation for the running notification and then finishes.
+
+## 14. v0.2 automatic-export target dates
+
+Automatic Google export does not change timer/date authority. Near the end of a local date, the
+scheduler captures `(targetEpochDay, effectiveZoneId)` as immutable job input. If Android executes
+after midnight, export still reads that captured prior date. A device/manual zone change after
+scheduling does not reinterpret the target.
+
+If a timer is open at execution, preserve the target as pending and export nothing. Normal
+Stop/midnight normalization first closes/splits every interval under the pinned timer zone. Only
+after the Stop transaction succeeds may a content-free notification offer the preserved-date
+Google export. This retains the global Stop-before-export rule and avoids blank Stop values.
+
+This scheduler is not a timer wake-up mechanism, does not split intervals itself, and cannot use
+an exact alarm, foreground stopwatch service, or tick loop merely to approach 11:59 PM. The exact
+stable Android scheduler/auth mechanism is chosen only after current official research and owner
+approval.

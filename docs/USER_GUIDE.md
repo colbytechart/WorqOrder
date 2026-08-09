@@ -1,6 +1,6 @@
 # WorqOrder User Guide
 
-Version: `0.1.0`
+Version: `0.2.0`
 
 ## 1. What WorqOrder Stores
 
@@ -29,6 +29,28 @@ From an active client row:
 Open **Archived Clients** and choose **Restore** to make a removed client selectable again. If an
 active client has the same normalized name, resolve the name conflict first.
 
+To append client names from a CSV:
+
+1. Choose **Import From CSV** in Client Management.
+2. Select a `.csv` document in Android's picker.
+3. Review the added, restored, and skipped counts.
+
+Every nonblank CSV cell is treated as a client name. Existing clients are never overwritten or
+removed; duplicates are skipped, archived matches are restored, and active clients remain sorted
+A–Z. Invalid, malformed, non-CSV, or over-limit files make no partial changes.
+
+### Manage Consultants
+
+1. Open **Settings**. **Client Management** is first and **Consultant Management** is second.
+2. Open **Consultant Management**.
+3. Use **Add Consultant**, or rename/archive an active Consultant.
+4. Restore removed entries from **Archived Consultants** when needed.
+5. Return to Settings and choose the Consultant assigned to new tasks from the bare dropdown below
+   the two management rows.
+
+If no active Consultant is selected, Settings displays **Add and select a Consultant before
+creating a task.** Directory changes keep historical task Consultant snapshots intact.
+
 ## 3. Create and Select Tasks
 
 1. Browse to the required work date on Main.
@@ -36,7 +58,10 @@ active client has the same normalized name, resolve the name conflict first.
 3. Select an active client.
 4. Enter a required **Short description**.
 5. Optionally enter **Hardware / Software Purchases**.
-6. Choose **Create**.
+6. Choose **Work Type**.
+7. Choose **Billing Status**: **Billable** (the default), **Do not bill**, or **Do not charge**.
+8. Optionally enter **Mileage**.
+9. Choose **Create**.
 
 Both text fields allow up to 400 characters. The new task belongs to the date that was displayed
 when creation opened. A new task for today becomes selected automatically. A historical or future
@@ -63,6 +88,11 @@ A running timer remains logically active when the app is backgrounded, the scree
 activity is recreated, the process is killed, or the device reboots. Reopen WorqOrder to
 reconstruct the visible value from the persisted interval.
 
+When notification access is available, a silent **Running Timer** notification shows WorqOrder,
+the Android-managed elapsed chronometer, and—when sensitive notification content is allowed—the
+Client and task description. Swiping it away hides only that interval's notification; it does not
+stop timing. Stop removes it. Android privacy/channel/OEM settings can suppress or redact it.
+
 ## 5. Browse Dates
 
 Use the previous/next arrows or calendar action in the pinned date controls. **Today** returns
@@ -81,7 +111,10 @@ The Edit Task screen allows you to:
 
 - change the active client;
 - change the short description or purchase notes;
+- change Work Type, Billing Status, or Mileage (migrated tasks may initially have blank Billing
+  Status);
 - view the read-only work date, task ZoneId, and total duration;
+- view interval Start Time and Stop Time in 12-hour `hh:mm AM/PM` form without seconds;
 - add a completed manual interval;
 - edit the start or stop of a completed interval;
 - delete a completed interval; and
@@ -96,18 +129,24 @@ cannot be materially edited or deleted.
 offers a discard choice. Deleting an interval or task requires confirmation. Deleting a daily task
 does not delete its client or same-series task copies on other dates.
 
-## 7. Appearance and Time Zone
+## 7. Appearance, Landscape Orientation, and Device Time Zone
 
 Open **Settings**:
 
 - **Use system setting** follows the device Light/Dark appearance and is the default.
 - **Light** and **Dark** explicitly override it.
-- **Use device time zone** follows the phone's current geographical zone.
-- **Use manual time zone** enables the searchable geographical `ZoneId` selector.
+- Under **Landscape Orientation**, **Right-handed** (the default) places Tasks on the left and
+  timer/date/actions on the right. **Left-handed** mirrors those two content areas. The choice
+  applies immediately, persists across launches, and does not change portrait layout or task
+  order.
 
-Time-zone changes are blocked while a timer is running. A change affects future definitions of
-today and future daily copies; it never rewrites historical task dates, stored task zones, or
-intervals.
+Time-zone controls are not exposed in Settings. New and default configurations follow the phone's
+current geographical time zone. Existing date/ZoneId persistence remains intact, and historical
+task dates, stored task zones, and intervals are never rewritten.
+
+The bottom of Settings displays the installed build version and stability as bare footer text, for
+example **WorqOrder v0.2.0 - stable**. There is no About card, and the text does not open a website
+or repository.
 
 ## 8. Choose an Export Destination
 
@@ -117,7 +156,7 @@ In **Settings > Export Destination**, select:
 - **XLSX**
 - **Google Sheets**
 
-All destinations export the displayed date using the same nine-column dataset. Stop the active
+All destinations export the displayed date using the same canonical dataset. Stop the active
 timer before exporting.
 
 ## 9. Export CSV or XLSX
@@ -130,6 +169,9 @@ timer before exporting.
 CSV is UTF-8. XLSX is an unencrypted OOXML workbook created fresh for each export. Repeating either
 export creates another user-chosen document and does not change Room. Canceling the save picker
 returns to Main without a cancellation message.
+
+Every exported Start time and Stop time uses the same task-zone 12-hour `hh:mm AM/PM` format shown
+in task details. Accumulated duration columns retain `HH:MM:SS` and may exceed 24 hours.
 
 ## 10. Connect Google Sheets
 
@@ -147,6 +189,17 @@ spreadsheet must be editable by the signed-in account.
 **Disconnect spreadsheet** forgets the spreadsheet but leaves the Google account signed in.
 **Sign out** clears the local Google identity state and also disconnects the spreadsheet. Neither
 action changes local tasks or the remote spreadsheet.
+
+### Automatic Google Export
+
+After Google Sheets is authorized and connected, **Auto Export** appears at the bottom of Export
+Destination. Turning it on schedules a best-effort export of each captured work date near its end.
+Android may execute shortly after midnight, but WorqOrder still exports the captured prior date.
+Successful automatic export is silent. If timing or authorization blocks the operation, the date
+remains pending and WorqOrder provides an actionable, content-free recovery notification or
+Settings state. CSV and XLSX are always manual. Force-stop, offline state, Android/OEM background
+restrictions, notification settings, or an interactive Google authorization requirement can delay
+completion.
 
 ## 11. Export to Google Sheets
 

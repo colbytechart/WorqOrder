@@ -21,6 +21,7 @@ import androidx.navigation.navArgument
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
 import worq.order.data.ThemeMode
+import worq.order.data.ClientCsvFilePolicy
 import worq.order.export.google.GoogleConnectionFailure
 import worq.order.export.google.GoogleConnectionOperationResult
 import worq.order.export.google.GoogleSheetsExportFailure
@@ -29,11 +30,14 @@ import worq.order.ui.settings.ApplicationSettingsViewModel
 import worq.order.ui.settings.SettingsViewModel
 import worq.order.ui.clients.ClientManagementScreen
 import worq.order.ui.clients.ClientManagementViewModel
+import worq.order.ui.employees.ConsultantSettingsViewModel
+import worq.order.ui.employees.ConsultantManagementScreen
 import worq.order.ui.main.MainEffect
 import worq.order.ui.main.MainScreen
 import worq.order.ui.main.MainViewModel
 import worq.order.ui.settings.SettingsScreen
 import worq.order.ui.settings.SettingsEffect
+import worq.order.ui.settings.SettingsEvent
 import worq.order.ui.tasks.CreateTaskScreen
 import worq.order.ui.tasks.CreateTaskViewModel
 import worq.order.ui.tasks.CreateTaskEffect
@@ -43,9 +47,13 @@ import worq.order.ui.tasks.EditTaskViewModel
 import worq.order.ui.theme.WorqOrderTheme
 import worq.order.export.CsvExportCoordinator
 import worq.order.export.XlsxExportCoordinator
+import worq.order.export.automatic.AutomaticGoogleExportNotifier
 
 @Composable
-fun WorqOrderRoot() {
+fun WorqOrderRoot(
+    openPendingGoogleExport: Boolean = false,
+    onPendingGoogleExportOpened: () -> Unit = {},
+) {
     val application =
         LocalContext.current.applicationContext as WorqOrderApplication
     val factory =
@@ -59,7 +67,7 @@ fun WorqOrderRoot() {
     val darkTheme = resolveDarkTheme(themeMode, isSystemInDarkTheme())
 
     WorqOrderTheme(darkTheme = darkTheme) {
-        WorqOrderApp()
+        WorqOrderApp(openPendingGoogleExport, onPendingGoogleExportOpened)
     }
 }
 
@@ -74,8 +82,20 @@ internal fun resolveDarkTheme(
     }
 
 @Composable
-fun WorqOrderApp() {
+fun WorqOrderApp(
+    openPendingGoogleExport: Boolean = false,
+    onPendingGoogleExportOpened: () -> Unit = {},
+) {
     val navController = rememberNavController()
+
+    LaunchedEffect(openPendingGoogleExport) {
+        if (openPendingGoogleExport) {
+            navController.navigate(AppRoutes.SETTINGS_GOOGLE_SETUP) {
+                launchSingleTop = true
+            }
+            onPendingGoogleExportOpened()
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -123,6 +143,15 @@ fun WorqOrderApp() {
                         ),
                     )
                 }
+            val runningTimerNotificationPermissionLauncher =
+                rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission(),
+                ) { granted ->
+                    viewModel.onEvent(
+                        worq.order.ui.main.MainEvent
+                            .RunningTimerNotificationPermissionResult(granted),
+                    )
+                }
 
             LaunchedEffect(
                 viewModel,
@@ -162,6 +191,10 @@ fun WorqOrderApp() {
                                 }
                             viewModel.onGoogleSheetsExportResult(result)
                         }
+                        MainEffect.RequestRunningTimerNotificationPermission ->
+                            runningTimerNotificationPermissionLauncher.launch(
+                                android.Manifest.permission.POST_NOTIFICATIONS,
+                            )
                     }
                 }
             }
@@ -191,6 +224,10 @@ fun WorqOrderApp() {
                 remember(application, workDate) {
                     CreateTaskViewModel.Factory(
                         clientRepository = application.container.clientRepository,
+                        employeeRepository = application.container.employeeRepository,
+                        settingsRepository = application.container.settingsRepository,
+                        consultantSelectionCoordinator =
+                            application.container.consultantSelectionCoordinator,
                         taskMutationCoordinator =
                             application.container.taskMutationCoordinator,
                         workDate = workDate,
@@ -200,8 +237,10 @@ fun WorqOrderApp() {
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             LaunchedEffect(viewModel, navController) {
                 viewModel.effects.collect { effect ->
-                    if (effect == CreateTaskEffect.NavigateBack) {
-                        navController.popBackStack()
+                    when (effect) {
+                        CreateTaskEffect.NavigateBack -> navController.popBackStack()
+                        CreateTaskEffect.NavigateToSettings ->
+                            navController.navigate(AppRoutes.SETTINGS)
                     }
                 }
             }
@@ -231,6 +270,7 @@ fun WorqOrderApp() {
                         taskId = taskId,
                         taskRepository = application.container.taskRepository,
                         clientRepository = application.container.clientRepository,
+                        employeeRepository = application.container.employeeRepository,
                         activeTimerRepository =
                             application.container.activeTimerRepository,
                         taskMutationCoordinator =
@@ -267,11 +307,47 @@ fun WorqOrderApp() {
                 remember(application) {
                     ClientManagementViewModel.Factory(
                         clientRepository = application.container.clientRepository,
+                        clientCsvImportCoordinator =
+                            application.container.clientCsvImportCoordinator,
                     )
                 }
             val viewModel: ClientManagementViewModel = viewModel(factory = factory)
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            val clientCsvLauncher =
+                rememberLauncherForActivityResult(
+                    ActivityResultContracts.OpenDocument(),
+                ) { documentUri ->
+                    viewModel.onEvent(
+                        worq.order.ui.clients.ClientManagementEvent
+                            .ImportCsvDocumentSelected(documentUri?.toString()),
+                    )
+                }
             ClientManagementScreen(
+                uiState = uiState,
+                onEvent = viewModel::onEvent,
+                onNavigateBack = navController::popBackStack,
+                onImportCsv = {
+                    clientCsvLauncher.launch(
+                        ClientCsvFilePolicy.acceptedMimeTypes.toTypedArray(),
+                    )
+                },
+            )
+        }
+        composable(AppRoutes.CONSULTANT_MANAGEMENT) {
+            val application =
+                LocalContext.current.applicationContext as WorqOrderApplication
+            val factory =
+                remember(application) {
+                    ConsultantSettingsViewModel.Factory(
+                        employeeRepository = application.container.employeeRepository,
+                        settingsRepository = application.container.settingsRepository,
+                        selectionCoordinator =
+                            application.container.consultantSelectionCoordinator,
+                    )
+                }
+            val viewModel: ConsultantSettingsViewModel = viewModel(factory = factory)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            ConsultantManagementScreen(
                 uiState = uiState,
                 onEvent = viewModel::onEvent,
                 onNavigateBack = navController::popBackStack,
@@ -300,13 +376,37 @@ private fun SettingsDestination(
                 zoneIdProvider = application.container.zoneIdProvider,
                 googleConnectionRepository =
                     application.container.googleConnectionRepository,
+                automaticGoogleExportManager =
+                    application.container.automaticGoogleExportManager,
             )
         }
     val viewModel: SettingsViewModel = viewModel(factory = factory)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val consultantFactory =
+        remember(application) {
+            ConsultantSettingsViewModel.Factory(
+                employeeRepository = application.container.employeeRepository,
+                settingsRepository = application.container.settingsRepository,
+                selectionCoordinator =
+                    application.container.consultantSelectionCoordinator,
+            )
+        }
+    val consultantViewModel: ConsultantSettingsViewModel =
+        viewModel(factory = consultantFactory)
+    val consultantUiState by consultantViewModel.uiState.collectAsStateWithLifecycle()
     val googleConnectionCoordinator =
         remember(application, activity) {
             application.container.createGoogleConnectionCoordinator(activity)
+        }
+    val googleSheetsExportCoordinator =
+        remember(application, activity) {
+            application.container.createGoogleSheetsExportCoordinator(activity)
+        }
+    val notificationPermissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted ->
+            viewModel.onEvent(SettingsEvent.NotificationPermissionResult(granted))
         }
     LaunchedEffect(
         viewModel,
@@ -326,6 +426,19 @@ private fun SettingsDestination(
                             googleConnectionCoordinator.disconnectSpreadsheet()
                         SettingsEffect.SignOutOfGoogle ->
                             googleConnectionCoordinator.signOut()
+                        SettingsEffect.RequestNotificationPermission -> {
+                            notificationPermissionLauncher.launch(
+                                AutomaticGoogleExportNotifier.POST_NOTIFICATIONS_PERMISSION,
+                            )
+                            return@collect
+                        }
+                        is SettingsEffect.RetryAutomaticGoogleExport -> {
+                            val exportResult =
+                                googleSheetsExportCoordinator.export(effect.workDate)
+                            application.container.automaticGoogleExportManager
+                                .completeInteractiveExport(effect.workDate, exportResult)
+                            return@collect
+                        }
                     }
                 } catch (cancellation: CancellationException) {
                     viewModel.onGoogleOperationInterrupted()
@@ -345,6 +458,11 @@ private fun SettingsDestination(
         onOpenClientManagement = {
             navController.navigate(AppRoutes.CLIENT_MANAGEMENT)
         },
+        onOpenConsultantManagement = {
+            navController.navigate(AppRoutes.CONSULTANT_MANAGEMENT)
+        },
+        consultantUiState = consultantUiState,
+        onConsultantEvent = consultantViewModel::onEvent,
         showGoogleSetupRequired = showGoogleSetupRequired,
     )
 }

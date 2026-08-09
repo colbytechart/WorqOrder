@@ -303,7 +303,7 @@ Given a timer spans a spring-forward transition, elapsed duration follows instan
 Given a timer spans the repeated fall-back hour, elapsed duration counts both occurrences,
 persisted instants and the interval editor preserve/identify the chosen occurrence, and date
 segments fit 25-hour boundaries where applicable. The intentionally reduced external export
-schema still emits task-zone `HH:mm` only; its duration remains the correct instant-based value.
+schema still emits task-zone `hh:mm a` only; its duration remains the correct instant-based value.
 
 ### DATE-09 Device zone mode
 
@@ -337,8 +337,13 @@ ZoneIds.
 
 ### SET-01 Immediate appearance modes
 
-Client Management is the first normal Settings item, followed by Appearance, Time Zone, and Export
-Destination. Google Sheets Connection is visible only when Google Sheets is selected. System is
+Client Management is the first Settings item and Consultant Management is second, followed by the
+bare Consultant selector/warning and Appearance. No Time Zone card, controls, effective-ID text,
+or selector dialog is exposed. Device zone remains the first-launch/corrupt-value default in typed
+settings. Export Destination follows Appearance, and Google Sheets Connection is visible only when
+Google Sheets is selected. Its conditional controls end with an **Auto Export** switch row inside
+the Export Destination card. The row follows the sign-in/connection controls, displays supporting
+text **Automatically export tasks at the end of each day.**, and is absent for CSV/XLSX. System is
 selected by default and follows device Light/Dark configuration changes. Selecting explicit Light
 or Dark overrides the device while all three radio choices remain enabled. Screen, section, card,
 empty-state, and dialog headers use title capitalization without rewriting body/action copy. Every
@@ -401,7 +406,7 @@ records use CRLF.
 ### CSV-05 Durations/timestamps
 
 Longer-than-23-hour task totals are not wrapped. Start/Stop are converted through the task's stored
-ZoneId and exported only as 24-hour `HH:mm`; complete instants remain internal. Durations are
+ZoneId and exported only as strict 12-hour `hh:mm a`; complete instants remain internal. Durations are
 `HH:MM:SS`, truncate rather than round sub-second remainder, and are locale independent.
 
 ### CSV-06 Running-timer lockout
@@ -437,7 +442,8 @@ without visible feedback.
 ### CSV-11 Shared snapshot boundary
 
 `ExportSnapshotCoordinator` performs normalization/read/build once and returns the immutable
-nine-column dataset. CSV serialization changes no field/order/value. XLSX/Google adapters
+canonical dataset (nine columns in released `0.1.0`, 15 in implemented schema-version-4 `0.2.0`). CSV serialization
+changes no field/order/value. XLSX/Google adapters
 consume the same object rather than rebuilding destination-specific rows.
 
 ## 9. Google Sheets
@@ -585,15 +591,15 @@ default/fallback. XLSX has no connection UI or retained URI metadata. Every expo
 ### XLSX-02 Shared schema and ordering
 
 Exporting Jul 22 creates a new workbook containing exactly one visible
-`WorqOrder_2026-07-22` worksheet. It has the exact nine-column header at row 1 and rows identical
+`WorqOrder_2026-07-22` worksheet. It has the exact current canonical header at row 1 and rows identical
 in content/order to CSV and Google Sheets for the same captured snapshot. Exporting Jul 23 creates
 another independent workbook containing only `WorqOrder_2026-07-23`. An empty date has only the
 header; a zero-interval task has one blank-interval row.
 
 ### XLSX-03 Cell safety and fidelity
 
-All nine canonical values are literal text cells. Formula-prefixed text is not executable.
-Unicode, commas, quotes, CR/LF, task-zone `HH:mm`, and accumulated `HH:MM:SS` survive an
+All canonical values are literal text cells. Formula-prefixed text is not executable.
+Unicode, commas, quotes, CR/LF, task-zone `hh:mm a`, and accumulated `HH:MM:SS` survive an
 independent-reader round trip and open correctly in Microsoft Excel and LibreOffice.
 
 ### XLSX-04 Package safety
@@ -698,118 +704,220 @@ semantic value and can scroll horizontally if necessary. The bounded pinned time
 leaves a usable independently scrollable lower message/task region on a 640 × 360 dp short
 landscape surface. At ordinary portrait phone width, the two bottom actions remain side by side.
 
-## 13. Optional post-project application-access security
+## 13. v0.2.0 acceptance additions
 
-These tests are inactive unless the owner explicitly authorizes optional Milestone 18 after the
-required project is complete.
+These tests become active with their owning `0.2.0` milestones and do not rewrite the accepted
+`0.1.0` results above.
 
-### ACCESS-01 Opt-in and no remote account
+### V2-DATA-01 Non-destructive update
 
-App locking is disabled by default and can be enabled/disabled only through an authenticated local
-flow. It adds no WorqOrder cloud account, backend, remote password store, or Google-account
-requirement.
+A populated version-1, version-2, or version-3 database upgrades without losing clients, tasks,
+intervals, selections, or an open timer. Existing tasks receive null/blank Employee,
+`Unspecified` Work Type, blank Billing Status, and blank Mileage. The new schema is exported; no
+destructive fallback exists.
 
-### ACCESS-02 Prompt and recovery states
+### V2-CLIENT-01 CSV import appends safely
 
-Successful, failed, canceled, locked-out, biometric-enrollment-changed, and device-credential
-fallback paths are deterministic, accessible, and do not expose protected content or silently
-delete or replace Room data. If optional Milestone 19 is also authorized, the same rule applies to
-its encryption keys.
+The picker accepts CSV only. Every nonblank cell is parsed with RFC-style quote/line-break support
+and existing client validation. Active duplicates are skipped, archived matches restored, in-file
+duplicates collapsed, and new names appended. Existing clients are never overwritten or removed;
+the final active list is A–Z. Unsupported, malformed, corrupt, over-limit, I/O-failed, or excessive
+input causes no partial mutation or crash and reports an actionable error.
 
-### ACCESS-03 Lifecycle locking
+Automated coverage must prove strict UTF-8/BOM handling; comma, doubled-quote, CR/LF, Unicode, and
+quoted-multiline handling; the 1 MiB/10,000-record/20,000-cell/1,024-UTF-16-unit limits; extension
+and MIME rejection; blank-cell omission; normalization; active and in-file duplicate skipping;
+archived restoration; A–Z observation; accessible progress/result states; silent picker cancel;
+and rollback when a later database mutation fails after an earlier restoration.
+With a long client directory scrolled away from the actions, an import error returns the list to
+the top and displays the error between **Import From CSV** and **Active Clients**. Dismissing the
+error also leaves the list at the top with both import actions visible.
 
-Configured lock-on-launch/background-timeout/screen-off behavior survives rotation, navigation,
-process death, and reboot. Timing continues authoritatively while UI access is locked; unlocking
-does not stop, duplicate, or lose an interval or midnight continuation.
+### V2-CONSULTANT-01 Directory and historical snapshots
 
-### ACCESS-04 Bypass and privacy review
+The user-facing Consultant directory (internally Employee persistence) supports
+add/rename/archive/restore and A–Z active selection under the approved validation rules. New task
+creation requires an active selected Consultant. Rename/archive never changes earlier task
+consultant snapshots or exports; explicit task edit may correct the assignment. Rollover copies the
+source snapshot. Migrated unassigned tasks remain legible/editable.
 
-Deep links, exported components, restored navigation state, notifications, screenshots, and
-recent-app previews cannot reveal or bypass protected screens under the approved policy.
+Standalone **Client Management** and **Consultant Management** rows are the first and second
+Settings options. The bare current-Consultant dropdown and missing-selection warning follow those
+rows with no Consultant or Clients card. The dedicated Consultant destination contains Add
+Consultant plus active and archived lists with the same rename/archive/restore behavior and visual
+structure as Client Management. Empty active and archived sections each show an indented title and
+supporting explanation. Back navigation returns to Settings without changing selection.
 
-### ACCESS-05 Full regression
+The persisted selection recovers only when its Employee row still exists and is active. Archiving
+the selected Consultant clears future selection while leaving every daily-task Employee ID/name
+snapshot unchanged. Add offers restore for a canonical archived match; rename/restore conflicts do
+not partially mutate either row. Create Task displays an actionable Consultant Settings route and
+keeps Create disabled while no valid selection exists. At save time Room rechecks both the active
+Client and active Employee and captures the Employee's current name in the same transaction that
+inserts the daily task.
 
-Room migrations, timer/date/recovery, all three exports, Google authorization, accessibility, and
-debug/release suites pass with app locking both disabled and enabled. Encryption migration and key
-failure suites join this regression only if optional Milestone 19 is also authorized.
+### V2-TASK-01 Work Type, Billing Status, Mileage, and Billing Minutes
 
-### OPTIONAL-EXPORT-01 XLSX mode choice
+New tasks default to On-Site and can choose In-Office. Mileage opens a decimal numeric keyboard,
+accepts only the approved canonical non-negative decimal syntax, and round-trips through edit.
+Billing Status is an exclusive `Billable`/`Do not bill`/`Do not charge` choice between Work Type
+and Mileage; new tasks default to Billable while migrated tasks remain blank until edited.
+Billing Minutes equals `0` at zero duration and otherwise rounds the exact combined interval total
+up to a 15-minute multiple, including boundary and long-duration cases. It is derived rather than
+persisted and never changes timestamp precision.
 
-If separately authorized, users can choose the production one-off XLSX mode or a future connected
-persistent-workbook mode. Both consume the same nine-column snapshot and produce equivalent
-date-tab content; switching/migration, create-document cancellation, missing persistent URI, and
-unrelated tabs are safe.
+### V2-EXPORT-01 Canonical schema 4
 
-### OPTIONAL-EXPORT-02 Midnight automation eligibility
+CSV, one-off XLSX, and Google Sheets expose exactly these headers/values in order: Start date, End
+date, Consultant, Client, Description, Expense, Work type, Billing Status, Mileage, Interval number, Start time,
+Stop time, Interval duration, Time spent, Billing minutes. Both date fields equal the same stored
+task date formatted `MM/DD/YYYY`. Export Start/Stop are `hh:mm a`; durations are `HH:MM:SS`; Billing
+minutes follows V2-TASK-01. Known owned schema-2/schema-3 Google tabs upgrade atomically;
+unowned or newer/unknown tabs remain untouched conflicts.
 
-Automatic local-midnight export can be enabled only for Google Sheets or a valid persistent XLSX
-workbook. It never runs for CSV or one-off XLSX and disabling it cancels future scheduled work.
+### V2-TASK-02 Interval presentation and text-entry capitalization
 
-### OPTIONAL-EXPORT-03 Midnight correctness and idempotence
+Routine interval cards omit an interval Duration field, label values Start Time/Stop Time, and use
+task-zone 12-hour `hh:mm a`. Task Total remains above the interval list and Billing Minutes is
+directly below it. Text fields request sentence capitalization from the keyboard without changing
+stored text automatically. Exact instants, editor precision, DST occurrence handling, and export
+formatting remain unchanged.
 
-Ordinary, spring-forward, fall-back, manual/device-zone-change, Doze, reboot, missed-run,
-offline/auth-expired, invalid-XLSX-URI, and concurrent manual-export tests prove that each completed
-date converges to one duplicate-free tab without changing Room or using unbounded retry.
+### V2-EXPORT-02 Automatic eligibility and captured date
 
-### OPTIONAL-EXPORT-04 Background safety
+The switch is labeled **Auto Export**, displays **Automatically export tasks at the end of each
+day.**, defaults off, and appears at the bottom of the Export Destination card after all Google
+sign-in and Sheets connection options only while Google is selected. It is absent for CSV/XLSX;
+without authorization/connection or required notification capability it is disabled with setup
+guidance. Turning it on enables scheduling and turning it off cancels future automatic work safely.
+CSV and XLSX never auto-run. A stable WorkManager `2.11.2` unique, non-expedited,
+network-constrained one-time request captures target date, ZoneId, and connection association near
+11:59 PM. An inexact run shortly after midnight exports that captured prior date, never
+execution-time `today`. Recalculated one-time work stays aligned with geographical DST/zone rules;
+no exact alarm or fixed 24-hour periodic worker exists.
 
-Automation uses approved Android background work rather than a foreground service waiting for
-midnight. A background run cannot launch a destination picker or silently choose storage; it
-records a safe pending failure until the user can repair the destination. No notification/log
-exposes task content.
+### V2-EXPORT-03 Pending timer and notification
 
-### OPTIONAL-UI-01 Interval clock-time display
+If any timer is running, the scheduled operation exports nothing and persists the target date as
+pending. After successful Stop, a system notification containing no client/task data appears.
+Tapping resumes/performs or confirms that target export. Dismissal does not mark success or delete
+pending state. A successful automatic export produces no Main-screen status and no success
+notification. API-33+ enablement requests `POST_NOTIFICATIONS` in context; denial leaves the switch
+off. API-26+ channel-disabled and later permission-revocation tests prove pending state remains
+recoverable in Google Settings even when Android suppresses the notification.
 
-If separately authorized, routine Task interval cards display completed Start and Stop values as
-task-zone `HH:mm` without seconds. Persisted UTC instants, stored task ZoneId, duration and
+### V2-EXPORT-04 Background correctness and idempotence
+
+Ordinary, DST, device/manual-zone-change, Doze, reboot, force-stop/reopen, delayed/missed run,
+offline/auth-expired, returned Google authorization resolution, disconnect,
+notification/worksheet permission, quota/ambiguous response, and concurrent manual-export tests
+prove each captured date converges to one duplicate-free owned tab without Room mutation or
+automatic retry. Multiple missed days preserve the oldest target and advance one date per worker
+until caught up; no target is overwritten and no worker contains an unbounded loop. Disabling
+automation, selecting CSV/XLSX, disconnecting, or signing out cancels future unique work and clears
+automatic pending state safely.
+
+Unit and WorkManager integration tests additionally prove unique-work replacement rules,
+calculated initial delay, network constraint, one-date-per-worker execution, persisted target/ZoneId
+recovery, no interactive `PendingIntent` launch from a worker, one bounded 401 token-clear attempt,
+terminal pending results instead of `Result.retry()`, content-free notification text/stable ID,
+and exact merged-manifest permission expectations. Manual API-26 and current-API checks cover
+notification channels, API-33+ permission grant/deny/revoke, Doze delay, reboot, force-stop/reopen,
+Google grant retained versus resolution required, offline recovery, and silent success.
+
+Milestone 26 maps these requirements to `AutomaticGoogleExportManager`,
+`WorkManagerAutomaticGoogleExportScheduler`, `AutomaticGoogleExportWorker`, the DataStore target
+tuple, and the conditional Settings controls. Its final close gate must distinguish automated
+coverage from the remaining Android/Google timing and notification device checks.
+
+A rejected Auto Export toggle does not move the Settings list. A red inline message names the
+exact blocker and, for disabled notifications, directs the user to WorqOrder's notification
+settings.
+
+### V2-UI-01 Interval clock-time display
+
+Routine Task interval cards display completed Start Time and Stop Time values as
+task-zone `hh:mm a` without seconds. Persisted UTC instants, stored task ZoneId, duration and
 date-boundary behavior, edit precision, and explicit fall-back occurrence disambiguation remain
-unchanged. CSV, XLSX, and Google Sheets continue to emit the same canonical `HH:mm` Start/Stop
+unchanged. CSV, XLSX, and Google Sheets emit the same canonical `hh:mm a` Start/Stop
 values, with no destination-specific formatter or schema discrepancy.
 
-### OPTIONAL-UI-02 Version-aware About section
+### V2-UI-02 Version-aware Settings footer
 
-If separately authorized, About is the final Settings content, shows the installed
-Gradle-generated version name as plain text, and exposes a small accessible link to the exact
-public GitHub Release tag for that version. The link opens through an external browser intent,
-does not contain credentials, and is tested against debug/release version metadata without a
-second manually maintained version constant.
+The final Settings content is bare footer text over the screen background, outside any card and
+without an About title. It displays exactly the Gradle-derived version/stability text, for example
+`WorqOrder v0.2.0 - stable`, and has no repository/release link, click action, or second manually
+maintained version constant.
 
-### OPTIONAL-UI-03 Handed two-column landscape
+### V2-UI-03 Handed two-column landscape
 
 On first install and corrupt-value fallback, **Landscape Orientation** is **Right-handed**.
-Landscape places a full-height independently scrolling task list in approximately the left half.
-The right half stacks four regions: WorqOrder-left/Settings-right, timer, complete date controls,
-then Export/Add task. Selecting **Left-handed** persists immediately and mirrors those columns
-without changing task order, selection, timer, date, or export state. Portrait is unchanged.
+Landscape keeps a spanning top bar with WorqOrder far left and Settings far right. Below it, a
+full-height independently scrolling task list occupies approximately the left half while the
+right half stacks timer, complete date controls, then Export/Add task. Selecting **Left-handed**
+persists immediately and mirrors only those content columns without changing task order,
+selection, timer, date, or export state. Portrait is unchanged.
+
+The task-list scrollbar remains attached to that list's right edge in either handed mode, and the
+visible list extends to the same bottom margin respected by Export/Add task. Mirroring changes
+column placement, not chronological order or accessibility traversal meaning.
 
 Both modes remain usable on API 26/current target, short and standard landscape, 200% font, large
 display scale, TalkBack, and narrow multi-window bounds. Task rows stay readable and reachable;
 the control half does not overlap, clip, or remove any required action.
 
-### OPTIONAL-UI-04 Running-timer lock-screen surface
+### V2-UI-04 Running-timer lock-screen surface
 
-If the current official Android platform supports the owner-approved behavior, starting a timer
-shows a lock-screen-capable surface containing the WorqOrder icon/name, active task name, and
-elapsed timer. It appears only while an interval is open. Stop removes it. Swiping it away hides
-it for that active interval without stopping, closing, duplicating, or changing the Room interval;
-a later Start may show a new surface.
+Under the owner-approved `LOCK_SCREEN_SURFACE_ADR.md`, starting a timer posts one silent, dismissible,
+standard notification containing WorqOrder identity, active Client plus task Description, and a
+system-rendered accumulated elapsed timer. It appears in the shade and is eligible for the lock
+screen; it is not described as a lock-screen-only widget. Its private supporting line contains
+Client plus Description; its public supporting line is blank. It appears only while an interval
+is open. Stop removes it. Swiping it away records that active interval ID and hides the surface
+without stopping, closing, duplicating, or changing the Room interval; a later Start may show a new
+surface.
 
-Permission denial, OS lock-screen privacy suppression, process death, reboot, screen lock/unlock,
-and task metadata changes fail safely. The app never claims that the surface is visible when user
-or device policy hides it, never writes tick values to Room/DataStore, and never adds a foreground
-service or continuous app-owned background loop solely to update elapsed text. Official API
-research must document whether the implementation is a lock-screen-visible notification or a
-supported lock-screen widget before code begins.
+API-33+ permission denial, channel disablement, OS lock-screen privacy suppression, process death,
+reboot/first unlock, force-stop/relaunch, screen lock/unlock, and task metadata constraints fail
+safely. Start remains usable without notification permission. A system-killed process needs no tick
+repost; app resume reconciles against Room. The approved one-shot boot receiver reposts only after
+first unlock and only when Room still has an undismissed active interval. Force-stop cannot recover
+until the user relaunches the package. The app never claims visibility when user/device policy hides
+it, never writes tick values to Room/DataStore, and never adds a foreground service, custom
+notification layout, exact alarm, wake lock, or continuous app-owned background loop solely to
+update elapsed text.
 
-## 14. Optional local data protection and encryption
+Automated and device tests cover the separate Running Timer channel, concise permission/channel
+recovery guidance, private/public content, direct Main tap, swipe `deleteIntent`, per-interval
+dismissal across recreation/process death/reboot, Stop cleanup, later-Start reappearance, midnight
+continuation, wall-clock changes, API 26/current target, TalkBack, notification-disabled states, and
+CPU/memory/battery behavior. Platform typography and compact chronometer formatting are not asserted
+beyond displaying an advancing elapsed value. A process-absent midnight test confirms the surface
+continues without an application wake and then reconciles to the new daily task total on resume;
+the documented visible reset is accepted and no duplicate split is created.
+
+Milestone 28 verification passed 208 JVM tests and 102 connected tests with zero failures, errors,
+or skips. The owner also passed the focused permission denial/re-enable, channel, private/redacted
+content, accumulated chronometer, direct tap, swipe dismissal, Stop cleanup, new-interval,
+background/lock, Recents/process, reboot, force-stop, and short resource checks. Final private
+content is **Client · Description**; the redacted supporting line is blank.
+
+## 14. Optional Milestone E — data protection, app access, and privacy
 
 The `ENC-*` tests are inactive and are not part of current production acceptance. Run them only
-if the owner separately authorizes optional Milestone 19 after optional Milestone 18. Until then,
+if the owner separately authorizes optional Milestone E. Until then,
 the production build must not claim WorqOrder-managed at-rest encryption for Room or DataStore.
+
+Milestone E also owns inactive opt-in app-lock tests for successful/failed/canceled authentication,
+lockout, biometric/device-credential/approved-PIN policy, screen/background/process/reboot timing,
+navigation/deep-link bypass, running-timer integrity, and no destructive recovery. Separately
+approved screenshot and Recents-preview controls must protect content without making the app
+inaccessible. None of these gates belongs to `0.2.0` or any other release scope unless the owner
+later assigns Milestone E explicitly.
 
 ### ENC-01 Fresh encrypted storage
 
-A fresh optional-Milestone-19 install creates protected app-private Room and sensitive DataStore
+A fresh optional-Milestone-E install creates protected app-private Room and sensitive DataStore
 storage anchored by non-exportable Android Keystore material. Seeded sensitive canaries do not
 appear in database, WAL, SHM, DataStore, cache, backup artifacts, logs, or crash output at rest.
 

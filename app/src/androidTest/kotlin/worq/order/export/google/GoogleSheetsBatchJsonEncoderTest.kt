@@ -21,7 +21,7 @@ class GoogleSheetsBatchJsonEncoderTest {
                             sheetId = 42,
                             title = "WorqOrder_2026-07-24",
                             rowCount = 2,
-                            columnCount = 9,
+                            columnCount = 15,
                         ),
                         GoogleSheetsBatchRequest.CreateSheetMetadata(
                             sheetId = 42,
@@ -152,6 +152,13 @@ class GoogleSheetsBatchJsonEncoderTest {
 
         assertEquals(3, structure?.developerMetadata?.size)
         assertEquals(
+            2,
+            structure
+                ?.developerMetadata
+                ?.single { it.key == GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY }
+                ?.metadataId,
+        )
+        assertEquals(
             "WORQORDER_EXPORT",
             structure
                 ?.developerMetadata
@@ -159,6 +166,38 @@ class GoogleSheetsBatchJsonEncoderTest {
                     it.key ==
                         GoogleSheetsExportPlanner.APPLICATION_MARKER_KEY
                 }?.value,
+        )
+    }
+
+    @Test
+    fun encodesAtomicLegacySchemaMetadataUpgrade() {
+        val plan =
+            GoogleSheetsBatchPlan(
+                tabName = "WorqOrder_2026-07-24",
+                requests =
+                    listOf(
+                        GoogleSheetsBatchRequest.UpdateSheetMetadataValue(
+                            metadataId = 22,
+                            value = "3",
+                        ),
+                    ),
+            )
+
+        val update =
+            JSONObject(GoogleSheetsBatchJsonEncoder.encode(plan))
+                .getJSONArray("requests")
+                .getJSONObject(0)
+                .getJSONObject("updateDeveloperMetadata")
+
+        assertEquals("metadataValue", update.getString("fields"))
+        assertEquals("3", update.getJSONObject("developerMetadata").getString("metadataValue"))
+        assertEquals(
+            22,
+            update
+                .getJSONArray("dataFilters")
+                .getJSONObject(0)
+                .getJSONObject("developerMetadataLookup")
+                .getInt("metadataId"),
         )
     }
 

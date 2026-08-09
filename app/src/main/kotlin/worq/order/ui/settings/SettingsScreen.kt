@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -50,10 +51,14 @@ import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import worq.order.BuildConfig
 import worq.order.R
 import worq.order.data.ExportDestination
+import worq.order.data.LandscapeHandedness
 import worq.order.data.ThemeMode
-import worq.order.data.TimeZoneMode
+import worq.order.ui.employees.ConsultantSettingsEvent
+import worq.order.ui.employees.ConsultantSelectionSection
+import worq.order.ui.employees.ConsultantSettingsUiState
 import worq.order.ui.theme.WorqOrderDimens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,6 +68,9 @@ fun SettingsScreen(
     onEvent: (SettingsEvent) -> Unit,
     onNavigateBack: () -> Unit,
     onOpenClientManagement: () -> Unit,
+    onOpenConsultantManagement: () -> Unit,
+    consultantUiState: ConsultantSettingsUiState = ConsultantSettingsUiState(),
+    onConsultantEvent: (ConsultantSettingsEvent) -> Unit = {},
     showGoogleSetupRequired: Boolean = false,
 ) {
     val listState = rememberLazyListState()
@@ -84,19 +92,10 @@ fun SettingsScreen(
                 ExportDestination.GOOGLE_SHEETS &&
             (showGoogleSetupRequired || googleScrollRequestId > 0)
         ) {
-            val googleSectionIndex = if (uiState.message == null) 4 else 5
+            val googleSectionIndex = if (uiState.message == null) 5 else 6
             listState.animateScrollToItem(googleSectionIndex)
             googleScrollRequestId = 0
         }
-    }
-    if (uiState.isZoneSelectorVisible) {
-        ZoneSelectorDialog(
-            query = uiState.zoneSearchQuery,
-            zones = uiState.zoneOptions,
-            onQueryChanged = { onEvent(SettingsEvent.EditZoneSearch(it)) },
-            onSelect = { onEvent(SettingsEvent.SelectManualZone(it.zoneId)) },
-            onDismiss = { onEvent(SettingsEvent.DismissZoneSelector) },
-        )
     }
     if (showDisconnectConfirmation) {
         AlertDialog(
@@ -179,8 +178,7 @@ fun SettingsScreen(
         ) {
             item {
                 ListItem(
-                    modifier =
-                        Modifier.clickable(onClick = onOpenClientManagement),
+                    modifier = Modifier.clickable(onClick = onOpenClientManagement),
                     leadingContent = {
                         Icon(
                             imageVector = Icons.Default.People,
@@ -195,11 +193,39 @@ fun SettingsScreen(
                     },
                     trailingContent = {
                         Icon(
-                            imageVector =
-                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = null,
                         )
                     },
+                )
+            }
+            item {
+                ListItem(
+                    modifier = Modifier.clickable(onClick = onOpenConsultantManagement),
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Default.People,
+                            contentDescription = null,
+                        )
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.consultant_management))
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.consultant_management_summary))
+                    },
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                        )
+                    },
+                )
+            }
+            item {
+                ConsultantSelectionSection(
+                    uiState = consultantUiState,
+                    onEvent = onConsultantEvent,
                 )
             }
             uiState.message?.let { message ->
@@ -241,60 +267,41 @@ fun SettingsScreen(
                 }
             }
             item {
-                SettingsSection(title = stringResource(R.string.time_zone)) {
-                    Text(
-                        text =
-                            stringResource(
-                                R.string.effective_time_zone,
-                                uiState.effectiveZoneId.id,
-                            ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(WorqOrderDimens.ItemPadding),
-                    )
-                    if (uiState.isTimerRunning) {
-                        Text(
-                            text =
-                                stringResource(
-                                    R.string.stop_timer_before_time_zone_change,
-                                ),
-                            color = MaterialTheme.colorScheme.error,
-                            modifier =
-                                Modifier.padding(
-                                    horizontal = WorqOrderDimens.ItemPadding,
-                                ),
-                        )
-                    }
+                SettingsSection(
+                    title = stringResource(R.string.landscape_orientation),
+                ) {
                     SettingsChoiceRow(
-                        title = stringResource(R.string.use_device_time_zone),
+                        title = stringResource(R.string.right_handed),
                         supportingText =
-                            stringResource(R.string.use_device_time_zone_summary),
-                        selected = uiState.timeZoneMode == TimeZoneMode.DEVICE,
-                        enabled = !uiState.isSaving && !uiState.isTimerRunning,
+                            stringResource(R.string.right_handed_summary),
+                        selected =
+                            uiState.landscapeHandedness ==
+                                LandscapeHandedness.RIGHT_HANDED,
+                        enabled = !uiState.isSaving,
                         onClick = {
-                            onEvent(SettingsEvent.SelectDeviceTimeZone)
+                            onEvent(
+                                SettingsEvent.SelectLandscapeHandedness(
+                                    LandscapeHandedness.RIGHT_HANDED,
+                                ),
+                            )
                         },
                     )
                     SettingsChoiceRow(
-                        title = stringResource(R.string.use_manual_time_zone),
+                        title = stringResource(R.string.left_handed),
                         supportingText =
-                            uiState.manualZoneId?.id
-                                ?: stringResource(R.string.no_manual_time_zone_selected),
-                        selected = uiState.timeZoneMode == TimeZoneMode.MANUAL,
-                        enabled = !uiState.isSaving && !uiState.isTimerRunning,
+                            stringResource(R.string.left_handed_summary),
+                        selected =
+                            uiState.landscapeHandedness ==
+                                LandscapeHandedness.LEFT_HANDED,
+                        enabled = !uiState.isSaving,
                         onClick = {
-                            onEvent(SettingsEvent.SelectManualTimeZone)
+                            onEvent(
+                                SettingsEvent.SelectLandscapeHandedness(
+                                    LandscapeHandedness.LEFT_HANDED,
+                                ),
+                            )
                         },
                     )
-                    OutlinedButton(
-                        onClick = { onEvent(SettingsEvent.OpenZoneSelector) },
-                        enabled = !uiState.isSaving && !uiState.isTimerRunning,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(WorqOrderDimens.ItemPadding),
-                    ) {
-                        Text(stringResource(R.string.choose_time_zone))
-                    }
                 }
             }
             item {
@@ -347,36 +354,50 @@ fun SettingsScreen(
                             )
                         },
                     )
+                    if (
+                        uiState.defaultExportDestination ==
+                            ExportDestination.GOOGLE_SHEETS
+                    ) {
+                        HorizontalDivider()
+                        GoogleSheetsSettingsContent(
+                            uiState = uiState,
+                            onEvent = onEvent,
+                            showSetupRequired = showGoogleSetupRequired,
+                            onDisconnect = {
+                                showDisconnectConfirmation = true
+                            },
+                            onSignOut = {
+                                if (uiState.connectedSpreadsheetId != null) {
+                                    showSignOutConfirmation = true
+                                } else {
+                                    onEvent(SettingsEvent.SignOutOfGoogle)
+                                }
+                            },
+                        )
+                    }
                 }
             }
-            if (
-                uiState.defaultExportDestination ==
-                ExportDestination.GOOGLE_SHEETS
-            ) {
-                item {
-                    GoogleSheetsSettingsSection(
-                        uiState = uiState,
-                        onEvent = onEvent,
-                        showSetupRequired = showGoogleSetupRequired,
-                        onDisconnect = {
-                            showDisconnectConfirmation = true
-                        },
-                        onSignOut = {
-                            if (uiState.connectedSpreadsheetId != null) {
-                                showSignOutConfirmation = true
-                            } else {
-                                onEvent(SettingsEvent.SignOutOfGoogle)
-                            }
-                        },
-                    )
-                }
+            item {
+                Text(
+                    text =
+                        stringResource(
+                            R.string.about_version_stability,
+                            BuildConfig.VERSION_NAME,
+                        ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(WorqOrderDimens.ItemPadding),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun GoogleSheetsSettingsSection(
+private fun GoogleSheetsSettingsContent(
     uiState: SettingsUiState,
     onEvent: (SettingsEvent) -> Unit,
     showSetupRequired: Boolean,
@@ -391,19 +412,11 @@ private fun GoogleSheetsSettingsSection(
                 GoogleConnectionUiStatus.SIGNING_OUT,
                 GoogleConnectionUiStatus.DISCONNECTING,
             )
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors =
-            if (showSetupRequired) {
-                androidx.compose.material3.CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                )
-            } else {
-                androidx.compose.material3.CardDefaults.cardColors()
-            },
-    ) {
-        Column(
-            modifier = Modifier.padding(WorqOrderDimens.CardPadding),
+    Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(WorqOrderDimens.CardPadding),
             verticalArrangement =
                 Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
         ) {
@@ -558,9 +571,87 @@ private fun GoogleSheetsSettingsSection(
                     Text(stringResource(R.string.google_sign_out))
                 }
             }
-        }
+            HorizontalDivider()
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .sizeIn(minHeight = WorqOrderDimens.IconButtonSize)
+                        .clickable(
+                            enabled = !operationInProgress && !uiState.isSaving,
+                            role = Role.Switch,
+                        ) {
+                            onEvent(
+                                SettingsEvent.SetAutomaticGoogleExport(
+                                    !uiState.automaticGoogleExportEnabled,
+                                ),
+                            )
+                        },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.auto_export),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        text = stringResource(R.string.auto_export_summary),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = uiState.automaticGoogleExportEnabled,
+                    onCheckedChange = null,
+                    enabled = !operationInProgress && !uiState.isSaving,
+                )
+            }
+            uiState.automaticGoogleExportEnablementError?.let { error ->
+                val errorText = automaticGoogleExportEnablementErrorText(error)
+                Text(
+                    text = errorText,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier =
+                        Modifier.semantics {
+                            this.error(errorText)
+                            liveRegion = LiveRegionMode.Assertive
+                        },
+                )
+            }
+            if (uiState.automaticGooglePendingReason != null) {
+                Text(
+                    text = stringResource(R.string.auto_export_pending),
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+                Button(
+                    onClick = { onEvent(SettingsEvent.RetryAutomaticGoogleExport) },
+                    enabled = !operationInProgress && !uiState.isTimerRunning,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.finish_pending_export))
+                }
+            }
     }
 }
+
+@Composable
+private fun automaticGoogleExportEnablementErrorText(
+    error: AutomaticGoogleExportEnablementError,
+): String =
+    stringResource(
+        when (error) {
+            AutomaticGoogleExportEnablementError.NOTIFICATION_PERMISSION_REQUIRED ->
+                R.string.auto_export_error_notifications_disabled
+            AutomaticGoogleExportEnablementError.SPREADSHEET_CONNECTION_REQUIRED ->
+                R.string.auto_export_error_spreadsheet_required
+            AutomaticGoogleExportEnablementError.GOOGLE_SHEETS_DESTINATION_REQUIRED ->
+                R.string.auto_export_error_google_destination_required
+            AutomaticGoogleExportEnablementError.LOCAL_SETTINGS_UNAVAILABLE ->
+                R.string.auto_export_error_local_settings
+        },
+    )
 
 @Composable
 private fun googleStatusText(status: GoogleConnectionUiStatus): String =

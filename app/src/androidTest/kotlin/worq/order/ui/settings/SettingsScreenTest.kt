@@ -4,8 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasScrollAction
@@ -23,6 +23,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import worq.order.data.ThemeMode
+import worq.order.data.LandscapeHandedness
+import worq.order.ui.employees.ConsultantSettingsUiState
 import worq.order.ui.theme.WorqOrderTheme
 
 @RunWith(AndroidJUnit4::class)
@@ -31,9 +33,30 @@ class SettingsScreenTest {
     val composeRule = createComposeRule()
 
     @Test
+    fun aboutShowsBuildVersionAndHasNoRepositoryLink() {
+        setContent(
+            state =
+                SettingsUiState(
+                    effectiveZoneId = ZoneId.of("America/New_York"),
+                ),
+        )
+
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(hasText("WorqOrder v0.2.0 - stable"))
+        composeRule.onAllNodesWithText("About").assertCountEquals(0)
+        composeRule
+            .onNodeWithText("WorqOrder v0.2.0 - stable")
+            .assertIsDisplayed()
+            .assertHasNoClickAction()
+        composeRule.onAllNodesWithText("GitHub", substring = true).assertCountEquals(0)
+    }
+
+    @Test
     fun settingsSectionsExposeThemeExportAndClientActions() {
         val events = mutableListOf<SettingsEvent>()
         var openedClients = false
+        var openedConsultants = false
         setContent(
             state =
                 SettingsUiState(
@@ -41,6 +64,8 @@ class SettingsScreenTest {
                 ),
             onEvent = events::add,
             onOpenClientManagement = { openedClients = true },
+            onOpenConsultantManagement = { openedConsultants = true },
+            consultantState = ConsultantSettingsUiState(isLoading = false),
         )
 
         val clientBounds =
@@ -49,13 +74,22 @@ class SettingsScreenTest {
                 .assertIsDisplayed()
                 .fetchSemanticsNode()
                 .boundsInRoot
-        val appearanceBounds =
+        val consultantBounds =
             composeRule
-                .onNodeWithText("Appearance")
+                .onNodeWithText("Consultant Management")
                 .assertIsDisplayed()
                 .fetchSemanticsNode()
                 .boundsInRoot
-        assertTrue(clientBounds.top < appearanceBounds.top)
+        assertTrue(clientBounds.top < consultantBounds.top)
+        composeRule.onNodeWithText("Client Management").performClick()
+        composeRule.onNodeWithText("Consultant Management").performClick()
+        composeRule.onNodeWithText("Choose a Consultant").assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Add and select a Consultant before creating a task.")
+            .assertIsDisplayed()
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(hasText("Appearance"))
         composeRule.onNodeWithText("Use system setting").assertIsSelected()
         composeRule.onNodeWithText("Light").assertIsEnabled()
         composeRule.onNodeWithText("Dark").assertIsEnabled()
@@ -63,16 +97,19 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Light").performClick()
         composeRule
             .onNode(hasScrollAction())
-            .performScrollToNode(hasText("Google Sheets"))
-        composeRule.onNodeWithText("Google Sheets").performClick()
+            .performScrollToNode(hasText("Landscape Orientation"))
+        composeRule.onNodeWithText("Right-handed").assertIsSelected()
+        composeRule.onNodeWithText("Left-handed").performClick()
         composeRule
             .onNode(hasScrollAction())
-            .performScrollToNode(hasText("Client Management"))
-        composeRule.onNodeWithText("Client Management").performClick()
-
+            .performScrollToNode(hasText("Google Sheets"))
+        composeRule.onNodeWithText("Google Sheets").performClick()
         assertEquals(
             listOf(
                 SettingsEvent.SelectTheme(ThemeMode.LIGHT),
+                SettingsEvent.SelectLandscapeHandedness(
+                    LandscapeHandedness.LEFT_HANDED,
+                ),
                 SettingsEvent.SelectExportDestination(
                     worq.order.data.ExportDestination.GOOGLE_SHEETS,
                 ),
@@ -80,41 +117,29 @@ class SettingsScreenTest {
             events,
         )
         assertTrue(openedClients)
+        assertTrue(openedConsultants)
     }
 
     @Test
-    fun zoneSelectorIsSearchableAndPreservesCanonicalId() {
-        val events = mutableListOf<SettingsEvent>()
+    fun timeZoneSettingsAndSelectorAreHidden() {
         setContent(
             state =
                 SettingsUiState(
                     effectiveZoneId = ZoneId.of("America/Chicago"),
                     isZoneSelectorVisible = true,
-                    zoneSearchQuery = "New York",
-                    zoneOptions =
-                        listOf(
-                            ZoneOptionUi(
-                                zoneId = ZoneId.of("America/New_York"),
-                                friendlyName = "New York",
-                            ),
-                        ),
                 ),
-            onEvent = events::add,
         )
 
-        composeRule.onNodeWithText("Search by city, region, or zone ID")
-            .assertIsDisplayed()
-        composeRule.onAllNodesWithText("New York").assertCountEquals(2)
-        composeRule.onNodeWithText("America/New_York").performClick()
-
-        assertEquals(
-            SettingsEvent.SelectManualZone(ZoneId.of("America/New_York")),
-            events.last(),
-        )
+        composeRule.onAllNodesWithText("Time Zone").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Use device time zone").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Use manual time zone").assertCountEquals(0)
+        composeRule
+            .onAllNodesWithText("Search by city, region, or zone ID")
+            .assertCountEquals(0)
     }
 
     @Test
-    fun runningTimerDisablesZoneChangesAndGoogleRouteShowsSetupRequirement() {
+    fun googleRouteShowsSetupRequirementWhileTimerRuns() {
         setContent(
             state =
                 SettingsUiState(
@@ -126,15 +151,6 @@ class SettingsScreenTest {
             showGoogleSetupRequired = true,
         )
 
-        composeRule
-            .onNode(hasScrollAction())
-            .performScrollToNode(
-                hasText("Stop the running timer before changing the time zone."),
-            )
-        composeRule
-            .onNodeWithText("Stop the running timer before changing the time zone.")
-            .assertIsDisplayed()
-        composeRule.onNodeWithText("Use manual time zone").assertIsNotEnabled()
         composeRule
             .onNode(hasScrollAction())
             .performScrollToNode(hasText("Google Sheets Setup Required"))
@@ -276,6 +292,7 @@ class SettingsScreenTest {
                     },
                     onNavigateBack = {},
                     onOpenClientManagement = {},
+                    onOpenConsultantManagement = {},
                 )
             }
         }
@@ -289,6 +306,76 @@ class SettingsScreenTest {
         composeRule
             .onNodeWithText("Google Sheets Connection")
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun autoExportSwitchAppearsOnlyForGoogleAndEmitsToggle() {
+        var state by mutableStateOf(
+            SettingsUiState(effectiveZoneId = ZoneId.of("America/New_York")),
+        )
+        val events = mutableListOf<SettingsEvent>()
+        composeRule.setContent {
+            WorqOrderTheme(darkTheme = true) {
+                SettingsScreen(
+                    uiState = state,
+                    onEvent = events::add,
+                    onNavigateBack = {},
+                    onOpenClientManagement = {},
+                    onOpenConsultantManagement = {},
+                )
+            }
+        }
+        composeRule.onAllNodesWithText("Auto Export").assertCountEquals(0)
+
+        state =
+            state.copy(
+                defaultExportDestination =
+                    worq.order.data.ExportDestination.GOOGLE_SHEETS,
+                googleAccountId = "person@example.com",
+                connectedSpreadsheetId = SPREADSHEET_ID,
+                connectedSpreadsheetTitle = "Work Log",
+                googleStatus = GoogleConnectionUiStatus.CONNECTED,
+            )
+        composeRule.waitForIdle()
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(hasText("Auto Export"))
+        composeRule.onNodeWithText("Auto Export").performClick()
+
+        assertTrue(events.contains(SettingsEvent.SetAutomaticGoogleExport(true)))
+    }
+
+    @Test
+    fun autoExportEnablementErrorAppearsInlineWithSpecificRecovery() {
+        setContent(
+            state =
+                SettingsUiState(
+                    effectiveZoneId = ZoneId.of("America/New_York"),
+                    defaultExportDestination =
+                        worq.order.data.ExportDestination.GOOGLE_SHEETS,
+                    googleAccountId = "person@example.com",
+                    connectedSpreadsheetId = SPREADSHEET_ID,
+                    connectedSpreadsheetTitle = "Work Log",
+                    googleStatus = GoogleConnectionUiStatus.CONNECTED,
+                    automaticGoogleExportEnablementError =
+                        AutomaticGoogleExportEnablementError
+                            .NOTIFICATION_PERMISSION_REQUIRED,
+                ),
+        )
+
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(
+                hasText(
+                    "Enable notifications in Settings > Apps > WorqOrder > " +
+                        "Notifications to use Auto Export.",
+                ),
+            )
+        composeRule
+            .onNodeWithText(
+                "Enable notifications in Settings > Apps > WorqOrder > " +
+                    "Notifications to use Auto Export.",
+            ).assertIsDisplayed()
     }
 
     @Test
@@ -323,6 +410,8 @@ class SettingsScreenTest {
         state: SettingsUiState,
         onEvent: (SettingsEvent) -> Unit = {},
         onOpenClientManagement: () -> Unit = {},
+        onOpenConsultantManagement: () -> Unit = {},
+        consultantState: ConsultantSettingsUiState = ConsultantSettingsUiState(),
         showGoogleSetupRequired: Boolean = false,
     ) {
         composeRule.setContent {
@@ -332,6 +421,8 @@ class SettingsScreenTest {
                     onEvent = onEvent,
                     onNavigateBack = {},
                     onOpenClientManagement = onOpenClientManagement,
+                    onOpenConsultantManagement = onOpenConsultantManagement,
+                    consultantUiState = consultantState,
                     showGoogleSetupRequired = showGoogleSetupRequired,
                 )
             }

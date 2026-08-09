@@ -8,13 +8,27 @@ import worq.order.model.ActiveTimer
 import worq.order.model.ActiveTimerSnapshot
 import worq.order.model.Client
 import worq.order.model.DailyTask
+import worq.order.model.Employee
 import worq.order.model.TaskListItem
 import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
+import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 
 internal fun ClientEntity.toModel(): Client =
     Client(
+        id = id,
+        name = name,
+        canonicalName = canonicalName,
+        isActive = isActive,
+        createdAt = Instant.ofEpochMilli(createdAtEpochMs),
+        updatedAt = Instant.ofEpochMilli(updatedAtEpochMs),
+        archivedAt = archivedAtEpochMs?.let(Instant::ofEpochMilli),
+    )
+
+internal fun EmployeeEntity.toModel(): Employee =
+    Employee(
         id = id,
         name = name,
         canonicalName = canonicalName,
@@ -31,6 +45,11 @@ internal fun DailyTaskEntity.toModel(): DailyTask =
         clientId = clientId,
         description = description,
         hardwareSoftwarePurchases = hardwareSoftwarePurchases,
+        employeeId = employeeId,
+        employeeNameSnapshot = employeeNameSnapshot,
+        workType = WorkType.valueOf(workType),
+        billingStatus = billingStatus?.let(BillingStatus::valueOf),
+        mileage = mileage,
         workDate = LocalDate.ofEpochDay(workDateEpochDay),
         zoneId = ZoneId.of(zoneId),
         createdAt = Instant.ofEpochMilli(createdAtEpochMs),

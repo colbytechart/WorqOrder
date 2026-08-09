@@ -19,6 +19,7 @@ import org.junit.Rule
 import org.junit.Test
 import worq.order.data.ExportDestination
 import worq.order.data.GoogleAccountHint
+import worq.order.data.LandscapeHandedness
 import worq.order.data.NewDailyTask
 import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
@@ -68,6 +69,36 @@ class SettingsViewModelTest {
             viewModel.onEvent(SettingsEvent.SelectTheme(ThemeMode.SYSTEM))
             runCurrent()
             assertEquals(ThemeMode.SYSTEM, viewModel.uiState.value.themeMode)
+        }
+
+    @Test
+    fun landscapeHandednessAppliesImmediatelyAndPersistsThroughRepository() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            assertEquals(
+                LandscapeHandedness.RIGHT_HANDED,
+                viewModel.uiState.value.landscapeHandedness,
+            )
+
+            viewModel.onEvent(
+                SettingsEvent.SelectLandscapeHandedness(
+                    LandscapeHandedness.LEFT_HANDED,
+                ),
+            )
+            runCurrent()
+
+            assertEquals(
+                LandscapeHandedness.LEFT_HANDED,
+                viewModel.uiState.value.landscapeHandedness,
+            )
+            assertEquals(
+                LandscapeHandedness.LEFT_HANDED,
+                fixture.settings.readSettings().landscapeHandedness,
+            )
         }
 
     @Test
@@ -269,6 +300,24 @@ class SettingsViewModelTest {
             assertNull(viewModel.uiState.value.googleAccountId)
             assertNull(viewModel.uiState.value.connectedSpreadsheetId)
             assertNull(viewModel.uiState.value.connectedSpreadsheetTitle)
+        }
+
+    @Test
+    fun deniedNotificationPermissionUsesInlineAutoExportRecovery() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            viewModel.onEvent(SettingsEvent.NotificationPermissionResult(false))
+            runCurrent()
+
+            assertEquals(
+                AutomaticGoogleExportEnablementError.NOTIFICATION_PERMISSION_REQUIRED,
+                viewModel.uiState.value.automaticGoogleExportEnablementError,
+            )
+            assertNull(viewModel.uiState.value.message)
         }
 
     private fun kotlinx.coroutines.test.TestScope.collectState(

@@ -21,6 +21,8 @@ import worq.order.model.TaskListItem
 import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
+import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 import worq.order.timer.UtcClock
 
 class RoomTaskRepository(
@@ -85,10 +87,14 @@ class RoomTaskRepository(
     override suspend fun createDailyTask(newTask: NewDailyTask): CreateDailyTaskResult {
         require(newTask.clientId.isNotBlank()) { "clientId must not be blank" }
         val entity = newTask.toEntity()
-        return if (taskDao.insertDailyTaskIfClientActive(entity)) {
-            CreateDailyTaskResult.Created(entity.toModel())
-        } else {
-            CreateDailyTaskResult.ClientUnavailable
+        val result = taskDao.insertDailyTaskIfReferencesActive(entity)
+        return when (result.status) {
+            TaskCreationWriteStatus.CREATED ->
+                CreateDailyTaskResult.Created(requireNotNull(result.task).toModel())
+            TaskCreationWriteStatus.CLIENT_UNAVAILABLE ->
+                CreateDailyTaskResult.ClientUnavailable
+            TaskCreationWriteStatus.EMPLOYEE_UNAVAILABLE ->
+                CreateDailyTaskResult.EmployeeUnavailable
         }
     }
 
@@ -126,16 +132,31 @@ class RoomTaskRepository(
         clientId: String,
         description: String,
         hardwareSoftwarePurchases: String,
+        employeeId: String?,
+        workType: WorkType,
+        billingStatus: BillingStatus?,
+        mileage: String?,
     ): UpdateTaskMetadataResult {
         require(taskId.isNotBlank()) { "taskId must not be blank" }
         require(clientId.isNotBlank()) { "clientId must not be blank" }
-        val metadata = normalizeMetadata(description, hardwareSoftwarePurchases)
+        val metadata =
+            normalizeMetadata(
+                description = description,
+                hardwareSoftwarePurchases = hardwareSoftwarePurchases,
+                workType = workType,
+                billingStatus = billingStatus,
+                mileage = mileage,
+            )
         val result =
             taskDao.updateStoppedTaskMetadata(
                 taskId = taskId,
                 clientId = clientId,
                 description = metadata.description,
                 hardwareSoftwarePurchases = metadata.hardwareSoftwarePurchases,
+                employeeId = employeeId,
+                workType = metadata.workType.name,
+                billingStatus = metadata.billingStatus?.name,
+                mileage = metadata.mileage,
                 updatedAtEpochMs = clock.now().toEpochMilli(),
             )
         return when (result.status) {
@@ -145,6 +166,8 @@ class RoomTaskRepository(
                 UpdateTaskMetadataResult.TaskNotFound
             TaskMetadataWriteStatus.CLIENT_UNAVAILABLE ->
                 UpdateTaskMetadataResult.ClientUnavailable
+            TaskMetadataWriteStatus.EMPLOYEE_UNAVAILABLE ->
+                UpdateTaskMetadataResult.EmployeeUnavailable
             TaskMetadataWriteStatus.RUNNING_TASK ->
                 UpdateTaskMetadataResult.RunningTask
         }
@@ -227,7 +250,14 @@ class RoomTaskRepository(
         workIntervalDao.readCompletedDurationMs(taskId)
 
     private fun NewDailyTask.toEntity(): DailyTaskEntity {
-        val metadata = normalizeMetadata(description, hardwareSoftwarePurchases)
+        val metadata =
+            normalizeMetadata(
+                description = description,
+                hardwareSoftwarePurchases = hardwareSoftwarePurchases,
+                workType = workType,
+                billingStatus = billingStatus,
+                mileage = mileage,
+            )
         val nowEpochMs = clock.now().toEpochMilli()
         return DailyTaskEntity(
             id = idGenerator.newId(),
@@ -235,6 +265,11 @@ class RoomTaskRepository(
             clientId = clientId,
             description = metadata.description,
             hardwareSoftwarePurchases = metadata.hardwareSoftwarePurchases,
+            employeeId = employeeId,
+            employeeNameSnapshot = employeeNameSnapshot,
+            workType = metadata.workType.name,
+            billingStatus = metadata.billingStatus?.name,
+            mileage = metadata.mileage,
             workDateEpochDay = workDate.toEpochDay(),
             zoneId = zoneId.id,
             createdAtEpochMs = nowEpochMs,
@@ -245,12 +280,18 @@ class RoomTaskRepository(
     private fun normalizeMetadata(
         description: String,
         hardwareSoftwarePurchases: String,
+        workType: WorkType = WorkType.UNSPECIFIED,
+        billingStatus: BillingStatus? = null,
+        mileage: String? = null,
     ): NormalizedTaskMetadata =
         when (
             val validation =
                 TaskMetadataValidator.validate(
                     description = description,
                     hardwareSoftwarePurchases = hardwareSoftwarePurchases,
+                    workType = workType,
+                    billingStatus = billingStatus,
+                    mileage = mileage,
                 )
         ) {
             is TaskMetadataValidationResult.Valid -> validation.metadata
@@ -259,6 +300,7 @@ class RoomTaskRepository(
                     "Invalid task metadata: ${validation.errors.joinToString()}",
                 )
         }
+
 }
 
 private fun ManualIntervalWriteEntityResult.toPersistenceResult():

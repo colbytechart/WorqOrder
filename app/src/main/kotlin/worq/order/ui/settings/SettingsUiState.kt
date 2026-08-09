@@ -2,6 +2,8 @@ package worq.order.ui.settings
 
 import java.time.ZoneId
 import worq.order.data.ExportDestination
+import worq.order.data.AutomaticGooglePendingReason
+import worq.order.data.LandscapeHandedness
 import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
 
@@ -9,6 +11,13 @@ enum class SettingsMessage {
     STOP_TIMER_BEFORE_TIME_ZONE_CHANGE,
     INVALID_TIME_ZONE,
     DATA_UNAVAILABLE,
+}
+
+enum class AutomaticGoogleExportEnablementError {
+    NOTIFICATION_PERMISSION_REQUIRED,
+    SPREADSHEET_CONNECTION_REQUIRED,
+    GOOGLE_SHEETS_DESTINATION_REQUIRED,
+    LOCAL_SETTINGS_UNAVAILABLE,
 }
 
 enum class GoogleConnectionUiStatus {
@@ -57,6 +66,8 @@ data class SettingsUiState(
     val manualZoneId: ZoneId? = null,
     val effectiveZoneId: ZoneId = ZoneId.of("UTC"),
     val defaultExportDestination: ExportDestination = ExportDestination.CSV,
+    val landscapeHandedness: LandscapeHandedness =
+        LandscapeHandedness.RIGHT_HANDED,
     val isTimerRunning: Boolean = false,
     val isSaving: Boolean = false,
     val isZoneSelectorVisible: Boolean = false,
@@ -71,6 +82,11 @@ data class SettingsUiState(
     val connectedSpreadsheetId: String? = null,
     val connectedSpreadsheetTitle: String? = null,
     val googleMessage: GoogleSettingsMessage? = null,
+    val automaticGoogleExportEnabled: Boolean = false,
+    val automaticGoogleTargetDate: java.time.LocalDate? = null,
+    val automaticGooglePendingReason: AutomaticGooglePendingReason? = null,
+    val automaticGoogleExportEnablementError:
+        AutomaticGoogleExportEnablementError? = null,
 )
 
 sealed interface SettingsEvent {
@@ -98,6 +114,10 @@ sealed interface SettingsEvent {
         val destination: ExportDestination,
     ) : SettingsEvent
 
+    data class SelectLandscapeHandedness(
+        val handedness: LandscapeHandedness,
+    ) : SettingsEvent
+
     data class EditSpreadsheetInput(
         val input: String,
     ) : SettingsEvent
@@ -114,6 +134,16 @@ sealed interface SettingsEvent {
 
     data object SignOutOfGoogle : SettingsEvent
 
+    data class SetAutomaticGoogleExport(
+        val enabled: Boolean,
+    ) : SettingsEvent
+
+    data class NotificationPermissionResult(
+        val granted: Boolean,
+    ) : SettingsEvent
+
+    data object RetryAutomaticGoogleExport : SettingsEvent
+
     data object DismissGoogleMessage : SettingsEvent
 
     data object DismissMessage : SettingsEvent
@@ -129,4 +159,10 @@ sealed interface SettingsEffect {
     data object DisconnectSpreadsheet : SettingsEffect
 
     data object SignOutOfGoogle : SettingsEffect
+
+    data object RequestNotificationPermission : SettingsEffect
+
+    data class RetryAutomaticGoogleExport(
+        val workDate: java.time.LocalDate,
+    ) : SettingsEffect
 }

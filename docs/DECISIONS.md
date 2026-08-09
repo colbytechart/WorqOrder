@@ -312,7 +312,9 @@ System, Light, and Dark are always-enabled radio choices. System is the first-la
 unknown-value fallback; while selected, it follows the device configuration without disabling the
 two explicit overrides. Client Management is the first normal Settings item, followed by
 Appearance, Time Zone, and Export Destination. The Google Sheets Connection section is rendered
-only while Google Sheets is the selected destination. Section and screen headers use title
+only while Google Sheets is the selected destination. The conditional Google content belongs in
+the Export Destination card; its final row is the **Auto Export** switch described by D-071.
+Section and screen headers use title
 capitalization; body, field, and action copy retains its existing sentence-style wording.
 
 ### D-044 — Milestone 8 CSV snapshot and document delivery
@@ -375,7 +377,9 @@ cleared so Google export remains unavailable.
 While a connection exists, Settings shows its title/ID and Disconnect/Sign Out actions but hides
 the spreadsheet URL/ID and Validate and Connect controls. The entire connection card is hidden
 unless Google Sheets is the selected Export Destination. Selecting Google Sheets automatically
-scrolls the Settings list to the newly revealed connection card.
+scrolls the Settings list to the newly revealed conditional connection content. The **Auto Export**
+row follows all sign-in and spreadsheet-connection options at the bottom of the Export Destination
+card and is absent for CSV/XLSX.
 
 Milestone 10 implements this decision with DataStore keys for the account ID/display
 hint, spreadsheet ID/title, validation timestamp, current-account validation flag, and
@@ -433,12 +437,13 @@ stores no XLSX document URI or connection metadata. Repeated exports intentional
 independent files.
 
 Use a focused internal Android-compatible OOXML writer with no new production dependency. All
-nine canonical values are literal cells; no macros, formulas, external links, hidden worksheets,
+canonical values are literal cells (nine in `0.1.0`, 14 in planned `0.2.0`); no macros, formulas,
+external links, hidden worksheets,
 credentials, or app-private keys are written. Apache POI remains disallowed absent a new explicit
 owner decision. Cancellation writes nothing; output failure uses best-effort partial-document
 cleanup and leaves Room unchanged.
 
-### D-050 — At-rest encryption is deferred to optional Milestone 19
+### D-050 — At-rest encryption is deferred to optional Milestone E
 
 The owner superseded the earlier required Milestone 14 encryption decision after its experimental
 work was removed from the production branch. The required production sequence does not add
@@ -446,7 +451,7 @@ WorqOrder-managed encryption to app-private Room or DataStore files and must not
 Android's application sandbox remains the current local access boundary.
 
 The complete Data Protection and Encryption Hardening scope is retained only as optional
-Milestone 19, after optional Milestone 18. It requires separate explicit owner permission. If
+Milestone E. It requires separate explicit owner permission. If
 authorized, it must cover versioned Keystore-backed authenticated encryption, database auxiliary
 files, backup/data extraction, caches, temporary artifacts, logs, crash output, non-destructive
 plaintext migration, key rotation, key loss/invalidation, corruption, performance, and full
@@ -456,65 +461,33 @@ device-credential prompt, or app PIN, and it must never silently delete or resee
 User-selected CSV and XLSX documents remain unencrypted external files. Readable Google Sheets
 cells use platform TLS and Google access controls but are not end-to-end encrypted by WorqOrder.
 
-### D-051 — Post-project options require separate authorization
+### D-051 — Optional Milestone E requires separate authorization
 
-Biometric, device-credential, local-PIN, or comparable user-presence/app-lock behavior belongs
-only to optional Milestone 18 after the required project through release/handoff is fully
-complete. Do not begin it without a new explicit owner instruction, and remind the owner about it
-only after Milestone 17 is finished.
+Optional Milestone E is release-agnostic, outside `0.2.0` and every other release scope, and is not
+scheduled. It remains on the backburner until the owner explicitly assigns it. It is the only home for
+WorqOrder-managed at-rest encryption, opt-in biometric/device-credential/approved-PIN app access,
+and separately reviewed screenshot/Recents privacy controls. Do not begin any part without a new
+explicit owner instruction.
 
-If authorized, keep the feature local/offline and opt-in. It must not introduce a WorqOrder cloud
-account, custom backend, password server, Google-account requirement, or silent key/data loss.
-Its own gate covers prompt/lockout/cancellation, background timeout, screen/reboot/process events,
-deep-link/navigation bypass, sensitive previews, accessibility, running-timer integrity, and full
-security/regression testing. Encryption interactions apply only if optional Milestone 19 is also
-separately authorized.
+If authorized, keep access control local/offline and opt-in. It must not introduce a WorqOrder
+cloud account, custom backend, password server, Google-account requirement, destructive recovery,
+or silent key/data loss. Its own gates cover cryptographic migration/key failures,
+prompt/lockout/cancellation, background timeout, screen/reboot/process events,
+deep-link/navigation bypass, sensitive previews, accessibility, running-timer integrity,
+performance, security, and full regression testing.
 
-The same optional milestone also revisits two export enhancements that are intentionally excluded
-from production scope until separately authorized:
+Persistent-XLSX mode is obsolete rather than deferred. CSV/XLSX remain manual one-off document
+flows. The About, interval-clock, handed landscape, lock-screen surface, and Google-only automatic
+export requirements moved into the approved `0.2.0` production roadmap and no longer belong to an
+optional milestone.
 
-1. let the user choose between the production one-off XLSX file and a connected persistent XLSX
-   workbook; and
-2. optionally export the just-completed day automatically at its local midnight when the default
-   destination is Google Sheets or a valid persistent XLSX workbook.
+### D-052 — One reduced canonical export dataset (`0.1.0` baseline)
 
-It also defers a Task interval-card presentation refinement: show completed Start and Stop clock
-values as task-zone `HH:mm` only. This is display-only. Persisted UTC instants, the task's stored
-ZoneId, edit precision, duration calculations, and explicit fall-back occurrence handling remain
-unchanged. All three exports already use canonical task-zone `HH:mm`; optional Milestone 18 keeps
-that common output and removes seconds only from the remaining interval-card presentation.
-
-Optional Milestone 18 also owns these separately authorized presentation additions:
-
-1. an About section at the very bottom of Settings that derives the installed version from Gradle
-   build metadata and links to that exact version's public GitHub Release page;
-2. a mirrored two-column phone-landscape Main layout, with a full-height independently scrolling
-   task list in one approximate half and title/Settings, timer, date controls, and Export/Add task
-   stacked in four regions in the other half; and
-3. a typed **Landscape Orientation** preference with **Right-handed** as the default/task-list-left
-   layout and **Left-handed** as its column-mirrored counterpart.
-
-Optional Milestone 18 additionally investigates and implements the narrowest officially supported
-running-timer lock-screen surface that can show the WorqOrder icon/name, task name, and elapsed
-timer. It exists only while timing and may be dismissed for the current interval without stopping
-the Room-authoritative timer. Because the requested swipe behavior may require a lock-screen-visible
-notification rather than a universally supported AppWidget, official Android API/version
-capabilities must be verified before selecting the mechanism. The feature must respect user
-lock-screen privacy/notification settings and cannot add a foreground service or app-driven
-background tick loop merely to animate elapsed time.
-
-Automatic midnight export must define Android background-execution behavior, offline/auth/URI
-failure and retry policy, zone changes, reboot/catch-up, duplicate prevention, user controls,
-battery impact, and privacy/security tests. It must never apply to CSV, create a foreground
-service merely to wait for midnight, or silently replace a missing XLSX document without
-user-mediated destination selection.
-
-### D-052 — One reduced canonical export dataset
-
-All destinations consume one immutable schema-version-2 `ExportSnapshot` built after the export
+For `0.1.0`, all destinations consume one immutable schema-version-2 `ExportSnapshot` built after the export
 action from one Room transaction and one internal snapshot instant. The visible columns are
 exactly Work Date, Client Name, Description, Hardware / Software Purchases, Interval Number, Start
-Local, Stop Local, Interval Duration Formatted, and Task Total Duration Formatted.
+Local, Stop Local, Interval Duration Formatted, and Task Total Duration Formatted. D-069 supersedes
+the external columns together for `0.2.0`; the single-builder rule remains unchanged.
 
 Start/Stop are task-zone `HH:mm`; durations are accumulated `HH:MM:SS` with sub-second remainder
 truncated. All nine values are canonical strings, so CSV, XLSX, and Google Sheets expose equivalent
@@ -709,6 +682,10 @@ redundant visible **Work Date** label, keeps 48 dp actions, and preserves full t
 This is a presentation-only change: Main state, Room, timing, task ordering, and all three export
 implementations are unchanged.
 
+D-063 documents the released `0.1.0` layout only. For `0.2.0`, D-070 and Milestone 24 supersede
+its top-bar actions and single-column compact-header arrangement with the handed two-column
+landscape composition; its portrait and non-behavioral guarantees remain in force.
+
 ### D-064 — Five-Hz visible timer refresh
 
 Physical release profiling with the timer visible for one hour found 22–26% instantaneous app CPU
@@ -738,23 +715,315 @@ Room UTC boundaries, monotonic anchors, interval arithmetic, and in-memory expor
 their existing precision. This is a presentation-only decision and requires no Room migration or
 export schema-version change.
 
+### D-066 — `0.2.0` identity and roadmap
+
+The next release is `versionName = 0.2.0`, `versionCode = 2`. Milestone 18 is planning-only and
+changes no implementation code; consecutive implementation milestones begin at Milestone 19.
+Released `0.1.0` evidence remains history;
+planning documents label future behavior explicitly and must not claim it is already implemented.
+The application ID, permanent signing identity, Room authority, disabled-backup policy, GPLv3
+license, direct GitHub distribution, Google `drive.file` scope, and free/open-source policy do not
+change.
+
+### D-067 — Client CSV import appends transactionally
+
+Client Management may import names only from a user-selected CSV document. Parse every nonblank
+cell across all rows/columns with no special header. Apply the existing trim, whitespace collapse,
+100-character maximum, and canonical duplicate rule. The import never replaces the client list:
+active matches are skipped, archived matches are restored, in-file duplicates collapse, and new
+valid names append. Commit the complete planned import atomically and keep the final active list
+sorted A–Z. Unsupported MIME/extension, malformed quoting/encoding, invalid cells, excessive size,
+or I/O failure produces no partial mutations and an actionable non-crashing result.
+
+Milestone 20 implements this with Android `OpenDocument`, no persisted URI grant, and a strict
+`.csv` filename plus CSV MIME allowlist (`text/csv`, `text/comma-separated-values`,
+`application/csv`, or `application/vnd.ms-excel`). Input is strict UTF-8, with a leading UTF-8 BOM
+accepted. Bounds are 1 MiB per document, 10,000 records, 20,000 cells, and 1,024 UTF-16 code units
+per raw cell; normalized names remain limited to 100 Unicode code points. Parsing and all
+validation finish before the single Room transaction begins. File-picker cancellation is silent,
+and a completed attempt reports added/restored/skipped counts.
+
+### D-068 — Consultants use internal Employee identity plus task snapshots
+
+Add a user-facing **Consultant** directory directly below Client Management. Its internal Room
+entity remains named Employee; this is an implementation term, not a GUI label. Consultant validation, normalization,
+active/archive/restore semantics, and alphabetical ordering mirror clients. Preferences stores the
+currently selected active consultant for future tasks.
+
+Each daily task stores the optional employee ID and an assignment-time employee-name snapshot.
+Renaming or archiving a Consultant entry does not rewrite existing tasks or exports. Explicitly
+editing a task may replace its assignment/snapshot. New task creation requires an active selected
+consultant; migrated `0.1.0` tasks use null ID/blank snapshot until edited. Rollover/midnight copies
+carry the source task's snapshot rather than re-resolving the current directory name.
+
+Archiving the currently selected directory employee clears the future-task selection; it does not
+change existing tasks. The user must select/restore an active employee before creating another
+task.
+
+Milestone 21 implements this with a Consultant-labeled Settings section directly below Client
+Management, an A-Z active selector, active/archived management, and a coordinator spanning the
+Room directory and typed DataStore preference. The task-creation transaction rechecks the selected
+Employee is active and reads its current Room name into `employee_name_snapshot`; stale selection
+cannot create a newly assigned task. Complete Consultant correction, Work Type, and Mileage task
+controls remain Milestone 22.
+
+### D-069 — Work metadata, derived billing, and canonical schema 3
+
+New tasks default Work Type to `On-Site`; `In-Office` is the alternative. Migrated tasks use
+`Unspecified`/blank export until edited. Mileage is optional canonical non-negative decimal text,
+entered through a decimal numeric keyboard and validated without floating-point or locale
+conversion. Migrated tasks use blank Mileage.
+
+Billing Minutes is derived from the task's exact interval total and is not persisted:
+`0` for zero duration; otherwise `ceil(totalMilliseconds / 900000) * 15`. Any positive total below
+15 minutes therefore yields `15`.
+
+All destinations advance together to schema version 3 with these exact 14 columns:
+
+1. Start date
+2. End date
+3. Consultant
+4. Client
+5. Description
+6. Expense
+7. Work type
+8. Mileage
+9. Interval number
+10. Start time
+11. Stop time
+12. Interval duration
+13. Time spent
+14. Billing minutes
+
+Start date and End date repeat the same stored task date as `MM/DD/YYYY`; this is only an export
+projection and does not create a date range in Room. Export Start/Stop use task-zone `HH:mm` only.
+Duration values remain accumulated `HH:MM:SS`; **Time spent** is the renamed task-total value.
+Precise internal instants and milliseconds remain
+unchanged. Known owned Google schema-2 tabs are atomically upgraded/replaced as schema 3 on
+re-export; unowned same-name tabs and unknown/newer schemas remain protected conflicts.
+
+Milestone 22 completes the task-facing integration without another Room migration. Create Task
+uses the selected active Consultant, defaults to On-Site, and accepts optional bounded decimal
+Mileage. Edit Task can reassign an active Consultant and update Client, text metadata, Work Type,
+and canonical Mileage in one stopped-task transaction. Room rechecks both referenced directory
+rows and refreshes the assignment-time Consultant snapshot; a stale/archive race produces no
+partial update. Billing Minutes is calculated from observed completed intervals and is never a
+stored counter. All destinations continue consuming the one schema-3 snapshot implemented in
+Milestone 19; no adapter gained independent field selection or formatting.
+
+### D-070 — v0.2 presentation additions
+
+Routine interval cards omit their redundant Duration row and display **Start Time**/**Stop Time**
+as task-zone 12-hour `hh:mm a` without changing editor or storage precision. Task Total remains
+above the list and the derived Billing Minutes counter appears directly below it, never per
+interval. Text-entry fields request sentence capitalization from the Android keyboard without
+silently rewriting stored user text. The final bare Settings footer displays only
+`WorqOrder v0.2.0 - stable`, derived from build
+metadata, and has no GitHub repository/release link.
+
+Landscape uses a global top bar with WorqOrder far left and Settings far right, then approximately
+equal functional columns below. Right-handed is the default: the full-height independently
+scrolling task list occupies the left side with its scrollbar attached to the list's right edge
+and its bottom aligned to the action-button margin; the right side stacks timer, date controls,
+and Export/Add actions. Left-handed mirrors only the content columns. Portrait remains unchanged.
+
+### D-071 — Automatic export is Google-only and target-date-captured
+
+CSV and one-off XLSX remain manual. When Google Sheets is selected, its conditional Settings
+content ends with a switch labeled exactly **Auto Export** and supporting text exactly
+**Automatically export tasks at the end of each day.** The row is inside the Export Destination
+card below Google sign-in and Sheets connection controls, is hidden for CSV/XLSX, and defaults off;
+enabling requires authorization, a valid connected spreadsheet, and required notification
+capability. Schedule approximately near 11:59 PM
+using the approved Android inexact mechanism. Capture the intended work date and its effective
+ZoneId when scheduling. Execution may occur shortly after midnight but must still export that
+captured prior date, never a newly blank `today`.
+
+Automatic export uses the same schema-3 snapshot and idempotent owned-tab replacement as manual
+Google export. A successful background run produces no Main success status or success
+notification. If any timer is active, preserve the target date as pending and do not export an
+open interval. After Stop, show a system notification containing no task/client data; tapping it
+resumes/performs or confirms export for the preserved date. Dismissal does not claim success or
+discard the recoverable pending state. Offline/auth/permission/quota/ambiguous results remain safe
+and bounded. Exact scheduler and unattended-authorization feasibility requires current official
+research before implementation.
+
+### D-072 — Lock-screen mechanism is research-gated
+
+Before lock-screen code, review current official Android guidance and native Clock timer/alarm
+behavior, explain stable notification/widget alternatives and permission/privacy implications,
+and pause for owner approval. Any accepted surface is present only for an open Room interval,
+shows WorqOrder identity, active task, and elapsed timer, and scopes swipe dismissal to that active
+interval without stopping it. It may not become timer authority or justify a foreground service,
+wake lock, exact alarm, or app-owned background tick loop solely for display.
+
+Milestone 27 completed that official review on 2026-08-08. The recommended API-26-through-target
+contract is a silent, low-importance, non-ongoing standard notification with Android's own
+chronometer, `CATEGORY_STOPWATCH`, private full content, and a redacted public version. It is a
+notification-shade surface eligible for lock-screen display, not a guaranteed lock-screen-only
+widget. A `deleteIntent` persists only the dismissed active interval ID; Room remains authoritative.
+API-33+ permission denial, channel/user/OEM privacy controls, and force-stop can suppress it. A
+one-shot `BOOT_COMPLETED` receiver may restore it after first unlock without a foreground service,
+alarm, wake lock, or tick loop. AppWidget, custom `RemoteViews`, full-screen intent, foreground
+service, and API-36-only promoted Live Update approaches are rejected as the baseline. The detailed
+evidence and tradeoffs are in `LOCK_SCREEN_SURFACE_ADR.md`. The owner approved all four tradeoffs on
+2026-08-08. The owner then explicitly started Milestone 28. The implementation uses the selected
+standard notification, typed per-interval dismissal state, contextual permission request,
+application/resume/date reconciliation, and a non-exported post-unlock boot receiver. It adds no
+timer service, alarm, wake lock, custom layout, or background tick. Device verification remains.
+
+Manual verification showed that granting notification permission in Android Settings did not
+always repost until a later Stop/Start, so Activity window-focus recovery now reconciles the open
+Room interval when WorqOrder returns from system Settings. The owner then finalized the standard
+layout: **WorqOrder** is the main title beside Android's platform-controlled compact chronometer;
+the private supporting line contains **Client · Description**, and the public supporting line is
+blank. Custom `RemoteViews` remains rejected.
+
+### D-073 — Strict 12-hour clock presentation
+
+All human-readable task clock values use task-zone `hh:mm a` with uppercase AM/PM. This includes
+routine interval cards, interval-editor values, and canonical Start time/Stop time export strings
+consumed unchanged by CSV, XLSX, and Google Sheets. Accumulated durations remain `HH:MM:SS` and do
+not use AM/PM. Room continues to store precise UTC epoch boundaries plus the task ZoneId; DST
+occurrence choices and calculation precision are unchanged. Because schema version 3 is still an
+unreleased v0.2.0 format, this finalizes its clock representation without another schema-version
+or Room migration. D-073 supersedes earlier 24-hour export-format wording in D-052, D-065, and
+D-069 without changing their persistence or single-builder decisions.
+
+### D-074 — Consultant selection stays in Settings; directory management has its own route
+
+Settings begins with standalone **Client Management** and **Consultant Management** navigation rows
+in that order. The active-Consultant dropdown, `Choose a Consultant` empty value, and red
+missing-selection guidance follow directly over the Settings background; there is no Consultant or
+Clients card and no inline Consultant description. Add, rename, archive, active-list,
+archived-list, and restore Consultant controls
+move unchanged to the dedicated `settings/consultants` screen, whose Material layout mirrors
+Client Management. Empty Consultant lists use the same indented title/supporting-text layout as
+empty Client lists.
+
+This is presentation and navigation only. Both destinations continue through the same
+`ConsultantSettingsViewModel`, selection coordinator, Employee repository, typed DataStore
+selection, validation, and historical task-snapshot rules. This decision supersedes only the
+inline-directory placement described in D-068; it does not change Consultant behavior or data.
+The final version/stability text is a bare item at the bottom of Settings; there is no About card or
+About title.
+
+### D-075 — Time-zone settings are retained internally but hidden from Settings
+
+The Settings UI does not compose the Time Zone card, effective ZoneId, device/manual choices,
+manual ZoneId picker action, or zone selector dialog. The underlying ViewModel events, repository,
+typed preferences, effective-zone provider, timer guards, and historical ZoneId rules remain in
+the codebase. Missing, first-launch, and corrupt time-zone-mode values continue to default to
+`DEVICE`; this presentation decision does not rewrite an existing stored manual preference or any
+historical task/date/interval data.
+
+### D-076 — Automatic Google export uses unique one-time WorkManager jobs
+
+Milestone 25's 2026-08-05 official review selects stable WorkManager `2.11.2`. Use a unique,
+non-expedited, network-constrained `OneTimeWorkRequest` calculated for each effective-zone
+near-end-of-day target, then recalculate the following target. Do not use a fixed 24-hour periodic
+worker, AlarmManager, an exact alarm, a foreground service, or app-owned stopwatch/background
+ticks. Execution is intentionally inexact and may occur after midnight; the durable captured epoch
+day and canonical ZoneId remain authoritative.
+
+The oldest unresolved target cannot be overwritten. It records only non-sensitive target ZoneId,
+date, connection association, and typed pending state. After success, due later dates advance one
+at a time through separate bounded workers. Timer-running, offline, authorization-resolution,
+permission, quota, timeout, server, or ambiguous states fail closed and remain recoverable; they do
+not use WorkManager automatic retry. Manual and automatic Google operations share the same export
+coordinator, canonical snapshot, and idempotent owned-tab replacement.
+
+A worker may call `AuthorizationClient.authorize()` using application context and proceed only
+when Google returns an already-granted short-lived `drive.file` token without interaction. A
+returned `PendingIntent` is never launched in background; it becomes a user-action-required state.
+No token is persisted and no backend, service account, broader scope, billing, or OAuth
+verification workflow is added.
+
+Blocked work uses one content-free **Pending Google Export** notification channel. On API 33+,
+enabling automation requires the user-driven `POST_NOTIFICATIONS` runtime grant; API 26+ requires
+the channel. Notification dismissal never clears pending work, success remains silent, and disabled
+notifications leave the pending target visible in Settings. WorkManager's library-managed normal
+network/reboot/wake-lock support must be visible in the merged-manifest audit, but WorqOrder adds no
+app-owned receiver or wake lock. Google Play services remains an installed-device API dependency;
+this decision does not add Google Play Store distribution, Play App Signing, Play Console setup, or
+a Play release.
+
+### D-077 — Milestone 26 implements one durable automatic target
+
+Milestone 26 implements D-076 with stable WorkManager `2.11.2`. Preferences DataStore stores the
+enabled flag plus one oldest target tuple: epoch day, geographical ZoneId, account/spreadsheet
+association, and optional typed pending reason. It stores no token. Enabling captures today's date
+in the effective ZoneId and schedules one uniquely named, non-expedited, connected-network worker
+for 23:59. Delayed execution uses the captured date; each successful worker advances exactly one
+date and schedules the next one-shot target.
+
+The worker uses a background authorizer that accepts only an immediately returned access token.
+Any Google resolution, active timer, or bounded failure becomes durable pending state and returns a
+terminal WorkManager result; operation failures never call `Result.retry()`. Timer-pending work is
+announced only after Stop commits. All other user-action-required states use the same content-free
+notification, whose explicit action opens the pending control in Settings. A user-confirmed retry
+uses the activity authorizer. Manual and automatic Google exports share one application mutex in
+addition to the owned-tab idempotency contract.
+
+The Auto Export switch is hidden unless Google Sheets is selected, defaults off, and appears after
+the Google sign-in/connection controls inside Export Destination. API 33+ requests notification
+permission only after the user tries to enable it. Selecting CSV/XLSX, disabling the switch,
+disconnecting the sheet, or signing out disables and cancels future automatic work without
+touching Room or remote data. Successful background export remains silent.
+
+### D-078 — Auto Export enablement failures remain inline and specific
+
+A rejected Auto Export toggle must not insert content above the Export Destination card or change
+the user's Settings scroll position. The switch remains off and a red accessible message appears
+directly below it. Notification permission or app/channel disablement, missing spreadsheet
+connection, wrong export destination, and local-settings failure each use distinct recovery text.
+When Android can present the runtime notification permission request, WorqOrder requests it; a
+denial or device-setting block directs the user to the app's notification settings.
+
+### D-079 — Billing Status is nullable history and required-default new metadata
+
+Milestone 27 first adds daily-task **Billing Status** with exactly three user/export values:
+`Billable`, `Do not bill`, and `Do not charge`. Create Task defaults to `Billable`; Edit Task uses
+the same exclusive three-choice radio presentation between Work Type and Mileage. The Room value
+is nullable so every task migrated through the explicit non-destructive `MIGRATION_3_4` remains
+blank rather than receiving invented billing history. Rollover and midnight continuation copy the
+source value, including null.
+
+All export destinations advance together from canonical schema 3 to schema 4. The exact new
+15-column order inserts **Billing Status** between **Work type** and **Mileage**. The shared
+`ExportRowBuilder` remains the only projection boundary; CSV, one-off XLSX, manual Google export,
+and automatic Google export cannot diverge. Owned Google tabs marked with known schema 2 or 3 may
+be atomically replaced and upgraded to schema 4; unknown/newer and unowned tabs remain protected.
+
+### D-080 — Approved Credential Manager transitive preview exception for `0.2.0`
+
+The declared identity stack remains stable: `androidx.credentials:credentials:1.6.0`,
+`androidx.credentials:credentials-play-services-auth:1.6.0`, Google ID `1.2.0`, and Google Play
+services Auth `21.6.0`. The resolved stable AndroidX Google-provider adapter transitively includes
+`com.google.android.gms:play-services-identity-credentials:16.0.0-alpha08`. WorqOrder neither
+declares nor directly calls that preview artifact.
+
+The owner explicitly approved this one transitive exception for the official `0.2.0` release after
+Milestone 29 identified it in both resolved runtime graphs. Excluding it, forcing a separately
+versioned provider artifact, or replacing the proven identity stack at the release boundary would
+risk breaking Credential Manager and Google sign-in. The clean debug/release gate passes and the
+2026-08-09 OSV query returned no vulnerability record for this artifact or any of the 180 resolved
+debug/release Maven coordinates. This decision does not authorize any direct preview dependency or
+future transitive preview change; either requires a new documented review and owner decision.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.
 - Restored-client UI placement; restoration capability is planned, but it may be an Archived subsection or separate route.
-- Multiple connected spreadsheets, background automatic export, imports, synchronization, and a
-  foreground timer service remain outside production scope.
-- Persistent XLSX mode and opt-in automatic local-midnight export to Google/future persistent
-  XLSX are deferred to optional Milestone 18 under D-051.
-- Task interval-card Start/Stop values changing from their current second-level display to
-  task-zone `HH:mm` are deferred to optional Milestone 18 under D-051; full stored time metadata
-  remains unchanged.
-- Version-aware About/release link, handed two-column landscape, and the research-gated
-  running-timer lock-screen surface are deferred to optional Milestone 18 under D-051.
-- At-rest encryption of app-private Room and DataStore files is deferred to optional Milestone 19
-  under D-050 and requires separate explicit owner authorization after optional Milestone 18.
-- App-access login/biometric/device-credential/PIN gating remains optional post-project scope
-  governed by D-051.
+- Multiple connected spreadsheets, task/interval import, synchronization, and a foreground timer
+  service remain outside production scope. Client-name-only CSV import is the explicit exception.
+- Persistent XLSX mode is obsolete. CSV and XLSX remain manual one-off document exports.
+- At-rest encryption, app-access login/biometric/device-credential/PIN gating, and optional
+  screenshot/Recents privacy controls are deferred only to optional Milestone E under D-050/D-051.
+- The running-timer surface is implemented under D-072 and `LOCK_SCREEN_SURFACE_ADR.md`; Android
+  permission/channel/privacy/OEM policy still controls whether it appears or is redacted. The automatic
+  Google scheduling/auth mechanism selected by D-076 is implemented in Milestone 26; its remaining
+  limitations are Android-controlled timing, authorization, and notification behavior.
 
 ## Implementation inputs still needed
 

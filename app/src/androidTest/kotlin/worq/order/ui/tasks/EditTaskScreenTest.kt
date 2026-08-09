@@ -4,6 +4,8 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -11,12 +13,16 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import worq.order.ui.clients.ClientItemUi
+import worq.order.ui.employees.ConsultantItemUi
+import worq.order.model.WorkType
+import worq.order.model.BillingStatus
 import worq.order.ui.theme.WorqOrderTheme
 
 @RunWith(AndroidJUnit4::class)
@@ -41,13 +47,27 @@ class EditTaskScreenTest {
 
         composeRule.onNodeWithText("Short description").assertIsDisplayed()
         composeRule.onNodeWithText("Hardware / Software Purchases").assertIsDisplayed()
-        composeRule.onNodeWithText("Task Total: 02:00:00").assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Task Total: 02:00:00")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Billing Minutes: 120")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Alex Rivera").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("On-Site").performScrollTo().assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Do not charge")
+            .performScrollTo()
+            .assertIsSelected()
         composeRule
             .onNodeWithText("Interval 1")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onAllNodesWithText("Start: 9:00:00 AM").assertCountEquals(2)
-        composeRule.onAllNodesWithText("Stop: 10:00:00 AM").assertCountEquals(2)
+        composeRule.onAllNodesWithText("Start Time: 09:00 AM").assertCountEquals(2)
+        composeRule.onAllNodesWithText("Stop Time: 10:00 AM").assertCountEquals(2)
+        composeRule.onAllNodesWithText("Duration: 01:00:00").assertCountEquals(0)
         composeRule
             .onNodeWithText("Interval 2")
             .performScrollTo()
@@ -79,6 +99,32 @@ class EditTaskScreenTest {
             .assertIsDisplayed()
     }
 
+    @Test
+    fun intervalEditorUsesTheSameStrictTwelveHourClockPresentation() {
+        setContent(
+            state =
+                readyState().copy(
+                    intervalEditor =
+                        IntervalEditorUiState(
+                            startLocal = LocalDateTime.of(2026, 7, 25, 9, 5, 42, 987_000_000),
+                            stopLocal = LocalDateTime.of(2026, 7, 25, 13, 30, 15),
+                        ),
+                ),
+        )
+
+        composeRule.onNodeWithText("Start Time: 09:05 AM").assertIsDisplayed()
+        composeRule.onNodeWithText("Stop Time: 01:30 PM").assertIsDisplayed()
+    }
+
+    @Test
+    fun migratedTaskDoesNotInventBillingStatusSelection() {
+        setContent(state = readyState().copy(billingStatus = null))
+
+        composeRule.onNodeWithText("Billable").performScrollTo().assertIsNotSelected()
+        composeRule.onNodeWithText("Do not bill").assertIsNotSelected()
+        composeRule.onNodeWithText("Do not charge").assertIsNotSelected()
+    }
+
     private fun setContent(
         state: EditTaskUiState,
         onEvent: (EditTaskEvent) -> Unit = {},
@@ -99,9 +145,16 @@ class EditTaskScreenTest {
             originalClientName = "Client",
             activeClients = listOf(ClientItemUi("client", "Client")),
             selectedClientId = "client",
+            originalConsultantName = "Alex Rivera",
+            activeConsultants = listOf(ConsultantItemUi("employee", "Alex Rivera")),
+            selectedConsultantId = "employee",
             description = "Description",
             hardwareSoftwarePurchases = "Laptop",
+            workType = WorkType.ON_SITE,
+            billingStatus = BillingStatus.DO_NOT_CHARGE,
+            mileage = "12.5",
             totalDuration = "02:00:00",
+            billingMinutes = 120,
         )
 
     private fun interval(
@@ -110,9 +163,8 @@ class EditTaskScreenTest {
     ) = IntervalItemUi(
         id = id,
         ordinal = ordinal,
-        startText = "9:00:00 AM",
-        stopText = "10:00:00 AM",
-        durationText = "01:00:00",
+        startText = "09:00 AM",
+        stopText = "10:00 AM",
         isRunning = false,
     )
 }

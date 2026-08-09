@@ -34,6 +34,7 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -46,7 +47,14 @@ import worq.order.data.MAX_TASK_PURCHASES_CODE_POINTS
 import worq.order.data.TaskMetadataValidationError
 import worq.order.domain.ManualIntervalValidationError
 import worq.order.domain.OverlapOffsetChoice
+import worq.order.ui.WorqOrderTextInputDefaults
 import worq.order.ui.theme.WorqOrderDimens
+import worq.order.util.ClockTimeFormatter
+
+object EditTaskScreenTestTags {
+    const val CONSULTANT = "edit_task_consultant"
+    const val MILEAGE = "edit_task_mileage"
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,6 +123,8 @@ private fun EditTaskContent(
 ) {
     val selectedClientActive =
         uiState.activeClients.any { it.id == uiState.selectedClientId }
+    val selectedConsultantActive =
+        uiState.activeConsultants.any { it.id == uiState.selectedConsultantId }
     Column(
         modifier =
             modifier
@@ -173,6 +183,33 @@ private fun EditTaskContent(
                 color = MaterialTheme.colorScheme.error,
             )
         }
+        Text(
+            text = stringResource(R.string.consultant),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        if (uiState.activeConsultants.isEmpty()) {
+            Text(
+                text = stringResource(R.string.no_active_consultants_supporting),
+                color = MaterialTheme.colorScheme.error,
+            )
+        } else {
+            TaskConsultantSelector(
+                activeConsultants = uiState.activeConsultants,
+                selectedConsultantName = uiState.selectedConsultantName,
+                expanded = uiState.isConsultantMenuExpanded,
+                enabled = !uiState.isRunning && !uiState.isSavingMetadata,
+                onOpen = { onEvent(EditTaskEvent.OpenConsultantMenu) },
+                onDismiss = { onEvent(EditTaskEvent.DismissConsultantMenu) },
+                onSelect = { onEvent(EditTaskEvent.SelectConsultant(it)) },
+            )
+        }
+        if (!selectedConsultantActive) {
+            Text(
+                text = stringResource(R.string.task_consultant_unavailable),
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.testTag(EditTaskScreenTestTags.CONSULTANT),
+            )
+        }
         OutlinedTextField(
             value = uiState.description,
             onValueChange = { onEvent(EditTaskEvent.EditDescription(it)) },
@@ -181,6 +218,7 @@ private fun EditTaskContent(
             enabled = !uiState.isRunning && !uiState.isSavingMetadata,
             minLines = 2,
             maxLines = 5,
+            keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
             isError =
                 TaskMetadataValidationError.DESCRIPTION_REQUIRED in uiState.metadataErrors ||
                     TaskMetadataValidationError.DESCRIPTION_TOO_LONG in uiState.metadataErrors,
@@ -207,6 +245,7 @@ private fun EditTaskContent(
             enabled = !uiState.isRunning && !uiState.isSavingMetadata,
             minLines = 2,
             maxLines = 6,
+            keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
             isError =
                 TaskMetadataValidationError.PURCHASES_TOO_LONG in uiState.metadataErrors,
             supportingText = {
@@ -219,12 +258,30 @@ private fun EditTaskContent(
                 )
             },
         )
+        TaskWorkTypeSelector(
+            selected = uiState.workType,
+            enabled = !uiState.isRunning && !uiState.isSavingMetadata,
+            onSelect = { onEvent(EditTaskEvent.SelectWorkType(it)) },
+        )
+        TaskBillingStatusSelector(
+            selected = uiState.billingStatus,
+            enabled = !uiState.isRunning && !uiState.isSavingMetadata,
+            onSelect = { onEvent(EditTaskEvent.SelectBillingStatus(it)) },
+        )
+        TaskMileageField(
+            value = uiState.mileage,
+            validationErrors = uiState.metadataErrors,
+            enabled = !uiState.isRunning && !uiState.isSavingMetadata,
+            onValueChange = { onEvent(EditTaskEvent.EditMileage(it)) },
+            modifier = Modifier.testTag(EditTaskScreenTestTags.MILEAGE),
+        )
         Button(
             onClick = { onEvent(EditTaskEvent.SaveMetadata) },
             enabled =
                 !uiState.isRunning &&
                     !uiState.isSavingMetadata &&
-                    selectedClientActive,
+                    selectedClientActive &&
+                    selectedConsultantActive,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.save_task_changes))
@@ -251,6 +308,10 @@ private fun EditTaskContent(
         }
         Text(
             text = stringResource(R.string.task_total_duration, uiState.totalDuration),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = stringResource(R.string.billing_minutes, uiState.billingMinutes),
             style = MaterialTheme.typography.titleMedium,
         )
         Row(
@@ -333,7 +394,6 @@ private fun IntervalCard(
                     },
                 ),
             )
-            Text(stringResource(R.string.interval_duration, interval.durationText))
             if (interval.isRunning) {
                 Text(
                     text = stringResource(R.string.running),
@@ -482,7 +542,6 @@ private fun IntervalEditorDialog(
     editor: IntervalEditorUiState,
     onEvent: (EditTaskEvent) -> Unit,
 ) {
-    val formatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
     AlertDialog(
         onDismissRequest = { onEvent(EditTaskEvent.DismissIntervalEditor) },
         title = {
@@ -508,7 +567,7 @@ private fun IntervalEditorDialog(
                     Text(
                         stringResource(
                             R.string.interval_start,
-                            formatter.format(editor.startLocal),
+                            ClockTimeFormatter.format(editor.startLocal),
                         ),
                     )
                 }
@@ -533,7 +592,7 @@ private fun IntervalEditorDialog(
                     Text(
                         stringResource(
                             R.string.interval_stop,
-                            formatter.format(editor.stopLocal),
+                            ClockTimeFormatter.format(editor.stopLocal),
                         ),
                     )
                 }
@@ -644,6 +703,7 @@ private fun EditTaskMessage.stringResource(): Int =
         EditTaskMessage.DATA_UNAVAILABLE -> R.string.data_unavailable
         EditTaskMessage.TASK_NOT_FOUND -> R.string.task_no_longer_exists
         EditTaskMessage.CLIENT_UNAVAILABLE -> R.string.task_client_archived_during_edit
+        EditTaskMessage.CONSULTANT_UNAVAILABLE -> R.string.task_consultant_unavailable
         EditTaskMessage.RUNNING_TASK -> R.string.running_task_edit_blocked
         EditTaskMessage.INTERVAL_NOT_FOUND -> R.string.interval_no_longer_exists
         EditTaskMessage.RUNNING_INTERVAL -> R.string.running_interval_edit_blocked

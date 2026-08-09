@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -30,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -38,6 +40,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import worq.order.R
+import worq.order.domain.ClientCsvImportFailure
 import worq.order.ui.theme.WorqOrderDimens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,6 +49,7 @@ fun ClientManagementScreen(
     uiState: ClientManagementUiState,
     onEvent: (ClientManagementEvent) -> Unit,
     onNavigateBack: () -> Unit,
+    onImportCsv: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -82,6 +86,7 @@ fun ClientManagementScreen(
                     ClientList(
                         uiState = uiState,
                         onEvent = onEvent,
+                        onImportCsv = onImportCsv,
                     )
             }
         }
@@ -129,9 +134,15 @@ fun ClientManagementScreen(
 private fun ClientList(
     uiState: ClientManagementUiState,
     onEvent: (ClientManagementEvent) -> Unit,
+    onImportCsv: () -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(uiState.importSummary, uiState.importFailure) {
+        listState.scrollToItem(0)
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
+        state = listState,
         contentPadding =
             androidx.compose.foundation.layout.PaddingValues(
                 horizontal = WorqOrderDimens.ScreenPadding,
@@ -156,6 +167,7 @@ private fun ClientList(
                     onEvent(ClientManagementEvent.OpenAddClient)
                 },
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !uiState.isImporting,
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
@@ -167,6 +179,62 @@ private fun ClientList(
                         Modifier.padding(
                             start = WorqOrderDimens.ItemSpacing,
                         ),
+                )
+            }
+        }
+        item(key = "import-clients") {
+            FilledTonalButton(
+                onClick = onImportCsv,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !uiState.isImporting,
+            ) {
+                if (uiState.isImporting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(end = WorqOrderDimens.ItemSpacing),
+                    )
+                    Text(stringResource(R.string.importing_clients))
+                } else {
+                    Text(stringResource(R.string.import_clients_from_csv))
+                }
+            }
+        }
+        uiState.importSummary?.let { summary ->
+            item(key = "client-import-summary") {
+                ClientImportStatus(
+                    text =
+                        stringResource(
+                            R.string.client_import_success,
+                            summary.addedCount,
+                            summary.restoredCount,
+                            summary.skippedCount,
+                        ),
+                    isError = false,
+                    onDismiss = {
+                        onEvent(ClientManagementEvent.DismissImportStatus)
+                    },
+                )
+            }
+        }
+        uiState.importFailure?.let { failure ->
+            item(key = "client-import-failure") {
+                val reason = stringResource(failure.failure.messageResource())
+                val text =
+                    if (failure.recordNumber != null && failure.columnNumber != null) {
+                        stringResource(
+                            R.string.client_import_failure_at_location,
+                            reason,
+                            failure.recordNumber,
+                            failure.columnNumber,
+                        )
+                    } else {
+                        reason
+                    }
+                ClientImportStatus(
+                    text = text,
+                    isError = true,
+                    onDismiss = {
+                        onEvent(ClientManagementEvent.DismissImportStatus)
+                    },
                 )
             }
         }
@@ -194,7 +262,7 @@ private fun ClientList(
             ) { client ->
                 ActiveClientRow(
                     client = client,
-                    isPending = uiState.pendingClientId == client.id,
+                    isPending = uiState.isImporting || uiState.pendingClientId == client.id,
                     onRename = {
                         onEvent(ClientManagementEvent.OpenRenameClient(client.id))
                     },
@@ -229,7 +297,7 @@ private fun ClientList(
             ) { client ->
                 ArchivedClientRow(
                     client = client,
-                    isPending = uiState.pendingClientId == client.id,
+                    isPending = uiState.isImporting || uiState.pendingClientId == client.id,
                     onRestore = {
                         onEvent(ClientManagementEvent.RestoreClient(client.id))
                     },
@@ -239,6 +307,53 @@ private fun ClientList(
         }
     }
 }
+
+@Composable
+private fun ClientImportStatus(
+    text: String,
+    isError: Boolean,
+    onDismiss: () -> Unit,
+) {
+    ListItem(
+        modifier =
+            Modifier.semantics {
+                liveRegion = if (isError) LiveRegionMode.Assertive else LiveRegionMode.Polite
+            },
+        headlineContent = {
+            Text(
+                text = text,
+                color =
+                    if (isError) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+            )
+        },
+        trailingContent = {
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.dismiss),
+                )
+            }
+        },
+    )
+}
+
+private fun ClientCsvImportFailure.messageResource(): Int =
+    when (this) {
+        ClientCsvImportFailure.UNSUPPORTED_FILE -> R.string.client_import_unsupported_file
+        ClientCsvImportFailure.FILE_TOO_LARGE -> R.string.client_import_file_too_large
+        ClientCsvImportFailure.READ_FAILED -> R.string.client_import_read_failed
+        ClientCsvImportFailure.INVALID_UTF8 -> R.string.client_import_invalid_utf8
+        ClientCsvImportFailure.MALFORMED_CSV -> R.string.client_import_malformed_csv
+        ClientCsvImportFailure.TOO_MANY_RECORDS -> R.string.client_import_too_many_records
+        ClientCsvImportFailure.TOO_MANY_CELLS -> R.string.client_import_too_many_cells
+        ClientCsvImportFailure.CELL_TOO_LARGE -> R.string.client_import_cell_too_large
+        ClientCsvImportFailure.CLIENT_NAME_TOO_LONG -> R.string.client_import_client_name_too_long
+        ClientCsvImportFailure.STORAGE_FAILED -> R.string.client_import_storage_failed
+    }
 
 @Composable
 private fun ActiveClientRow(

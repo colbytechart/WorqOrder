@@ -10,10 +10,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import worq.order.export.csv.CsvSerializer
 import worq.order.model.Client
+import worq.order.model.BillingStatus
 import worq.order.model.DailyTask
 import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
+import worq.order.model.WorkType
 
 class ExportRowBuilderAndCsvSerializerTest {
     private val builder = ExportRowBuilder()
@@ -26,19 +28,25 @@ class ExportRowBuilderAndCsvSerializerTest {
 
         assertEquals(
             listOf(
-                "Work Date",
-                "Client Name",
+                "Start date",
+                "End date",
+                "Consultant",
+                "Client",
                 "Description",
-                "Hardware / Software Purchases",
-                "Interval Number",
-                "Start Local",
-                "Stop Local",
-                "Interval Duration Formatted",
-                "Task Total Duration Formatted",
+                "Expense",
+                "Work type",
+                "Billing Status",
+                "Mileage",
+                "Interval number",
+                "Start time",
+                "Stop time",
+                "Interval duration",
+                "Time spent",
+                "Billing minutes",
             ),
             ExportSchema.headers,
         )
-        assertEquals(2, snapshot.schemaVersion)
+        assertEquals(4, snapshot.schemaVersion)
         assertEquals(
             ExportSchema.headers.joinToString(",") + "\r\n",
             csv,
@@ -126,12 +134,14 @@ class ExportRowBuilderAndCsvSerializerTest {
             first.rows.map { it["Description"] },
         )
         assertEquals(
-            listOf("", "08:00", "09:00", "11:00"),
-            first.rows.map { it["Start Local"] },
+            listOf("", "08:00 AM", "09:00 AM", "11:00 AM"),
+            first.rows.map { it["Start time"] },
         )
-        assertEquals("", first.rows.first()["Interval Number"])
-        assertEquals("", first.rows.first()["Interval Duration Formatted"])
-        assertEquals("00:00:00", first.rows.first()["Task Total Duration Formatted"])
+        assertEquals("", first.rows.first()["Interval number"])
+        assertEquals("", first.rows.first()["Billing Status"])
+        assertEquals("", first.rows.first()["Interval duration"])
+        assertEquals("00:00:00", first.rows.first()["Time spent"])
+        assertEquals("0", first.rows.first()["Billing minutes"])
         assertEquals(
             serializer.serialize(first),
             serializer.serialize(second),
@@ -215,10 +225,11 @@ class ExportRowBuilderAndCsvSerializerTest {
         val repeatedHourRow =
             snapshot.rows.first { it["Description"] == "Repeated" }
 
-        assertEquals("25:00:00", longRow["Interval Duration Formatted"])
-        assertEquals("25:00:00", longRow["Task Total Duration Formatted"])
-        assertEquals("01:30", repeatedHourRow["Start Local"])
-        assertEquals("01:30", repeatedHourRow["Stop Local"])
+        assertEquals("25:00:00", longRow["Interval duration"])
+        assertEquals("25:00:00", longRow["Time spent"])
+        assertEquals("1500", longRow["Billing minutes"])
+        assertEquals("01:30 AM", repeatedHourRow["Start time"])
+        assertEquals("01:30 AM", repeatedHourRow["Stop time"])
     }
 
     @Test
@@ -246,14 +257,14 @@ class ExportRowBuilderAndCsvSerializerTest {
             )
         val row = snapshot.rows.single()
 
-        assertEquals("", row["Stop Local"])
-        assertEquals("01:30:00", row["Interval Duration Formatted"])
-        assertEquals("01:30:00", row["Task Total Duration Formatted"])
+        assertEquals("", row["Stop time"])
+        assertEquals("01:30:00", row["Interval duration"])
+        assertEquals("01:30:00", row["Time spent"])
         assertEquals(
             "2026-07-24T13:30:00Z",
             snapshot.exportedAt.toString(),
         )
-        assertEquals(2, snapshot.schemaVersion)
+        assertEquals(4, snapshot.schemaVersion)
     }
 
     @Test
@@ -275,8 +286,43 @@ class ExportRowBuilderAndCsvSerializerTest {
 
         val row = builder.build(WORK_DATE, EXPORTED_AT, listOf(detail)).rows.single()
 
-        assertEquals("01:00:00", row["Interval Duration Formatted"])
-        assertEquals("01:00:00", row["Task Total Duration Formatted"])
+        assertEquals("01:00:00", row["Interval duration"])
+        assertEquals("01:00:00", row["Time spent"])
+    }
+
+    @Test
+    fun consultantWorkTypeBillingStatusMileageAndBillingMinutesUseCanonicalSchemaOnce() {
+        val detail =
+            detail(
+                taskId = "v4",
+                employee = "Alex Rivera",
+                workType = WorkType.ON_SITE,
+                billingStatus = BillingStatus.DO_NOT_CHARGE,
+                mileage = "18.5",
+                intervals =
+                    listOf(
+                        interval(
+                            id = "v4-interval",
+                            taskId = "v4",
+                            ordinal = 1,
+                            start = Instant.parse("2026-07-24T12:00:00Z"),
+                            stop = Instant.parse("2026-07-24T12:12:32Z"),
+                        ),
+                    ),
+            )
+
+        val snapshot = builder.build(WORK_DATE, EXPORTED_AT, listOf(detail))
+        val row = snapshot.rows.single()
+
+        assertEquals("07/24/2026", row["Start date"])
+        assertEquals("07/24/2026", row["End date"])
+        assertEquals("Alex Rivera", row["Consultant"])
+        assertEquals("On-Site", row["Work type"])
+        assertEquals("Do not charge", row["Billing Status"])
+        assertEquals("18.5", row["Mileage"])
+        assertEquals("00:12:32", row["Time spent"])
+        assertEquals("15", row["Billing minutes"])
+        assertEquals(ExportSchema.headers, serializer.serialize(snapshot).lineSequence().first().split(','))
     }
 
     private operator fun ExportRow.get(column: String): String =
@@ -289,6 +335,10 @@ class ExportRowBuilderAndCsvSerializerTest {
         clientName: String = "Client",
         description: String = "Description",
         purchases: String = "",
+        employee: String = "",
+        workType: WorkType = WorkType.UNSPECIFIED,
+        billingStatus: BillingStatus? = null,
+        mileage: String? = null,
         createdAt: Instant = Instant.parse("2026-07-24T10:00:00Z"),
         intervals: List<WorkInterval> = emptyList(),
     ): TaskWithIntervals {
@@ -309,6 +359,10 @@ class ExportRowBuilderAndCsvSerializerTest {
                 clientId = client.id,
                 description = description,
                 hardwareSoftwarePurchases = purchases,
+                employeeNameSnapshot = employee,
+                workType = workType,
+                billingStatus = billingStatus,
+                mileage = mileage,
                 workDate = workDate,
                 zoneId = zoneId,
                 createdAt = createdAt,

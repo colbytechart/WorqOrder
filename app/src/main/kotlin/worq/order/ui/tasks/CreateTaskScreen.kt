@@ -39,11 +39,13 @@ import worq.order.data.MAX_TASK_PURCHASES_CODE_POINTS
 import worq.order.data.TaskMetadataValidationError
 import worq.order.ui.clients.ClientEditorDialog
 import worq.order.ui.clients.RestoreArchivedClientDialog
+import worq.order.ui.WorqOrderTextInputDefaults
 import worq.order.ui.theme.WorqOrderDimens
 
 object CreateTaskScreenTestTags {
     const val DESCRIPTION = "create_task_description"
     const val PURCHASES = "create_task_purchases"
+    const val MILEAGE = "create_task_mileage"
     const val CREATE = "create_task_confirm"
 }
 
@@ -92,6 +94,33 @@ fun CreateTaskScreen(
                     ),
                 style = MaterialTheme.typography.titleMedium,
             )
+            Text(
+                text = stringResource(R.string.consultant),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            when {
+                uiState.isLoadingConsultant -> CircularProgressIndicator()
+                uiState.selectedConsultantName != null ->
+                    Text(
+                        stringResource(
+                            R.string.selected_consultant,
+                            uiState.selectedConsultantName,
+                        ),
+                    )
+                else -> {
+                    Text(
+                        text = stringResource(R.string.task_consultant_required),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    OutlinedButton(
+                        onClick = { onEvent(CreateTaskEvent.OpenConsultantSettings) },
+                        enabled = !uiState.isSavingTask,
+                    ) {
+                        Text(stringResource(R.string.open_consultant_settings))
+                    }
+                }
+            }
             Text(
                 text = stringResource(R.string.task_client),
                 style = MaterialTheme.typography.titleMedium,
@@ -153,6 +182,7 @@ fun CreateTaskScreen(
                 enabled = !uiState.isSavingTask,
                 minLines = 2,
                 maxLines = 5,
+                keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
                 isError =
                     TaskMetadataValidationError.DESCRIPTION_REQUIRED in
                         uiState.metadataErrors ||
@@ -186,6 +216,7 @@ fun CreateTaskScreen(
                 enabled = !uiState.isSavingTask,
                 minLines = 2,
                 maxLines = 6,
+                keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
                 isError =
                     TaskMetadataValidationError.PURCHASES_TOO_LONG in
                         uiState.metadataErrors,
@@ -198,6 +229,23 @@ fun CreateTaskScreen(
                                 uiState.metadataErrors,
                     )
                 },
+            )
+            TaskWorkTypeSelector(
+                selected = uiState.workType,
+                enabled = !uiState.isSavingTask,
+                onSelect = { onEvent(CreateTaskEvent.SelectWorkType(it)) },
+            )
+            TaskBillingStatusSelector(
+                selected = uiState.billingStatus,
+                enabled = !uiState.isSavingTask,
+                onSelect = { onEvent(CreateTaskEvent.SelectBillingStatus(it)) },
+            )
+            TaskMileageField(
+                value = uiState.mileage,
+                validationErrors = uiState.metadataErrors,
+                enabled = !uiState.isSavingTask,
+                onValueChange = { onEvent(CreateTaskEvent.EditMileage(it)) },
+                modifier = Modifier.testTag(CreateTaskScreenTestTags.MILEAGE),
             )
             uiState.message?.let { message ->
                 Text(
@@ -226,8 +274,11 @@ fun CreateTaskScreen(
                     enabled =
                         !uiState.isSavingTask &&
                             !uiState.isLoadingClients &&
+                            !uiState.isLoadingConsultant &&
                             !uiState.hasClientLoadError &&
-                            uiState.activeClients.isNotEmpty(),
+                            !uiState.hasConsultantLoadError &&
+                            uiState.activeClients.isNotEmpty() &&
+                            uiState.selectedConsultantId != null,
                     modifier =
                         Modifier
                             .weight(1f)
@@ -284,4 +335,6 @@ private fun CreateTaskMessage.stringResource(): Int =
         CreateTaskMessage.RESTORE_NAME_CONFLICT -> R.string.restore_client_conflict
         CreateTaskMessage.CLIENT_REQUIRED -> R.string.task_client_required
         CreateTaskMessage.CLIENT_ARCHIVED -> R.string.task_client_archived_during_edit
+        CreateTaskMessage.CONSULTANT_REQUIRED -> R.string.task_consultant_required
+        CreateTaskMessage.CONSULTANT_ARCHIVED -> R.string.consultant_archived_during_selection
     }

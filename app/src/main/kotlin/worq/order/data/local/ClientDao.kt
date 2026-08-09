@@ -4,7 +4,20 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
+
+data class ClientImportEntityCandidate(
+    val id: String,
+    val displayName: String,
+    val canonicalName: String,
+)
+
+data class ClientImportEntityResult(
+    val addedCount: Int,
+    val restoredCount: Int,
+    val skippedActiveCount: Int,
+)
 
 @Dao
 abstract class ClientDao {
@@ -110,4 +123,55 @@ abstract class ClientDao {
         clientId: String,
         restoredAtEpochMs: Long,
     ): Int
+
+    @Transaction
+    open suspend fun applyClientImport(
+        candidates: List<ClientImportEntityCandidate>,
+        importedAtEpochMs: Long,
+    ): ClientImportEntityResult {
+        var addedCount = 0
+        var restoredCount = 0
+        var skippedActiveCount = 0
+        candidates.forEach { candidate ->
+            val activeConflict =
+                findNormalizedClientNameConflict(
+                    canonicalName = candidate.canonicalName,
+                    excludingClientId = null,
+                )
+            if (activeConflict != null) {
+                skippedActiveCount += 1
+            } else {
+                val archived =
+                    findArchivedClientByNormalizedName(candidate.canonicalName)
+                if (archived != null) {
+                    check(
+                        restoreClient(
+                            clientId = archived.id,
+                            restoredAtEpochMs = importedAtEpochMs,
+                        ) == 1,
+                    ) { "Archived client disappeared during import" }
+                    restoredCount += 1
+                } else {
+                    addClient(
+                        ClientEntity(
+                            id = candidate.id,
+                            name = candidate.displayName,
+                            canonicalName = candidate.canonicalName,
+                            activeNameKey = candidate.canonicalName,
+                            isActive = true,
+                            createdAtEpochMs = importedAtEpochMs,
+                            updatedAtEpochMs = importedAtEpochMs,
+                            archivedAtEpochMs = null,
+                        ),
+                    )
+                    addedCount += 1
+                }
+            }
+        }
+        return ClientImportEntityResult(
+            addedCount = addedCount,
+            restoredCount = restoredCount,
+            skippedActiveCount = skippedActiveCount,
+        )
+    }
 }

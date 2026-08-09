@@ -25,6 +25,7 @@ import worq.order.data.NewDailyTask
 import worq.order.data.ExportDestination
 import worq.order.data.ExportAttemptOutcome
 import worq.order.data.GoogleAccountHint
+import worq.order.data.LandscapeHandedness
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
@@ -51,6 +52,8 @@ import worq.order.timer.LiveTimerSession
 import worq.order.timer.TimerCoordinator
 import worq.order.timer.TimerOperationLock
 import worq.order.timer.TimerRecoveryCoordinator
+import worq.order.timer.notification.RunningTimerNotificationController
+import worq.order.timer.notification.RunningTimerNotificationResult
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
@@ -192,6 +195,56 @@ class MainViewModelTest {
             advanceTimeBy(MainViewModel.TIMER_REFRESH_MILLIS * 2)
             runCurrent()
             assertEquals("01:00:01", viewModel.uiState.value.timerText)
+        }
+
+    @Test
+    fun firstSuccessfulStartRequestsNotificationPermissionWithoutBlockingTimer() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY)
+            val notifications =
+                FakeRunningTimerNotifications(
+                    reconcileResult =
+                        RunningTimerNotificationResult.RuntimePermissionRequired,
+                )
+            val viewModel = fixture.viewModel(notifications)
+            collectState(viewModel)
+            val effect = async { viewModel.effects.first() }
+            runCurrent()
+            viewModel.onEvent(MainEvent.SelectTask(task.id))
+            runCurrent()
+
+            viewModel.onEvent(MainEvent.StartTimer)
+            runCurrent()
+
+            assertEquals(
+                MainEffect.RequestRunningTimerNotificationPermission,
+                effect.await(),
+            )
+            assertEquals(MainTimerAction.STOP, viewModel.uiState.value.timerAction)
+            assertTrue(notifications.reconcileCount > 0)
+        }
+
+    @Test
+    fun successfulStopCleansNotificationPresentation() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY)
+            val notifications = FakeRunningTimerNotifications()
+            val viewModel = fixture.viewModel(notifications)
+            collectState(viewModel)
+            runCurrent()
+            viewModel.onEvent(MainEvent.SelectTask(task.id))
+            runCurrent()
+            viewModel.onEvent(MainEvent.StartTimer)
+            runCurrent()
+            fixture.monotonic.nanos += Duration.ofSeconds(1).toNanos()
+
+            viewModel.onEvent(MainEvent.StopTimer)
+            runCurrent()
+
+            assertEquals(1, notifications.stopCount)
+            assertEquals(MainTimerAction.START, viewModel.uiState.value.timerAction)
         }
 
     @Test
@@ -464,6 +517,16 @@ class MainViewModelTest {
             )
             assertTrue(viewModel.uiState.value.canExport)
 
+            fixture.settings.setLandscapeHandedness(
+                LandscapeHandedness.LEFT_HANDED,
+            )
+            runCurrent()
+
+            assertEquals(
+                LandscapeHandedness.LEFT_HANDED,
+                viewModel.uiState.value.landscapeHandedness,
+            )
+
             val effect = async { viewModel.effects.first() }
             runCurrent()
             viewModel.onEvent(MainEvent.Export)
@@ -685,6 +748,9 @@ class MainViewModelTest {
                 clientId = task.clientId,
                 description = "Changed after picker opened",
                 hardwareSoftwarePurchases = "",
+                employeeId = task.employeeId,
+                workType = task.workType,
+                mileage = task.mileage,
             )
             viewModel.onEvent(
                 MainEvent.CsvDocumentSelected("content://documents/export.csv"),
@@ -730,6 +796,9 @@ class MainViewModelTest {
                 clientId = task.clientId,
                 description = "Changed after picker opened",
                 hardwareSoftwarePurchases = "",
+                employeeId = task.employeeId,
+                workType = task.workType,
+                mileage = task.mileage,
             )
             viewModel.onEvent(
                 MainEvent.XlsxDocumentSelected(
@@ -1026,7 +1095,9 @@ class MainViewModelTest {
                 zoneIdProvider = zone,
             )
 
-        fun viewModel() =
+        fun viewModel(
+            runningTimerNotifications: RunningTimerNotificationController? = null,
+        ) =
             MainViewModel(
                 taskRepository = tasks,
                 activeTimerRepository = active,
@@ -1044,6 +1115,7 @@ class MainViewModelTest {
                 xlsxExportCoordinator = xlsxExportCoordinator,
                 documentOutputDestination = document,
                 binaryDocumentOutputDestination = binaryDocument,
+                runningTimerNotificationController = runningTimerNotifications,
             )
 
         suspend fun addTask(
@@ -1060,6 +1132,28 @@ class MainViewModelTest {
                     seriesId = seriesId,
                 ),
             )
+    }
+
+    private class FakeRunningTimerNotifications(
+        var reconcileResult: RunningTimerNotificationResult =
+            RunningTimerNotificationResult.Posted,
+    ) : RunningTimerNotificationController {
+        var reconcileCount = 0
+        var stopCount = 0
+        val dismissedIntervals = mutableListOf<String>()
+
+        override suspend fun reconcile(): RunningTimerNotificationResult {
+            reconcileCount += 1
+            return reconcileResult
+        }
+
+        override suspend fun onTimerStopped() {
+            stopCount += 1
+        }
+
+        override suspend fun recordDismissal(intervalId: String) {
+            dismissedIntervals += intervalId
+        }
     }
 
     private companion object {

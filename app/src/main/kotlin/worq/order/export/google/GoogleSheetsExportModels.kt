@@ -98,6 +98,7 @@ internal data class GoogleSheetDeveloperMetadata(
     val sheetId: Int,
     val key: String,
     val value: String,
+    val metadataId: Int? = null,
 )
 
 internal data class GoogleSpreadsheetStructure(
@@ -123,6 +124,11 @@ internal sealed interface GoogleSheetsBatchRequest {
     data class CreateSheetMetadata(
         val sheetId: Int,
         val key: String,
+        val value: String,
+    ) : GoogleSheetsBatchRequest
+
+    data class UpdateSheetMetadataValue(
+        val metadataId: Int,
         val value: String,
     ) : GoogleSheetsBatchRequest
 

@@ -7,8 +7,6 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,24 +21,31 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import worq.order.data.ActiveTimerRepository
 import worq.order.data.ClientRepository
+import worq.order.data.EmployeeRepository
+import worq.order.data.MileageNormalizer
 import worq.order.data.TaskMetadataValidationResult
 import worq.order.data.TaskMetadataValidator
 import worq.order.data.TaskRepository
 import worq.order.domain.DeleteTaskOperationResult
+import worq.order.domain.BillingMinutes
 import worq.order.domain.ManualIntervalOperationResult
 import worq.order.domain.OverlapOffsetChoice
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.domain.UpdateTaskOperationResult
 import worq.order.model.Client
+import worq.order.model.Employee
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.timer.DurationMath
 import worq.order.ui.clients.ClientItemUi
+import worq.order.ui.employees.ConsultantItemUi
+import worq.order.util.ClockTimeFormatter
 
 class EditTaskViewModel(
     private val taskId: String,
     private val taskRepository: TaskRepository,
     private val clientRepository: ClientRepository,
+    private val employeeRepository: EmployeeRepository,
     private val activeTimerRepository: ActiveTimerRepository,
     private val taskMutationCoordinator: TaskMutationCoordinator,
 ) : ViewModel() {
@@ -78,6 +83,31 @@ class EditTaskViewModel(
                         )
                     }
                 }
+            EditTaskEvent.OpenConsultantMenu ->
+                mutableUiState.update {
+                    it.copy(
+                        isConsultantMenuExpanded = it.activeConsultants.isNotEmpty(),
+                    )
+                }
+            EditTaskEvent.DismissConsultantMenu ->
+                mutableUiState.update { it.copy(isConsultantMenuExpanded = false) }
+            is EditTaskEvent.SelectConsultant ->
+                mutableUiState.update {
+                    if (
+                        it.activeConsultants.none { consultant ->
+                            consultant.id == event.consultantId
+                        }
+                    ) {
+                        it
+                    } else {
+                        it.copy(
+                            selectedConsultantId = event.consultantId,
+                            isConsultantMenuExpanded = false,
+                            hasUnsavedMetadataChanges = true,
+                            message = null,
+                        )
+                    }
+                }
             is EditTaskEvent.EditDescription ->
                 mutableUiState.update {
                     it.copy(
@@ -95,6 +125,35 @@ class EditTaskViewModel(
                         hasUnsavedMetadataChanges = true,
                         message = null,
                     )
+                }
+            is EditTaskEvent.SelectWorkType ->
+                mutableUiState.update {
+                    it.copy(
+                        workType = event.workType,
+                        metadataErrors = emptySet(),
+                        hasUnsavedMetadataChanges = true,
+                        message = null,
+                    )
+                }
+            is EditTaskEvent.SelectBillingStatus ->
+                mutableUiState.update {
+                    it.copy(
+                        billingStatus = event.billingStatus,
+                        metadataErrors = emptySet(),
+                        hasUnsavedMetadataChanges = true,
+                        message = null,
+                    )
+                }
+            is EditTaskEvent.EditMileage ->
+                if (MileageNormalizer.acceptsInput(event.value)) {
+                    mutableUiState.update {
+                        it.copy(
+                            mileage = event.value,
+                            metadataErrors = emptySet(),
+                            hasUnsavedMetadataChanges = true,
+                            message = null,
+                        )
+                    }
                 }
             EditTaskEvent.SaveMetadata -> saveMetadata()
             EditTaskEvent.RequestClose -> requestClose()
@@ -152,9 +211,15 @@ class EditTaskViewModel(
             combine(
                 taskRepository.observeTaskWithIntervals(taskId),
                 clientRepository.observeActiveClients(),
+                employeeRepository.observeActiveEmployees(),
                 activeTimerRepository.observeActiveTimer(),
-            ) { detail, clients, activeTimer ->
-                Triple(detail, clients, activeTimer?.taskId == taskId)
+            ) { detail, clients, employees, activeTimer ->
+                ObservedEditTaskData(
+                    detail = detail,
+                    clients = clients,
+                    employees = employees,
+                    isRunning = activeTimer?.taskId == taskId,
+                )
             }.onStart {
                 mutableUiState.update {
                     it.copy(
@@ -162,7 +227,11 @@ class EditTaskViewModel(
                         hasLoadError = false,
                     )
                 }
-            }.onEach { (detail, clients, isRunning) ->
+            }.onEach { observed ->
+                val detail = observed.detail
+                val clients = observed.clients
+                val consultants = observed.employees.map(Employee::toConsultantItem)
+                val isRunning = observed.isRunning
                 latestDetail = detail
                 val clientItems = clients.map(Client::toClientItem)
                 if (detail == null) {
@@ -171,6 +240,7 @@ class EditTaskViewModel(
                             isLoading = false,
                             taskMissing = true,
                             activeClients = clientItems,
+                            activeConsultants = consultants,
                             isRunning = isRunning,
                         )
                     }
@@ -191,7 +261,9 @@ class EditTaskViewModel(
                         workDate = task.workDate,
                         zoneId = task.zoneId,
                         originalClientName = client.name,
+                        originalConsultantName = task.employeeNameSnapshot,
                         activeClients = clientItems,
+                        activeConsultants = consultants,
                         selectedClientId =
                             if (refreshMetadata) {
                                 task.clientId
@@ -206,7 +278,21 @@ class EditTaskViewModel(
                             } else {
                                 state.hardwareSoftwarePurchases
                             },
+                        selectedConsultantId =
+                            if (refreshMetadata) {
+                                task.employeeId
+                            } else {
+                                state.selectedConsultantId
+                            },
+                        workType =
+                            if (refreshMetadata) task.workType else state.workType,
+                        billingStatus =
+                            if (refreshMetadata) task.billingStatus else state.billingStatus,
+                        mileage =
+                            if (refreshMetadata) task.mileage.orEmpty() else state.mileage,
                         totalDuration = detail.completedDurationText(),
+                        billingMinutes =
+                            BillingMinutes.fromDuration(detail.completedDuration()),
                         intervals = detail.intervals.map { it.toItem(task.zoneId) },
                         isRunning = isRunning,
                         message =
@@ -238,19 +324,25 @@ class EditTaskViewModel(
             TaskMetadataValidator.validate(
                 description = state.description,
                 hardwareSoftwarePurchases = state.hardwareSoftwarePurchases,
+                workType = state.workType,
+                billingStatus = state.billingStatus,
+                mileage = state.mileage,
             )
         val errors =
             (validation as? TaskMetadataValidationResult.Invalid)
                 ?.errors
                 .orEmpty()
         val clientId = state.selectedClientId
-        if (errors.isNotEmpty() || clientId == null) {
+        val consultantId = state.selectedConsultantId
+        if (errors.isNotEmpty() || clientId == null || consultantId == null) {
             mutableUiState.update {
                 it.copy(
                     metadataErrors = errors,
                     message =
                         if (clientId == null) {
                             EditTaskMessage.CLIENT_UNAVAILABLE
+                        } else if (consultantId == null) {
+                            EditTaskMessage.CONSULTANT_UNAVAILABLE
                         } else {
                             null
                         },
@@ -268,6 +360,10 @@ class EditTaskViewModel(
                         description = state.description,
                         hardwareSoftwarePurchases =
                             state.hardwareSoftwarePurchases,
+                        employeeId = consultantId,
+                        workType = state.workType,
+                        billingStatus = state.billingStatus,
+                        mileage = state.mileage,
                     )
                 }.getOrElse {
                     mutableUiState.update {
@@ -310,6 +406,14 @@ class EditTaskViewModel(
                             isSavingMetadata = false,
                             selectedClientId = null,
                             message = EditTaskMessage.CLIENT_UNAVAILABLE,
+                        )
+                    }
+                UpdateTaskOperationResult.ConsultantUnavailable ->
+                    mutableUiState.update {
+                        it.copy(
+                            isSavingMetadata = false,
+                            selectedConsultantId = null,
+                            message = EditTaskMessage.CONSULTANT_UNAVAILABLE,
                         )
                     }
                 UpdateTaskOperationResult.RunningTask ->
@@ -606,6 +710,7 @@ class EditTaskViewModel(
         private val taskId: String,
         private val taskRepository: TaskRepository,
         private val clientRepository: ClientRepository,
+        private val employeeRepository: EmployeeRepository,
         private val activeTimerRepository: ActiveTimerRepository,
         private val taskMutationCoordinator: TaskMutationCoordinator,
     ) : ViewModelProvider.Factory {
@@ -616,6 +721,7 @@ class EditTaskViewModel(
                 taskId = taskId,
                 taskRepository = taskRepository,
                 clientRepository = clientRepository,
+                employeeRepository = employeeRepository,
                 activeTimerRepository = activeTimerRepository,
                 taskMutationCoordinator = taskMutationCoordinator,
             ) as T
@@ -626,28 +732,32 @@ class EditTaskViewModel(
 private fun Client.toClientItem(): ClientItemUi =
     ClientItemUi(id = id, name = name)
 
+private fun Employee.toConsultantItem(): ConsultantItemUi =
+    ConsultantItemUi(id = id, name = name)
+
+private data class ObservedEditTaskData(
+    val detail: TaskWithIntervals?,
+    val clients: List<Client>,
+    val employees: List<Employee>,
+    val isRunning: Boolean,
+)
+
+private fun TaskWithIntervals.completedDuration(): Duration =
+    intervals
+        .mapNotNull { interval ->
+            interval.stop?.let { Duration.between(interval.start, it) }
+        }.fold(Duration.ZERO, Duration::plus)
+
 private fun TaskWithIntervals.completedDurationText(): String {
-    val duration =
-        intervals
-            .mapNotNull { interval ->
-                interval.stop?.let { Duration.between(interval.start, it) }
-            }.fold(Duration.ZERO, Duration::plus)
-    return DurationMath.formatAccumulated(duration)
+    return DurationMath.formatAccumulated(completedDuration())
 }
 
 private fun WorkInterval.toItem(zoneId: java.time.ZoneId): IntervalItemUi {
-    val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
-    val startZoned = start.atZone(zoneId)
-    val stopZoned = stop?.atZone(zoneId)
-    val duration =
-        stop?.let { Duration.between(start, it) }
-            ?: Duration.ZERO
     return IntervalItemUi(
         id = id,
         ordinal = ordinal,
-        startText = timeFormatter.format(startZoned),
-        stopText = stopZoned?.let(timeFormatter::format).orEmpty(),
-        durationText = DurationMath.formatAccumulated(duration),
+        startText = ClockTimeFormatter.format(start, zoneId),
+        stopText = stop?.let { ClockTimeFormatter.format(it, zoneId) }.orEmpty(),
         isRunning = stop == null,
     )
 }

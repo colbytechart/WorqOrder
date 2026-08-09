@@ -16,10 +16,13 @@ import worq.order.data.ClientMutationResult
 import worq.order.data.ClientNameValidationResult
 import worq.order.data.ClientNameNormalizer
 import worq.order.data.ClientRepository
+import worq.order.domain.ClientCsvImportCoordinator
+import worq.order.domain.ClientCsvImportResult
 import worq.order.model.Client
 
 class ClientManagementViewModel(
     private val clientRepository: ClientRepository,
+    private val clientCsvImportCoordinator: ClientCsvImportCoordinator? = null,
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(ClientManagementUiState())
     val uiState: StateFlow<ClientManagementUiState> = mutableUiState
@@ -57,6 +60,56 @@ class ClientManagementViewModel(
                 mutableUiState.update { it.copy(restoreOffer = null) }
             ClientManagementEvent.DismissMessage ->
                 mutableUiState.update { it.copy(message = null) }
+            is ClientManagementEvent.ImportCsvDocumentSelected ->
+                importCsv(event.documentUri)
+            ClientManagementEvent.DismissImportStatus ->
+                mutableUiState.update {
+                    it.copy(
+                        importSummary = null,
+                        importFailure = null,
+                    )
+                }
+        }
+    }
+
+    private fun importCsv(documentUri: String?) {
+        if (documentUri == null || mutableUiState.value.isImporting) return
+        val coordinator = clientCsvImportCoordinator ?: return
+        viewModelScope.launch {
+            mutableUiState.update {
+                it.copy(
+                    isImporting = true,
+                    importSummary = null,
+                    importFailure = null,
+                    message = null,
+                )
+            }
+            when (val result = coordinator.import(documentUri)) {
+                is ClientCsvImportResult.Success ->
+                    mutableUiState.update {
+                        it.copy(
+                            isImporting = false,
+                            importSummary =
+                                ClientImportSummaryUi(
+                                    addedCount = result.summary.addedCount,
+                                    restoredCount = result.summary.restoredCount,
+                                    skippedCount = result.summary.skippedCount,
+                                ),
+                        )
+                    }
+                is ClientCsvImportResult.Failed ->
+                    mutableUiState.update {
+                        it.copy(
+                            isImporting = false,
+                            importFailure =
+                                ClientImportFailureUi(
+                                    failure = result.failure,
+                                    recordNumber = result.recordNumber,
+                                    columnNumber = result.columnNumber,
+                                ),
+                        )
+                    }
+            }
         }
     }
 
@@ -98,7 +151,7 @@ class ClientManagementViewModel(
     }
 
     private fun openAddClient() {
-        if (mutableUiState.value.pendingClientId != null) {
+        if (mutableUiState.value.pendingClientId != null || mutableUiState.value.isImporting) {
             return
         }
         mutableUiState.update {
@@ -110,7 +163,7 @@ class ClientManagementViewModel(
     }
 
     private fun openRenameClient(clientId: String) {
-        if (mutableUiState.value.pendingClientId != null) {
+        if (mutableUiState.value.pendingClientId != null || mutableUiState.value.isImporting) {
             return
         }
         val client =
@@ -131,7 +184,7 @@ class ClientManagementViewModel(
 
     private fun confirmEditor() {
         val editor = mutableUiState.value.editor ?: return
-        if (editor.isSaving) {
+        if (editor.isSaving || mutableUiState.value.isImporting) {
             return
         }
         when (val validation = ClientNameNormalizer.validate(editor.name)) {
@@ -231,7 +284,7 @@ class ClientManagementViewModel(
     }
 
     private fun requestArchive(clientId: String) {
-        if (mutableUiState.value.pendingClientId != null) {
+        if (mutableUiState.value.pendingClientId != null || mutableUiState.value.isImporting) {
             return
         }
         val client =
@@ -265,7 +318,7 @@ class ClientManagementViewModel(
     }
 
     private fun restoreClient(clientId: String) {
-        if (mutableUiState.value.pendingClientId != null) {
+        if (mutableUiState.value.pendingClientId != null || mutableUiState.value.isImporting) {
             return
         }
         mutateClient(clientId) {
@@ -349,11 +402,15 @@ class ClientManagementViewModel(
 
     class Factory(
         private val clientRepository: ClientRepository,
+        private val clientCsvImportCoordinator: ClientCsvImportCoordinator,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(ClientManagementViewModel::class.java))
-            return ClientManagementViewModel(clientRepository) as T
+            return ClientManagementViewModel(
+                clientRepository = clientRepository,
+                clientCsvImportCoordinator = clientCsvImportCoordinator,
+            ) as T
         }
     }
 }

@@ -19,13 +19,13 @@ import androidx.room.PrimaryKey
     ],
     indices = [
         Index(
-            name = "index_work_intervals_task_ordinal",
-            value = ["task_id", "ordinal"],
+            name = "index_work_intervals_task_id",
+            value = ["task_id"],
             unique = true,
         ),
         Index(
             name = "index_work_intervals_task_start",
-            value = ["task_id", "start_epoch_ms", "ordinal", "id"],
+            value = ["task_id", "start_epoch_ms", "id"],
         ),
         Index(
             name = "index_work_intervals_active_slot",
@@ -45,8 +45,6 @@ data class WorkIntervalEntity(
     val id: String,
     @ColumnInfo(name = "task_id")
     val taskId: String,
-    @ColumnInfo(name = "ordinal")
-    val ordinal: Int,
     @ColumnInfo(name = "start_epoch_ms")
     val startEpochMs: Long,
     @ColumnInfo(name = "stop_epoch_ms")

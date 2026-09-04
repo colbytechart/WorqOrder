@@ -6,10 +6,13 @@ import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import worq.order.model.ActiveTimer
 import worq.order.model.ActiveTimerSnapshot
+import worq.order.model.DailyTask
 
 sealed interface CreateActiveIntervalResult {
     data class Created(
         val snapshot: ActiveTimerSnapshot,
+        val startedTask: DailyTask,
+        val repeatedTaskCreated: Boolean,
     ) : CreateActiveIntervalResult
 
     data object AlreadyActive : CreateActiveIntervalResult

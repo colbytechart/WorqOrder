@@ -323,7 +323,7 @@ abstract class TaskDao {
         SELECT *
         FROM work_intervals
         WHERE task_id = :taskId
-        ORDER BY start_epoch_ms ASC, ordinal ASC, id ASC
+        ORDER BY start_epoch_ms ASC, id ASC
         """,
     )
     protected abstract suspend fun readOrderedIntervals(

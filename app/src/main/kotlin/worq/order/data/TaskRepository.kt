@@ -67,6 +67,14 @@ sealed interface ManualIntervalPersistenceResult {
 
     data object TaskNotFound : ManualIntervalPersistenceResult
 
+    /**
+     * Schema 5 permits zero or one interval per task.
+     *
+     * The final task editor removes the obsolete multi-interval affordance in a later phase. This
+     * typed result keeps its temporary compatibility path unable to create a second interval.
+     */
+    data object TaskAlreadyHasInterval : ManualIntervalPersistenceResult
+
     data object IntervalNotFound : ManualIntervalPersistenceResult
 
     data object RunningTask : ManualIntervalPersistenceResult

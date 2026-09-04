@@ -1055,3 +1055,25 @@ Client/Consultant management, metadata validation, Billing Minutes, date browsin
 deletion, themes, handed landscape, CSV/XLSX document flows, Google connection/re-export,
 notifications, backup-disabled policy, GPLv3 distribution, and release signing retain their
 accepted `0.2.0` behavior except where the cases above explicitly supersede it.
+
+### V3-DB-04 Milestone 30C executable evidence
+
+`Schema5MigrationCoreTest` is the populated schema-4 evidence fixture. It includes archived Client
+and Consultant directory rows, nullable task metadata, a zero-interval task, a one-interval task,
+a multi-interval task, and an open non-first interval. The test verifies that every interval and
+metadata value survives deterministic task splitting, the active pointer follows the open interval,
+foreign keys remain valid, the reopened file is stable, and schema 5 has no persisted `ordinal`.
+`WorqOrderDatabaseTest` verifies the packaged version-5 schema, the task-to-interval uniqueness
+guard, same-series date copies, and populated version 1/2-to-5 migration paths.
+
+### V3-DB-05 Milestone 30 Sol quality gate
+
+The generated version-5 Room schema uses identity hash
+`01298237042e1a0bb2998ab5f1522ec8`, a non-unique lineage/date/zone index, a unique
+`work_intervals.task_id` index, and no persisted `ordinal`. The Sol audit corrected stale
+multi-interval test assumptions, added a true one-interval schema-4 fixture, and strengthened
+fresh-schema, deterministic timestamp, rejected-write, and reopen assertions. The project-local
+offline JVM/lint/debug/release gate passed, and the complete connected API-36 instrumentation
+suite passed all 105 tests. The signed populated-install upgrade walkthrough remains a final
+release gate in Milestone 35; schema migration behavior is currently verified by populated
+instrumentation fixtures rather than a user-data-bearing release installation.

@@ -557,6 +557,8 @@ class EditTaskViewModel(
                     }
                 ManualIntervalOperationResult.TaskNotFound ->
                     showIntervalFailure(EditTaskMessage.TASK_NOT_FOUND)
+                ManualIntervalOperationResult.TaskAlreadyHasInterval ->
+                    showIntervalFailure(EditTaskMessage.INTERVAL_CHANGED)
                 ManualIntervalOperationResult.IntervalNotFound ->
                     showIntervalFailure(EditTaskMessage.INTERVAL_NOT_FOUND)
                 ManualIntervalOperationResult.RunningTask ->
@@ -594,6 +596,8 @@ class EditTaskViewModel(
                             ManualIntervalOperationResult.Deleted -> null
                             ManualIntervalOperationResult.TaskNotFound ->
                                 EditTaskMessage.TASK_NOT_FOUND
+                            ManualIntervalOperationResult.TaskAlreadyHasInterval ->
+                                EditTaskMessage.INTERVAL_CHANGED
                             ManualIntervalOperationResult.IntervalNotFound ->
                                 EditTaskMessage.INTERVAL_NOT_FOUND
                             ManualIntervalOperationResult.RunningTask ->

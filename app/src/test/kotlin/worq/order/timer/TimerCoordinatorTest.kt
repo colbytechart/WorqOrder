@@ -81,7 +81,7 @@ class TimerCoordinatorTest {
         }
 
     @Test
-    fun clarifiedRepeatedTaskExampleKeepsThreeSeparateCorrectIntervalsAndTotals() =
+    fun repeatedStartCreatesSelectedSameDayCopyAndPreservesSourceTask() =
         runTest {
             val fixture = Fixture()
             val task1 = fixture.addTask(TODAY, seriesId = "series-1")
@@ -104,25 +104,42 @@ class TimerCoordinatorTest {
             val restarted = fixture.coordinator().start()
             assertTrue(restarted is StartTimerResult.Started)
             assertEquals(
-                Duration.ofHours(1),
+                Duration.ZERO,
                 (restarted as StartTimerResult.Started).initialDisplayTotal,
             )
+            val repeatedTaskId = requireNotNull(fixture.selection.readSelection()).taskId
+            assertTrue(repeatedTaskId != task1.id)
+            val repeatedTask =
+                requireNotNull(fixture.tasks.readTaskWithIntervals(repeatedTaskId))
+                    .taskWithClient
+                    .task
+            assertEquals(task1.seriesId, repeatedTask.seriesId)
+            assertEquals(task1.clientId, repeatedTask.clientId)
+            assertEquals(task1.description, repeatedTask.description)
+            assertEquals(task1.workDate, repeatedTask.workDate)
+            assertEquals(task1.zoneId, repeatedTask.zoneId)
             fixture.advance(Duration.ofHours(1))
             assertTrue(fixture.coordinator().stop() is StopTimerResult.Stopped)
 
             val task1Intervals =
                 requireNotNull(fixture.tasks.readTaskWithIntervals(task1.id)).intervals
+            val repeatedTaskIntervals =
+                requireNotNull(fixture.tasks.readTaskWithIntervals(repeatedTaskId)).intervals
             val task2Intervals =
                 requireNotNull(fixture.tasks.readTaskWithIntervals(task2.id)).intervals
-            assertEquals(2, task1Intervals.size)
             assertEquals(
                 listOf(
                     Instant.parse("2026-07-24T13:00:00Z") to
                         Instant.parse("2026-07-24T14:00:00Z"),
+                ),
+                task1Intervals.map { it.start to it.stop },
+            )
+            assertEquals(
+                listOf(
                     Instant.parse("2026-07-24T17:00:00Z") to
                         Instant.parse("2026-07-24T18:00:00Z"),
                 ),
-                task1Intervals.map { it.start to it.stop },
+                repeatedTaskIntervals.map { it.start to it.stop },
             )
             assertEquals(
                 listOf(
@@ -132,8 +149,12 @@ class TimerCoordinatorTest {
                 task2Intervals.map { it.start to it.stop },
             )
             assertEquals(
-                Duration.ofHours(2).toMillis(),
+                Duration.ofHours(1).toMillis(),
                 fixture.tasks.readCompletedDurationMillis(task1.id),
+            )
+            assertEquals(
+                Duration.ofHours(1).toMillis(),
+                fixture.tasks.readCompletedDurationMillis(repeatedTaskId),
             )
             assertEquals(
                 Duration.ofMinutes(30).toMillis(),

@@ -518,3 +518,45 @@ the owner explicitly assigns it. It alone owns optional local at-rest encryption
 biometric/device-credential/PIN design, and screenshot/Recents privacy options. These concerns
 remain adapters around current repository/navigation boundaries, require separate explicit owner
 authorization, and may not be inferred from ordinary security or release work.
+
+## 17. v0.3.0 single-interval and no-rollover architecture
+
+The `0.3.0` implementation replaces only the interval cardinality, repeated-Start, date-boundary,
+selection-rollover, and canonical export projections. Existing layers and manual dependency
+injection remain intact.
+
+- Room schema 5 retains `daily_tasks`, `work_intervals`, and `active_timer`. `work_intervals.task_id`
+  becomes unique, creating a structural zero-or-one relationship. The interval table remains the
+  owner of start/stop/edit state and preserves the composite reference from the singleton active
+  timer.
+- `series_id` becomes non-unique lineage metadata. The unique `(series, date, zone)` index is
+  replaced with a normal lookup index. No repository may use a series ID to create a missing date
+  copy. A repetition created by Start retains lineage but receives new task/interval identities.
+- A versioned Room 4-to-5 migration splits historical multi-interval tasks without loss before it
+  installs the one-interval constraint. The original row retains the earliest ordered interval;
+  each later interval moves to a deterministic copied task. The active-timer composite reference
+  moves in the same migration transaction if its interval moves.
+- `TimerCoordinator.start` resolves the selected task while holding the existing operation lock.
+  A zero-interval task starts normally. A completed task is duplicated and selected, and its sole
+  open interval plus global active-timer row are created in one Room transaction. Concurrent Start
+  calls still yield at most one new task and one global active timer.
+- Midnight normalization becomes boundary closure. It calculates the first pinned-ZoneId
+  `atStartOfDay` after the interval start, closes the interval at that instant, clears
+  `active_timer`, ends the live monotonic session, clears stale timing selection, and never loops
+  across dates or creates continuation rows.
+- The foreground date observer may request closure promptly, but correctness never depends on an
+  in-memory callback firing at midnight. Recovery and automatic-export entry points invoke the
+  same idempotent close-through-boundary transaction before reconstructing UI or snapshot state.
+- `SelectionCoordinator` no longer has a find-or-create rollover path. A selection remains valid
+  only for its concrete task/date/zone context. When today moves beyond that context, it clears;
+  browsing historical dates never creates data.
+- Automatic Google work targets the completed captured date and has an earliest execution time
+  after that date's local boundary. It closes a stale target-date timer before the immutable
+  snapshot, then uses the unchanged marked-tab replacement gateway. WorkManager timing remains
+  best-effort and no background stopwatch mechanism is added.
+- `ExportRowBuilder` owns schema 5. Each task produces exactly one 13-value row. CSV, XLSX, Google,
+  and automatic Google adapters remain unaware of Room entities and interval cardinality.
+
+Tests preserve the existing operation mutex, Room transaction boundaries, lifecycle recovery,
+clock-anomaly policy, and notification ownership. Dead multi-interval and rollover APIs are removed
+only after all callers and tests have moved to the new contracts.

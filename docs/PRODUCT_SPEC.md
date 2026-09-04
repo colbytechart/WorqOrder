@@ -478,3 +478,47 @@ biometric/device-credential/approved-PIN app locking, and separately reviewed sc
 privacy controls, together with their dedicated migration, security, accessibility, performance,
 and regression testing. It must not add a mandatory account, backend, destructive recovery, or
 false protection claims.
+
+## 15. Approved v0.3.0 product changes
+
+This section is the complete feature scope for `0.3.0`. It supersedes the earlier rollover,
+midnight-continuation, multi-interval, and one-row-per-interval rules only after the corresponding
+`0.3.0` implementation milestones land. Every other accepted `0.2.0` behavior remains unchanged.
+
+1. **No automatic task rollover.** A selected task is never copied merely because the effective
+   date or ZoneId changes, the app resumes, recovery runs, or Start is evaluated. At a real date
+   change, an earlier-day timing selection is cleared. Today begins with no automatically selected
+   or generated task; the user selects or creates one explicitly.
+2. **Midnight closes instead of continuing.** A timer that reaches the next local-day boundary in
+   its pinned geographical ZoneId closes at that exact boundary. It does not create a next-day task
+   or continuation interval. If Android has suspended the process, the next legitimate worker,
+   resume, reboot recovery, or launch records the same exact boundary retrospectively. No exact
+   alarm, wake lock, or foreground stopwatch service is introduced.
+3. **At most one interval per task.** A task contains zero or one interval. Edit Task presents a
+   singular **Interval** section. An untimed task may receive its interval through Start or manual
+   entry; a completed interval may be edited or deleted, but a second interval may not be appended.
+4. **Repeated timing creates a task.** Pressing Start on today's selected task with a completed
+   interval atomically creates a new task with a new stable task ID, copies all user metadata and
+   the source lineage ID, selects it, and opens its sole interval. The original task and interval
+   remain unchanged. Client, Consultant snapshot, Description, Expense, Work type, Billing Status,
+   Mileage, work date, and assignment ZoneId are copied. Creation/update timestamps and interval
+   identity are new rather than copied.
+5. **Safe historical conversion.** The Room 4-to-5 migration converts every existing task with
+   several intervals into one task per interval without losing clients, Consultants, task
+   metadata, IDs that can be preserved, UTC endpoints, manual-edit state, dates, zones, or a
+   running timer. The original task retains its earliest interval; later intervals receive
+   deterministic copied tasks in chronological order. A running interval and singleton active
+   timer are repointed transactionally when necessary. Zero- and one-interval tasks are unchanged.
+6. **One export row per task.** Canonical schema 5 contains exactly 13 columns: Start date, End
+   date, Consultant, Client, Description, Expense, Work type, Billing Status, Mileage, Start time,
+   Stop time, Time spent, and Billing minutes. `Interval number` and the redundant `Interval
+   duration` are removed. CSV, XLSX, manual Google, and automatic Google export use the identical
+   immutable dataset.
+7. **Automatic-export ordering.** Automatic Google export retains the captured preceding work
+   date and runs at Android's first best-effort opportunity after its local midnight. Before the
+   snapshot, any still-open interval from that date is transactionally closed at the exact
+   boundary. Google authorization, connectivity, and scheduling failures retain the existing safe
+   pending behavior. CSV and XLSX remain manual.
+
+`0.3.0` does not otherwise redesign clients, Consultants, task metadata, Settings, landscape
+layout, notifications, authentication, destinations, backup policy, licensing, or distribution.

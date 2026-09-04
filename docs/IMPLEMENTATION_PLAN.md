@@ -770,7 +770,94 @@ and manual gates, update user/privacy/release/handoff documentation, build/sign/
 through the existing permanent direct-release process, and prepare GitHub release instructions.
 This is a release gate, not a source of optional product features.
 
-## 21. Optional Milestone E — Data Protection, App Access, and Privacy Hardening
+## 21. WorqOrder `0.3.0` development roadmap
+
+`0.3.0` is a narrow compatibility-preserving release. It removes daily rollover/midnight
+continuation and converts task timing from many intervals to zero or one interval per task. All
+milestone branches descend from `v0.3.0-development` and merge back into it sequentially. The
+integration branch remains separate from `main` until Milestone 35 passes and the owner authorizes
+the final release merge.
+
+Every milestone requires an explicit owner start instruction and current weekly-token-budget
+percentage. Its work is divided into sequential model-assigned task phases. The first assigned
+model, running at Extra High reasoning, must estimate the full milestone's percentage cost before
+work, confirm the exact milestone branch and ancestry, summarize all phases, and stop on any
+unresolved conflict. Luna receives highly specified mechanical/evidence work, Terra receives
+bounded application/UI/integration work, and Sol receives high-risk invariant/release work plus the
+final milestone quality gate. At every model transition, request the named model and wait for owner
+confirmation. Later phases reuse the prior handoff and current diff instead of repeating broad
+discovery.
+
+### Milestone 30 — Schema 5, lossless migration, and repeated-Start transaction
+
+**Task sequence:** Sol designs and implements the schema/invariant/migration core and atomic Start
+transaction; Terra performs bounded entity/DAO/repository/mapping propagation and compile-safe
+compatibility work; Luna adds the explicitly enumerated migration/constraint fixtures and updates
+implementation evidence; Sol reviews the combined migration, concurrency behavior, and tests and
+alone closes the milestone. Implement the Room 4-to-5 migration, make `series_id` non-unique
+lineage, structurally limit `work_intervals.task_id` to one row, remove ordinal from the production
+model, split every prior multi-interval task without losing data, preserve/repoint active state,
+and keep Start functional. Do not change midnight, final UI, or final export presentation beyond
+compile-safe adapters.
+
+### Milestone 31 — No-rollover selection and singular interval coordination
+
+**Task sequence:** Luna inventories rollover and multi-interval call sites without editing behavior;
+Sol implements the no-rollover domain rules and validates transaction/concurrency invariants; Terra
+propagates the rules through selection, recovery, repository, ViewModel, and manual-interval
+integration; Luna performs the enumerated regression/documentation pass; Sol reviews the combined
+behavior and alone closes the milestone. Clear stale date/zone selection without creating data and
+complete repeated-Start and singular Add/Edit/Delete behavior while preserving the global active
+timer invariant.
+
+### Milestone 32 — Midnight auto-stop and automatic-export ordering
+
+**Task sequence:** Sol implements and proves the exact-boundary closure transaction and ordering
+contract; Terra integrates it into lifecycle, recovery, notification, WorkManager, and Google-export
+entry points; Luna builds the detailed clock/zone/failure fixtures and manual boundary checklist;
+Sol reviews races, idempotency, and absence of continuation data and alone closes the milestone.
+No exact alarm, app-owned wake lock, foreground stopwatch service, or tick write is permitted.
+
+### Milestone 33 — Singular Interval UI and canonical export schema 5
+
+**Task sequence:** Terra implements the singular Create/Edit/Main UI and the shared 13-column
+projection plus CSV/XLSX adapter propagation; Sol implements/reviews the destructive-range safety
+and known-owned-schema upgrade for manual/automatic Google export; Luna adds the explicitly scoped
+cross-destination, serializer, UI, accessibility, and documentation evidence; Sol performs the
+combined export-safety and behavior review and alone closes the milestone. Do not alter unrelated
+visual design or metadata.
+
+### Milestone 34 — Obsolete-path removal and specification reconciliation
+
+**Task sequence:** Luna performs the highly specified reference classification, stale-document and
+fixture reconciliation, and produces a candidate dead-code list; Terra removes only mechanically
+proven unreachable production paths and resolves bounded compile/test fallout; Luna completes the
+traceability/evidence pass; Sol audits the removals for retained migration/history behavior and
+alone closes the milestone. Do not redesign architecture, change dependencies, alter Room schema,
+or broaden product scope.
+
+### Milestone 35 — Final tests, upgrade audit, and GitHub release
+
+**Task sequence:** Luna assembles the prescribed traceability, test-evidence, documentation, and
+manual-check inventory; Terra fixes only bounded non-architectural release defects and finalizes
+user-facing/release documentation; Sol performs the upgrade, migration, lifecycle, performance,
+dependency, security, signer, and artifact audit, owns any high-risk correction, and alone declares
+or withholds readiness. Sol also supplies the exact integration/main/tag/GitHub Release procedure.
+Do not release if a required gate fails or signing/OAuth identity differs.
+
+### Milestone 36 — Safe project-environment teardown guide
+
+**Task sequence:** Luna follows an explicit questionnaire and builds the non-destructive component
+inventory; Terra organizes verified Windows/Android Studio/SDK/Gradle cleanup procedures and
+rollback checks without executing them; Sol audits every instruction for target precision,
+shared-tool risk, credentials/signing preservation, firmware safety, and recoverability and alone
+finalizes the guide. This milestone creates instructions only and never deletes files, uninstalls
+software, or changes BIOS/system settings autonomously.
+
+The copy/paste start prompts, branch gates, model handoffs, required tests, and stopping conditions
+for Milestones 30–36 are authoritative in `docs/V0_3_MILESTONE_PROMPTS.md`.
+
+## 22. Optional Milestone E — Data Protection, App Access, and Privacy Hardening
 
 Entry: the owner separately and explicitly assigns and instructs WorqOrder to begin Milestone E.
 It is an unscheduled, release-agnostic backburner item outside `0.2.0` and every other release
@@ -841,7 +928,7 @@ Android's application sandbox and must not claim WorqOrder-managed Room/DataStor
 - Run formatting, lint, unit, instrumentation/UI/security tests, and debug/release builds on at
   least API 26 and the current target API.
 
-## 22. Dependency selection checklist
+## 23. Dependency selection checklist
 
 At the first milestone that needs a dependency:
 
@@ -860,7 +947,7 @@ selected through the mandatory Milestone 9 discovery gate. XLSX dependencies pas
 checklist in Milestone 12. Local-encryption dependencies may be considered only if optional
 Milestone E is separately authorized and must pass this checklist before being added.
 
-## 23. Risk register
+## 24. Risk register
 
 | Risk | Impact | Mitigation/gate |
 | --- | --- | --- |
@@ -873,25 +960,25 @@ Milestone E is separately authorized and must pass this checklist before being a
 | Collaborative sheet changes race an export | Possible remote conflict | Marker, narrow reads, atomic batch, raw values, idempotent retry; never change Room |
 | XLSX writer is incompatible or unsafe | Malformed workbooks or formula execution | Focused internal Milestone 12 writer, literal cells, independent-parser/golden tests, Excel/LibreOffice checks, and no Apache POI |
 | One-off XLSX provider write fails after document creation | A partial external file may remain | Build and validate bytes before the picker, close output deterministically, attempt provider deletion on failure, report partial-output risk, and never change Room |
-| Per-date sheets exhaust Google grid allocation or become unwieldy | Export failure or poor spreadsheet usability | Exactly nine columns, required row counts, resize on replacement, monitor the official 10-million-cell spreadsheet limit, and surface a capacity error before mutation |
+| Per-date sheets exhaust Google grid allocation or become unwieldy | Export failure or poor spreadsheet usability | Schema-5's exact 13 columns, required row counts, resize on replacement, monitor the official 10-million-cell spreadsheet limit, and surface a capacity error before mutation |
 | Plaintext app-private database/preferences are extracted from a compromised or sufficiently privileged device | Sensitive client/task data is disclosed | Document that current production relies on Android's application sandbox and does not provide WorqOrder-managed at-rest encryption; retain stronger protection only as optional Milestone E |
 | Optional encryption key is lost or invalidated | Authoritative local data becomes unavailable if optional Milestone E is later implemented | Require versioned key hierarchy, documented recovery limits, non-destructive failure, interrupted-migration tests, and never silently reset Room |
 | Optional encryption degrades core performance | Slow startup, task lists, or timer mutations if optional Milestone E is later implemented | Record pre-encryption baselines and enforce focused startup/query/migration/memory benchmarks within that optional milestone |
 | User assumes local records or exported files/Sheets are end-to-end encrypted | Sensitive data is handled under an incorrect expectation | Explicitly document that current Room/DataStore rely on the Android sandbox, CSV/XLSX are unencrypted user-controlled files, and readable Sheets rely on Google/TLS controls |
 | Wall-clock correction while timer runs | Live and persisted elapsed can disagree | Monotonic live view, UTC persistence, non-negative clamp, explicit anomaly result |
-| DST/zone changes and midnight transitions | Misassigned dates or intervals | Stored/pinned ZoneIds, `atStartOfDay`, three-part uniqueness, real-zone tests |
+| DST/zone changes and midnight transitions | Misassigned dates or accidental continuation tasks | Stored/pinned ZoneIds, `atStartOfDay`, schema-5 one-interval constraint, exact-boundary close, no-rollover assertions, and real-zone tests |
 | Process death during timer mutation | Orphaned/open state | One Room transaction, singleton pointer, structural open-slot constraint, recovery tests |
 | Client rename changes historical displayed name | User expectation mismatch | Retain approved live client reference behavior and document it visibly |
 | CSV spreadsheet-formula interpretation | Downstream security concern | Faithful CSV plus security review/user guidance; do not silently mutate values |
 | Room migration loss | Irrecoverable local truth | Schema exports from version 1, explicit migrations, populated tests, no destructive release fallback |
 | Frequent timer recomposition | Battery/performance issues | Collection-scoped coarse ticker, derived state, profiling, and no tick writes |
 
-## 24. Traceability
+## 25. Traceability
 
 - Product behavior and concept reconciliation: `PRODUCT_SPEC.md`.
 - Layering, toolchain, security, and test strategy: `ARCHITECTURE.md`.
 - Tables, columns, constraints, preferences, and migrations: `DATA_MODEL.md`.
-- Start/Stop, display, rollover, midnight, DST, and anomalies:
+- Start/Stop, display, v0.3 no-rollover boundary closure, DST, and anomalies:
   `TIMER_AND_DATE_RULES.md`.
 - Logical rows, CSV, XLSX, Google protocol, setup, and failures: `EXPORT_SPEC.md`.
 - Observable verification: `ACCEPTANCE_TESTS.md`.

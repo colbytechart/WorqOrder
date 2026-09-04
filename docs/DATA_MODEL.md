@@ -352,3 +352,58 @@ active/archived clients, multiple tasks and intervals, and an open active timer.
 migration remains prohibited. Milestone 27 adds `MIGRATION_3_4`, which adds only the nullable
 `billing_status` column. Populated version-1, version-2, and version-3 upgrade paths preserve their
 entire task/interval/active-timer graph and leave Billing Status null.
+
+## 14. Planned v0.3.0 Room schema 5
+
+Schema 5 is a mandatory non-destructive upgrade from the released schema 4. Room remains the
+authoritative store. It changes task/interval cardinality and lineage indexes without flattening
+interval timestamps into `daily_tasks`.
+
+### Task lineage and interval cardinality
+
+- `daily_tasks.series_id` remains a stable internal lineage value but is no longer unique with
+  work date and ZoneId. Drop `index_daily_tasks_series_date_zone` and replace it with a non-unique
+  lookup index over the same columns. No automatic copy operation may depend on it.
+- `work_intervals` retains its stable interval ID, task foreign key, UTC start/nullable stop,
+  active slot, manual-edit flag, and creation/update timestamps.
+- Remove `ordinal`; ordering is task-level rather than interval-within-task ordering.
+- Add a unique index on `work_intervals.task_id`. A task therefore owns zero or one interval.
+- Retain the globally unique nullable `active_slot`, composite interval/task identity, singleton
+  `active_timer`, task cascade, and client/Consultant restrictions.
+
+### Deterministic 4-to-5 conversion
+
+The migration must run as one Room/SQLite migration transaction and must be safe for a populated
+released database:
+
+1. Order every task's intervals by start instant, prior ordinal, then interval ID.
+2. Leave zero-interval and one-interval tasks unchanged except for the rebuilt table shape.
+3. For a multi-interval task, retain the original task ID and earliest interval relationship.
+4. For each later interval, insert a copied task with a deterministic collision-resistant UUID
+   derived from the source task and interval IDs. Retain the source `series_id`, client,
+   Consultant relationship/snapshot, Description, Expense, Work type, Billing Status, Mileage,
+   work date, and ZoneId. Use deterministic timestamps derived from preserved source/interval
+   timestamps so retry or test reconstruction cannot create different rows.
+5. Move each later interval to its copied task without changing interval ID, UTC endpoints,
+   manual-edit flag, or interval timestamps.
+6. If `active_timer` points to a moved interval, update its `task_id` in the same transaction while
+   preserving interval ID, boundary ZoneId, and timer timestamps.
+7. Rebuild constraints/indexes, enable foreign-key checking, and fail the upgrade rather than
+   deleting, merging, or reseeding data if any invariant cannot be proven.
+
+Migration tests must compare pre/post counts and field values, cover zero/one/many intervals,
+equal-start ordering, an open non-first interval, active-timer pointer integrity, selected-task
+reconciliation after open-interval movement, idempotent reopen, cascade/restrict behavior, and the
+committed version-5 schema JSON. Destructive fallback remains prohibited.
+
+### New writes after migration
+
+- New user-created tasks receive a new task and lineage ID.
+- Starting an untimed task inserts its sole interval and singleton active timer transactionally.
+- Starting a task whose completed interval remains present creates a copied task with a new task
+  ID, preserves its lineage and user metadata, selects it, and inserts the new open interval plus
+  active-timer row in one transaction.
+- Manual Add Interval is allowed only when the task has none. Edit/Delete operates only on the
+  sole completed interval; running edits remain blocked.
+- Date or ZoneId changes never create task records. Selection hints may be retained for migration
+  compatibility, but rollover lookup/creation is removed and stale timing selection is cleared.

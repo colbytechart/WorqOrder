@@ -544,3 +544,61 @@ values. Automatic-export tests cover captured-date execution before/after midnig
 running-timer pending state, post-Stop notification action, notification dismissal, reboot/Doze,
 zone changes, disconnect/sign-out, authorization/offline/quota failure, manual/automatic races,
 idempotency, no Main success message, no sensitive notification content, and no CSV/XLSX schedule.
+
+## 13. Planned canonical export schema version 5 (`0.3.0`)
+
+Schema 5 becomes active only with the Room single-interval migration and replaces schema 4 across
+CSV, XLSX, manual Google, and automatic Google together. Every task produces exactly one row.
+There is no interval ordinal and no second duration value.
+
+The exact visible column order and spelling is:
+
+| # | Header | Value |
+| ---: | --- | --- |
+| 1 | Start date | task work date as `MM/dd/yyyy` |
+| 2 | End date | the same task work date as `MM/dd/yyyy` |
+| 3 | Consultant | assignment-time Consultant snapshot or blank |
+| 4 | Client | current referenced Client display name |
+| 5 | Description | complete task Description |
+| 6 | Expense | complete Hardware / Software Purchases value |
+| 7 | Work type | `On-Site`, `In-Office`, or blank migrated value |
+| 8 | Billing Status | `Billable`, `Do not bill`, `Do not charge`, or blank migrated value |
+| 9 | Mileage | canonical non-negative decimal text or blank |
+| 10 | Start time | sole interval start in task ZoneId as `hh:mm AM/PM`, or blank |
+| 11 | Stop time | sole completed stop in task ZoneId as `hh:mm AM/PM`, or blank |
+| 12 | Time spent | sole completed duration as accumulated `HH:MM:SS`; `00:00:00` when untimed |
+| 13 | Billing minutes | derived 15-minute-ceiling integer; `0` when untimed |
+
+`Interval number` and `Interval duration` are intentionally absent. Exact UTC instants, IDs,
+ZoneIds, manual-edit state, and internal schema metadata remain in Room or the immutable snapshot
+context but are not visible export columns.
+
+### Snapshot and ordering
+
+The coordinator first performs any required midnight boundary closure, verifies that no unstable
+target-date interval remains, and captures one immutable task-plus-optional-interval projection.
+Sort tasks by creation timestamp ascending and task ID ascending, matching schema 4's stable task
+order. There is no interval-level sort. Picker delay or UI changes cannot mutate the prepared
+snapshot, and export never mutates Room.
+
+### Destination effects
+
+- CSV emits the exact 13 headers and one RFC-style UTF-8 row per task.
+- XLSX writes one worksheet with an `A:M` table and the same literal values.
+- Google writes headers/data below its existing ownership marker. An owned schema-2, schema-3, or
+  schema-4 tab may be atomically replaced and upgraded to schema 5; clear the complete previous
+  application-owned range so obsolete columns N/O cannot remain. Unknown/newer markers and
+  unowned same-name tabs still fail closed.
+- Re-export remains authoritative replacement and duplicate-free. A schema-5 task cannot create
+  multiple rows.
+- Automatic Google export uses the captured preceding date after midnight closure. CSV and XLSX
+  remain user-initiated `ACTION_CREATE_DOCUMENT` flows.
+
+Example header:
+
+```csv
+Start date,End date,Consultant,Client,Description,Expense,Work type,Billing Status,Mileage,Start time,Stop time,Time spent,Billing minutes
+```
+
+An untimed task has blank Start/Stop, `00:00:00` Time spent, and `0` Billing minutes. A running
+interval is never projected with a blank Stop as a successful export row.

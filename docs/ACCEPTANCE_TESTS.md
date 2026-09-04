@@ -964,3 +964,94 @@ this optional milestone.
 Static/runtime inspection finds no protected task/client/export content in logs, exceptions,
 analytics, notifications, clipboard, recent temporary files, or credentials. Plaintext export
 snapshots exist only as needed in process memory and are not staged to app-private disk.
+
+## 15. v0.3.0 acceptance tests
+
+These cases supersede multi-interval, midnight-splitting, selection-rollover, and schema-4 row
+cardinality expectations when `0.3.0` is implemented. Prior-version migration fixtures remain
+mandatory precisely because released data may contain those older shapes.
+
+### V3-DB-01 Non-destructive schema 4-to-5 migration
+
+Given a populated schema-4 database containing clients, Consultants, zero-/one-/many-interval
+tasks, archived directory rows, all task metadata, repeated dates/zones, and an active non-first
+interval, migration preserves every user value and interval endpoint. Each post-migration task has
+at most one interval, the total task and interval counts reflect one generated task for every
+additional interval, foreign keys pass, and the active timer points to the generated owner of the
+same open interval. Closing/reopening remains stable and schema 5 is exported and committed.
+
+### V3-DB-02 Structural one-interval rule
+
+Room rejects a second interval for one task even if a caller bypasses UI validation. It still
+rejects a second global open interval, cascades the sole interval on task deletion, and never uses
+a destructive migration fallback.
+
+### V3-TMR-01 First Start uses an untimed task
+
+Given an eligible selected task with no interval, Start creates one open interval on that task and
+the singleton active timer in one transaction. No additional task is created and the display begins
+at zero before advancing monotonically.
+
+### V3-TMR-02 Repeated Start creates one task
+
+Given today's selected task has one completed interval, Start atomically creates and selects one
+new task with copied user metadata and lineage, creates its sole open interval, and begins its
+display at zero. The source task/interval and every exported value remain unchanged. Two concurrent
+Start calls create only one repetition and one active timer.
+
+### V3-TMR-03 Singular manual interval
+
+Edit Task labels the section **Interval**. An untimed task permits one valid manual interval. Once
+present, only Edit/Delete actions are available; Add is absent or disabled with a clear reason. A
+running interval remains non-editable. Deleting the sole completed interval returns the same task
+to the untimed state, after which Start uses it rather than duplicating it.
+
+### V3-DATE-01 No idle rollover
+
+Given no timer is active and the effective date or device ZoneId changes, resume/recovery/startup
+creates no task. A previous-day timing selection is cleared, today shows no selected task, and
+historical date browsing remains read-only for live timing.
+
+### V3-DATE-02 Midnight closes without continuation
+
+Given a timer started before local midnight in its pinned ZoneId, evaluation at or after the first
+next-day boundary closes that same interval exactly at the boundary, clears active state and stale
+selection, and creates no next-day task or interval. Repeating normalization is a no-op. Spring
+forward, fall back, unusual `atStartOfDay` rules, several missed days, resume, reboot, and process
+recovery produce the same result.
+
+### V3-DATE-03 Android may execute late without changing stored time
+
+Given the process does not run at midnight, its notification may remain temporarily platform-
+rendered, but the next legitimate execution stores the stop at the exact pinned-zone boundary—not
+the later wake time—and cancels/reconciles the running surface. No exact alarm, foreground timer
+service, app-owned wake lock, or tick persistence exists.
+
+### V3-EXPORT-01 Canonical schema 5
+
+CSV, XLSX, manual Google, and automatic Google expose exactly these 13 headers in order: Start
+date, End date, Consultant, Client, Description, Expense, Work type, Billing Status, Mileage,
+Start time, Stop time, Time spent, Billing minutes. Each task produces exactly one equivalent row.
+Untimed tasks have blank Start/Stop, `00:00:00` Time spent, and `0` Billing minutes. No Interval
+number or Interval duration exists.
+
+### V3-EXPORT-02 Owned Google schema upgrade
+
+Re-exporting a date whose WorqOrder-owned tab uses schema 2, 3, or 4 atomically replaces it with
+schema 5, removes obsolete columns/rows, and produces no duplicates. Unknown/newer and unowned tabs
+remain untouched. CSV/XLSX and Google values remain byte/logically equivalent as applicable.
+
+### V3-EXPORT-03 Midnight precedes automatic export
+
+Automatic Google work targets the captured preceding date and cannot export its open pre-midnight
+interval. At the first allowed execution after the boundary, WorqOrder first performs the
+idempotent exact-boundary close, then snapshots and exports schema 5. Delays, offline access,
+authorization resolution, quota failure, process death, reboot, and repeated worker delivery never
+lose the captured date, duplicate a row, or mutate Room beyond the required timer close.
+
+### V3-REG-01 Unchanged product behavior
+
+Client/Consultant management, metadata validation, Billing Minutes, date browsing, task editing and
+deletion, themes, handed landscape, CSV/XLSX document flows, Google connection/re-export,
+notifications, backup-disabled policy, GPLv3 distribution, and release signing retain their
+accepted `0.2.0` behavior except where the cases above explicitly supersede it.

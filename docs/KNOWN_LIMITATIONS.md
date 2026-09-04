@@ -113,3 +113,19 @@ they are not partially imported.
 - Migrated tasks cannot invent historical Consultant (internally Employee), Work Type, Billing
   Status, or Mileage values; they
   remain blank/Unspecified until explicitly edited.
+
+## Planned v0.3.0 limitations
+
+- Android cannot guarantee WorqOrder executes at the physical instant of midnight without an exact
+  alarm or continuously eligible foreground mechanism, neither of which this product permits. A
+  suspended process may leave the system-rendered timer notification advancing temporarily. The
+  next legitimate execution records the authoritative Stop at the exact pinned-ZoneId boundary,
+  never at the later wake time, and creates no continuation.
+- The lossless schema-5 migration necessarily represents each additional historical interval as a
+  new task row with copied metadata. It preserves all work data and lineage, but task-row counts
+  increase for users who recorded multiple intervals in v0.2.0 or earlier.
+- Existing external CSV/XLSX files and Google tab contents are not rewritten automatically.
+  Re-exporting an owned Google date tab upgrades that tab to schema 5; prior standalone documents
+  remain historical plaintext artifacts in their original schema.
+- One task can no longer aggregate separated work sessions. Resuming completed work creates a new
+  task row with the same metadata and a zero-based timer by design.

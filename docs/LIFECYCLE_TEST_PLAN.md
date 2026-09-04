@@ -141,3 +141,35 @@ Corrections implemented and manually retested successfully:
 Milestone 15 resolved the formerly deferred cancellation presentation under D-058. JVM tests
 prove CSV/XLSX/Google cancellation clears progress, writes nothing, retains only the optional
 diagnostic outcome, and exposes no Main-screen feedback.
+
+## 6. Planned v0.3.0 lifecycle replacement matrix
+
+When v0.3 is implemented, retain every ordinary recreation/background/process/reboot test above
+but replace split/rollover expectations with these checks:
+
+1. **Foreground boundary:** start shortly before a simulated pinned-zone midnight; verify the
+   first post-boundary observation closes exactly at midnight, clears notification/selection, and
+   creates no task or interval.
+2. **Background/locked boundary:** background and lock before the simulated boundary; allow the
+   scheduled worker or resume to run later; verify stored Stop is the boundary rather than wake
+   time and no continuation exists.
+3. **Killed-process boundary:** kill the process before the boundary, advance time, relaunch, and
+   verify the same exact retrospective close and no generated task.
+4. **Reboot boundary:** reboot across the simulated boundary and verify post-unlock recovery closes
+   once, reconciles the running surface, and does not duplicate data.
+5. **Several missed dates:** recover several days later; verify one close at the first boundary,
+   not one task/interval per day.
+6. **DST/ZoneId:** repeat for spring-forward, fall-back, a non-DST zone, and a zone whose
+   `atStartOfDay` is unusual; expected instant comes from ZoneId rules, never fixed 24 hours.
+7. **No idle rollover:** with no timer, cross a date and change device ZoneId; verify no task is
+   inserted and stale timing selection clears.
+8. **Automatic Google ordering:** with Auto Export enabled and a pre-boundary timer, allow the
+   post-boundary worker to run; verify Room closes first, then the captured prior date exports one
+   schema-5 row per task. Repeat delayed/offline/auth-required recovery without duplication.
+9. **Notification limitation:** if Android does not run the process at midnight, record any
+   temporary system chronometer continuation; verify the next app execution corrects the surface
+   and stored endpoint. This visible scheduling delay is accepted and must not be hidden with an
+   exact alarm or foreground stopwatch service.
+
+Record device/API, build commit, pinned ZoneId, boundary instant, actual execution time, Room task/
+interval/active counts, notification state, export target/result, and whether any new task appeared.

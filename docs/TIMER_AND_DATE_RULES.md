@@ -302,3 +302,61 @@ This scheduler is not a timer wake-up mechanism, does not split intervals itself
 an exact alarm, foreground stopwatch service, or tick loop merely to approach 11:59 PM. The exact
 stable Android scheduler/auth mechanism is chosen only after current official research and owner
 approval.
+
+## 15. Planned v0.3.0 timer and date rules
+
+The following rules supersede Sections 4, 6, 7, 8, and 14 where they describe repeated intervals,
+midnight continuation, or selection rollover. All UTC, monotonic-clock, pinned-ZoneId, DST,
+non-negative-duration, and one-global-timer rules remain.
+
+### Start and repetition
+
+1. Start still requires a concrete selected task assigned to today in the effective ZoneId and no
+   globally active timer.
+2. If the selected task has no interval, atomically create its sole open interval and active-timer
+   row.
+3. If it has one completed interval, atomically create a new same-day task carrying the source
+   lineage and current user metadata, select it, and create its sole open interval and active-timer
+   row. Its displayed accumulated time begins at zero. The source task remains unchanged.
+4. If its interval is open, the global active-timer rule rejects another Start.
+5. Concurrent Start calls must never create more than one repetition or open interval.
+
+### Stop
+
+Ordinary Stop closes the sole interval at the monotonic projection already defined by the clock
+anomaly policy and clears `active_timer`. Task total equals that one interval's non-negative
+duration. Stop with no active timer remains an expected no-op result.
+
+### Midnight closure
+
+For an open interval, calculate the first `LocalDate.plusDays(1).atStartOfDay(pinnedZone)` boundary
+after its start. When the evaluated/projected instant reaches or exceeds that boundary:
+
+1. close the existing interval exactly at the boundary;
+2. clear the singleton active timer and live monotonic session;
+3. cancel/reconcile the running notification;
+4. clear the stale timing selection; and
+5. create no task, interval, or continuation for the new date.
+
+The operation is transactional, idempotent, and safe under concurrent resume, worker, Start, and
+Stop entry points. It never iterates over missed days because there is no continuation. A device
+that does not execute WorqOrder at midnight may temporarily retain an open row/chronometer, but the
+next legitimate execution writes the exact historical boundary rather than its later wake time.
+This is the strongest correct behavior compatible with the prohibition on exact alarms, app-owned
+wake locks, and a foreground stopwatch service.
+
+### Selection and dates
+
+Date-selector browsing never creates data. When actual today or effective ZoneId no longer matches
+the selected task's stored context, clear timing selection; never find or create a series copy.
+Historical/future tasks remain viewable and editable, but Start is unavailable. A user must select
+or create an eligible task for the new day.
+
+### Automatic Google ordering
+
+Capture the intended work date and pinned ZoneId before its boundary, but schedule the earliest
+best-effort automatic execution after that boundary. The worker first applies midnight closure for
+any stale interval belonging to the captured date, then prepares schema-5 rows and exports. A
+delay still exports the captured date. Offline, authorization, quota, or Android scheduling
+limitations retain the existing typed pending state. No successful Main-screen notification is
+added, and CSV/XLSX remain manual.

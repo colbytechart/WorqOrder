@@ -38,12 +38,21 @@ class RoomActiveTimerRepository(
             val transaction =
                 activeTimerDao.createActiveIntervalAndTimer(
                     intervalId = idGenerator.newId(),
+                    repeatedTaskId = idGenerator.newId(),
                     taskId = taskId,
                     boundaryZoneId = boundaryZoneId.id,
                     startEpochMs = start.toEpochMilli(),
                     createdAtEpochMs = clock.now().toEpochMilli(),
                 )
-            CreateActiveIntervalResult.Created(transaction.toModel())
+            CreateActiveIntervalResult.Created(
+                snapshot =
+                    ActiveTimerSnapshot(
+                        activeTimer = transaction.activeTimer.toModel(),
+                        interval = transaction.interval.toModel(),
+                    ),
+                startedTask = transaction.startedTask.toModel(),
+                repeatedTaskCreated = transaction.repeatedTaskCreated,
+            )
         } catch (_: ActiveTimerAlreadyExistsException) {
             CreateActiveIntervalResult.AlreadyActive
         } catch (error: SQLiteConstraintException) {

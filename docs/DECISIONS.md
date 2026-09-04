@@ -1104,6 +1104,16 @@ removes software or changes BIOS/firmware itself, must distinguish project-exclu
 from tools shared by other projects, protects Git history/release keys/backups first, and requires
 explicit confirmation before every destructive user action.
 
+### D-089 — Schema 5 migration evidence baseline
+
+Milestone 30C records the first executable schema-5 evidence baseline. The populated migration
+fixture includes archived Client and Consultant rows, nullable metadata, zero-/one-/many-interval
+tasks, and an active non-first interval; assertions verify deterministic split IDs, preserved
+metadata/endpoints/relationships, active-pointer repointing, foreign-key integrity, reopen
+persistence, and removal of the persisted ordinal. Room's packaged schema-5 JSON is checked in
+alongside version 1–4 inputs. The compatibility `WorkInterval.ordinal` value is derived as `1`
+for legacy presentation callers only and is not persisted.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.

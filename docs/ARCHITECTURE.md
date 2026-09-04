@@ -560,3 +560,12 @@ injection remain intact.
 Tests preserve the existing operation mutex, Room transaction boundaries, lifecycle recovery,
 clock-anomaly policy, and notification ownership. Dead multi-interval and rollover APIs are removed
 only after all callers and tests have moved to the new contracts.
+
+Milestone 30C evidence: `Schema5MigrationCoreTest` covers a populated schema-4 migration with
+archived directory references, nullable metadata, zero-/one-/many-interval tasks, deterministic
+copies, and an active non-first interval. It verifies endpoint/ID/metadata preservation,
+active-pointer repointing, foreign-key integrity, and reopen persistence. `WorqOrderDatabaseTest`
+covers the packaged schema-5 asset, the unique task-to-interval guard, same-series date copies,
+and version 1/2-to-5 migration paths. The production `WorkInterval` presentation adapter may
+temporarily expose a derived `ordinal = 1` for legacy UI callers; schema 5 itself persists no
+ordinal column.

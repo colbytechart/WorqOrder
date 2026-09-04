@@ -312,6 +312,8 @@ private fun ManualIntervalWriteEntityResult.toPersistenceResult():
             ManualIntervalPersistenceResult.Deleted
         ManualIntervalWriteStatus.TASK_NOT_FOUND ->
             ManualIntervalPersistenceResult.TaskNotFound
+        ManualIntervalWriteStatus.TASK_ALREADY_HAS_INTERVAL ->
+            ManualIntervalPersistenceResult.TaskAlreadyHasInterval
         ManualIntervalWriteStatus.INTERVAL_NOT_FOUND ->
             ManualIntervalPersistenceResult.IntervalNotFound
         ManualIntervalWriteStatus.RUNNING_TASK ->

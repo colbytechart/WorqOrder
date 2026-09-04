@@ -231,10 +231,6 @@ class TimerCoordinator(
                 )
             }
 
-            val completedTotal =
-                Duration.ofMillis(
-                    taskRepository.readCompletedDurationMillis(task.id),
-                )
             when (
                 val result =
                     activeTimerRepository.createActiveInterval(
@@ -245,10 +241,20 @@ class TimerCoordinator(
             ) {
                 CreateActiveIntervalResult.AlreadyActive -> StartTimerResult.AlreadyActive
                 is CreateActiveIntervalResult.Created -> {
+                    if (result.repeatedTaskCreated) {
+                        selectedTaskRepository.select(
+                            SelectedTaskState(
+                                taskId = result.startedTask.id,
+                                seriesId = result.startedTask.seriesId,
+                                selectedOnDate = result.startedTask.workDate,
+                                selectedInZone = effectiveZone,
+                            ),
+                        )
+                    }
                     val anchor =
                         liveTimerSession.establishAtStart(
                             intervalId = result.snapshot.interval.id,
-                            completedTotal = completedTotal,
+                            completedTotal = Duration.ZERO,
                             wallStart = result.snapshot.interval.start,
                         )
                     StartTimerResult.Started(

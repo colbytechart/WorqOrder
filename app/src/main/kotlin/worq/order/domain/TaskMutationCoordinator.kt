@@ -72,6 +72,8 @@ sealed interface ManualIntervalOperationResult {
 
     data object TaskNotFound : ManualIntervalOperationResult
 
+    data object TaskAlreadyHasInterval : ManualIntervalOperationResult
+
     data object IntervalNotFound : ManualIntervalOperationResult
 
     data object RunningTask : ManualIntervalOperationResult
@@ -282,6 +284,8 @@ private fun ManualIntervalPersistenceResult.toOperationResult():
             ManualIntervalOperationResult.Deleted
         ManualIntervalPersistenceResult.TaskNotFound ->
             ManualIntervalOperationResult.TaskNotFound
+        ManualIntervalPersistenceResult.TaskAlreadyHasInterval ->
+            ManualIntervalOperationResult.TaskAlreadyHasInterval
         ManualIntervalPersistenceResult.IntervalNotFound ->
             ManualIntervalOperationResult.IntervalNotFound
         ManualIntervalPersistenceResult.RunningTask ->

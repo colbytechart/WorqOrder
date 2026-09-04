@@ -63,8 +63,17 @@ abstract class ActiveTimerDao {
     )
     protected abstract suspend fun countOpenIntervalCandidates(): Int
 
-    @Query("SELECT MAX(ordinal) FROM work_intervals WHERE task_id = :taskId")
-    protected abstract suspend fun readMaxOrdinal(taskId: String): Int?
+    @Query(
+        """
+        SELECT *
+        FROM work_intervals
+        WHERE task_id = :taskId
+        ORDER BY start_epoch_ms ASC, id ASC
+        """,
+    )
+    protected abstract suspend fun readTaskIntervalsInternal(
+        taskId: String,
+    ): List<WorkIntervalEntity>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     protected abstract suspend fun insertIntervalInternal(interval: WorkIntervalEntity)
@@ -145,8 +154,10 @@ abstract class ActiveTimerDao {
         boundaryZoneId: String,
         startEpochMs: Long,
         createdAtEpochMs: Long,
-    ): ActiveTimerTransactionEntity {
+        repeatedTaskId: String = intervalId,
+    ): StartTimerTransactionEntity {
         require(intervalId.isNotBlank()) { "intervalId must not be blank" }
+        require(repeatedTaskId.isNotBlank()) { "repeatedTaskId must not be blank" }
         require(taskId.isNotBlank()) { "taskId must not be blank" }
         require(boundaryZoneId.isNotBlank()) { "boundaryZoneId must not be blank" }
 
@@ -154,11 +165,46 @@ abstract class ActiveTimerDao {
             throw ActiveTimerAlreadyExistsException()
         }
 
+        val sourceTask =
+            readTaskInternal(taskId)
+                ?: throw PersistenceInvariantException(
+                    "Cannot start missing task $taskId",
+                )
+        val existingIntervals = readTaskIntervalsInternal(taskId)
+        val repeatedTaskCreated: Boolean
+        val startedTask =
+            when (existingIntervals.size) {
+                0 -> {
+                    repeatedTaskCreated = false
+                    sourceTask
+                }
+                1 -> {
+                    val existing = existingIntervals.single()
+                    if (existing.stopEpochMs == null || existing.activeSlot != null) {
+                        throw PersistenceInvariantException(
+                            "Task $taskId has an open interval without authoritative active state",
+                        )
+                    }
+                    val copy =
+                        sourceTask.copy(
+                            id = repeatedTaskId,
+                            createdAtEpochMs = createdAtEpochMs,
+                            updatedAtEpochMs = createdAtEpochMs,
+                        )
+                    insertTaskInternal(copy)
+                    repeatedTaskCreated = true
+                    copy
+                }
+                else ->
+                    throw PersistenceInvariantException(
+                        "Schema-5 task $taskId owns ${existingIntervals.size} intervals",
+                    )
+            }
+
         val interval =
             WorkIntervalEntity(
                 id = intervalId,
-                taskId = taskId,
-                ordinal = (readMaxOrdinal(taskId) ?: 0) + 1,
+                taskId = startedTask.id,
                 startEpochMs = startEpochMs,
                 stopEpochMs = null,
                 activeSlot = WorkIntervalEntity.ACTIVE_SLOT,
@@ -169,7 +215,7 @@ abstract class ActiveTimerDao {
         val activeTimer =
             ActiveTimerEntity(
                 intervalId = intervalId,
-                taskId = taskId,
+                taskId = startedTask.id,
                 boundaryZoneId = boundaryZoneId,
                 createdAtEpochMs = createdAtEpochMs,
                 updatedAtEpochMs = createdAtEpochMs,
@@ -177,14 +223,16 @@ abstract class ActiveTimerDao {
 
         insertIntervalInternal(interval)
         insertActiveTimerInternal(activeTimer)
-        if (touchTask(taskId, createdAtEpochMs) != 1) {
+        if (touchTask(startedTask.id, createdAtEpochMs) != 1) {
             throw PersistenceInvariantException(
-                "Active interval $intervalId has no owning task $taskId",
+                "Active interval $intervalId has no owning task ${startedTask.id}",
             )
         }
-        return ActiveTimerTransactionEntity(
+        return StartTimerTransactionEntity(
+            startedTask = startedTask,
             activeTimer = activeTimer,
             interval = interval,
+            repeatedTaskCreated = repeatedTaskCreated,
         )
     }
 
@@ -380,7 +428,6 @@ abstract class ActiveTimerDao {
                 WorkIntervalEntity(
                     id = continuation.proposedIntervalId,
                     taskId = nextTask.id,
-                    ordinal = (readMaxOrdinal(nextTask.id) ?: 0) + 1,
                     startEpochMs = continuation.boundaryEpochMs,
                     stopEpochMs = null,
                     activeSlot = WorkIntervalEntity.ACTIVE_SLOT,

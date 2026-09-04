@@ -158,7 +158,7 @@ class MainViewModelTest {
         }
 
     @Test
-    fun startUsesMonotonicTicksAndStopFreezesAccumulatedTotal() =
+    fun repeatedStartSelectsZeroBasedCopyAndStopFreezesItsOwnTotal() =
         runTest(mainDispatcherRule.dispatcher) {
             val fixture = Fixture()
             val task = fixture.addTask(TODAY)
@@ -179,22 +179,33 @@ class MainViewModelTest {
             viewModel.onEvent(MainEvent.StartTimer)
             runCurrent()
             assertEquals(MainTimerAction.STOP, viewModel.uiState.value.timerAction)
+            assertEquals("00:00:00", viewModel.uiState.value.timerText)
+            val repeatedTaskId = requireNotNull(fixture.selection.readSelection()).taskId
+            assertTrue(repeatedTaskId != task.id)
 
             fixture.clock.instant = fixture.clock.instant.plusSeconds(1)
             fixture.monotonic.nanos += Duration.ofSeconds(1).toNanos()
             advanceTimeBy(MainViewModel.TIMER_REFRESH_MILLIS)
             runCurrent()
-            assertEquals("01:00:01", viewModel.uiState.value.timerText)
+            assertEquals("00:00:01", viewModel.uiState.value.timerText)
 
             viewModel.onEvent(MainEvent.StopTimer)
             runCurrent()
             assertEquals(MainTimerAction.START, viewModel.uiState.value.timerAction)
-            assertEquals("01:00:01", viewModel.uiState.value.timerText)
+            assertEquals("00:00:01", viewModel.uiState.value.timerText)
 
             fixture.monotonic.nanos += Duration.ofMinutes(10).toNanos()
             advanceTimeBy(MainViewModel.TIMER_REFRESH_MILLIS * 2)
             runCurrent()
-            assertEquals("01:00:01", viewModel.uiState.value.timerText)
+            assertEquals("00:00:01", viewModel.uiState.value.timerText)
+            assertEquals(
+                Duration.ofHours(1).toMillis(),
+                fixture.tasks.readCompletedDurationMillis(task.id),
+            )
+            assertEquals(
+                Duration.ofSeconds(1).toMillis(),
+                fixture.tasks.readCompletedDurationMillis(repeatedTaskId),
+            )
         }
 
     @Test

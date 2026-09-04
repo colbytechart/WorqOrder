@@ -45,37 +45,41 @@ class TimerRecoveryCoordinatorTest {
                     boundaryZoneId = NEW_YORK,
                     start = NOW.minus(Duration.ofMinutes(30)),
                 )
-            val intervalId =
-                (persisted as worq.order.data.CreateActiveIntervalResult.Created)
-                    .snapshot
-                    .interval
-                    .id
+            persisted as worq.order.data.CreateActiveIntervalResult.Created
+            val intervalId = persisted.snapshot.interval.id
+            val repeatedTaskId = persisted.startedTask.id
+            assertTrue(repeatedTaskId != runningTask.id)
 
             val result = fixture.recovery.recover()
 
             assertTrue(result is TimerRecoveryResult.Recovered)
             assertEquals(
-                SelectionReconciliationResult.ActiveTimerOwnsSelection(runningTask.id),
+                SelectionReconciliationResult.ActiveTimerOwnsSelection(repeatedTaskId),
                 (result as TimerRecoveryResult.Recovered).selectionResult,
             )
-            assertEquals(runningTask.id, fixture.selection.readSelection()?.taskId)
+            assertEquals(repeatedTaskId, fixture.selection.readSelection()?.taskId)
             assertEquals(
-                Duration.ofMinutes(45),
+                Duration.ofMinutes(30),
                 fixture.live.read(intervalId)?.total,
             )
 
             fixture.monotonic.nanos += Duration.ofMinutes(5).toNanos()
 
             assertEquals(
-                Duration.ofMinutes(50),
+                Duration.ofMinutes(35),
                 fixture.live.read(intervalId)?.total,
             )
-            val stored =
+            val sourceStored =
                 requireNotNull(
                     fixture.tasks.readTaskWithIntervals(runningTask.id),
                 ).intervals
-            assertEquals(2, stored.size)
-            assertNull(stored.single { it.id == intervalId }.stop)
+            val repeatedStored =
+                requireNotNull(
+                    fixture.tasks.readTaskWithIntervals(repeatedTaskId),
+                ).intervals
+            assertEquals(1, sourceStored.size)
+            assertEquals(1, repeatedStored.size)
+            assertNull(repeatedStored.single { it.id == intervalId }.stop)
         }
 
     @Test

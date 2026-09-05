@@ -2,7 +2,6 @@ package worq.order.data.local
 
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -65,18 +64,6 @@ class RoomTaskRepository(
             .readTasksWithOrderedIntervalsForWorkDate(workDate.toEpochDay())
             .map(TaskWithOrderedIntervalsEntity::toModel)
 
-    override suspend fun findCorrespondingTask(
-        seriesId: String,
-        workDate: LocalDate,
-        zoneId: ZoneId,
-    ): DailyTask? =
-        taskDao
-            .findCorrespondingTask(
-                seriesId = seriesId,
-                workDateEpochDay = workDate.toEpochDay(),
-                zoneId = zoneId.id,
-            )?.toModel()
-
     override suspend fun insertDailyTask(newTask: NewDailyTask): DailyTask {
         require(newTask.clientId.isNotBlank()) { "clientId must not be blank" }
         val entity = newTask.toEntity()
@@ -95,35 +82,6 @@ class RoomTaskRepository(
                 CreateDailyTaskResult.ClientUnavailable
             TaskCreationWriteStatus.EMPLOYEE_UNAVAILABLE ->
                 CreateDailyTaskResult.EmployeeUnavailable
-        }
-    }
-
-    override suspend fun findOrCreateDailyTaskCopy(
-        sourceTaskId: String,
-        workDate: LocalDate,
-        zoneId: ZoneId,
-    ): DailyTask? {
-        require(sourceTaskId.isNotBlank()) { "sourceTaskId must not be blank" }
-        val proposedTaskId = idGenerator.newId()
-        val createdAtEpochMs = clock.now().toEpochMilli()
-        return try {
-            taskDao
-                .findOrCreateDailyTaskCopy(
-                    sourceTaskId = sourceTaskId,
-                    proposedTaskId = proposedTaskId,
-                    workDateEpochDay = workDate.toEpochDay(),
-                    zoneId = zoneId.id,
-                    createdAtEpochMs = createdAtEpochMs,
-                )?.toModel()
-        } catch (error: android.database.sqlite.SQLiteConstraintException) {
-            val source = taskDao.readTask(sourceTaskId) ?: return null
-            taskDao
-                .findCorrespondingTask(
-                    seriesId = source.seriesId,
-                    workDateEpochDay = workDate.toEpochDay(),
-                    zoneId = zoneId.id,
-                )?.toModel()
-                ?: throw error
         }
     }
 

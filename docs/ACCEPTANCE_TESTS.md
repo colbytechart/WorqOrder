@@ -176,7 +176,7 @@ On a spring-forward date, a nonexistent local time is rejected and no instant is
 
 On a fall-back date, the earlier/later occurrence is distinguishable by offset, the chosen instant persists, and reopening the editor shows the same occurrence.
 
-## 5. Timer and recovery
+## 5. Timer and recovery (v0.2 historical compatibility)
 
 ### TMR-01 Start transaction
 
@@ -257,7 +257,7 @@ contribution is clamped to zero and a clock anomaly is shown. After wall time is
 app resumes, the provisional anchor may be rebuilt without changing any persisted start/stop
 boundary.
 
-## 6. Midnight, rollover, and time zones
+## 6. Midnight, rollover, and time zones (v0.2 historical compatibility)
 
 ### DATE-01 Single midnight
 
@@ -970,6 +970,16 @@ snapshots exist only as needed in process memory and are not staged to app-priva
 These cases supersede multi-interval, midnight-splitting, selection-rollover, and schema-4 row
 cardinality expectations when `0.3.0` is implemented. Prior-version migration fixtures remain
 mandatory precisely because released data may contain those older shapes.
+
+Milestone 31 now provides the current evidence for V3-TMR-01 through V3-TMR-03's selection and
+singular-interval portions, and for V3-DATE-01's no-rollover behavior. The focused Luna regression
+pass also verifies stale date/ZoneId clearing, read-only date browsing, restart/resume without task
+creation, persisted selection, Room active-timer authority after recovery, repeated-Start metadata
+and null copying, sole-interval Add/Edit/Delete, selected-task deletion, and idempotent stale
+reconciliation. The final project-local offline unit/lint/debug/release/connected gate completed
+successfully, and the owner passed all seven manual no-rollover, singular-interval, repeated-Start,
+deletion, and Recents-recovery checks. V3-DATE-02/V3-DATE-03 and V3-EXPORT-03 remain Milestone 32
+checks; Milestone 31 is complete.
 
 ### V3-DB-01 Non-destructive schema 4-to-5 migration
 

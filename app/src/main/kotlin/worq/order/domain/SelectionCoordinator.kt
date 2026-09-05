@@ -41,15 +41,8 @@ sealed interface SelectionReconciliationResult {
 
     data object AlreadyCurrent : SelectionReconciliationResult
 
-    /**
-     * The task is historical, but it was intentionally selected on the current date. It remains
-     * selected for viewing and cannot be started.
-     */
-    data object HistoricalSelectionPreserved : SelectionReconciliationResult
-
-    data class RolledOver(
-        val task: DailyTask,
-    ) : SelectionReconciliationResult
+    /** Room says the persisted timing selection is not eligible in the current date/zone. */
+    data object IneligibleSelectionCleared : SelectionReconciliationResult
 
     data object MissingSelectionCleared : SelectionReconciliationResult
 
@@ -159,37 +152,12 @@ class SelectionCoordinator(
                 return@withLock SelectionReconciliationResult.AlreadyCurrent
             }
 
-            if (
-                source.workDate != selection.selectedOnDate ||
-                source.zoneId != selection.selectedInZone
-            ) {
-                return@withLock SelectionReconciliationResult.HistoricalSelectionPreserved
-            }
-
-            val copy =
-                taskRepository.findOrCreateDailyTaskCopy(
-                    sourceTaskId = source.id,
-                    workDate = today,
-                    zoneId = effectiveZone,
-                ) ?: run {
-                    selectedTaskRepository.clear()
-                    return@withLock SelectionReconciliationResult.MissingSelectionCleared
-                }
-            selectedTaskRepository.select(copy.toSelection(today, effectiveZone))
-            SelectionReconciliationResult.RolledOver(copy)
+            // The persisted date/zone fields describe when the selection was made; they cannot
+            // override the authoritative date/zone stored on the Room task. Reconciliation never
+            // creates or reuses a task for another date or zone.
+            selectedTaskRepository.clear()
+            SelectionReconciliationResult.IneligibleSelectionCleared
         }
-
-    suspend fun selectFromTimerContinuation(
-        task: DailyTask,
-        selectedOnDate: LocalDate,
-        selectedInZone: ZoneId,
-    ) {
-        mutex.withLock {
-            selectedTaskRepository.select(
-                task.toSelection(selectedOnDate, selectedInZone),
-            )
-        }
-    }
 
     private fun DailyTask.toSelection(
         selectedOnDate: LocalDate,

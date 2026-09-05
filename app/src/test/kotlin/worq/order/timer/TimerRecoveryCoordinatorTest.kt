@@ -7,6 +7,7 @@ import java.time.ZoneId
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -83,6 +84,24 @@ class TimerRecoveryCoordinatorTest {
         }
 
     @Test
+    fun processRecoveryClearsStaleSelectionWithoutCreatingTask() =
+        runTest {
+            val fixture = Fixture()
+            val historical = fixture.addTask(TODAY.minusDays(1))
+            fixture.select(historical, selectedOnDate = historical.workDate)
+
+            val result = fixture.recovery.recover()
+
+            assertEquals(
+                SelectionReconciliationResult.IneligibleSelectionCleared,
+                (result as TimerRecoveryResult.Recovered).selectionResult,
+            )
+            assertNull(fixture.selection.readSelection())
+            assertTrue(fixture.tasks.observeTasksForDate(TODAY).first().isEmpty())
+            assertEquals(historical, fixture.tasks.readTaskWithClient(historical.id)?.task)
+        }
+
+    @Test
     fun concurrentResumeRecoverySplitsEveryMissedMidnightOnlyOnce() =
         runTest {
             val fixture =
@@ -123,7 +142,7 @@ class TimerRecoveryCoordinatorTest {
             val dailyTasks =
                 dates.map { date ->
                     requireNotNull(
-                        fixture.tasks.findCorrespondingTask(
+                        fixture.tasks.findLegacyContinuationTask(
                             seriesId = "multi-day-series",
                             workDate = date,
                             zoneId = NEW_YORK,
@@ -204,7 +223,7 @@ class TimerRecoveryCoordinatorTest {
                 (jumped as TimerRecoveryResult.Recovered).normalizedSplitCount,
             )
             assertNull(
-                fixture.tasks.findCorrespondingTask(
+                fixture.tasks.findLegacyContinuationTask(
                     seriesId = task.seriesId,
                     workDate = LocalDate.of(2026, 7, 26),
                     zoneId = NEW_YORK,

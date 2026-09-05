@@ -66,11 +66,11 @@ a counter running.
 
 Split at every local-date boundary using `ZoneId` rules, including missed/multiple boundaries. The app may normalize lazily on foreground/resume/stop; the active segment ultimately belongs to the current session-local date.
 
-### D-013 — Selection rollover
+### D-013 — Selection rollover (v0.2 historical behavior)
 
 Persist preferred series/concrete-task hints. On actual configured-date rollover, find/create the same-series daily task with current metadata under `(seriesId, workDate, assignmentZoneId)` uniqueness and select it. Browsing a date alone does not create a copy. Including the zone refines the suggested series/date key so a future task created in another zone is not silently repurposed or made inconsistent with interval boundaries.
 
-### D-014 — One row per interval
+### D-014 — One row per interval (v0.2 historical behavior)
 
 All three exports use one row per interval with repeated task metadata. A zero-interval task emits
 one blank-interval row. Schema version 1 and exact current columns are defined in
@@ -1113,6 +1113,21 @@ metadata/endpoints/relationships, active-pointer repointing, foreign-key integri
 persistence, and removal of the persisted ordinal. Room's packaged schema-5 JSON is checked in
 alongside version 1–4 inputs. The compatibility `WorkInterval.ordinal` value is derived as `1`
 for legacy presentation callers only and is not persisted.
+
+### D-090 — Milestone 31 no-rollover regression evidence
+
+The current `0.3.0` selection contract is covered by explicit regression cases for stale
+date/ZoneId clearing, persisted selection and process reconstruction, Room active-timer authority,
+date browsing without writes, repeated-Start selection and metadata/null copying, singular
+Add/Edit/Delete, selected-task deletion, and repeated reconciliation without idle duplication.
+These tests do not alter the legacy migration fixtures or the midnight continuation compatibility
+surface; those remain inputs to Milestones 32 and 34.
+
+The final Milestone 31 Sol audit found no hidden non-midnight rollover writer, stale DataStore
+authority, duplicate repeated-Start path, transaction race violating the one-interval/global-timer
+constraints, or accidental midnight-policy change. The complete owner-run Gradle gate passed in
+10 seconds with 40 actionable tasks (1 executed, 39 up-to-date), followed by successful manual
+date/ZoneId, browsing, singular interval, repeated Start, deletion, and Recents recovery checks.
 
 ## Deferred decisions
 

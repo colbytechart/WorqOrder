@@ -89,6 +89,14 @@ class EditTaskViewModelTest {
             assertEquals("09:00 AM", interval.startText)
             assertEquals("10:00 AM", interval.stopText)
 
+            fixture.viewModel.onEvent(EditTaskEvent.OpenAddInterval)
+            runCurrent()
+            assertNull(fixture.viewModel.uiState.value.intervalEditor)
+            assertEquals(
+                EditTaskMessage.TASK_ALREADY_HAS_INTERVAL,
+                fixture.viewModel.uiState.value.message,
+            )
+
             fixture.viewModel.onEvent(EditTaskEvent.OpenEditInterval(interval.id))
             fixture.viewModel.onEvent(
                 EditTaskEvent.SetEditorTime(IntervalEndpoint.START, 11, 0),

@@ -26,6 +26,7 @@ import worq.order.data.ExportDestination
 import worq.order.data.ExportAttemptOutcome
 import worq.order.data.GoogleAccountHint
 import worq.order.data.LandscapeHandedness
+import worq.order.data.SelectedTaskState
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
@@ -155,6 +156,43 @@ class MainViewModelTest {
             assertEquals(TODAY.minusDays(1), viewModel.uiState.value.displayedDate)
             assertEquals("00:30:00", viewModel.uiState.value.timerText)
             assertFalse(viewModel.uiState.value.canStart)
+
+            viewModel.onEvent(MainEvent.StartTimer)
+            runCurrent()
+
+            assertNull(fixture.selection.readSelection())
+            assertEquals(
+                MainMessage.TIMING_SELECTION_CLEARED,
+                viewModel.uiState.value.message,
+            )
+        }
+
+    @Test
+    fun recreatedMainViewModelClearsStalePersistedSelectionWithoutCreatingTask() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val historical = fixture.addTask(TODAY.minusDays(1))
+            fixture.selection.select(
+                SelectedTaskState(
+                    taskId = historical.id,
+                    seriesId = historical.seriesId,
+                    selectedOnDate = historical.workDate,
+                    selectedInZone = historical.zoneId,
+                ),
+            )
+
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            assertNull(fixture.selection.readSelection())
+            assertFalse(viewModel.uiState.value.canStart)
+            assertEquals(
+                MainMessage.TIMING_SELECTION_CLEARED,
+                viewModel.uiState.value.message,
+            )
+            assertTrue(fixture.tasks.observeTasksForDate(TODAY).first().isEmpty())
+            assertEquals(historical, fixture.tasks.readTaskWithClient(historical.id)?.task)
         }
 
     @Test
@@ -182,6 +220,19 @@ class MainViewModelTest {
             assertEquals("00:00:00", viewModel.uiState.value.timerText)
             val repeatedTaskId = requireNotNull(fixture.selection.readSelection()).taskId
             assertTrue(repeatedTaskId != task.id)
+            val source = requireNotNull(fixture.tasks.readTaskWithClient(task.id)).task
+            val repeated = requireNotNull(fixture.tasks.readTaskWithClient(repeatedTaskId)).task
+            assertEquals(source.seriesId, repeated.seriesId)
+            assertEquals(source.clientId, repeated.clientId)
+            assertEquals(source.description, repeated.description)
+            assertEquals(source.hardwareSoftwarePurchases, repeated.hardwareSoftwarePurchases)
+            assertEquals(source.employeeId, repeated.employeeId)
+            assertEquals(source.employeeNameSnapshot, repeated.employeeNameSnapshot)
+            assertEquals(source.workType, repeated.workType)
+            assertEquals(source.billingStatus, repeated.billingStatus)
+            assertEquals(source.mileage, repeated.mileage)
+            assertEquals(TODAY, repeated.workDate)
+            assertEquals(NEW_YORK, repeated.zoneId)
 
             fixture.clock.instant = fixture.clock.instant.plusSeconds(1)
             fixture.monotonic.nanos += Duration.ofSeconds(1).toNanos()
@@ -478,6 +529,29 @@ class MainViewModelTest {
             viewModel.onEvent(MainEvent.ReturnToToday)
             runCurrent()
             assertEquals(TODAY, viewModel.uiState.value.displayedDate)
+        }
+
+    @Test
+    fun browsingDatesDoesNotCreateTasksOrChangePersistentSelection() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY)
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+            viewModel.onEvent(MainEvent.SelectTask(task.id))
+            runCurrent()
+
+            viewModel.onEvent(MainEvent.PreviousDate)
+            runCurrent()
+            viewModel.onEvent(MainEvent.NextDate)
+            runCurrent()
+            viewModel.onEvent(MainEvent.PickDate(TODAY.plusDays(5)))
+            runCurrent()
+
+            assertEquals(task.id, fixture.selection.readSelection()?.taskId)
+            assertTrue(fixture.tasks.observeTasksForDate(TODAY.plusDays(5)).first().isEmpty())
+            assertTrue(fixture.tasks.observeTasksForDate(TODAY).first().any { it.task.id == task.id })
         }
 
     @Test

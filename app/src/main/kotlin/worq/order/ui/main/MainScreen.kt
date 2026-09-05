@@ -1768,6 +1768,7 @@ private fun MainDatePickerDialog(
 private fun MainMessage.stringResource(): Int =
     when (this) {
         MainMessage.SELECT_A_TASK_FIRST -> R.string.select_task_first
+        MainMessage.TIMING_SELECTION_CLEARED -> R.string.timing_selection_cleared
         MainMessage.LIVE_TIMING_TODAY_ONLY -> R.string.live_timing_today_only
         MainMessage.TIMER_ALREADY_RUNNING -> R.string.timer_already_running
         MainMessage.STOP_BEFORE_SWITCHING -> R.string.stop_before_switching

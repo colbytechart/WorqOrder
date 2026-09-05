@@ -43,6 +43,7 @@ import worq.order.data.SettingsRepository
 import worq.order.data.TaskRepository
 import worq.order.domain.SelectTaskResult
 import worq.order.domain.SelectionCoordinator
+import worq.order.domain.SelectionReconciliationResult
 import worq.order.domain.DeleteTaskOperationResult
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
@@ -445,10 +446,11 @@ class MainViewModel(
     private fun startTimer() {
         runTimerOperation {
             refreshClockContext()
-            selectionCoordinator.reconcileForToday()
+            val reconciliation = selectionCoordinator.reconcileForToday()
             when (timerCoordinator.start()) {
                 is StartTimerResult.Started -> reconcileRunningTimerNotificationAfterStart()
-                StartTimerResult.NoSelectedTask -> MainMessage.SELECT_A_TASK_FIRST
+                StartTimerResult.NoSelectedTask ->
+                    reconciliation.toMainMessage() ?: MainMessage.SELECT_A_TASK_FIRST
                 StartTimerResult.SelectedTaskMissing -> MainMessage.SELECTED_TASK_MISSING
                 is StartTimerResult.TaskNotEligibleToday ->
                     MainMessage.LIVE_TIMING_TODAY_ONLY
@@ -583,17 +585,7 @@ class MainViewModel(
                         }
                         return@withLock
                     }
-                when (recovery) {
-                    is TimerRecoveryResult.ClockChanged ->
-                        rawState.update {
-                            it.copy(message = MainMessage.CLOCK_CHANGED)
-                        }
-                    is TimerRecoveryResult.ActiveTimerChanged ->
-                        rawState.update {
-                            it.copy(message = MainMessage.DATA_UNAVAILABLE)
-                        }
-                    is TimerRecoveryResult.Recovered -> Unit
-                }
+                applyRecoveryMessage(recovery)
                 runCatching { runningTimerNotificationController?.reconcile() }
             }
         }
@@ -622,17 +614,7 @@ class MainViewModel(
         }
         try {
             lifecycleRefreshMutex.withLock {
-                when (timerRecoveryCoordinator.recover()) {
-                    is TimerRecoveryResult.ClockChanged ->
-                        rawState.update {
-                            it.copy(message = MainMessage.CLOCK_CHANGED)
-                        }
-                    is TimerRecoveryResult.ActiveTimerChanged ->
-                        rawState.update {
-                            it.copy(message = MainMessage.DATA_UNAVAILABLE)
-                        }
-                    is TimerRecoveryResult.Recovered -> Unit
-                }
+                applyRecoveryMessage(timerRecoveryCoordinator.recover())
                 runCatching { runningTimerNotificationController?.reconcile() }
             }
         } catch (cancellation: CancellationException) {
@@ -657,6 +639,18 @@ class MainViewModel(
                 today = today,
                 effectiveZoneId = zoneIdProvider.zoneId(),
             )
+        }
+    }
+
+    private fun applyRecoveryMessage(recovery: TimerRecoveryResult) {
+        val message =
+            when (recovery) {
+                is TimerRecoveryResult.ClockChanged -> MainMessage.CLOCK_CHANGED
+                is TimerRecoveryResult.ActiveTimerChanged -> MainMessage.DATA_UNAVAILABLE
+                is TimerRecoveryResult.Recovered -> recovery.selectionResult.toMainMessage()
+            }
+        if (message != null) {
+            rawState.update { it.copy(message = message) }
         }
     }
 
@@ -1427,3 +1421,16 @@ class MainViewModel(
         const val TIMER_REFRESH_MILLIS = 200L
     }
 }
+
+private fun SelectionReconciliationResult.toMainMessage(): MainMessage? =
+    when (this) {
+        SelectionReconciliationResult.IneligibleSelectionCleared ->
+            MainMessage.TIMING_SELECTION_CLEARED
+        SelectionReconciliationResult.MissingSelectionCleared ->
+            MainMessage.SELECTED_TASK_MISSING
+        SelectionReconciliationResult.NoSelection,
+        SelectionReconciliationResult.AlreadyCurrent,
+        is SelectionReconciliationResult.ActiveTimerOwnsSelection,
+        SelectionReconciliationResult.ActiveTimerTaskMissing,
+        -> null
+    }

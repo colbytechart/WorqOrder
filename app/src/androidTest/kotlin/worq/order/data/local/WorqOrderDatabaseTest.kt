@@ -708,6 +708,52 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
+    fun concurrentManualAddsHaveOneWinnerAndStructuredSecondIntervalFailure() =
+        runBlocking {
+            insertClient(id = "client-1")
+            insertTask(id = "task-1", clientId = "client-1")
+            val repository =
+                RoomTaskRepository(
+                    taskDao = database.taskDao(),
+                    workIntervalDao = database.workIntervalDao(),
+                    idGenerator = AtomicIdGenerator(),
+                    clock = FixedClock(TEST_NOW),
+                )
+
+            val results =
+                coroutineScope {
+                    listOf(
+                        async(Dispatchers.IO) {
+                            repository.addManualInterval(
+                                taskId = "task-1",
+                                start = Instant.ofEpochMilli(1_000),
+                                stop = Instant.ofEpochMilli(2_000),
+                            )
+                        },
+                        async(Dispatchers.IO) {
+                            repository.addManualInterval(
+                                taskId = "task-1",
+                                start = Instant.ofEpochMilli(3_000),
+                                stop = Instant.ofEpochMilli(4_000),
+                            )
+                        },
+                    ).awaitAll()
+                }
+
+            assertEquals(
+                1,
+                results.count { it is worq.order.data.ManualIntervalPersistenceResult.Saved },
+            )
+            assertEquals(
+                1,
+                results.count {
+                    it == worq.order.data.ManualIntervalPersistenceResult.TaskAlreadyHasInterval
+                },
+            )
+            assertEquals(1, database.workIntervalDao().countIntervalsForTask("task-1"))
+        }
+
+    @Test
     fun runningTaskRejectsMetadataIntervalAndTaskMutations() =
         runBlocking {
             insertClient(id = "client-1")
@@ -745,6 +791,22 @@ class WorqOrderDatabaseTest {
                     taskId = "task-1",
                     start = Instant.ofEpochMilli(100),
                     stop = Instant.ofEpochMilli(500),
+                ),
+            )
+            assertEquals(
+                worq.order.data.ManualIntervalPersistenceResult.RunningTask,
+                repository.updateManualInterval(
+                    taskId = "task-1",
+                    intervalId = "active-interval",
+                    start = Instant.ofEpochMilli(100),
+                    stop = Instant.ofEpochMilli(500),
+                ),
+            )
+            assertEquals(
+                worq.order.data.ManualIntervalPersistenceResult.RunningTask,
+                repository.deleteManualInterval(
+                    taskId = "task-1",
+                    intervalId = "active-interval",
                 ),
             )
             assertEquals(
@@ -1038,6 +1100,58 @@ class WorqOrderDatabaseTest {
             assertEquals(1, results.count { it is CreateActiveIntervalResult.Created })
             assertEquals(1, results.count { it is CreateActiveIntervalResult.AlreadyActive })
             assertEquals(1, database.workIntervalDao().countIntervalsForTask("task-1"))
+        }
+
+    @Test
+    fun concurrentRepeatedStartsCreateExactlyOneSameDayTask() =
+        runBlocking {
+            insertClient(id = "client-1")
+            insertTask(id = "task-1", clientId = "client-1")
+            database.workIntervalDao().insertInterval(
+                intervalId = "completed-interval",
+                taskId = "task-1",
+                startEpochMs = 1_000,
+                stopEpochMs = 2_000,
+                wasManuallyEdited = false,
+                createdAtEpochMs = 1_000,
+                updatedAtEpochMs = 2_000,
+            )
+            val repository =
+                RoomActiveTimerRepository(
+                    activeTimerDao = database.activeTimerDao(),
+                    idGenerator = AtomicIdGenerator(),
+                    clock = FixedClock(TEST_NOW),
+                )
+
+            val results =
+                coroutineScope {
+                    List(2) {
+                        async(Dispatchers.IO) {
+                            repository.createActiveInterval(
+                                taskId = "task-1",
+                                boundaryZoneId = TEST_ZONE,
+                                start = TEST_NOW,
+                            )
+                        }
+                    }.awaitAll()
+                }
+
+            assertEquals(1, results.count { it is CreateActiveIntervalResult.Created })
+            assertEquals(1, results.count { it is CreateActiveIntervalResult.AlreadyActive })
+            val created = results.filterIsInstance<CreateActiveIntervalResult.Created>().single()
+            assertTrue(created.repeatedTaskCreated)
+            assertTrue(created.startedTask.id != "task-1")
+            assertEquals(TEST_DATE, created.startedTask.workDate)
+            assertEquals(TEST_ZONE, created.startedTask.zoneId)
+            assertEquals(
+                2,
+                database.taskDao().observeTasksForWorkDate(TEST_DATE.toEpochDay()).first().size,
+            )
+            assertEquals(1, database.workIntervalDao().countIntervalsForTask("task-1"))
+            assertEquals(
+                1,
+                database.workIntervalDao().countIntervalsForTask(created.startedTask.id),
+            )
         }
 
     @Test

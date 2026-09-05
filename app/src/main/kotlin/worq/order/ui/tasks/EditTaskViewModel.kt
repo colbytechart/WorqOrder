@@ -435,6 +435,12 @@ class EditTaskViewModel(
             mutableUiState.update { it.copy(message = EditTaskMessage.RUNNING_TASK) }
             return
         }
+        if (state.intervals.isNotEmpty()) {
+            mutableUiState.update {
+                it.copy(message = EditTaskMessage.TASK_ALREADY_HAS_INTERVAL)
+            }
+            return
+        }
         val editor =
             IntervalEditorUiState(
                 startLocal = LocalDateTime.of(date, LocalTime.of(9, 0)),
@@ -558,7 +564,7 @@ class EditTaskViewModel(
                 ManualIntervalOperationResult.TaskNotFound ->
                     showIntervalFailure(EditTaskMessage.TASK_NOT_FOUND)
                 ManualIntervalOperationResult.TaskAlreadyHasInterval ->
-                    showIntervalFailure(EditTaskMessage.INTERVAL_CHANGED)
+                    showIntervalFailure(EditTaskMessage.TASK_ALREADY_HAS_INTERVAL)
                 ManualIntervalOperationResult.IntervalNotFound ->
                     showIntervalFailure(EditTaskMessage.INTERVAL_NOT_FOUND)
                 ManualIntervalOperationResult.RunningTask ->
@@ -597,7 +603,7 @@ class EditTaskViewModel(
                             ManualIntervalOperationResult.TaskNotFound ->
                                 EditTaskMessage.TASK_NOT_FOUND
                             ManualIntervalOperationResult.TaskAlreadyHasInterval ->
-                                EditTaskMessage.INTERVAL_CHANGED
+                                EditTaskMessage.TASK_ALREADY_HAS_INTERVAL
                             ManualIntervalOperationResult.IntervalNotFound ->
                                 EditTaskMessage.INTERVAL_NOT_FOUND
                             ManualIntervalOperationResult.RunningTask ->

@@ -705,6 +705,7 @@ private fun EditTaskMessage.stringResource(): Int =
         EditTaskMessage.CLIENT_UNAVAILABLE -> R.string.task_client_archived_during_edit
         EditTaskMessage.CONSULTANT_UNAVAILABLE -> R.string.task_consultant_unavailable
         EditTaskMessage.RUNNING_TASK -> R.string.running_task_edit_blocked
+        EditTaskMessage.TASK_ALREADY_HAS_INTERVAL -> R.string.task_already_has_interval
         EditTaskMessage.INTERVAL_NOT_FOUND -> R.string.interval_no_longer_exists
         EditTaskMessage.RUNNING_INTERVAL -> R.string.running_interval_edit_blocked
         EditTaskMessage.INTERVAL_CHANGED -> R.string.interval_changed_retry

@@ -9,7 +9,8 @@ At every committed database state:
 3. The referenced interval belongs to one daily task and uses the `boundaryZoneId` captured at Start.
 4. Every completed interval has `start < stop` and lies within its task's stored local-date boundaries.
 5. Intervals for a task do not overlap.
-6. A series has at most one daily task for a `(work date, assignment ZoneId)` pair.
+6. Released `0.2.0` used at most one daily task for a `(work date, assignment ZoneId)` pair.
+   In `0.3.0`, `series_id` is lineage only and no reconciliation path creates another date copy.
 7. The visible timer is derived state, never a persisted counter.
 
 All algorithms use injected time sources and execute rule-dependent database changes in Room transactions.
@@ -162,6 +163,10 @@ For multiple missed dates, repeat at each `atStartOfDay` boundary. Never add fix
 
 ## 8. Daily selection rollover
 
+The rules in this section describe the released `0.2.0` behavior and remain as historical
+compatibility documentation. The current `0.3.0` branch does not perform this find-or-create
+rollover; Section 15 is authoritative for current selection reconciliation.
+
 Rollover is based on an actual change of today or the effective geographical zone, not ordinary browsing with the date selector.
 Selection preferences therefore retain the selected task ID, preferred series ID, effective date
 on which the timing selection was made, and its effective ZoneId.
@@ -304,6 +309,10 @@ stable Android scheduler/auth mechanism is chosen only after current official re
 approval.
 
 ## 15. Planned v0.3.0 timer and date rules
+
+Milestone 31 has implemented the Section 15 selection and repetition rules. The midnight closure
+and automatic-export ordering rules remain planned for Milestone 32, so this section distinguishes
+the currently active selection behavior from later boundary behavior.
 
 The following rules supersede Sections 4, 6, 7, 8, and 14 where they describe repeated intervals,
 midnight continuation, or selection rollover. All UTC, monotonic-clock, pinned-ZoneId, DST,

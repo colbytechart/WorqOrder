@@ -102,27 +102,9 @@ interface TaskRepository {
         workDate: LocalDate,
     ): List<TaskWithIntervals>
 
-    suspend fun findCorrespondingTask(
-        seriesId: String,
-        workDate: LocalDate,
-        zoneId: ZoneId,
-    ): DailyTask?
-
     suspend fun insertDailyTask(newTask: NewDailyTask): DailyTask
 
     suspend fun createDailyTask(newTask: NewDailyTask): CreateDailyTaskResult
-
-    /**
-     * Finds or atomically creates the exact series/date/zone copy of [sourceTaskId].
-     *
-     * Returns null when the source task no longer exists. The new copy retains the source task's
-     * current client, employee snapshot, task metadata, and series ID.
-     */
-    suspend fun findOrCreateDailyTaskCopy(
-        sourceTaskId: String,
-        workDate: LocalDate,
-        zoneId: ZoneId,
-    ): DailyTask?
 
     suspend fun updateTaskMetadata(
         taskId: String,

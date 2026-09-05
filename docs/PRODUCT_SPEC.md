@@ -485,6 +485,11 @@ This section is the complete feature scope for `0.3.0`. It supersedes the earlie
 midnight-continuation, multi-interval, and one-row-per-interval rules only after the corresponding
 `0.3.0` implementation milestones land. Every other accepted `0.2.0` behavior remains unchanged.
 
+Milestones 30 and 31 have now implemented the schema-5 one-interval model, repeated-Start
+transaction, and no-rollover selection behavior on the `0.3.0` development branch. Midnight
+closure, automatic-export ordering, final presentation, and release gates remain owned by later
+milestones and are not claimed as complete here.
+
 1. **No automatic task rollover.** A selected task is never copied merely because the effective
    date or ZoneId changes, the app resumes, recovery runs, or Start is evaluated. At a real date
    change, an earlier-day timing selection is cleared. Today begins with no automatically selected

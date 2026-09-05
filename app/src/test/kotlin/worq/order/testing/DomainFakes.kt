@@ -438,7 +438,7 @@ class FakeTaskRepository : TaskRepository {
                 )
             }
 
-    override suspend fun findCorrespondingTask(
+    suspend fun findLegacyContinuationTask(
         seriesId: String,
         workDate: LocalDate,
         zoneId: ZoneId,
@@ -477,7 +477,7 @@ class FakeTaskRepository : TaskRepository {
     override suspend fun createDailyTask(newTask: NewDailyTask): CreateDailyTaskResult =
         CreateDailyTaskResult.Created(insertDailyTask(newTask))
 
-    override suspend fun findOrCreateDailyTaskCopy(
+    suspend fun findOrCreateLegacyContinuationTask(
         sourceTaskId: String,
         workDate: LocalDate,
         zoneId: ZoneId,
@@ -909,7 +909,7 @@ class FakeActiveTimerRepository(
             tasks.markStopped(closed.taskId)
             val nextTask =
                 requireNotNull(
-                    tasks.findOrCreateDailyTaskCopy(
+                    tasks.findOrCreateLegacyContinuationTask(
                         sourceTaskId = snapshot.interval.taskId,
                         workDate = boundary.workDate,
                         zoneId = boundary.zoneId,

@@ -84,6 +84,7 @@
     <string name="dismiss_message">Dismiss message</string>
 
     <string name="select_task_first">Select a task before starting the timer.</string>
+    <string name="timing_selection_cleared">The previous task is not available for timing today. Choose or create a task for today.</string>
     <string name="live_timing_today_only">Live timing is available only for a task assigned to today in the current time zone.</string>
     <string name="timer_already_running">A timer is already running. Stop it before starting another.</string>
     <string name="stop_before_switching">Stop the running timer before selecting another task.</string>
@@ -143,6 +144,7 @@
     <string name="interval_no_longer_exists">That interval no longer exists.</string>
     <string name="running_interval_edit_blocked">The currently running interval cannot be edited or deleted.</string>
     <string name="interval_changed_retry">The intervals changed while you were editing. Review them and try again.</string>
+    <string name="task_already_has_interval">This task already has time recorded. Delete its interval before adding another.</string>
     <string name="choose_start_time">Choose Start Time</string>
     <string name="choose_stop_time">Choose Stop Time</string>
     <string name="start_time_occurrence">Start-Time Occurrence</string>

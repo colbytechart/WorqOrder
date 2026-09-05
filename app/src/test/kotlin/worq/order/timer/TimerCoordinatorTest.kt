@@ -14,6 +14,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import worq.order.data.ManualIntervalPersistenceResult
 import worq.order.data.NewDailyTask
 import worq.order.data.SelectedTaskState
 import worq.order.model.DailyTask
@@ -37,10 +38,21 @@ class TimerCoordinatorTest {
             val historicalResult = fixture.coordinator().start()
             assertTrue(historicalResult is StartTimerResult.TaskNotEligibleToday)
 
+            val future = fixture.addTask(TODAY.plusDays(1), seriesId = "series-future")
+            fixture.select(future)
+            val futureResult = fixture.coordinator().start()
+            assertTrue(futureResult is StartTimerResult.TaskNotEligibleToday)
+
             val otherZone = fixture.addTask(TODAY, CHICAGO, seriesId = "series-zone")
             fixture.select(otherZone)
             val otherZoneResult = fixture.coordinator().start()
             assertTrue(otherZoneResult is StartTimerResult.TaskNotEligibleToday)
+            assertNull(fixture.active.readActiveTimerSnapshot())
+            assertTrue(
+                listOf(historical, future, otherZone).all { task ->
+                    fixture.tasks.readTaskWithIntervals(task.id)?.intervals?.isEmpty() == true
+                },
+            )
         }
 
     @Test
@@ -160,6 +172,34 @@ class TimerCoordinatorTest {
                 Duration.ofMinutes(30).toMillis(),
                 fixture.tasks.readCompletedDurationMillis(task2.id),
             )
+        }
+
+    @Test
+    fun deletingSoleCompletedIntervalMakesOriginalTaskEligibleForFirstStart() =
+        runTest {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY)
+            val saved =
+                fixture.tasks.addManualInterval(
+                    taskId = task.id,
+                    start = NOW.minusSeconds(3_600),
+                    stop = NOW.minusSeconds(1_800),
+                )
+            assertTrue(saved is ManualIntervalPersistenceResult.Saved)
+            val intervalId = (saved as ManualIntervalPersistenceResult.Saved).interval.id
+            assertEquals(
+                ManualIntervalPersistenceResult.Deleted,
+                fixture.tasks.deleteManualInterval(task.id, intervalId),
+            )
+            fixture.select(task)
+
+            val started = fixture.coordinator().start()
+
+            assertTrue(started is StartTimerResult.Started)
+            started as StartTimerResult.Started
+            assertEquals(task.id, started.snapshot.interval.taskId)
+            assertEquals(task.id, fixture.selection.readSelection()?.taskId)
+            assertEquals(1, fixture.tasks.observeTasksForDate(TODAY).first().size)
         }
 
     @Test

@@ -44,7 +44,7 @@ changing its implementation in this milestone.
 | Stop, repeated intervals, frozen accumulated total | Timer coordinator, live session, Main ViewModel | Timer and Main ViewModel tests | Accepted Milestones 4/13 runs | Pass |
 | Timestamp-derived display; no persisted ticks | `LiveTimerSession`, collection-scoped Main ticker | Live session and “no tick writes” ViewModel tests | Background/screen-lock tests | Pass |
 | Process/activity/reboot reconstruction | Recovery coordinator, Room active snapshot, activity/Main resume hooks | Recovery concurrency/process tests | Rotation, Don't Keep Activities, process kill, Recents, reboot passed | Pass |
-| Daily selection rollover; no duplicate copy | `SelectionCoordinator`, three-part task uniqueness | Selection/restart tests; Room unique index | Zone-change manual tests | Pass |
+| Daily selection rollover; no duplicate copy (v0.2 historical) | `SelectionCoordinator`, three-part task uniqueness | Released v0.2 selection/restart tests; Room unique index | Accepted v0.2 zone-change tests | Historical pass; superseded in v0.3 by no-rollover selection |
 | One/multiple midnight splitting and idempotence | Boundary calculator, active normalizer, transactional DAO | Real-zone/DST/multi-midnight unit and Room tests | Accepted automated evidence | Pass |
 | Device/manual ZoneId and historical stability | Device zone source, settings provider/repository | Zone provider/settings/selection tests | Device and manual zone changes passed | Pass |
 | Spring-forward/fall-back correctness | `java.time` boundaries and validator | Boundary, validator, timer tests | Both transitions passed manually | Pass |
@@ -125,8 +125,8 @@ step, not an implementation blocker.
 | --- | --- | --- | --- | --- |
 | Preserve all schema-4 data while converting one task/many intervals to one task/one interval | M30; Room 4-to-5 migration, entities, DAOs | populated zero/one/many/open migration, counts/fields/FKs, reopen, schema JSON | signed populated `0.2.0` update in M35 | Approved, not implemented |
 | Enforce zero or one interval per task | M30; unique interval `task_id` plus repositories | constraint, cascade, active-slot/singleton, invalid second insert | DB Inspector spot check | Approved, not implemented |
-| Repeated Start creates exactly one copied task at zero | M31; TimerCoordinator and atomic Room operation | metadata/null copy, selection, concurrent Start, source immutability | repeated Start workflow | Approved, not implemented |
-| No date/ZoneId rollover task creation | M31; SelectionCoordinator/recovery | startup/resume/date/zone/browse no-creation and stale-selection clear | next-date simulation | Approved, not implemented |
+| Repeated Start creates exactly one copied task at zero | M30/M31; TimerCoordinator and atomic Room operation | metadata/null copy, selection, concurrent Start, source immutability | repeated Start workflow passed | Pass through M31 Sol gate |
+| No date/ZoneId rollover task creation | M31; SelectionCoordinator/recovery | startup/resume/date/zone/browse no-creation and stale-selection clear | date/ZoneId change and date-browsing scenarios passed | Pass through M31 Sol gate |
 | Midnight closes exactly once with no continuation | M32; normalizer/recovery/notification | boundary/DST/missed-day/idempotence/concurrency/process/reboot | foreground and late-execution simulations | Approved, not implemented |
 | Midnight close precedes captured-date automatic Google export | M32; automatic manager/worker | close-before-snapshot, delay/pending/idempotence/failure | controlled boundary Google test | Approved, not implemented |
 | Singular Interval UI | M33; Edit Task/ViewModels | empty/add/edit/delete/running/semantics/large-text | portrait/landscape inspection | Approved, not implemented |

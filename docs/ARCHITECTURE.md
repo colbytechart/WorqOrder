@@ -178,7 +178,8 @@ DAO and canonical export ordering remain independently stable.
   effective zone, captures one UTC instant, normalizes Room state, and then reconciles selection.
   Its own mutex makes duplicate Activity/Main resume signals idempotent.
 - `SelectionCoordinator`: select/clear/observe, active-timer switching lock, dangling repair, and
-  exact three-part daily rollover using current source metadata.
+  (in released `0.2.0`) exact three-part daily rollover using current source metadata. The current
+  `0.3.0` implementation clears an ineligible concrete selection and never creates a date copy.
 - `ManualIntervalValidator`: pure boundary, ordering, overlap, open/running-state, and explicit
   DST gap/overlap validation.
 - `TaskMutationCoordinator`: shared task metadata validation, active-client-at-commit enforcement,
@@ -560,6 +561,12 @@ injection remain intact.
 Tests preserve the existing operation mutex, Room transaction boundaries, lifecycle recovery,
 clock-anomaly policy, and notification ownership. Dead multi-interval and rollover APIs are removed
 only after all callers and tests have moved to the new contracts.
+
+Milestone 31 integration evidence now covers stale date/ZoneId selection clearing, no-write date
+browsing and restart reconciliation, active-timer authority during recovery, repeated-Start
+selection and metadata copying, singular Add/Edit/Delete behavior, selected-task deletion, and
+idempotent stale-selection reconciliation. Midnight continuation compatibility remains isolated
+until Milestone 32 replaces it with exact boundary closure.
 
 Milestone 30C evidence: `Schema5MigrationCoreTest` covers a populated schema-4 migration with
 archived directory references, nullable metadata, zero-/one-/many-interval tasks, deterministic

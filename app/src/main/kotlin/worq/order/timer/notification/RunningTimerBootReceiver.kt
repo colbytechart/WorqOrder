@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import worq.order.app.WorqOrderApplication
+import worq.order.timer.TimerRecoveryResult
 
 /** One-shot, post-unlock reconstruction. It never schedules ticks or background work. */
 class RunningTimerBootReceiver : BroadcastReceiver() {
@@ -17,10 +18,16 @@ class RunningTimerBootReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                runCatching { application.container.timerRecoveryCoordinator.recover() }
+                val recovery =
+                    runCatching { application.container.timerRecoveryCoordinator.recover() }
+                        .getOrNull()
+                if (recovery is TimerRecoveryResult.ClosedAtBoundary) {
+                    runCatching { application.container.automaticGoogleExportManager.onTimerStopped() }
+                }
                 runCatching {
                     application.container.runningTimerNotificationController.reconcile()
                 }
+                runCatching { application.container.automaticGoogleExportManager.reconcile() }
             } finally {
                 pendingResult.finish()
             }

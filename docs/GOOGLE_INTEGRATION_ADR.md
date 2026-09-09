@@ -106,6 +106,13 @@ valid. It makes a normal `authorize()` request for `drive.file`; Google can retu
 token without interaction. If the grant was removed, the user must reconnect or
 reauthorize the spreadsheet through Picker.
 
+Connected-spreadsheet authorization requests are explicitly bound to the non-secret
+persisted account hint. If silent background authorization returns a resolution, the
+worker never launches UI and records an actionable pending export without discarding
+the spreadsheet metadata or disabling automation. An Activity-backed retry is still
+allowed to invoke `AuthorizationClient`, complete Google's resolution, and restore the
+validated connection after a successful export.
+
 ## 4. Rejected scope alternatives
 
 ### Sensitive Sheets-wide scope

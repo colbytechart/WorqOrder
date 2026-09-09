@@ -12,13 +12,14 @@ class GoogleAuthorizationRequestFactoryTest {
     @Test
     fun connectedSpreadsheetRequestUsesOnlyDriveFileWithoutPickerFilters() {
         val request =
-            GoogleAuthorizationRequestFactory.connectedSpreadsheetRequest()
+            GoogleAuthorizationRequestFactory.connectedSpreadsheetRequest(ACCOUNT_ID)
 
         assertEquals(
             listOf(RestGoogleSheetsGateway.DRIVE_FILE_SCOPE),
             request.requestedScopes.map { it.scopeUri },
         )
         assertTrue(request.optOutIncludingGrantedScopes)
+        assertEquals(ACCOUNT_ID, request.account?.name)
         assertEquals(
             null,
             request.getResourceParameter(
@@ -67,5 +68,6 @@ class GoogleAuthorizationRequestFactoryTest {
     private companion object {
         const val SPREADSHEET_ID =
             "1AbCdEfGhIjKlMnOpQrStUvWxYz_123456789"
+        const val ACCOUNT_ID = "person@example.com"
     }
 }

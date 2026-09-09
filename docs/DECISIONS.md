@@ -1129,6 +1129,38 @@ constraints, or accidental midnight-policy change. The complete owner-run Gradle
 10 seconds with 40 actionable tasks (1 executed, 39 up-to-date), followed by successful manual
 date/ZoneId, browsing, singular interval, repeated Start, deletion, and Recents recovery checks.
 
+### D-091 - Automatic Google authorization recovery preserves its target
+
+Connected-spreadsheet authorization explicitly targets the persisted Google account hint. A
+background `AuthorizationClient` result that requires UI marks the authorization stale but keeps
+the account/spreadsheet metadata, enabled Auto Export preference, and captured work date. It does
+not disable automation or make the stored destination indistinguishable from a disconnect. The
+pending action remains visible after restart, and an Activity-backed retry may invoke Google's
+resolution even while validation is stale. A successful complete export reaffirms the stored
+connection validation. Passive next-day selection cleanup is silent; explicit attempts to start
+an ineligible historical task retain their validation message.
+
+### D-092 - Main visible date has an independent boundary signal
+
+The active-timer stream is not authoritative for the Main screen's calendar day. A lifecycle-
+collected signal calculates the next real midnight in the effective ZoneId and suspends directly
+until it. This closes the race where WorkManager or another recovery caller clears the active timer
+and cancels the 200 ms presentation tick before that tick can advance the visible date. A screen
+following Today advances; a deliberately browsed date remains unchanged. The signal does not poll,
+write Room, schedule exact alarms, or depend on Google export completion.
+
+### D-093 - Milestone 32 quality gate accepts layered boundary execution
+
+Exact boundary closure has one Room compare-and-close transaction and several legitimate bounded
+entry points: foreground date observation, Activity/application recovery, post-unlock boot recovery,
+scheduled WorkManager execution, and export preparation. All entry points converge through the same
+operation lock and idempotent Room predicate. Automatic Google execution retains one captured date,
+ZoneId, and connection key; foreground/startup execution can handle an overdue target while
+WorkManager remains its durable background fallback. A later stale delivery cannot duplicate the
+completed export. No exact alarm, continuation record, app-owned wake lock, foreground stopwatch
+service, continuous background loop, or UI-tick database write was added. The final owner-run gate
+passed 235 JVM tests, 108 connected tests, debug lint, and debug/release assembly.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.

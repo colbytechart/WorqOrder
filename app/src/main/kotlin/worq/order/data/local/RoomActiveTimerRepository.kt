@@ -70,6 +70,17 @@ class RoomActiveTimerRepository(
                 updatedAtEpochMs = clock.now().toEpochMilli(),
             )?.toModel()
 
+    override suspend fun closeActiveIntervalAtBoundary(
+        expectedIntervalId: String,
+        boundary: Instant,
+    ): ActiveTimerSnapshot? =
+        activeTimerDao
+            .closeActiveIntervalAtBoundary(
+                expectedIntervalId = expectedIntervalId,
+                boundaryEpochMs = boundary.toEpochMilli(),
+                updatedAtEpochMs = clock.now().toEpochMilli(),
+            )?.toModel()
+
     override suspend fun normalizeActiveInterval(
         expectedIntervalId: String,
         boundaries: List<TimerSplitBoundary>,

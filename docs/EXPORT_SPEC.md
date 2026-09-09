@@ -429,9 +429,12 @@ At execution:
 1. If the target was already confirmed exported by this automatic job, exit idempotently.
 2. Revalidate that automation remains enabled, Google is still the selected destination, the same
    spreadsheet is connected, and authorization can be obtained through the approved flow. A
-   worker may proceed only when `AuthorizationClient.authorize()` returns an already-granted token
-   without interaction. A returned `PendingIntent` becomes authorization-required pending state;
-   it is never launched from the worker.
+   worker binds `AuthorizationClient.authorize()` to the persisted signed-in account hint and may
+   proceed only when Google returns an already-granted token without interaction. A returned
+   `PendingIntent` becomes authorization-required pending state; it is never launched from the
+   worker. That state preserves the account/spreadsheet metadata, captured date, and enabled Auto
+   Export preference. The next foreground interactive retry may launch Google's recovery UI and a
+   successful write restores the connection's validated status.
 3. If no timer is active, build a new authoritative immutable schema-4 snapshot for the captured
    target date and run the same marker-validated replacement protocol as manual Google export.
 4. If any timer is active, do not snapshot or export. Persist the captured date as pending.

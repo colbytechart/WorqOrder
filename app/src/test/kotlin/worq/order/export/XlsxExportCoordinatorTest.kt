@@ -5,8 +5,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import worq.order.data.NewDailyTask
@@ -44,7 +42,7 @@ class XlsxExportCoordinatorTest {
         }
 
     @Test
-    fun runningTimerIsSnapshottedWithoutBeingStopped() =
+    fun runningTimerPreventsAnUnstableXlsxSnapshot() =
         runTest {
             val fixture = Fixture()
             val task = fixture.addTask()
@@ -57,9 +55,9 @@ class XlsxExportCoordinatorTest {
             val result = fixture.coordinator.prepare(WORK_DATE)
             val activeAfter = fixture.active.readActiveTimerSnapshot()
 
-            assertTrue(result is PrepareXlsxExportResult.Ready)
-            assertNotNull(activeAfter)
-            assertNull(activeAfter?.interval?.stop)
+            assertEquals(PrepareXlsxExportResult.ActiveTimerChanged, result)
+            assertTrue(activeAfter != null)
+            assertEquals(null, activeAfter?.interval?.stop)
         }
 
     private class Fixture {
@@ -80,6 +78,7 @@ class XlsxExportCoordinatorTest {
         private val snapshotCoordinator =
             ExportSnapshotCoordinator(
                 taskRepository = tasks,
+                activeTimerRepository = active,
                 activeTimerNormalizer = normalizer,
                 clock = clock,
                 timerOperationLock = operationLock,

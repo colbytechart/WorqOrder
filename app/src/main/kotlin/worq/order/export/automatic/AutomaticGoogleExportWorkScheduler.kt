@@ -9,7 +9,6 @@ import androidx.work.WorkManager
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
@@ -29,7 +28,7 @@ class WorkManagerAutomaticGoogleExportScheduler(
     private val workManager: WorkManager,
 ) : AutomaticGoogleExportWorkScheduler {
     override fun schedule(target: AutomaticGoogleExportTarget, now: Instant) {
-        val due = target.workDate.atTime(LocalTime.of(23, 59)).atZone(target.zoneId).toInstant()
+        val due = automaticGoogleExportBoundary(target.workDate, target.zoneId)
         val delayMillis = Duration.between(now, due).toMillis().coerceAtLeast(0L)
         val input =
             Data.Builder()

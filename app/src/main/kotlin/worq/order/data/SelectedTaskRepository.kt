@@ -26,4 +26,12 @@ interface SelectedTaskRepository {
     suspend fun select(selection: SelectedTaskState)
 
     suspend fun clear()
+
+    /**
+     * Clears the persisted selection only when it still identifies [taskId].
+     *
+     * Boundary auto-stop uses this compare-and-clear operation so it cannot erase a newer
+     * selection made after the authoritative Room timer was closed.
+     */
+    suspend fun clearIfSelected(taskId: String): Boolean
 }

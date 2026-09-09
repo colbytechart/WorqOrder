@@ -31,6 +31,8 @@ class XlsxExportCoordinator(
         when (val result = snapshotCoordinator.prepare(workDate)) {
             PrepareExportSnapshotResult.ActiveTimerChanged ->
                 PrepareXlsxExportResult.ActiveTimerChanged
+            PrepareExportSnapshotResult.ActiveTimerRunning ->
+                PrepareXlsxExportResult.ActiveTimerChanged
             PrepareExportSnapshotResult.ClockChanged ->
                 PrepareXlsxExportResult.ClockChanged
             is PrepareExportSnapshotResult.Ready -> {

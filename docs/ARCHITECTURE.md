@@ -565,8 +565,9 @@ only after all callers and tests have moved to the new contracts.
 Milestone 31 integration evidence now covers stale date/ZoneId selection clearing, no-write date
 browsing and restart reconciliation, active-timer authority during recovery, repeated-Start
 selection and metadata copying, singular Add/Edit/Delete behavior, selected-task deletion, and
-idempotent stale-selection reconciliation. Midnight continuation compatibility remains isolated
-until Milestone 32 replaces it with exact boundary closure.
+idempotent stale-selection reconciliation. Milestone 32 replaces the active continuation path with
+one exact pinned-zone boundary close; legacy continuation code remains isolated for migration and
+later classified cleanup only.
 
 Milestone 30C evidence: `Schema5MigrationCoreTest` covers a populated schema-4 migration with
 archived directory references, nullable metadata, zero-/one-/many-interval tasks, deterministic

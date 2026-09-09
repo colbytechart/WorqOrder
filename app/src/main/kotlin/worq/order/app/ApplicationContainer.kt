@@ -289,6 +289,7 @@ internal class DefaultApplicationContainer(
     override val exportSnapshotCoordinator: ExportSnapshotCoordinator by lazy {
         ExportSnapshotCoordinator(
             taskRepository = taskRepository,
+            activeTimerRepository = activeTimerRepository,
             activeTimerNormalizer = activeTimerNormalizer,
             clock = utcClock,
             timerOperationLock = timerOperationLock,
@@ -331,6 +332,7 @@ internal class DefaultApplicationContainer(
             settingsRepository = settingsRepository,
             connectionRepository = googleConnectionRepository,
             activeTimerRepository = activeTimerRepository,
+            boundaryReconciler = activeTimerNormalizer,
             zoneIdProvider = zoneIdProvider,
             clock = utcClock,
             exportDate = backgroundGoogleSheetsExportCoordinator::export,

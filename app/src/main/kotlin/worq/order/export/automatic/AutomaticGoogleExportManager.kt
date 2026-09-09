@@ -13,7 +13,9 @@ import worq.order.data.GoogleSpreadsheetConnection
 import worq.order.data.SettingsRepository
 import worq.order.export.google.GoogleSheetsExportFailure
 import worq.order.export.google.GoogleSheetsExportOperationResult
+import worq.order.timer.ActiveTimerBoundaryReconciler
 import worq.order.timer.EffectiveZoneIdProvider
+import worq.order.timer.NormalizeTimerResult
 import worq.order.timer.UtcClock
 
 sealed interface AutomaticGoogleExportSettingResult {
@@ -41,6 +43,7 @@ class AutomaticGoogleExportManager(
     private val settingsRepository: SettingsRepository,
     private val connectionRepository: GoogleConnectionRepository,
     private val activeTimerRepository: ActiveTimerRepository,
+    private val boundaryReconciler: ActiveTimerBoundaryReconciler,
     private val zoneIdProvider: EffectiveZoneIdProvider,
     private val clock: UtcClock,
     private val exportDate: suspend (LocalDate) -> GoogleSheetsExportOperationResult,
@@ -76,33 +79,56 @@ class AutomaticGoogleExportManager(
             AutomaticGoogleExportSettingResult.Enabled
         }
 
-    suspend fun reconcile() = mutex.withLock {
-        val settings = settingsRepository.readSettings()
-        if (!settings.automaticGoogleExportEnabled ||
-            settings.defaultExportDestination != ExportDestination.GOOGLE_SHEETS
-        ) {
-            cancelWorkAndNotification()
-            return@withLock
-        }
-        val connection = connectionRepository.readConnection()
-        if (!connection.isConnected) {
-            settingsRepository.setAutomaticGoogleExportEnabled(false)
-            cancelWorkAndNotification()
-            return@withLock
-        }
-        val date = settings.automaticGoogleTargetDate
-        val zoneId = settings.automaticGoogleTargetZoneId
-        val key = settings.automaticGoogleTargetConnectionKey
-        if (date == null || zoneId == null || key == null) {
-            val effectiveZone = zoneIdProvider.zoneId()
-            persistAndSchedule(
-                clock.now().atZone(effectiveZone).toLocalDate(),
-                effectiveZone,
-                connection.connectionKey(),
-            )
-        } else if (settings.automaticGooglePendingReason == null) {
-            schedule(date, zoneId, key)
-        }
+    suspend fun reconcile() {
+        val overdueTarget =
+            mutex.withLock {
+                val settings = settingsRepository.readSettings()
+                if (!settings.automaticGoogleExportEnabled ||
+                    settings.defaultExportDestination != ExportDestination.GOOGLE_SHEETS
+                ) {
+                    cancelWorkAndNotification()
+                    return@withLock null
+                }
+                val connection = connectionRepository.readConnection()
+                if (!connection.hasStoredDestination) {
+                    settingsRepository.setAutomaticGoogleExportEnabled(false)
+                    cancelWorkAndNotification()
+                    return@withLock null
+                }
+                val date = settings.automaticGoogleTargetDate
+                val zoneId = settings.automaticGoogleTargetZoneId
+                val key = settings.automaticGoogleTargetConnectionKey
+                if (date == null || zoneId == null || key == null) {
+                    val effectiveZone = zoneIdProvider.zoneId()
+                    persistAndSchedule(
+                        clock.now().atZone(effectiveZone).toLocalDate(),
+                        effectiveZone,
+                        connection.connectionKey(),
+                    )
+                    return@withLock null
+                }
+                if (settings.automaticGooglePendingReason == null) {
+                    val target = AutomaticGoogleExportTarget(date, zoneId, key)
+                    if (clock.now().isBefore(automaticGoogleExportBoundary(date, zoneId))) {
+                        schedule(date, zoneId, key)
+                        null
+                    } else {
+                        target
+                    }
+                } else {
+                    if (!clock.now().isBefore(automaticGoogleExportBoundary(date, zoneId))) {
+                        val pendingReason = settings.automaticGooglePendingReason
+                        if (
+                            pendingReason != AutomaticGooglePendingReason.TIMER_RUNNING ||
+                            activeTimerRepository.readActiveTimer() == null
+                        ) {
+                            notifier.postAttentionRequired()
+                        }
+                    }
+                    null
+                }
+            }
+        overdueTarget?.runNow()
     }
 
     suspend fun runScheduled(
@@ -119,10 +145,44 @@ class AutomaticGoogleExportManager(
             settings.automaticGoogleTargetZoneId != zoneId ||
             settings.automaticGoogleTargetConnectionKey != connectionKey
         ) return@withLock
+        val now = clock.now()
+        if (now.isBefore(automaticGoogleExportBoundary(date, zoneId))) {
+            schedule(date, zoneId, connectionKey)
+            return@withLock
+        }
         val connection = connectionRepository.readConnection()
-        if (!connection.isConnected || connection.connectionKey() != connectionKey) {
+        if (!connection.hasStoredDestination || connection.connectionKey() != connectionKey) {
             markPending(date, zoneId, connectionKey, AutomaticGooglePendingReason.AUTHORIZATION_REQUIRED, true)
             return@withLock
+        }
+        val normalization =
+            try {
+                boundaryReconciler.normalize(now)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                markPending(
+                    date,
+                    zoneId,
+                    connectionKey,
+                    AutomaticGooglePendingReason.LOCAL_STORAGE,
+                    true,
+                )
+                return@withLock
+            }
+        when (normalization) {
+            is NormalizeTimerResult.ClockChanged -> {
+                markPending(date, zoneId, connectionKey, AutomaticGooglePendingReason.LOCAL_STORAGE, true)
+                return@withLock
+            }
+            // A concurrent Stop or boundary recovery may already have closed the old interval.
+            // Re-read Room below; export is safe if no authoritative timer remains.
+            NormalizeTimerResult.ActiveTimerChanged,
+            NormalizeTimerResult.NoActiveTimer,
+            NormalizeTimerResult.NoChange,
+            is NormalizeTimerResult.ClosedAtBoundary,
+            is NormalizeTimerResult.Normalized,
+            -> Unit
         }
         if (activeTimerRepository.readActiveTimer() != null) {
             markPending(date, zoneId, connectionKey, AutomaticGooglePendingReason.TIMER_RUNNING, false)
@@ -141,11 +201,29 @@ class AutomaticGoogleExportManager(
         handleResult(date, zoneId, connectionKey, result)
     }
 
-    override suspend fun onTimerStopped() = mutex.withLock {
-        val settings = settingsRepository.readSettings()
-        if (settings.automaticGooglePendingReason == AutomaticGooglePendingReason.TIMER_RUNNING) {
-            notifier.postAttentionRequired()
-        }
+    override suspend fun onTimerStopped() {
+        val overdueTarget =
+            mutex.withLock {
+                val settings = settingsRepository.readSettings()
+                if (settings.automaticGooglePendingReason == AutomaticGooglePendingReason.TIMER_RUNNING) {
+                    notifier.postAttentionRequired()
+                    return@withLock null
+                }
+                if (!settings.automaticGoogleExportEnabled ||
+                    settings.defaultExportDestination != ExportDestination.GOOGLE_SHEETS ||
+                    settings.automaticGooglePendingReason != null
+                ) {
+                    return@withLock null
+                }
+                val date = settings.automaticGoogleTargetDate ?: return@withLock null
+                val zoneId = settings.automaticGoogleTargetZoneId ?: return@withLock null
+                val key = settings.automaticGoogleTargetConnectionKey ?: return@withLock null
+                AutomaticGoogleExportTarget(date, zoneId, key)
+                    .takeUnless {
+                        clock.now().isBefore(automaticGoogleExportBoundary(date, zoneId))
+                    }
+            }
+        overdueTarget?.runNow()
     }
 
     override suspend fun completeInteractiveExport(
@@ -212,6 +290,14 @@ class AutomaticGoogleExportManager(
         )
     }
 
+    private suspend fun AutomaticGoogleExportTarget.runNow() {
+        runScheduled(
+            workDateEpochDay = workDate.toEpochDay(),
+            zoneIdText = zoneId.id,
+            connectionKey = connectionKey,
+        )
+    }
+
     private fun cancelWorkAndNotification() {
         workScheduler.cancel()
         notifier.cancel()
@@ -219,6 +305,9 @@ class AutomaticGoogleExportManager(
 
     private fun GoogleSpreadsheetConnection.connectionKey(): String =
         "${accountId.orEmpty()}\n${spreadsheetId.orEmpty()}"
+
+    private val GoogleSpreadsheetConnection.hasStoredDestination: Boolean
+        get() = hasAccountHint && hasSpreadsheetMetadata
 
     private fun GoogleSheetsExportFailure.toPendingReason(): AutomaticGooglePendingReason =
         when (this) {

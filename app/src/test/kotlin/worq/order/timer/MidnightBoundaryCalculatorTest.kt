@@ -115,4 +115,16 @@ class MidnightBoundaryCalculatorTest {
             Duration.between(boundaries[0].instant, boundaries[1].instant),
         )
     }
+
+    @Test
+    fun firstBoundaryUsesZoneRulesWhenAnEntireLocalDateWasSkipped() {
+        val zone = ZoneId.of("Pacific/Apia")
+        val start = Instant.parse("2011-12-30T09:30:00Z")
+
+        val boundary = MidnightBoundaryCalculator.firstBoundaryAfter(start, zone)
+
+        assertEquals(Instant.parse("2011-12-30T10:00:00Z"), boundary)
+        assertEquals(LocalDate.of(2011, 12, 31), boundary.atZone(zone).toLocalDate())
+        assertEquals(Duration.ofMinutes(30), Duration.between(start, boundary))
+    }
 }

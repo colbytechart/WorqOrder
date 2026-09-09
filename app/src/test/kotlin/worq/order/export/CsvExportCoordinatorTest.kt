@@ -5,8 +5,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import worq.order.data.NewDailyTask
@@ -46,7 +44,7 @@ class CsvExportCoordinatorTest {
         }
 
     @Test
-    fun runningTimerIsSnapshottedWithoutBeingStopped() =
+    fun runningTimerPreventsAnUnstableCsvSnapshot() =
         runTest {
             val fixture = Fixture()
             val task = fixture.addTask()
@@ -59,11 +57,9 @@ class CsvExportCoordinatorTest {
             val result = fixture.coordinator.prepare(WORK_DATE)
             val activeAfter = fixture.active.readActiveTimerSnapshot()
 
-            assertTrue(result is PrepareCsvExportResult.Ready)
-            val csv = (result as PrepareCsvExportResult.Ready).export.contents
-            assertTrue(csv.contains(",1,08:00 AM,,01:00:00,01:00:00"))
-            assertNotNull(activeAfter)
-            assertNull(activeAfter?.interval?.stop)
+            assertEquals(PrepareCsvExportResult.ActiveTimerChanged, result)
+            assertTrue(activeAfter != null)
+            assertEquals(null, activeAfter?.interval?.stop)
         }
 
     @Test
@@ -104,6 +100,7 @@ class CsvExportCoordinatorTest {
         val snapshotCoordinator =
             ExportSnapshotCoordinator(
                 taskRepository = tasks,
+                activeTimerRepository = active,
                 activeTimerNormalizer = normalizer,
                 clock = clock,
                 timerOperationLock = operationLock,

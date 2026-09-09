@@ -21,6 +21,11 @@ sealed interface TimerRecoveryResult {
     data class ActiveTimerChanged(
         val selectionResult: SelectionReconciliationResult,
     ) : TimerRecoveryResult
+
+    data class ClosedAtBoundary(
+        val boundary: Instant,
+        val selectionResult: SelectionReconciliationResult,
+    ) : TimerRecoveryResult
 }
 
 /**
@@ -64,6 +69,11 @@ class TimerRecoveryCoordinator(
                 is NormalizeTimerResult.Normalized ->
                     TimerRecoveryResult.Recovered(
                         normalizedSplitCount = normalization.splitCount,
+                        selectionResult = selection,
+                    )
+                is NormalizeTimerResult.ClosedAtBoundary ->
+                    TimerRecoveryResult.ClosedAtBoundary(
+                        boundary = normalization.boundary,
                         selectionResult = selection,
                     )
             }

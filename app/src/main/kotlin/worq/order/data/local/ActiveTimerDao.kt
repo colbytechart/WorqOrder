@@ -278,6 +278,67 @@ abstract class ActiveTimerDao {
             updatedAtEpochMs = updatedAtEpochMs,
         )
 
+    /**
+     * Schema-5 boundary policy: close once at the first crossed local midnight and clear the
+     * authoritative timer. This deliberately bypasses the legacy continuation path.
+     */
+    @Transaction
+    open suspend fun closeActiveIntervalAtBoundary(
+        expectedIntervalId: String,
+        boundaryEpochMs: Long,
+        updatedAtEpochMs: Long,
+    ): ActiveTimerTransactionEntity? {
+        require(expectedIntervalId.isNotBlank()) {
+            "expectedIntervalId must not be blank"
+        }
+        val activeTimer = readActiveTimer() ?: return null
+        if (activeTimer.intervalId != expectedIntervalId) {
+            return null
+        }
+        val interval =
+            readIntervalInternal(activeTimer.intervalId)
+                ?: throw PersistenceInvariantException(
+                    "Active timer points to missing interval ${activeTimer.intervalId}",
+                )
+        validateActivePair(activeTimer, interval)
+        require(boundaryEpochMs > interval.startEpochMs) {
+            "The boundary must be after the active interval start"
+        }
+
+        if (
+            closeIntervalInternal(
+                intervalId = interval.id,
+                taskId = interval.taskId,
+                stopEpochMs = boundaryEpochMs,
+                updatedAtEpochMs = updatedAtEpochMs,
+            ) != 1
+        ) {
+            throw PersistenceInvariantException(
+                "Active interval ${interval.id} could not be closed at its boundary",
+            )
+        }
+        if (clearActiveTimerInternal(interval.id, interval.taskId) != 1) {
+            throw PersistenceInvariantException(
+                "Active timer for interval ${interval.id} could not be cleared",
+            )
+        }
+        if (touchTask(interval.taskId, updatedAtEpochMs) != 1) {
+            throw PersistenceInvariantException(
+                "Boundary-closed interval ${interval.id} has no owning task ${interval.taskId}",
+            )
+        }
+
+        return ActiveTimerTransactionEntity(
+            activeTimer = activeTimer.copy(updatedAtEpochMs = updatedAtEpochMs),
+            interval =
+                interval.copy(
+                    stopEpochMs = boundaryEpochMs,
+                    activeSlot = null,
+                    updatedAtEpochMs = updatedAtEpochMs,
+                ),
+        )
+    }
+
     @Transaction
     open suspend fun closeActiveIntervalAndClearTimer(
         expectedIntervalId: String,

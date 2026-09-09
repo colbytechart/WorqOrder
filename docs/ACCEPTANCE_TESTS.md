@@ -817,6 +817,11 @@ until caught up; no target is overwritten and no worker contains an unbounded lo
 automation, selecting CSV/XLSX, disconnecting, or signing out cancels future unique work and clears
 automatic pending state safely.
 
+The silent connected-spreadsheet request targets the persisted Google account explicitly. If
+Google instead requires interactive authorization, the connection metadata, enabled switch, and
+captured target survive restart; Settings exposes the pending action, and an Activity-backed retry
+can authorize and export without forcing spreadsheet reconnection.
+
 Unit and WorkManager integration tests additionally prove unique-work replacement rules,
 calculated initial delay, network constraint, one-date-per-worker execution, persisted target/ZoneId
 recovery, no interactive `PendingIntent` launch from a worker, one bounded 401 token-clear attempt,
@@ -971,15 +976,14 @@ These cases supersede multi-interval, midnight-splitting, selection-rollover, an
 cardinality expectations when `0.3.0` is implemented. Prior-version migration fixtures remain
 mandatory precisely because released data may contain those older shapes.
 
-Milestone 31 now provides the current evidence for V3-TMR-01 through V3-TMR-03's selection and
-singular-interval portions, and for V3-DATE-01's no-rollover behavior. The focused Luna regression
-pass also verifies stale date/ZoneId clearing, read-only date browsing, restart/resume without task
-creation, persisted selection, Room active-timer authority after recovery, repeated-Start metadata
-and null copying, sole-interval Add/Edit/Delete, selected-task deletion, and idempotent stale
-reconciliation. The final project-local offline unit/lint/debug/release/connected gate completed
-successfully, and the owner passed all seven manual no-rollover, singular-interval, repeated-Start,
-deletion, and Recents-recovery checks. V3-DATE-02/V3-DATE-03 and V3-EXPORT-03 remain Milestone 32
-checks; Milestone 31 is complete.
+Milestone 31 provides the current evidence for V3-TMR-01 through V3-TMR-03's selection and
+singular-interval portions, and for V3-DATE-01's no-rollover behavior. Milestone 32 implements the
+exact pinned-zone boundary close, foreground/process/boot recovery integration, notification
+reconciliation, and automatic-Google ordering described by V3-DATE-02, V3-DATE-03, and
+V3-EXPORT-03. Its deterministic clock/ZoneId, typed-pending, authorization-recovery, late-worker,
+visible-date, and no-duplicate-export coverage passed the final Sol quality gate. The owner-run
+project-local gate passed 235 JVM tests and 108 connected tests with no failures; debug lint and
+both debug/release builds also passed.
 
 ### V3-DB-01 Non-destructive schema 4-to-5 migration
 
@@ -1055,9 +1059,18 @@ remain untouched. CSV/XLSX and Google values remain byte/logically equivalent as
 
 Automatic Google work targets the captured preceding date and cannot export its open pre-midnight
 interval. At the first allowed execution after the boundary, WorqOrder first performs the
-idempotent exact-boundary close, then snapshots and exports schema 5. Delays, offline access,
-authorization resolution, quota failure, process death, reboot, and repeated worker delivery never
-lose the captured date, duplicate a row, or mutate Room beyond the required timer close.
+idempotent exact-boundary close, then snapshots and exports the active canonical projection.
+Foreground boundary handling and startup/resume reconciliation may execute an overdue target
+without waiting for inexact WorkManager dispatch; WorkManager remains the durable background
+fallback. Delays, offline access, authorization resolution, quota failure, process death, reboot,
+and repeated worker delivery never lose the captured date, duplicate a row, or mutate Room beyond
+the required timer close. Milestone 33 changes that shared projection to schema 5 without changing
+this ordering policy.
+
+If another recovery caller closes the timer before the Main screen's active-timer tick, the Main
+screen still advances from yesterday to the new Today through an independent ZoneId-aware
+date-boundary signal. It does not advance an intentionally browsed historical date and does not
+poll, write Room, or depend on Google success.
 
 ### V3-REG-01 Unchanged product behavior
 

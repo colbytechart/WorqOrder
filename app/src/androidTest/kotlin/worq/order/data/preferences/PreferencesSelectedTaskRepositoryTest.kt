@@ -13,7 +13,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import worq.order.data.SelectedTaskState
@@ -53,6 +55,12 @@ class PreferencesSelectedTaskRepositoryTest {
             val recreated = PreferencesSelectedTaskRepository(dataStore)
             assertEquals(expected, recreated.readSelection())
 
+            assertFalse(recreated.clearIfSelected("newer-task"))
+            assertEquals(expected, recreated.readSelection())
+            assertTrue(recreated.clearIfSelected(expected.taskId))
+            assertNull(recreated.readSelection())
+
+            recreated.select(expected)
             recreated.clear()
             assertNull(recreated.readSelection())
             scope.cancel()

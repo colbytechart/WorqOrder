@@ -43,11 +43,20 @@ class PreferencesSelectedTaskRepository(
 
     override suspend fun clear() {
         dataStore.edit { preferences ->
-            preferences.remove(SELECTED_TASK_ID)
-            preferences.remove(SELECTED_SERIES_ID)
-            preferences.remove(SELECTED_ON_EPOCH_DAY)
-            preferences.remove(SELECTED_IN_ZONE_ID)
+            preferences.clearSelection()
         }
+    }
+
+    override suspend fun clearIfSelected(taskId: String): Boolean {
+        require(taskId.isNotBlank()) { "taskId must not be blank" }
+        var cleared = false
+        dataStore.edit { preferences ->
+            if (preferences[SELECTED_TASK_ID] == taskId) {
+                preferences.clearSelection()
+                cleared = true
+            }
+        }
+        return cleared
     }
 
     private fun selectionFromPreferences(
@@ -65,6 +74,13 @@ class PreferencesSelectedTaskRepository(
                 selectedInZone = ZoneId.of(selectedInZoneId),
             )
         }.getOrNull()
+    }
+
+    private fun androidx.datastore.preferences.core.MutablePreferences.clearSelection() {
+        remove(SELECTED_TASK_ID)
+        remove(SELECTED_SERIES_ID)
+        remove(SELECTED_ON_EPOCH_DAY)
+        remove(SELECTED_IN_ZONE_ID)
     }
 
     private companion object {

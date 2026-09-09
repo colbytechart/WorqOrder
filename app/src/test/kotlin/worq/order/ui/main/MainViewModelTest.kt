@@ -31,6 +31,8 @@ import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
 import worq.order.export.XlsxExportCoordinator
+import worq.order.export.automatic.AutomaticGoogleExportController
+import worq.order.export.automatic.AutomaticGoogleExportSettingResult
 import worq.order.export.csv.DocumentWriteResult
 import worq.order.export.google.GoogleSheetExportReceipt
 import worq.order.export.google.GoogleSheetsExportFailure
@@ -187,10 +189,7 @@ class MainViewModelTest {
 
             assertNull(fixture.selection.readSelection())
             assertFalse(viewModel.uiState.value.canStart)
-            assertEquals(
-                MainMessage.TIMING_SELECTION_CLEARED,
-                viewModel.uiState.value.message,
-            )
+            assertNull(viewModel.uiState.value.message)
             assertTrue(fixture.tasks.observeTasksForDate(TODAY).first().isEmpty())
             assertEquals(historical, fixture.tasks.readTaskWithClient(historical.id)?.task)
         }
@@ -529,6 +528,43 @@ class MainViewModelTest {
             viewModel.onEvent(MainEvent.ReturnToToday)
             runCurrent()
             assertEquals(TODAY, viewModel.uiState.value.displayedDate)
+        }
+
+    @Test
+    fun foregroundDateBoundaryAdvancesTodayWithoutAnActiveTimer() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.clock.instant = Instant.parse("2026-07-25T03:50:00Z")
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            fixture.clock.instant = Instant.parse("2026-07-25T04:00:01Z")
+            advanceTimeBy(Duration.ofMinutes(10).toMillis())
+            runCurrent()
+
+            assertEquals(TODAY.plusDays(1), viewModel.uiState.value.today)
+            assertEquals(TODAY.plusDays(1), viewModel.uiState.value.displayedDate)
+        }
+
+    @Test
+    fun foregroundDateBoundaryPreservesAnIntentionallyBrowsedDate() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.clock.instant = Instant.parse("2026-07-25T03:50:00Z")
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+            viewModel.onEvent(MainEvent.PreviousDate)
+            runCurrent()
+            val browsedDate = viewModel.uiState.value.displayedDate
+
+            fixture.clock.instant = Instant.parse("2026-07-25T04:00:01Z")
+            advanceTimeBy(Duration.ofMinutes(10).toMillis())
+            runCurrent()
+
+            assertEquals(TODAY.plusDays(1), viewModel.uiState.value.today)
+            assertEquals(browsedDate, viewModel.uiState.value.displayedDate)
         }
 
     @Test
@@ -1064,6 +1100,92 @@ class MainViewModelTest {
         }
 
     @Test
+    fun foregroundRecoveryClosesAtPinnedBoundaryAndSignalsPendingAutomaticExport() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY)
+            fixture.active.createActiveInterval(
+                taskId = task.id,
+                boundaryZoneId = NEW_YORK,
+                start = Instant.parse("2026-07-25T03:30:00Z"),
+            )
+            fixture.clock.instant = Instant.parse("2026-07-25T04:10:00Z")
+            val automaticExport = FakeAutomaticGoogleExportManager()
+
+            val viewModel = fixture.viewModel(automaticGoogleExport = automaticExport)
+            collectState(viewModel)
+            runCurrent()
+
+            assertEquals(1, automaticExport.timerStoppedCount)
+            assertNull(fixture.active.readActiveTimerSnapshot())
+            assertEquals(
+                Instant.parse("2026-07-25T04:00:00Z"),
+                fixture.tasks.readTaskWithIntervals(task.id)?.intervals?.single()?.stop,
+            )
+            assertNull(viewModel.uiState.value.message)
+        }
+
+    @Test
+    fun externalBoundaryCloseCannotStrandTheMainScreenOnYesterday() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.clock.instant = Instant.parse("2026-07-25T03:50:00Z")
+            val task = fixture.addTask(TODAY)
+            fixture.active.createActiveInterval(
+                taskId = task.id,
+                boundaryZoneId = NEW_YORK,
+                start = Instant.parse("2026-07-25T03:30:00Z"),
+            )
+            val viewModel = fixture.viewModel()
+            collectState(viewModel)
+            runCurrent()
+
+            fixture.clock.instant = Instant.parse("2026-07-25T04:00:01Z")
+            fixture.monotonic.nanos +=
+                Duration.ofMinutes(10).plusSeconds(1).toNanos()
+            fixture.normalizeActiveTimer()
+            runCurrent()
+            assertNull(fixture.active.readActiveTimerSnapshot())
+
+            advanceTimeBy(Duration.ofMinutes(10).toMillis())
+            runCurrent()
+
+            assertEquals(TODAY.plusDays(1), viewModel.uiState.value.today)
+            assertEquals(TODAY.plusDays(1), viewModel.uiState.value.displayedDate)
+        }
+
+    @Test
+    fun foregroundTickerStillSignalsAutomaticExportWhenBoundaryCloseCancelsItsActiveFlow() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = Fixture()
+            fixture.clock.instant = Instant.parse("2026-07-25T03:50:00Z")
+            val task = fixture.addTask(TODAY)
+            fixture.active.createActiveInterval(
+                taskId = task.id,
+                boundaryZoneId = NEW_YORK,
+                start = Instant.parse("2026-07-25T03:30:00Z"),
+            )
+            val automaticExport = FakeAutomaticGoogleExportManager()
+            val viewModel = fixture.viewModel(automaticGoogleExport = automaticExport)
+            collectState(viewModel)
+            runCurrent()
+            assertEquals(0, automaticExport.timerStoppedCount)
+
+            fixture.clock.instant = Instant.parse("2026-07-25T04:00:01Z")
+            fixture.monotonic.nanos += Duration.ofMinutes(10).plusSeconds(1).toNanos()
+            advanceTimeBy(MainViewModel.TIMER_REFRESH_MILLIS)
+            runCurrent()
+
+            assertNull(fixture.active.readActiveTimerSnapshot())
+            assertEquals(
+                Instant.parse("2026-07-25T04:00:00Z"),
+                fixture.tasks.readTaskWithIntervals(task.id)?.intervals?.single()?.stop,
+            )
+            assertEquals(1, automaticExport.timerStoppedCount)
+            assertNull(viewModel.uiState.value.message)
+        }
+
+    @Test
     fun repositoryBackedSelectionSurvivesViewModelRecreation() =
         runTest(mainDispatcherRule.dispatcher) {
             val fixture = Fixture()
@@ -1156,6 +1278,7 @@ class MainViewModelTest {
         private val csvExportCoordinator =
             CsvExportCoordinator(
                 taskRepository = tasks,
+                activeTimerRepository = active,
                 activeTimerNormalizer = normalizer,
                 clock = clock,
                 timerOperationLock = operationLock,
@@ -1165,6 +1288,7 @@ class MainViewModelTest {
                 snapshotCoordinator =
                     worq.order.export.ExportSnapshotCoordinator(
                         taskRepository = tasks,
+                        activeTimerRepository = active,
                         activeTimerNormalizer = normalizer,
                         clock = clock,
                         timerOperationLock = operationLock,
@@ -1182,6 +1306,7 @@ class MainViewModelTest {
 
         fun viewModel(
             runningTimerNotifications: RunningTimerNotificationController? = null,
+            automaticGoogleExport: AutomaticGoogleExportController? = null,
         ) =
             MainViewModel(
                 taskRepository = tasks,
@@ -1200,6 +1325,7 @@ class MainViewModelTest {
                 xlsxExportCoordinator = xlsxExportCoordinator,
                 documentOutputDestination = document,
                 binaryDocumentOutputDestination = binaryDocument,
+                automaticGoogleExportManager = automaticGoogleExport,
                 runningTimerNotificationController = runningTimerNotifications,
             )
 
@@ -1217,6 +1343,10 @@ class MainViewModelTest {
                     seriesId = seriesId,
                 ),
             )
+
+        suspend fun normalizeActiveTimer() {
+            normalizer.normalize(clock.now())
+        }
     }
 
     private class FakeRunningTimerNotifications(
@@ -1239,6 +1369,24 @@ class MainViewModelTest {
         override suspend fun recordDismissal(intervalId: String) {
             dismissedIntervals += intervalId
         }
+    }
+
+    private class FakeAutomaticGoogleExportManager : AutomaticGoogleExportController {
+        var timerStoppedCount = 0
+
+        override suspend fun setEnabled(
+            enabled: Boolean,
+        ): AutomaticGoogleExportSettingResult =
+            AutomaticGoogleExportSettingResult.Failed
+
+        override suspend fun onTimerStopped() {
+            timerStoppedCount += 1
+        }
+
+        override suspend fun completeInteractiveExport(
+            workDate: LocalDate,
+            result: GoogleSheetsExportOperationResult,
+        ) = Unit
     }
 
     private companion object {

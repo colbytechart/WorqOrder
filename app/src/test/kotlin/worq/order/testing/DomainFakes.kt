@@ -353,6 +353,19 @@ class FakeSelectedTaskRepository(
     override suspend fun clear() {
         state.value = null
     }
+
+    override suspend fun clearIfSelected(taskId: String): Boolean {
+        require(taskId.isNotBlank()) { "taskId must not be blank" }
+        while (true) {
+            val current = state.value ?: return false
+            if (current.taskId != taskId) {
+                return false
+            }
+            if (state.compareAndSet(current, null)) {
+                return true
+            }
+        }
+    }
 }
 
 class FakeTaskRepository : TaskRepository {
@@ -861,6 +874,16 @@ class FakeActiveTimerRepository(
             stop = stop,
         )
     }
+
+    override suspend fun closeActiveIntervalAtBoundary(
+        expectedIntervalId: String,
+        boundary: Instant,
+    ): ActiveTimerSnapshot? =
+        closeActiveInterval(
+            expectedIntervalId = expectedIntervalId,
+            boundaries = emptyList(),
+            stop = boundary,
+        )
 
     override suspend fun normalizeActiveInterval(
         expectedIntervalId: String,

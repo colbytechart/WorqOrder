@@ -822,6 +822,11 @@ entry points; Luna builds the detailed clock/zone/failure fixtures and manual bo
 Sol reviews races, idempotency, and absence of continuation data and alone closes the milestone.
 No exact alarm, app-owned wake lock, foreground stopwatch service, or tick write is permitted.
 
+**Implementation status:** complete. The exact pinned-zone boundary transaction, lifecycle and
+WorkManager integration, durable authorization/pending recovery, silent passive selection cleanup,
+and independent Main visible-date boundary signal passed the final Sol audit. The owner-run final
+gate passed 235 JVM tests, 108 connected tests, debug lint, and debug/release assembly.
+
 ### Milestone 33 — Singular Interval UI and canonical export schema 5
 
 **Task sequence:** Terra implements the singular Create/Edit/Main UI and the shared 13-column

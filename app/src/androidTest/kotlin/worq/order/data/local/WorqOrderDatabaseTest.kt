@@ -901,6 +901,68 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
+    fun boundaryCloseIsAtomicIdempotentAndCreatesNoContinuationRecords() =
+        runBlocking {
+            insertClient(id = "client-1")
+            insertTask(
+                id = "task-day-1",
+                clientId = "client-1",
+                workDateEpochDay = LocalDate.of(2026, 7, 24).toEpochDay(),
+            )
+            val repository =
+                RoomActiveTimerRepository(
+                    activeTimerDao = database.activeTimerDao(),
+                    idGenerator = QueueIdGenerator("boundary-interval", "unused-repeat-task"),
+                    clock = FixedClock(Instant.parse("2026-07-27T05:00:00Z")),
+                )
+            val created =
+                repository.createActiveInterval(
+                    taskId = "task-day-1",
+                    boundaryZoneId = TEST_ZONE,
+                    start = Instant.parse("2026-07-25T03:30:00Z"),
+                ) as CreateActiveIntervalResult.Created
+            val firstBoundary = Instant.parse("2026-07-25T04:00:00Z")
+
+            val attempts =
+                coroutineScope {
+                    List(2) {
+                        async(Dispatchers.IO) {
+                            repository.closeActiveIntervalAtBoundary(
+                                expectedIntervalId = created.snapshot.interval.id,
+                                boundary = firstBoundary,
+                            )
+                        }
+                    }.awaitAll()
+                }
+            val closed = requireNotNull(attempts.singleOrNull { it != null })
+            val repeated =
+                repository.closeActiveIntervalAtBoundary(
+                    expectedIntervalId = created.snapshot.interval.id,
+                    boundary = firstBoundary,
+                )
+
+            assertEquals(firstBoundary, closed.interval.stop)
+            assertEquals(1, attempts.count { it != null })
+            assertNull(repeated)
+            assertNull(database.activeTimerDao().readActiveTimer())
+            assertEquals(1, database.workIntervalDao().countIntervalsForTask("task-day-1"))
+            assertEquals(
+                1,
+                database.taskDao()
+                    .observeTasksForWorkDate(LocalDate.of(2026, 7, 24).toEpochDay())
+                    .first()
+                    .size,
+            )
+            assertEquals(
+                0,
+                database.taskDao()
+                    .observeTasksForWorkDate(LocalDate.of(2026, 7, 25).toEpochDay())
+                    .first()
+                    .size,
+            )
+        }
+
+    @Test
     fun orphanOpenIntervalIsReportedInsteadOfBeingTreatedAsStopped() =
         runBlocking {
             insertClient(id = "client-1")

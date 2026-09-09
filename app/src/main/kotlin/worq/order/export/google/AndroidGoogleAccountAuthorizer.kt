@@ -98,10 +98,11 @@ class AndroidGoogleAccountAuthorizer(
                 .spreadsheetPickerRequest(spreadsheetId),
         )
 
-    override suspend fun authorizeConnectedSpreadsheet():
-        GoogleAuthorizationResult =
+    override suspend fun authorizeConnectedSpreadsheet(
+        accountId: String,
+    ): GoogleAuthorizationResult =
         authorize(
-            GoogleAuthorizationRequestFactory.connectedSpreadsheetRequest(),
+            GoogleAuthorizationRequestFactory.connectedSpreadsheetRequest(accountId),
         )
 
     private suspend fun authorize(

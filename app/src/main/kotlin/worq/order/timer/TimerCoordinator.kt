@@ -64,6 +64,11 @@ sealed interface NormalizeTimerResult {
         val snapshot: ActiveTimerSnapshot,
         val splitCount: Int,
     ) : NormalizeTimerResult
+
+    data class ClosedAtBoundary(
+        val snapshot: ActiveTimerSnapshot,
+        val boundary: Instant,
+    ) : NormalizeTimerResult
 }
 
 class TimerOperationLock(
@@ -77,9 +82,17 @@ class ActiveTimerNormalizer(
     private val clock: UtcClock,
     private val liveTimerSession: LiveTimerSession,
     private val operationLock: TimerOperationLock,
-) {
-    suspend fun normalize(
-        evaluationInstant: Instant = clock.now(),
+    private val boundaryCloser: ActiveTimerBoundaryCloser =
+        ActiveTimerBoundaryCloser(
+            activeTimerRepository = activeTimerRepository,
+            selectedTaskRepository = selectedTaskRepository,
+            liveTimerSession = liveTimerSession,
+        ),
+) : ActiveTimerBoundaryReconciler {
+    suspend fun normalize(): NormalizeTimerResult = normalize(clock.now())
+
+    override suspend fun normalize(
+        evaluationInstant: Instant,
     ): NormalizeTimerResult =
         operationLock.mutex.withLock {
             normalizeWhileLocked(evaluationInstant)
@@ -125,51 +138,28 @@ class ActiveTimerNormalizer(
             )
         }
 
-        val boundaries =
-            MidnightBoundaryCalculator.boundaries(
-                segmentStart = current.interval.start,
-                endpoint = normalizationInstant,
-                zoneId = current.activeTimer.boundaryZoneId,
-                includeEndpoint = true,
-            )
-        if (boundaries.isEmpty()) {
-            recoverLiveSessionIfNeeded(
-                snapshot = current,
-                evaluationInstant = evaluationInstant,
-            )
-            return NormalizeTimerResult.NoChange
+        return when (
+            val boundaryResult =
+                boundaryCloser.closeIfReached(
+                    snapshot = current,
+                    evaluationInstant = normalizationInstant,
+                )
+        ) {
+            BoundaryCloseResult.BeforeBoundary -> {
+                recoverLiveSessionIfNeeded(
+                    snapshot = current,
+                    evaluationInstant = evaluationInstant,
+                )
+                NormalizeTimerResult.NoChange
+            }
+            BoundaryCloseResult.ActiveTimerChanged ->
+                NormalizeTimerResult.ActiveTimerChanged
+            is BoundaryCloseResult.Closed ->
+                NormalizeTimerResult.ClosedAtBoundary(
+                    snapshot = boundaryResult.snapshot,
+                    boundary = boundaryResult.boundary,
+                )
         }
-
-        val normalized =
-            activeTimerRepository.normalizeActiveInterval(
-                expectedIntervalId = current.interval.id,
-                boundaries = boundaries,
-            ) ?: return NormalizeTimerResult.ActiveTimerChanged
-        val task =
-            taskRepository.readTaskWithClient(normalized.interval.taskId)?.task
-                ?: return NormalizeTimerResult.ActiveTimerChanged
-        selectedTaskRepository.select(
-            SelectedTaskState(
-                taskId = task.id,
-                seriesId = task.seriesId,
-                selectedOnDate = task.workDate,
-                selectedInZone = normalized.activeTimer.boundaryZoneId,
-            ),
-        )
-        val completedTotal =
-            Duration.ofMillis(
-                taskRepository.readCompletedDurationMillis(task.id),
-            )
-        liveTimerSession.recover(
-            intervalId = normalized.interval.id,
-            completedTotal = completedTotal,
-            intervalStart = normalized.interval.start,
-            wallNow = normalizationInstant,
-        )
-        return NormalizeTimerResult.Normalized(
-            snapshot = normalized,
-            splitCount = boundaries.size,
-        )
     }
 
     private suspend fun recoverLiveSessionIfNeeded(
@@ -203,6 +193,12 @@ class TimerCoordinator(
     private val zoneIdProvider: EffectiveZoneIdProvider,
     private val liveTimerSession: LiveTimerSession,
     private val operationLock: TimerOperationLock,
+    private val boundaryCloser: ActiveTimerBoundaryCloser =
+        ActiveTimerBoundaryCloser(
+            activeTimerRepository = activeTimerRepository,
+            selectedTaskRepository = selectedTaskRepository,
+            liveTimerSession = liveTimerSession,
+        ),
 ) {
     suspend fun start(): StartTimerResult =
         operationLock.mutex.withLock {
@@ -288,17 +284,26 @@ class TimerCoordinator(
                     attemptedStop = wallStop,
                 )
             }
-            val boundaries =
-                MidnightBoundaryCalculator.boundaries(
-                    segmentStart = current.interval.start,
-                    endpoint = stop,
-                    zoneId = current.activeTimer.boundaryZoneId,
-                    includeEndpoint = false,
-                )
+            when (
+                val boundaryResult =
+                    boundaryCloser.closeIfReached(
+                        snapshot = current,
+                        evaluationInstant = stop,
+                    )
+            ) {
+                BoundaryCloseResult.ActiveTimerChanged ->
+                    return@withLock StopTimerResult.ActiveTimerChanged
+                is BoundaryCloseResult.Closed ->
+                    return@withLock StopTimerResult.Stopped(
+                        interval = boundaryResult.snapshot.interval,
+                        splitCount = 1,
+                    )
+                BoundaryCloseResult.BeforeBoundary -> Unit
+            }
             val closed =
                 activeTimerRepository.closeActiveInterval(
                     expectedIntervalId = current.interval.id,
-                    boundaries = boundaries,
+                    boundaries = emptyList(),
                     stop = stop,
                 ) ?: return@withLock StopTimerResult.ActiveTimerChanged
             val finalTask = taskRepository.readTaskWithClient(closed.interval.taskId)?.task
@@ -315,7 +320,7 @@ class TimerCoordinator(
             liveTimerSession.clear()
             StopTimerResult.Stopped(
                 interval = closed.interval,
-                splitCount = boundaries.size,
+                splitCount = 0,
             )
         }
 }

@@ -40,6 +40,22 @@ interface ActiveTimerRepository {
     suspend fun closeActiveInterval(stop: Instant): ActiveTimerSnapshot?
 
     /**
+     * Atomically closes the expected sole open interval at an exact local-date boundary and
+     * clears the singleton active-timer row. No continuation task or interval is created.
+     *
+     * Null means another operation already changed or closed the expected active interval.
+     */
+    suspend fun closeActiveIntervalAtBoundary(
+        expectedIntervalId: String,
+        boundary: Instant,
+    ): ActiveTimerSnapshot? =
+        closeActiveInterval(
+            expectedIntervalId = expectedIntervalId,
+            boundaries = emptyList(),
+            stop = boundary,
+        )
+
+    /**
      * Atomically closes the current open segment at every boundary, creates or finds each daily
      * continuation task, and retargets the singleton active-timer pointer.
      *

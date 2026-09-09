@@ -515,3 +515,36 @@ network, boot, wake-lock, `FOREGROUND_SERVICE`, job service, system foreground s
 reschedule components. WorqOrder never promotes the automatic-export worker to foreground work and
 does not use that library service for timer display. Other exported library components are guarded
 by `DUMP`, `BIND_JOB_SERVICE`, or Google revocation permissions.
+
+## 14. Milestone 32 midnight and automatic-export quality gate
+
+Milestone 32 replaces the released continuation behavior with one idempotent exact-boundary close
+in the active timer's pinned geographical ZoneId. The transaction closes the expected sole open
+interval, clears the singleton timer, and creates no task or interval. Foreground, startup,
+Activity, boot, export, and WorkManager callers converge on this operation; an independent
+lifecycle-collected boundary signal advances Main from yesterday when another caller wins the
+close race. Automatic Google work exports its preserved prior date only after closure and retains
+typed pending state through authorization, offline, permission, quota, and process-recovery paths.
+
+The final repository audit found no new continuation caller, exact alarm, app-owned wake lock,
+foreground stopwatch service, background tick loop, or UI-refresh persistence. The legacy split
+methods remain isolated compatibility material for the later classified cleanup milestone.
+`git diff --check` reported no whitespace errors; its CRLF/LF messages are informational working-
+copy notices.
+
+Final owner-run results:
+
+- `testDebugUnitTest`: 235 tests, zero failures/errors/skips.
+- `connectedDebugAndroidTest`: 108 tests, zero failures/errors/skips, 149.206 seconds.
+- Isolated `MainScreenTest.csvExportShowsDateProgressAndSuccessState`: passed before the full
+  connected rerun. Its earlier empty failure was a native emulator EGL `RenderThread` crash.
+- `lintDebug`: passed with zero errors.
+- `assembleDebug` and `assembleRelease`: passed.
+- `installDebug`: passed; the Android Gradle Plugin's connected-test cleanup intentionally removes
+  its temporary app/test packages, so visual inspection uses a subsequent debug install.
+
+The owner manually confirmed exact midnight closure without a duplicate continuation, preserved
+pending export completion, and successful automatic captured-date Google export while defects were
+being corrected. The final combined real-midnight visible-date scenario remains a later
+release-candidate smoke check; deterministic ViewModel coverage proves the corrected race. No
+Milestone 32 release blocker remains.

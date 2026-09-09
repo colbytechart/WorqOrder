@@ -217,8 +217,9 @@ class GoogleConnectionCoordinatorTest {
         ): GoogleAuthorizationResult =
             GoogleAuthorizationResult.Authorized(token, pickedIds)
 
-        override suspend fun authorizeConnectedSpreadsheet():
-            GoogleAuthorizationResult =
+        override suspend fun authorizeConnectedSpreadsheet(
+            accountId: String,
+        ): GoogleAuthorizationResult =
             GoogleAuthorizationResult.Authorized(token, emptySet())
 
         override suspend fun clearToken(accessToken: GoogleAccessToken) {

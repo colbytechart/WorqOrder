@@ -5,6 +5,18 @@ import java.time.ZoneId
 import worq.order.data.TimerSplitBoundary
 
 object MidnightBoundaryCalculator {
+    /** Returns the first real start-of-day instant after [segmentStart] in [zoneId]. */
+    fun firstBoundaryAfter(
+        segmentStart: Instant,
+        zoneId: ZoneId,
+    ): Instant =
+        segmentStart
+            .atZone(zoneId)
+            .toLocalDate()
+            .plusDays(1)
+            .atStartOfDay(zoneId)
+            .toInstant()
+
     /**
      * Finds every real local-date boundary after [segmentStart] and before [endpoint].
      *

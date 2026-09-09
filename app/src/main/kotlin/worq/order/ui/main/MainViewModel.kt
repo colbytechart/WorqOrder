@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
@@ -150,7 +151,7 @@ class MainViewModel(
 
     val effects = mutableEffects.asSharedFlow()
 
-    private val timerTicks: Flow<Unit> =
+    private val activeTimerTicks: Flow<Unit> =
         rawState
             .map { state ->
                 (state.activeTimer as? MainLoad.Value<ActivePresentation?>)
@@ -170,14 +171,49 @@ class MainViewModel(
                         }
                     }
                 }
-            }.onEach {
+            }
+
+    /**
+     * Keeps the visible calendar day independent of Room's active-timer flow. The flow sleeps
+     * directly until the next real midnight in the effective geographical ZoneId, so an external
+     * boundary close cannot cancel the only signal that advances a Main screen following Today.
+     */
+    private val dateBoundaryTicks: Flow<Unit> =
+        zoneIdProvider
+            .observeZoneId()
+            .distinctUntilChanged()
+            .flatMapLatest { zoneId ->
+                flow {
+                    while (true) {
+                        val now = utcClock.now()
+                        val nextBoundary =
+                            now
+                                .atZone(zoneId)
+                                .toLocalDate()
+                                .plusDays(1)
+                                .atStartOfDay(zoneId)
+                                .toInstant()
+                        delay(
+                            Duration
+                                .between(now, nextBoundary)
+                                .toMillis()
+                                .coerceAtLeast(1L),
+                        )
+                        emit(Unit)
+                    }
+                }
+            }
+
+    private val presentationTicks: Flow<Unit> =
+        merge(activeTimerTicks, dateBoundaryTicks)
+            .onEach {
                 reconcileChangedDateIfNeeded()
             }.onStart {
                 emit(Unit)
             }
 
     val uiState: StateFlow<MainUiState> =
-        combine(rawState, timerTicks) { state, _ ->
+        combine(rawState, presentationTicks) { state, _ ->
             state.toUiState()
         }.stateIn(
             scope = viewModelScope,
@@ -586,6 +622,9 @@ class MainViewModel(
                         return@withLock
                     }
                 applyRecoveryMessage(recovery)
+                if (recovery is TimerRecoveryResult.ClosedAtBoundary) {
+                    launchAutomaticExportAfterBoundary()
+                }
                 runCatching { runningTimerNotificationController?.reconcile() }
             }
         }
@@ -614,7 +653,11 @@ class MainViewModel(
         }
         try {
             lifecycleRefreshMutex.withLock {
-                applyRecoveryMessage(timerRecoveryCoordinator.recover())
+                val recovery = timerRecoveryCoordinator.recover()
+                applyRecoveryMessage(recovery)
+                if (recovery is TimerRecoveryResult.ClosedAtBoundary) {
+                    launchAutomaticExportAfterBoundary()
+                }
                 runCatching { runningTimerNotificationController?.reconcile() }
             }
         } catch (cancellation: CancellationException) {
@@ -622,6 +665,25 @@ class MainViewModel(
         } catch (_: Exception) {
             rawState.update {
                 it.copy(message = MainMessage.DATA_UNAVAILABLE)
+            }
+        }
+    }
+
+    /**
+     * Room closing the interval removes it from [rawState], which cancels the active-only ticker
+     * flow that requested recovery. Launch the post-close export callback in the ViewModel scope
+     * so that self-cancellation cannot strand the durable automatic-export target.
+     */
+    private fun launchAutomaticExportAfterBoundary() {
+        val manager = automaticGoogleExportManager ?: return
+        viewModelScope.launch {
+            try {
+                manager.onTimerStopped()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                // The automatic-export manager persists typed failures when it begins an attempt.
+                // A later application/Activity reconcile retains the durable target as fallback.
             }
         }
     }
@@ -647,7 +709,10 @@ class MainViewModel(
             when (recovery) {
                 is TimerRecoveryResult.ClockChanged -> MainMessage.CLOCK_CHANGED
                 is TimerRecoveryResult.ActiveTimerChanged -> MainMessage.DATA_UNAVAILABLE
-                is TimerRecoveryResult.Recovered -> recovery.selectionResult.toMainMessage()
+                is TimerRecoveryResult.ClosedAtBoundary -> null
+                // Clearing yesterday's persisted selection during passive startup/resume recovery
+                // is normal under the no-rollover policy, not a user-facing timing error.
+                is TimerRecoveryResult.Recovered -> null
             }
         if (message != null) {
             rawState.update { it.copy(message = message) }

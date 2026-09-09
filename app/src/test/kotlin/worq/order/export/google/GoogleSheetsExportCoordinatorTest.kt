@@ -71,6 +71,36 @@ class GoogleSheetsExportCoordinatorTest {
         }
 
     @Test
+    fun authorizationRequiredCanBeRetriedInteractivelyAndRestoresConnection() =
+        runTest {
+            val fixture = Fixture()
+            fixture.connect()
+            fixture.authorizer.authorizationResult =
+                GoogleAuthorizationResult.AuthorizationRequired
+
+            assertEquals(
+                GoogleSheetsExportOperationResult.AuthorizationRequired,
+                fixture.coordinator.export(WORK_DATE),
+            )
+            assertFalse(fixture.repository.readConnection().isConnected)
+
+            fixture.authorizer.authorizationResult =
+                GoogleAuthorizationResult.Authorized(
+                    fixture.authorizer.token,
+                    emptySet(),
+                )
+            assertTrue(
+                fixture.coordinator.export(WORK_DATE) is
+                    GoogleSheetsExportOperationResult.Success,
+            )
+            assertTrue(fixture.repository.readConnection().isConnected)
+            assertEquals(
+                "person@example.com",
+                fixture.authorizer.requestedAccountIds.last(),
+            )
+        }
+
+    @Test
     fun gatewayFailuresRemainTypedAndRetryableWithoutConnectionMutation() =
         runTest {
             val fixture = Fixture()
@@ -223,6 +253,7 @@ class GoogleSheetsExportCoordinatorTest {
             GoogleAuthorizationResult.Authorized(token, emptySet())
         var authorizationCalls = 0
         var clearedTokens = 0
+        val requestedAccountIds = mutableListOf<String>()
 
         override suspend fun signIn(): GoogleSignInResult =
             error("Not used by export")
@@ -231,9 +262,11 @@ class GoogleSheetsExportCoordinatorTest {
             spreadsheetId: String,
         ): GoogleAuthorizationResult = error("Not used by export")
 
-        override suspend fun authorizeConnectedSpreadsheet():
-            GoogleAuthorizationResult {
+        override suspend fun authorizeConnectedSpreadsheet(
+            accountId: String,
+        ): GoogleAuthorizationResult {
             authorizationCalls += 1
+            requestedAccountIds += accountId
             return authorizationResult
         }
 

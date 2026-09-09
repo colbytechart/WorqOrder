@@ -62,7 +62,9 @@ interface GoogleAccountAuthorizer {
         spreadsheetId: String,
     ): GoogleAuthorizationResult
 
-    suspend fun authorizeConnectedSpreadsheet(): GoogleAuthorizationResult
+    suspend fun authorizeConnectedSpreadsheet(
+        accountId: String,
+    ): GoogleAuthorizationResult
 
     suspend fun clearToken(accessToken: GoogleAccessToken)
 

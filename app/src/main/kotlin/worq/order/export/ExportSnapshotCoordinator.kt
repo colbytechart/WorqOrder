@@ -2,6 +2,7 @@ package worq.order.export
 
 import java.time.LocalDate
 import kotlinx.coroutines.sync.withLock
+import worq.order.data.ActiveTimerRepository
 import worq.order.data.TaskRepository
 import worq.order.timer.ActiveTimerNormalizer
 import worq.order.timer.NormalizeTimerResult
@@ -16,6 +17,9 @@ sealed interface PrepareExportSnapshotResult {
     data object ClockChanged : PrepareExportSnapshotResult
 
     data object ActiveTimerChanged : PrepareExportSnapshotResult
+
+    /** A stable export is never built while Room still owns an open interval. */
+    data object ActiveTimerRunning : PrepareExportSnapshotResult
 }
 
 fun interface ExportSnapshotProvider {
@@ -30,6 +34,7 @@ fun interface ExportSnapshotProvider {
  */
 class ExportSnapshotCoordinator(
     private val taskRepository: TaskRepository,
+    private val activeTimerRepository: ActiveTimerRepository,
     private val activeTimerNormalizer: ActiveTimerNormalizer,
     private val clock: UtcClock,
     private val timerOperationLock: TimerOperationLock,
@@ -45,8 +50,12 @@ class ExportSnapshotCoordinator(
                     return@withLock PrepareExportSnapshotResult.ActiveTimerChanged
                 NormalizeTimerResult.NoActiveTimer,
                 NormalizeTimerResult.NoChange,
+                is NormalizeTimerResult.ClosedAtBoundary,
                 is NormalizeTimerResult.Normalized,
                 -> Unit
+            }
+            if (activeTimerRepository.readActiveTimerSnapshot() != null) {
+                return@withLock PrepareExportSnapshotResult.ActiveTimerRunning
             }
             val tasks = taskRepository.readTasksWithIntervalsForDate(workDate)
             PrepareExportSnapshotResult.Ready(

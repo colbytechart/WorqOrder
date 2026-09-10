@@ -76,9 +76,9 @@ nothing. Tapping a task row selects it when no timer is running.
 - Choose **Start**. WorqOrder creates one open interval in Room.
 - Choose **Stop** to close the interval.
 
-The timer shows all completed intervals for the selected daily task plus the current active
-interval. Selecting another task is blocked until Stop. Starting the same task again creates
-another interval and continues from its accumulated total.
+Each task has zero or one interval. Selecting another task is blocked until Stop. Starting a
+task that already has a completed interval creates and selects a new same-day task carrying the
+source task's metadata, then starts that new task. The source task and its interval remain intact.
 
 Accumulated durations are displayed as `HH:MM:SS`. WorqOrder still records precise interval
 boundaries internally; fractional seconds are omitted from the interface to reduce visual clutter.
@@ -99,9 +99,9 @@ Use the previous/next arrows or calendar action in the pinned date controls. **T
 directly to the current date in the effective application time zone.
 
 Browsing another date does not move or rewrite tasks and does not stop a running timer. Live Start
-is available only while displaying today. If a timer crosses one or more local midnights,
-WorqOrder normalizes the data into corresponding daily task copies when it resumes, normalizes, or
-stops.
+is available only while displaying today. A timer that reaches local midnight closes its sole
+interval at the exact boundary in its pinned ZoneId and does not create a continuation task or
+interval. If Android resumes the process later, the same boundary is applied retrospectively.
 
 ## 6. Edit or Delete a Task
 

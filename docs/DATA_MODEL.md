@@ -352,9 +352,11 @@ Employee 1 ---- * DailyTask (nullable relationship for migrated history)
 Client   1 ---- * DailyTask 1 ---- * WorkInterval
 ```
 
-Daily rollover and midnight continuation copy the source daily task's employee ID/name snapshot,
-Work Type, Billing Status (including null), Mileage, client, description, and purchases into the new daily copy. They do not
-re-resolve the employee name from the current directory and never alter the preceding task.
+Released `0.2.0` daily rollover and midnight continuation copied the source daily task's employee
+ID/name snapshot, Work Type, Billing Status (including null), Mileage, client, description, and
+purchases into a new daily copy. Current `0.3.0` behavior no longer performs either copy: date or
+midnight handling closes/clears the existing task's sole interval and leaves historical tasks
+unchanged.
 
 The explicit `MIGRATION_2_3` remains tested from a populated version-2 database containing
 active/archived clients, multiple tasks and intervals, and an open active timer. Destructive
@@ -362,7 +364,7 @@ migration remains prohibited. Milestone 27 adds `MIGRATION_3_4`, which adds only
 `billing_status` column. Populated version-1, version-2, and version-3 upgrade paths preserve their
 entire task/interval/active-timer graph and leave Billing Status null.
 
-## 14. Planned v0.3.0 Room schema 5
+## 14. Current v0.3.0 Room schema 5
 
 Schema 5 is a mandatory non-destructive upgrade from the released schema 4. Room remains the
 authoritative store. It changes task/interval cardinality and lineage indexes without flattening

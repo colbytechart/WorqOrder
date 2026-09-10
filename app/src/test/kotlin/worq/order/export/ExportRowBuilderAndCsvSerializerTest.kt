@@ -37,16 +37,14 @@ class ExportRowBuilderAndCsvSerializerTest {
                 "Work type",
                 "Billing Status",
                 "Mileage",
-                "Interval number",
                 "Start time",
                 "Stop time",
-                "Interval duration",
                 "Time spent",
                 "Billing minutes",
             ),
             ExportSchema.headers,
         )
-        assertEquals(4, snapshot.schemaVersion)
+        assertEquals(5, snapshot.schemaVersion)
         assertEquals(
             ExportSchema.headers.joinToString(",") + "\r\n",
             csv,
@@ -63,7 +61,7 @@ class ExportRowBuilderAndCsvSerializerTest {
     }
 
     @Test
-    fun zeroOneAndMultipleIntervalsUseOneRowPerIntervalInStableOrder() {
+    fun untimedAndTimedTasksUseOneRowPerTaskInStableOrder() {
         val zero =
             detail(
                 taskId = "zero",
@@ -86,26 +84,19 @@ class ExportRowBuilderAndCsvSerializerTest {
                         ),
                     ),
             )
-        val multiple =
+        val later =
             detail(
-                taskId = "multiple",
-                description = "Multiple",
+                taskId = "later",
+                description = "Later",
                 createdAt = Instant.parse("2026-07-24T12:00:00Z"),
                 intervals =
                     listOf(
                         interval(
-                            id = "later",
-                            taskId = "multiple",
+                            id = "later-interval",
+                            taskId = "later",
                             ordinal = 1,
                             start = Instant.parse("2026-07-24T15:00:00Z"),
                             stop = Instant.parse("2026-07-24T16:00:00Z"),
-                        ),
-                        interval(
-                            id = "earlier",
-                            taskId = "multiple",
-                            ordinal = 2,
-                            start = Instant.parse("2026-07-24T13:00:00Z"),
-                            stop = Instant.parse("2026-07-24T14:00:00Z"),
                         ),
                     ),
             )
@@ -114,7 +105,7 @@ class ExportRowBuilderAndCsvSerializerTest {
             builder.build(
                 workDate = WORK_DATE,
                 exportedAt = EXPORTED_AT,
-                tasks = listOf(multiple, one, zero),
+                tasks = listOf(later, one, zero),
             )
         val second =
             builder.build(
@@ -124,22 +115,20 @@ class ExportRowBuilderAndCsvSerializerTest {
                     listOf(
                         zero,
                         one,
-                        multiple.copy(intervals = multiple.intervals.reversed()),
+                        later,
                     ),
             )
 
-        assertEquals(4, first.rows.size)
+        assertEquals(3, first.rows.size)
         assertEquals(
-            listOf("Zero", "One", "Multiple", "Multiple"),
+            listOf("Zero", "One", "Later"),
             first.rows.map { it["Description"] },
         )
         assertEquals(
-            listOf("", "08:00 AM", "09:00 AM", "11:00 AM"),
+            listOf("", "08:00 AM", "11:00 AM"),
             first.rows.map { it["Start time"] },
         )
-        assertEquals("", first.rows.first()["Interval number"])
         assertEquals("", first.rows.first()["Billing Status"])
-        assertEquals("", first.rows.first()["Interval duration"])
         assertEquals("00:00:00", first.rows.first()["Time spent"])
         assertEquals("0", first.rows.first()["Billing minutes"])
         assertEquals(
@@ -225,46 +214,10 @@ class ExportRowBuilderAndCsvSerializerTest {
         val repeatedHourRow =
             snapshot.rows.first { it["Description"] == "Repeated" }
 
-        assertEquals("25:00:00", longRow["Interval duration"])
         assertEquals("25:00:00", longRow["Time spent"])
         assertEquals("1500", longRow["Billing minutes"])
         assertEquals("01:30 AM", repeatedHourRow["Start time"])
         assertEquals("01:30 AM", repeatedHourRow["Stop time"])
-    }
-
-    @Test
-    fun runningIntervalUsesOneExportInstantAndLeavesStopBlank() {
-        val running =
-            detail(
-                taskId = "running",
-                intervals =
-                    listOf(
-                        interval(
-                            id = "open",
-                            taskId = "running",
-                            ordinal = 1,
-                            start = Instant.parse("2026-07-24T12:00:00Z"),
-                            stop = null,
-                        ),
-                    ),
-            )
-
-        val snapshot =
-            builder.build(
-                workDate = WORK_DATE,
-                exportedAt = Instant.parse("2026-07-24T13:30:00Z"),
-                tasks = listOf(running),
-            )
-        val row = snapshot.rows.single()
-
-        assertEquals("", row["Stop time"])
-        assertEquals("01:30:00", row["Interval duration"])
-        assertEquals("01:30:00", row["Time spent"])
-        assertEquals(
-            "2026-07-24T13:30:00Z",
-            snapshot.exportedAt.toString(),
-        )
-        assertEquals(4, snapshot.schemaVersion)
     }
 
     @Test
@@ -286,7 +239,6 @@ class ExportRowBuilderAndCsvSerializerTest {
 
         val row = builder.build(WORK_DATE, EXPORTED_AT, listOf(detail)).rows.single()
 
-        assertEquals("01:00:00", row["Interval duration"])
         assertEquals("01:00:00", row["Time spent"])
     }
 
@@ -294,7 +246,7 @@ class ExportRowBuilderAndCsvSerializerTest {
     fun consultantWorkTypeBillingStatusMileageAndBillingMinutesUseCanonicalSchemaOnce() {
         val detail =
             detail(
-                taskId = "v4",
+                taskId = "v5",
                 employee = "Alex Rivera",
                 workType = WorkType.ON_SITE,
                 billingStatus = BillingStatus.DO_NOT_CHARGE,
@@ -302,8 +254,8 @@ class ExportRowBuilderAndCsvSerializerTest {
                 intervals =
                     listOf(
                         interval(
-                            id = "v4-interval",
-                            taskId = "v4",
+                            id = "v5-interval",
+                            taskId = "v5",
                             ordinal = 1,
                             start = Instant.parse("2026-07-24T12:00:00Z"),
                             stop = Instant.parse("2026-07-24T12:12:32Z"),

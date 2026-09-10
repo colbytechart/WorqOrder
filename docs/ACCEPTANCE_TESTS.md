@@ -387,15 +387,15 @@ Given Jul 22 is displayed while today is Jul 23, CSV uses only Jul 22 rows and s
 
 ### CSV-02 Exact schema
 
-Header and each row use schema version 2's exact nine visible columns and canonical strings in the
-documented order. Internal schema/snapshot metadata is not a visible column. A date with no tasks
-has only a header; a zero-interval task has one row with blank interval number/start/stop/duration
-and `00:00:00` task total.
+Header and each row use current schema version 5's exact 13 visible columns and canonical strings
+in the documented order. Internal schema/snapshot metadata is not a visible column. A date with no
+tasks has only a header; an untimed task has one row with blank Start/Stop, `00:00:00` Time spent,
+and `0` Billing minutes.
 
-### CSV-03 One row per interval
+### CSV-03 One row per task
 
-A task with three intervals produces exactly three rows with repeated task/client metadata,
-including hardware/software-purchases text, and stable interval ordinals.
+A task produces exactly one row with its task/client metadata and optional sole interval values,
+including hardware/software-purchases text. A task with no interval still produces one row.
 
 ### CSV-04 Escaping/Unicode
 
@@ -442,8 +442,8 @@ without visible feedback.
 ### CSV-11 Shared snapshot boundary
 
 `ExportSnapshotCoordinator` performs normalization/read/build once and returns the immutable
-canonical dataset (nine columns in released `0.1.0`, 15 in implemented schema-version-4 `0.2.0`). CSV serialization
-changes no field/order/value. XLSX/Google adapters
+current schema-5 dataset of 13 columns. Released `0.1.0` and `0.2.0` schema versions remain
+historical compatibility fixtures. CSV serialization changes no field/order/value. XLSX/Google adapters
 consume the same object rather than rebuilding destination-specific rows.
 
 ## 9. Google Sheets
@@ -514,7 +514,7 @@ written as `UpdateCellsRequest.userEnteredValue.stringValue`, not executable for
 ### GS-10A Shared visible table and capacity
 
 Row 1 and every visible row exactly match CSV/XLSX headers, order, and canonical strings. Marker
-metadata is not visible. Re-export clears stale rows and right-sizes the grid to nine columns and
+metadata is not visible. Re-export clears stale rows and right-sizes the grid to 13 columns and
 required rows so unused allocation does not unnecessarily consume the official 10-million-cell
 spreadsheet limit.
 
@@ -984,6 +984,10 @@ V3-EXPORT-03. Its deterministic clock/ZoneId, typed-pending, authorization-recov
 visible-date, and no-duplicate-export coverage passed the final Sol quality gate. The owner-run
 project-local gate passed 235 JVM tests and 108 connected tests with no failures; debug lint and
 both debug/release builds also passed.
+
+Milestone 33 activates V3-EXPORT-01/V3-EXPORT-02 and the singular Edit Task presentation in
+V3-TMR-03. Its owner-run final gate passed 235 JVM tests and 109 connected tests with zero failures,
+errors, or skips; debug/release lint and debug, Android-test, and release assembly also passed.
 
 ### V3-DB-01 Non-destructive schema 4-to-5 migration
 

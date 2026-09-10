@@ -75,7 +75,7 @@ class CsvExportCoordinatorTest {
             assertTrue(csvResult is PrepareCsvExportResult.Ready)
             val snapshot =
                 (snapshotResult as PrepareExportSnapshotResult.Ready).snapshot
-            assertEquals(4, snapshot.schemaVersion)
+            assertEquals(5, snapshot.schemaVersion)
             assertEquals(
                 CsvSerializer().serialize(snapshot),
                 (csvResult as PrepareCsvExportResult.Ready).export.contents,

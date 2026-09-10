@@ -225,9 +225,9 @@ explicitly edited.
 ## 6. Tasks and interval editing
 
 A task-edit screen changes the daily task's consultant assignment, client, short description,
-**Hardware / Software Purchases**, Work Type, Billing Status, and Mileage and lists intervals chronologically. It
-supports manually adding an interval, editing a completed interval's start/stop, and deleting a
-completed interval through the same validation path.
+**Hardware / Software Purchases**, Work Type, Billing Status, and Mileage and shows its optional
+Interval. It supports manually adding one interval when untimed, editing a completed interval's
+start/stop, and deleting that completed interval through the same validation path.
 
 Routine interval cards omit the individual Duration field and show **Start Time** and **Stop
 Time** as task-zone local 12-hour `hh:mm a`, without seconds or an appended UTC offset. Task Total
@@ -310,7 +310,7 @@ and does not alter Room.
   fresh user-mediated create-document result.
 - Versioned, non-destructive migrations and Room schema exports begin at database version 1.
 - Selection persists as a preferred task-series ID plus the last concrete daily-task ID and the date/zone context in which that task was selected. Invalid references are repaired safely. The displayed date is not persisted; normal startup displays today.
-- When the effective local date or geographical zone changes, an eligible timing selection lazily finds or creates its new daily task using `(series ID, work date, assignment ZoneId)` uniqueness, copies the prior daily task's current client, short description, hardware/software-purchases text, Consultant snapshot, Work Type, Billing Status (including blank), and Mileage, and becomes selected. A task intentionally selected outside its own stored date/zone context remains view-only instead of being rolled. The zone context prevents a task assigned under a different zone from being silently repurposed.
+- In current `0.3.0` behavior, an effective local date or geographical zone change never finds or creates a daily task. An earlier-day timing selection is cleared, today begins without an automatically selected task, and the user selects or creates today's task explicitly. Historical `0.2.0` rollover records remain preserved by migration.
 - The current required production sequence does not add WorqOrder-managed at-rest encryption to
   Room or DataStore. Android's app sandbox remains the local access boundary; optional Milestone
   E retains the separately authorized encryption and non-destructive migration plan.
@@ -323,12 +323,13 @@ and does not alter Room.
 
 - CSV, XLSX, and Google Sheets use the same row model and stable column order defined in
   `EXPORT_SPEC.md`.
-- Version `0.2.0` advances the shared visible schema to exactly 15 columns: Start date, End date,
-  Consultant, Client, Description, Expense, Work type, Billing Status, Mileage, Interval number, Start time, Stop
-  time, Interval duration, Time spent, and Billing minutes. Both date values repeat the task's one
-  stored work date as `MM/DD/YYYY`; this export projection does not change in-app date behavior.
+- Current `0.3.0` schema 5 advances the shared visible schema to exactly 13 columns: Start date, End
+  date, Consultant, Client, Description, Expense, Work type, Billing Status, Mileage, Start time,
+  Stop time, Time spent, and Billing minutes. Both date values repeat the task's one stored work date
+  as `MM/DD/YYYY`; this export projection does not change in-app date behavior. The released `0.2.0`
+  schema-4 columns remain documented in its historical acceptance section.
   Destination adapters do not independently select or format fields.
-- CSV is UTF-8, RFC-style quoted, repeatable, and one row per interval; zero-interval tasks still emit one row.
+- CSV is UTF-8, RFC-style quoted, repeatable, and one row per task; untimed tasks still emit one row.
 - Every XLSX export creates one new standards-compliant, unencrypted OOXML workbook through
   `ACTION_CREATE_DOCUMENT`. It contains one `WorqOrder_YYYY-MM-DD` worksheet for the displayed
   date and never opens, reads, or updates an existing workbook.

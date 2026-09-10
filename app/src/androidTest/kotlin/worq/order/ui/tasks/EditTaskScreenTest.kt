@@ -1,5 +1,6 @@
 package worq.order.ui.tasks
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -31,16 +32,12 @@ class EditTaskScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun metadataAndOrderedIntervalsAreRenderedWithActions() {
+    fun metadataAndSingularIntervalAreRenderedWithActions() {
         val events = mutableListOf<EditTaskEvent>()
         setContent(
             state =
                 readyState().copy(
-                    intervals =
-                        listOf(
-                            interval(id = "first", ordinal = 1),
-                            interval(id = "second", ordinal = 2),
-                        ),
+                    interval = interval(id = "only"),
                 ),
             onEvent = events::add,
         )
@@ -62,40 +59,66 @@ class EditTaskScreenTest {
             .performScrollTo()
             .assertIsSelected()
         composeRule
-            .onNodeWithText("Interval 1")
+            .onNodeWithText("Interval")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onAllNodesWithText("Start Time: 09:00 AM").assertCountEquals(2)
-        composeRule.onAllNodesWithText("Stop Time: 10:00 AM").assertCountEquals(2)
+        composeRule.onAllNodesWithText("Start Time: 09:00 AM").assertCountEquals(1)
+        composeRule.onAllNodesWithText("Stop Time: 10:00 AM").assertCountEquals(1)
         composeRule.onAllNodesWithText("Duration: 01:00:00").assertCountEquals(0)
-        composeRule
-            .onNodeWithText("Interval 2")
-            .performScrollTo()
-            .assertIsDisplayed()
+        composeRule.onAllNodesWithText("Add interval").assertCountEquals(0)
+        composeRule.onNodeWithText("Edit interval").performScrollTo().performClick()
+
+        assertTrue(events.contains(EditTaskEvent.OpenEditInterval("only")))
+    }
+
+    @Test
+    fun untimedTaskOffersAddIntervalAndRunningTaskBlocksIntervalMutations() {
+        val uiState = mutableStateOf(readyState())
+        composeRule.setContent {
+            WorqOrderTheme(darkTheme = true) {
+                EditTaskScreen(uiState = uiState.value, onEvent = {})
+            }
+        }
+
         composeRule
             .onNodeWithText("Add interval")
             .performScrollTo()
             .assertIsEnabled()
             .performClick()
 
-        assertTrue(events.contains(EditTaskEvent.OpenAddInterval))
+        composeRule.runOnIdle {
+            uiState.value =
+                readyState().copy(
+                    isRunning = true,
+                    interval = interval(id = "running", isRunning = true),
+                )
+        }
+
+        composeRule.onNodeWithText("Save task changes").assertIsNotEnabled()
+        composeRule.onAllNodesWithText("Add interval").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Edit interval").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Delete interval").assertCountEquals(0)
+        composeRule
+            .onNodeWithText("Stop this task’s timer before editing or deleting it.")
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test
-    fun runningTaskDisablesMutatingActions() {
+    fun runningTaskDisablesMetadataAndTaskDeletion() {
         setContent(
             state =
                 readyState().copy(
                     isRunning = true,
-                    intervals = listOf(interval(id = "running", ordinal = 1)),
+                    interval = interval(id = "running", isRunning = true),
                 ),
         )
 
         composeRule.onNodeWithText("Save task changes").assertIsNotEnabled()
-        composeRule.onNodeWithText("Add interval").assertIsNotEnabled()
         composeRule.onNodeWithText("Delete task").assertIsNotEnabled()
         composeRule
             .onNodeWithText("Stop this task’s timer before editing or deleting it.")
+            .performScrollTo()
             .assertIsDisplayed()
     }
 
@@ -159,12 +182,11 @@ class EditTaskScreenTest {
 
     private fun interval(
         id: String,
-        ordinal: Int,
+        isRunning: Boolean = false,
     ) = IntervalItemUi(
         id = id,
-        ordinal = ordinal,
         startText = "09:00 AM",
         stopText = "10:00 AM",
-        isRunning = false,
+        isRunning = isRunning,
     )
 }

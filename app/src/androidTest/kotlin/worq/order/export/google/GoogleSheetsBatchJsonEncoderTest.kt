@@ -21,7 +21,7 @@ class GoogleSheetsBatchJsonEncoderTest {
                             sheetId = 42,
                             title = "WorqOrder_2026-07-24",
                             rowCount = 2,
-                            columnCount = 15,
+                            columnCount = 13,
                         ),
                         GoogleSheetsBatchRequest.CreateSheetMetadata(
                             sheetId = 42,
@@ -36,8 +36,10 @@ class GoogleSheetsBatchJsonEncoderTest {
                             sheetId = 42,
                             rows =
                                 listOf(
-                                    listOf("Header"),
-                                    listOf("=literal user text"),
+                                    List(13) { "Header" },
+                                    List(13) { index ->
+                                        if (index == 0) "=literal user text" else ""
+                                    },
                                 ),
                         ),
                     ),
@@ -56,6 +58,12 @@ class GoogleSheetsBatchJsonEncoderTest {
             "WorqOrder_2026-07-24",
             addProperties.getString("title"),
         )
+        assertEquals(
+            13,
+            addProperties
+                .getJSONObject("gridProperties")
+                .getInt("columnCount"),
+        )
 
         val metadata =
             requests
@@ -73,6 +81,12 @@ class GoogleSheetsBatchJsonEncoderTest {
                 .getJSONObject(2)
                 .getJSONObject("updateCells")
         assertEquals("userEnteredValue", update.getString("fields"))
+        assertEquals(
+            13,
+            update
+                .getJSONObject("range")
+                .getInt("endColumnIndex"),
+        )
         val literalValue =
             update
                 .getJSONArray("rows")
@@ -170,7 +184,7 @@ class GoogleSheetsBatchJsonEncoderTest {
     }
 
     @Test
-    fun encodesAtomicLegacySchemaMetadataUpgrade() {
+    fun encodesAtomicSchemaMetadataUpgradeToCurrentVersion() {
         val plan =
             GoogleSheetsBatchPlan(
                 tabName = "WorqOrder_2026-07-24",
@@ -178,7 +192,7 @@ class GoogleSheetsBatchJsonEncoderTest {
                     listOf(
                         GoogleSheetsBatchRequest.UpdateSheetMetadataValue(
                             metadataId = 22,
-                            value = "3",
+                            value = "5",
                         ),
                     ),
             )
@@ -190,7 +204,7 @@ class GoogleSheetsBatchJsonEncoderTest {
                 .getJSONObject("updateDeveloperMetadata")
 
         assertEquals("metadataValue", update.getString("fields"))
-        assertEquals("3", update.getJSONObject("developerMetadata").getString("metadataValue"))
+        assertEquals("5", update.getJSONObject("developerMetadata").getString("metadataValue"))
         assertEquals(
             22,
             update

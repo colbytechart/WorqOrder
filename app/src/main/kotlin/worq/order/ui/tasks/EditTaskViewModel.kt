@@ -189,7 +189,7 @@ class EditTaskViewModel(
                 mutableUiState.update { state ->
                     state.copy(
                         intervalPendingDeletion =
-                            state.intervals.firstOrNull { it.id == event.intervalId },
+                            state.interval?.takeIf { it.id == event.intervalId },
                     )
                 }
             EditTaskEvent.ConfirmDeleteInterval -> deleteInterval()
@@ -293,7 +293,7 @@ class EditTaskViewModel(
                         totalDuration = detail.completedDurationText(),
                         billingMinutes =
                             BillingMinutes.fromDuration(detail.completedDuration()),
-                        intervals = detail.intervals.map { it.toItem(task.zoneId) },
+                        interval = detail.intervals.singleOrNull()?.toItem(task.zoneId),
                         isRunning = isRunning,
                         message =
                             if (isRunning && state.hasUnsavedMetadataChanges) {
@@ -435,7 +435,7 @@ class EditTaskViewModel(
             mutableUiState.update { it.copy(message = EditTaskMessage.RUNNING_TASK) }
             return
         }
-        if (state.intervals.isNotEmpty()) {
+        if (state.interval != null) {
             mutableUiState.update {
                 it.copy(message = EditTaskMessage.TASK_ALREADY_HAS_INTERVAL)
             }
@@ -765,7 +765,6 @@ private fun TaskWithIntervals.completedDurationText(): String {
 private fun WorkInterval.toItem(zoneId: java.time.ZoneId): IntervalItemUi {
     return IntervalItemUi(
         id = id,
-        ordinal = ordinal,
         startText = ClockTimeFormatter.format(start, zoneId),
         stopText = stop?.let { ClockTimeFormatter.format(it, zoneId) }.orEmpty(),
         isRunning = stop == null,

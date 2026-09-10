@@ -1161,6 +1161,22 @@ completed export. No exact alarm, continuation record, app-owned wake lock, fore
 service, continuous background loop, or UI-tick database write was added. The final owner-run gate
 passed 235 JVM tests, 108 connected tests, debug lint, and debug/release assembly.
 
+### D-094 - Milestone 33 activates the singular interval and schema-5 projection
+
+The current `0.3.0` UI exposes at most one optional interval per task: untimed tasks offer Add
+Interval, while a completed interval offers Edit/Delete and a running interval remains locked.
+Starting a task that already has a completed interval creates a new same-day metadata-preserving
+task before opening its sole interval. The shared immutable export projection is schema 5 with
+exactly 13 visible columns and one row per task; CSV, one-off XLSX, manual Google, and automatic
+Google consume the same values. Known-owned Google schema-2/3/4 tabs may be upgraded by replacing
+the complete owned range, while unowned or unknown/newer tabs remain protected. The released
+`0.2.0` schema-4 projection remains a migration/compatibility fixture only.
+
+The owner-run Milestone 33 final gate passed 235 JVM tests and 109 connected tests with zero
+failures, errors, or skips. Debug/release lint and debug, Android-test, and release assembly also
+passed. The Sol review found no Room mutation, destination-specific projection, unsafe Google-tab
+overwrite, or singular-interval availability defect.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.

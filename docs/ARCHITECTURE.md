@@ -153,13 +153,12 @@ DAO and canonical export ordering remain independently stable.
 
 - `ClientRepository`: implemented in Milestone 2 with active/all-client `Flow` observations and add, rename, archive, and restore operations using one canonical-name validator. It returns typed invalid-name, duplicate-active-name, and not-found outcomes.
 - `TaskRepository`: observes dates/tasks, fetches joined/detail models, reads one transactional
-  joined task/client/ordered-interval snapshot for a requested export date, and atomically finds or creates
-  an exact `(series, date, zone)` copy from current source metadata (client, short description, and
-  hardware/software-purchases text), creates/updates/deletes daily tasks, inserts completed
-  intervals, and exposes ordered validation history and completed totals.
-- `ActiveTimerRepository`: observes/reads the singleton and delegates atomic open, multi-boundary
-  continuation, retarget, and final close operations to `ActiveTimerDao`. Eligibility and boundary
-  calculation remain outside the DAO.
+  joined task/client/optional-interval snapshot for a requested export date, creates/updates/deletes
+  daily tasks, inserts or replaces the sole completed interval, and exposes validation history and
+  completed totals. Date changes never create task records in current `0.3.0` behavior.
+- `ActiveTimerRepository`: observes/reads the singleton and delegates atomic open, exact-boundary
+  close, and final close operations to `ActiveTimerDao`. Eligibility and boundary calculation
+  remain outside the DAO.
 - `SettingsRepository`: provides typed Flow access to theme, zone mode/manual ID, default export,
   and the safe last export attempt (destination/date/instant/outcome/category). Google connection
   metadata uses its owning typed repository; one-off XLSX retains no document connection metadata.
@@ -171,9 +170,9 @@ DAO and canonical export ordering remain independently stable.
 
 - `TimerCoordinator`: typed Start/Stop entry point; validates exact-today eligibility, coordinates
   the shared mutex and Room transaction APIs, and owns clock-anomaly results/live-anchor changes.
-- `ActiveTimerNormalizer`: calculates all crossed boundaries from the pinned session zone, applies
-  one atomic continuation chain, follows the active task selection, and establishes/re-establishes
-  process-local display state without changing persisted boundaries.
+- `ActiveTimerNormalizer`: calculates the first crossed boundary from the pinned session zone and
+  applies one atomic exact-boundary close. It never creates a continuation task or interval and
+  establishes/re-establishes process-local display state without changing persisted boundaries.
 - `TimerRecoveryCoordinator`: application-scoped startup/resume entry point that waits for the
   effective zone, captures one UTC instant, normalizes Room state, and then reconciles selection.
   Its own mutex makes duplicate Activity/Main resume signals idempotent.
@@ -191,9 +190,10 @@ DAO and canonical export ordering remain independently stable.
   under the timer-operation lock, normalizes crossed boundaries, reads the transactional Room
   snapshot, and returns the one immutable destination-neutral dataset. Main permits this workflow
   only when Room-derived active state is loaded and empty.
-- `ExportRowBuilder`: owns schema version 4 in `0.2.0`, the exact 15 visible columns, duplicated
-  `MM/DD/YYYY` Start/End dates, task-zone export `hh:mm a`,
-  accumulated `HH:MM:SS`, zero-interval rows, and deterministic internal-key sorting.
+- `ExportRowBuilder`: owns current schema version 5 in `0.3.0`, the exact 13 visible columns,
+  duplicated `MM/DD/YYYY` Start/End dates, task-zone export `hh:mm a`, accumulated `HH:MM:SS`,
+  one row per task (including untimed tasks), and deterministic task-key sorting. The released
+  `0.2.0` schema-4 projection remains historical compatibility behavior.
 - `CsvExportCoordinator`: consumes the prepared snapshot and only serializes/packages the pending
   UTF-8 CSV before the picker opens.
 - XLSX and Google adapters receive the same `ExportSnapshot`; destination adapters may
@@ -205,11 +205,16 @@ DAO and canonical export ordering remain independently stable.
 - Milestone 3 adds one application-scoped `Mutex`, selection/date validation, normalization, and
   clock policy. The mutex reduces same-process races; database constraints and transactions remain
   the cross-coordinator protection.
-- Open storage transaction: verify no active record/open candidate, allocate the next ordinal, insert one interval with `stop = null` and unique `active_slot = 1`, insert singleton active state with matching task/interval IDs, touch the task, and return one snapshot.
+- Open storage transaction: verify no active record/open candidate, insert the task's sole interval
+  with `stop = null` and unique `active_slot = 1`, insert singleton active state with matching
+  task/interval IDs, touch the task, and return one snapshot. Starting a task that already has a
+  completed interval first creates/selects a same-day metadata-preserving task, then starts that
+  task.
 - Close storage transaction: load and validate the singleton and referenced open interval, write a valid later stop, release `active_slot`, delete active state, touch the task, and return one snapshot. Missing active state is an idempotent no-op.
-- Midnight normalization receives a Kotlin-calculated ordered boundary plan. One Room transaction
-  closes each segment, finds or creates the exact three-part daily copy, inserts the continuation,
-  retargets the singleton, and either leaves the final interval open or closes/clears it for Stop.
+- Midnight handling receives a Kotlin-calculated boundary plan. In current `0.3.0` behavior, one
+  Room transaction closes the sole interval at the exact pinned-zone boundary and clears the
+  active singleton; it never creates a continuation task or interval. A later legitimate
+  execution applies the same persisted boundary retrospectively.
 - Snapshot reads verify that zero active rows means zero open candidates and that one active row
   means exactly one valid matching open candidate. Orphan/mismatched states fail explicitly; no
   startup repair discards an interval.

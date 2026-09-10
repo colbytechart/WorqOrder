@@ -179,5 +179,5 @@ internal object GoogleSheetsExportPlanner {
         return candidate
     }
 
-    private val LEGACY_SCHEMA_VERSIONS = setOf("2", "3")
+    private val LEGACY_SCHEMA_VERSIONS = setOf("2", "3", "4")
 }

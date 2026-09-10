@@ -6,16 +6,16 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import worq.order.domain.BillingMinutes
+import worq.order.model.BillingStatus
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.model.WorkType
-import worq.order.model.BillingStatus
-import worq.order.domain.BillingMinutes
 import worq.order.timer.DurationMath
 import worq.order.util.ClockTimeFormatter
 
 object ExportSchema {
-    const val VERSION = 4
+    const val VERSION = 5
 
     val headers: List<String> =
         listOf(
@@ -28,10 +28,8 @@ object ExportSchema {
             "Work type",
             "Billing Status",
             "Mileage",
-            "Interval number",
             "Start time",
             "Stop time",
-            "Interval duration",
             "Time spent",
             "Billing minutes",
         )
@@ -74,45 +72,23 @@ class ExportRowBuilder {
                     },
                 )
         val rows =
-            sortedTasks.flatMap { detail ->
-                val intervals =
-                    detail.intervals.sortedWith(
-                        compareBy<WorkInterval> { it.start }
-                            .thenBy { it.ordinal }
-                            .thenBy { it.id },
-                    )
+            sortedTasks.map { detail ->
+                require(detail.intervals.size <= 1) {
+                    "Schema 5 permits at most one interval per task"
+                }
+                val interval = detail.intervals.singleOrNull()
                 val total =
                     DurationMath.taskTotal(
-                        intervals = intervals,
+                        intervals = detail.intervals,
                         activeEvaluationInstant =
-                            exportedAt.takeIf {
-                                intervals.any { interval -> interval.stop == null }
-                            },
+                            interval
+                                ?.takeIf { it.stop == null }
+                                ?.let { exportedAt },
                     )
-                if (intervals.isEmpty()) {
-                    listOf(
-                        detail.row(
-                            interval = null,
-                            intervalDuration = null,
-                            taskTotal = total,
-                        ),
-                    )
-                } else {
-                    intervals.map { interval ->
-                        val duration =
-                            interval.stop?.let { stop ->
-                                DurationMath.nonNegativeBetween(interval.start, stop)
-                            } ?: DurationMath.activeInterval(
-                                start = interval.start,
-                                evaluationInstant = exportedAt,
-                            )
-                        detail.row(
-                            interval = interval,
-                            intervalDuration = duration,
-                            taskTotal = total,
-                        )
-                    }
-                }
+                detail.row(
+                    interval = interval,
+                    taskTotal = total,
+                )
             }
         return ExportSnapshot(
             schemaVersion = ExportSchema.VERSION,
@@ -124,7 +100,6 @@ class ExportRowBuilder {
 
     private fun TaskWithIntervals.row(
         interval: WorkInterval?,
-        intervalDuration: Duration?,
         taskTotal: Duration,
     ): ExportRow {
         val task = taskWithClient.task
@@ -143,14 +118,12 @@ class ExportRowBuilder {
                     ExportValueFormatter.workType(task.workType),
                     ExportValueFormatter.billingStatus(task.billingStatus),
                     task.mileage.orEmpty(),
-                    interval?.ordinal?.toString().orEmpty(),
                     interval?.start?.let {
                         ExportValueFormatter.localTime(it, task.zoneId)
                     }.orEmpty(),
                     stop?.let {
                         ExportValueFormatter.localTime(it, task.zoneId)
                     }.orEmpty(),
-                    intervalDuration?.let(ExportValueFormatter::duration).orEmpty(),
                     ExportValueFormatter.duration(taskTotal),
                     BillingMinutes.fromDuration(taskTotal).toString(),
                 ),

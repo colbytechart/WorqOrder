@@ -26,10 +26,8 @@ class GoogleSheetsExportPlannerTest {
                             "On-Site",
                             "Billable",
                             "12.5",
-                            "1",
                             "09:00 AM",
                             "10:00 AM",
-                            "01:00:00",
                             "01:00:00",
                             "60",
                         ),
@@ -57,13 +55,13 @@ class GoogleSheetsExportPlannerTest {
         assertEquals("WorqOrder_2026-07-24", result.plan.tabName)
         val add = requests[0] as GoogleSheetsBatchRequest.AddSheet
         assertEquals(2, add.rowCount)
-        assertEquals(15, add.columnCount)
+        assertEquals(13, add.columnCount)
         assertEquals(result.plan.tabName, add.title)
         assertEquals(
             setOf(
                 GoogleSheetsExportPlanner.APPLICATION_MARKER_KEY to
                     GoogleSheetsExportPlanner.APPLICATION_MARKER_VALUE,
-                GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY to "4",
+                GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY to "5",
                 GoogleSheetsExportPlanner.WORK_DATE_KEY to "2026-07-24",
             ),
             requests
@@ -111,7 +109,7 @@ class GoogleSheetsExportPlannerTest {
             GoogleSheetsBatchRequest.ResizeSheet(
                 sheetId = originalSheetId,
                 rowCount = 1,
-                columnCount = 15,
+                columnCount = 13,
             ),
             result.plan.requests[1],
         )
@@ -186,8 +184,6 @@ class GoogleSheetsExportPlannerTest {
                                     "",
                                     "",
                                     "",
-                                    "",
-                                    "",
                                     "00:00:00",
                                     "0",
                                 ),
@@ -200,7 +196,7 @@ class GoogleSheetsExportPlannerTest {
             GoogleSheetsBatchRequest.ResizeSheet(
                 sheetId = sheetId,
                 rowCount = 2,
-                columnCount = 15,
+                columnCount = 13,
             ),
             result.plan.requests[0],
         )
@@ -232,10 +228,8 @@ class GoogleSheetsExportPlannerTest {
                             "",
                             "",
                             "",
-                            "1",
                             "09:00 AM",
                             "10:00 AM",
-                            "01:00:00",
                             "01:00:00",
                             "60",
                         ),
@@ -292,38 +286,61 @@ class GoogleSheetsExportPlannerTest {
     @Test
     fun incompatibleSchemaOrDateIsAConflict() {
         val base = ownedStructure(sheetId = 9)
-        val wrongSchema =
+        listOf("1", "6", "999").forEach { incompatibleVersion ->
+            val wrongSchema =
+                base.copy(
+                    developerMetadata =
+                        base.developerMetadata.map {
+                            if (
+                                it.key ==
+                                GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY
+                            ) {
+                                it.copy(value = incompatibleVersion)
+                            } else {
+                                it
+                            }
+                        },
+                )
+
+            assertEquals(
+                GoogleSheetsPlanResult.SchemaConflict(
+                    "WorqOrder_2026-07-24",
+                ),
+                GoogleSheetsExportPlanner.plan(
+                    wrongSchema,
+                    snapshot(),
+                ),
+            )
+        }
+
+        val wrongDate =
             base.copy(
                 developerMetadata =
                     base.developerMetadata.map {
-                        if (
-                            it.key ==
-                            GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY
-                        ) {
-                            it.copy(value = "999")
+                        if (it.key == GoogleSheetsExportPlanner.WORK_DATE_KEY) {
+                            it.copy(value = "2026-07-23")
                         } else {
                             it
                         }
                     },
             )
-
         assertEquals(
             GoogleSheetsPlanResult.SchemaConflict(
                 "WorqOrder_2026-07-24",
             ),
             GoogleSheetsExportPlanner.plan(
-                wrongSchema,
+                wrongDate,
                 snapshot(),
             ),
         )
     }
 
     @Test
-    fun knownOwnedSchemaTwoAndThreeTabsUpgradeMetadataAndReplaceAtomically() {
+    fun knownOwnedSchemaTwoThroughFourTabsUpgradeAndTrimLegacyRangeAtomically() {
         val sheetId = 44
         val schemaMetadataId = 704
         val base = ownedStructure(sheetId)
-        listOf("2", "3").forEach { legacyVersion ->
+        listOf("2", "3", "4").forEach { legacyVersion ->
             val legacy =
                 base.copy(
                     developerMetadata =
@@ -346,13 +363,43 @@ class GoogleSheetsExportPlannerTest {
             assertEquals(
                 GoogleSheetsBatchRequest.UpdateSheetMetadataValue(
                     metadataId = schemaMetadataId,
-                    value = "4",
+                    value = "5",
                 ),
                 result.plan.requests.first(),
             )
-            assertTrue(result.plan.requests[1] is GoogleSheetsBatchRequest.ResizeSheet)
+            assertEquals(
+                GoogleSheetsBatchRequest.ResizeSheet(
+                    sheetId = sheetId,
+                    rowCount = 1,
+                    columnCount = 13,
+                ),
+                result.plan.requests[1],
+            )
             assertTrue(result.plan.requests[2] is GoogleSheetsBatchRequest.ReplaceCells)
         }
+    }
+
+    @Test
+    fun legacySchemaWithoutUpdatableMetadataIdRemainsProtected() {
+        val current = ownedStructure(sheetId = 45)
+        val legacy =
+            current.copy(
+                developerMetadata =
+                    current.developerMetadata.map {
+                        if (it.key == GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY) {
+                            it.copy(value = "4", metadataId = null)
+                        } else {
+                            it
+                        }
+                    },
+            )
+
+        assertEquals(
+            GoogleSheetsPlanResult.SchemaConflict(
+                "WorqOrder_2026-07-24",
+            ),
+            GoogleSheetsExportPlanner.plan(legacy, snapshot()),
+        )
     }
 
     @Test
@@ -402,7 +449,7 @@ class GoogleSheetsExportPlannerTest {
                     metadata(
                         sheetId,
                         GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY,
-                        "4",
+                        "5",
                     ),
                     metadata(
                         sheetId,

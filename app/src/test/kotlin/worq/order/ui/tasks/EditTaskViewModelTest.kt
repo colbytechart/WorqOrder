@@ -76,14 +76,14 @@ class EditTaskViewModelTest {
         }
 
     @Test
-    fun addEditValidationDeleteIntervalUpdatesTotalAndOrder() =
+    fun addEditValidationAndDeleteSoleIntervalUpdatesTotal() =
         runTest(mainDispatcherRule.dispatcher) {
             val fixture = fixture()
 
             fixture.viewModel.onEvent(EditTaskEvent.OpenAddInterval)
             fixture.viewModel.onEvent(EditTaskEvent.SaveInterval)
             runCurrent()
-            val interval = fixture.viewModel.uiState.value.intervals.single()
+            val interval = requireNotNull(fixture.viewModel.uiState.value.interval)
             assertEquals("01:00:00", fixture.viewModel.uiState.value.totalDuration)
             assertEquals(60L, fixture.viewModel.uiState.value.billingMinutes)
             assertEquals("09:00 AM", interval.startText)
@@ -117,7 +117,7 @@ class EditTaskViewModelTest {
             fixture.viewModel.onEvent(EditTaskEvent.RequestDeleteInterval(interval.id))
             fixture.viewModel.onEvent(EditTaskEvent.ConfirmDeleteInterval)
             runCurrent()
-            assertTrue(fixture.viewModel.uiState.value.intervals.isEmpty())
+            assertNull(fixture.viewModel.uiState.value.interval)
             assertEquals("00:00:00", fixture.viewModel.uiState.value.totalDuration)
             assertEquals(0L, fixture.viewModel.uiState.value.billingMinutes)
         }

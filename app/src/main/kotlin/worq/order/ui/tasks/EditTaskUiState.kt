@@ -23,7 +23,6 @@ data class OffsetChoiceUi(
 
 data class IntervalItemUi(
     val id: String,
-    val ordinal: Int,
     val startText: String,
     val stopText: String,
     val isRunning: Boolean,
@@ -77,7 +76,7 @@ data class EditTaskUiState(
     val metadataErrors: Set<TaskMetadataValidationError> = emptySet(),
     val totalDuration: String = "00:00:00",
     val billingMinutes: Long = 0,
-    val intervals: List<IntervalItemUi> = emptyList(),
+    val interval: IntervalItemUi? = null,
     val isRunning: Boolean = false,
     val isSavingMetadata: Boolean = false,
     val hasUnsavedMetadataChanges: Boolean = false,

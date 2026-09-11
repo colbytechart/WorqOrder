@@ -32,22 +32,6 @@ abstract class ActiveTimerDao {
     @Query("SELECT * FROM daily_tasks WHERE id = :taskId LIMIT 1")
     protected abstract suspend fun readTaskInternal(taskId: String): DailyTaskEntity?
 
-    @Query(
-        """
-        SELECT *
-        FROM daily_tasks
-        WHERE series_id = :seriesId
-          AND work_date_epoch_day = :workDateEpochDay
-          AND zone_id = :zoneId
-        LIMIT 1
-        """,
-    )
-    protected abstract suspend fun findCorrespondingTaskInternal(
-        seriesId: String,
-        workDateEpochDay: Long,
-        zoneId: String,
-    ): DailyTaskEntity?
-
     @Query("SELECT * FROM work_intervals WHERE id = :intervalId LIMIT 1")
     protected abstract suspend fun readIntervalInternal(
         intervalId: String,
@@ -114,25 +98,6 @@ abstract class ActiveTimerDao {
     protected abstract suspend fun clearActiveTimerInternal(
         intervalId: String,
         taskId: String,
-    ): Int
-
-    @Query(
-        """
-        UPDATE active_timer
-        SET interval_id = :newIntervalId,
-            task_id = :newTaskId,
-            updated_at_epoch_ms = :updatedAtEpochMs
-        WHERE singleton_id = 1
-          AND interval_id = :expectedIntervalId
-          AND task_id = :expectedTaskId
-        """,
-    )
-    protected abstract suspend fun retargetActiveTimerInternal(
-        expectedIntervalId: String,
-        expectedTaskId: String,
-        newIntervalId: String,
-        newTaskId: String,
-        updatedAtEpochMs: Long,
     ): Int
 
     @Query(
@@ -266,21 +231,9 @@ abstract class ActiveTimerDao {
         )
     }
 
-    @Transaction
-    open suspend fun normalizeActiveInterval(
-        expectedIntervalId: String,
-        continuations: List<TimerContinuationEntityInput>,
-        updatedAtEpochMs: Long,
-    ): ActiveTimerTransactionEntity? =
-        applyContinuations(
-            expectedIntervalId = expectedIntervalId,
-            continuations = continuations,
-            updatedAtEpochMs = updatedAtEpochMs,
-        )
-
     /**
      * Schema-5 boundary policy: close once at the first crossed local midnight and clear the
-     * authoritative timer. This deliberately bypasses the legacy continuation path.
+     * authoritative timer without creating a continuation task or interval.
      */
     @Transaction
     open suspend fun closeActiveIntervalAtBoundary(
@@ -342,18 +295,22 @@ abstract class ActiveTimerDao {
     @Transaction
     open suspend fun closeActiveIntervalAndClearTimer(
         expectedIntervalId: String,
-        continuations: List<TimerContinuationEntityInput>,
         stopEpochMs: Long,
         updatedAtEpochMs: Long,
     ): ActiveTimerTransactionEntity? {
-        val continued =
-            applyContinuations(
-                expectedIntervalId = expectedIntervalId,
-                continuations = continuations,
-                updatedAtEpochMs = updatedAtEpochMs,
-            ) ?: return null
-        val activeTimer = continued.activeTimer
-        val interval = continued.interval
+        require(expectedIntervalId.isNotBlank()) {
+            "expectedIntervalId must not be blank"
+        }
+        val activeTimer = readActiveTimer() ?: return null
+        if (activeTimer.intervalId != expectedIntervalId) {
+            return null
+        }
+        val interval =
+            readIntervalInternal(activeTimer.intervalId)
+                ?: throw PersistenceInvariantException(
+                    "Active timer points to missing interval ${activeTimer.intervalId}",
+                )
+        validateActivePair(activeTimer, interval)
         require(stopEpochMs > interval.startEpochMs) {
             "An active interval must stop after it starts"
         }
@@ -400,135 +357,8 @@ abstract class ActiveTimerDao {
         val activeTimer = readActiveTimer() ?: return null
         return closeActiveIntervalAndClearTimer(
             expectedIntervalId = activeTimer.intervalId,
-            continuations = emptyList(),
             stopEpochMs = stopEpochMs,
             updatedAtEpochMs = updatedAtEpochMs,
-        )
-    }
-
-    private suspend fun applyContinuations(
-        expectedIntervalId: String,
-        continuations: List<TimerContinuationEntityInput>,
-        updatedAtEpochMs: Long,
-    ): ActiveTimerTransactionEntity? {
-        require(expectedIntervalId.isNotBlank()) {
-            "expectedIntervalId must not be blank"
-        }
-
-        var activeTimer = readActiveTimer() ?: return null
-        if (activeTimer.intervalId != expectedIntervalId) {
-            return null
-        }
-        var interval =
-            readIntervalInternal(activeTimer.intervalId)
-                ?: throw PersistenceInvariantException(
-                    "Active timer points to missing interval ${activeTimer.intervalId}",
-                )
-        validateActivePair(activeTimer, interval)
-        var task =
-            readTaskInternal(activeTimer.taskId)
-                ?: throw PersistenceInvariantException(
-                    "Active timer points to missing task ${activeTimer.taskId}",
-                )
-
-        continuations.forEach { continuation ->
-            require(continuation.zoneId == activeTimer.boundaryZoneId) {
-                "Continuation zone must match the active timer boundary zone"
-            }
-            require(continuation.boundaryEpochMs > interval.startEpochMs) {
-                "Continuation boundary must be after the open interval start"
-            }
-            require(continuation.proposedTaskId.isNotBlank()) {
-                "proposedTaskId must not be blank"
-            }
-            require(continuation.proposedIntervalId.isNotBlank()) {
-                "proposedIntervalId must not be blank"
-            }
-
-            if (
-                closeIntervalInternal(
-                    intervalId = interval.id,
-                    taskId = interval.taskId,
-                    stopEpochMs = continuation.boundaryEpochMs,
-                    updatedAtEpochMs = updatedAtEpochMs,
-                ) != 1
-            ) {
-                throw PersistenceInvariantException(
-                    "Active interval ${interval.id} could not be split",
-                )
-            }
-            if (touchTask(task.id, updatedAtEpochMs) != 1) {
-                throw PersistenceInvariantException(
-                    "Split interval ${interval.id} has no owning task ${task.id}",
-                )
-            }
-
-            val nextTask =
-                findCorrespondingTaskInternal(
-                    seriesId = task.seriesId,
-                    workDateEpochDay = continuation.workDateEpochDay,
-                    zoneId = continuation.zoneId,
-                ) ?: DailyTaskEntity(
-                    id = continuation.proposedTaskId,
-                    seriesId = task.seriesId,
-                    clientId = task.clientId,
-                    description = task.description,
-                    hardwareSoftwarePurchases = task.hardwareSoftwarePurchases,
-                    employeeId = task.employeeId,
-                    employeeNameSnapshot = task.employeeNameSnapshot,
-                    workType = task.workType,
-                    billingStatus = task.billingStatus,
-                    mileage = task.mileage,
-                    workDateEpochDay = continuation.workDateEpochDay,
-                    zoneId = continuation.zoneId,
-                    createdAtEpochMs = updatedAtEpochMs,
-                    updatedAtEpochMs = updatedAtEpochMs,
-                ).also { insertTaskInternal(it) }
-
-            val nextInterval =
-                WorkIntervalEntity(
-                    id = continuation.proposedIntervalId,
-                    taskId = nextTask.id,
-                    startEpochMs = continuation.boundaryEpochMs,
-                    stopEpochMs = null,
-                    activeSlot = WorkIntervalEntity.ACTIVE_SLOT,
-                    wasManuallyEdited = false,
-                    createdAtEpochMs = updatedAtEpochMs,
-                    updatedAtEpochMs = updatedAtEpochMs,
-                )
-            insertIntervalInternal(nextInterval)
-            if (
-                retargetActiveTimerInternal(
-                    expectedIntervalId = interval.id,
-                    expectedTaskId = interval.taskId,
-                    newIntervalId = nextInterval.id,
-                    newTaskId = nextTask.id,
-                    updatedAtEpochMs = updatedAtEpochMs,
-                ) != 1
-            ) {
-                throw PersistenceInvariantException(
-                    "Active timer could not be retargeted to ${nextInterval.id}",
-                )
-            }
-            if (touchTask(nextTask.id, updatedAtEpochMs) != 1) {
-                throw PersistenceInvariantException(
-                    "Continuation interval ${nextInterval.id} has no owning task ${nextTask.id}",
-                )
-            }
-
-            activeTimer =
-                activeTimer.copy(
-                    intervalId = nextInterval.id,
-                    taskId = nextTask.id,
-                    updatedAtEpochMs = updatedAtEpochMs,
-                )
-            interval = nextInterval
-            task = nextTask
-        }
-
-        return ActiveTimerTransactionEntity(
-            activeTimer = activeTimer,
-            interval = interval,
         )
     }
 

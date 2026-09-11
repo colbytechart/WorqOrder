@@ -181,7 +181,6 @@ class AutomaticGoogleExportManager(
             NormalizeTimerResult.NoActiveTimer,
             NormalizeTimerResult.NoChange,
             is NormalizeTimerResult.ClosedAtBoundary,
-            is NormalizeTimerResult.Normalized,
             -> Unit
         }
         if (activeTimerRepository.readActiveTimer() != null) {

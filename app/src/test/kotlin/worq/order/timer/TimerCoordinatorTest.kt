@@ -266,7 +266,6 @@ class TimerCoordinatorTest {
 
             assertTrue(result is StopTimerResult.Stopped)
             result as StopTimerResult.Stopped
-            assertEquals(1, result.splitCount)
             assertEquals(Instant.parse("2026-07-25T04:00:00Z"), result.interval.stop)
             assertEquals(1, fixture.allSeriesIntervals(task.seriesId).size)
             assertNull(fixture.active.readActiveTimerSnapshot())

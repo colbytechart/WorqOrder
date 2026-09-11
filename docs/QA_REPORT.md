@@ -1,8 +1,10 @@
 # WorqOrder Release QA Report
 
 Audit date: 2026-07-31
-Branch: `milestone17`
-Scope: required production behavior through Milestone 17
+Branch: `milestone17` (historical release evidence)
+Scope: required production behavior through Milestone 17. This report is retained as historical
+`0.2.0` evidence; current `0.3.0` status is tracked in `REQUIREMENTS_TRACEABILITY.md` Section 10
+and the Milestone 34 inventory.
 
 ## 1. Outcome
 

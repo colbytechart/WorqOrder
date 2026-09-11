@@ -1,7 +1,7 @@
 # WorqOrder
 
-WorqOrder is a free, open-source Android work tracker for recording client tasks and their time
-intervals. Its core workflow is local and offline: Room is the authoritative data store, while
+WorqOrder is a free, open-source Android work tracker for recording client tasks and their tracked
+work time. Its core workflow is local and offline: Room is the authoritative data store, while
 CSV, XLSX, and Google Sheets are optional one-way exports.
 
 ## Install WorqOrder From GitHub
@@ -38,11 +38,13 @@ signing identity.
 
 - Create daily client tasks with Consultant, Work Type, Billing Status, Mileage, description, and
   hardware/software-purchase metadata.
-- Run one globally authoritative timer, with repeated intervals and accumulated totals.
+- Run one globally authoritative timer. Each task owns zero or one interval; starting a completed
+  task creates a new same-day task so prior records remain unchanged.
 - See the active timer in a silent, dismissible Android notification while platform/user settings
   permit it.
 - Recover active timing after backgrounding, activity recreation, process death, and reboot.
-- Browse dates and edit completed tasks and intervals using stored geographical time-zone rules.
+- Browse dates and edit completed tasks and their single interval using stored geographical
+  time-zone rules. Date changes never create rollover tasks.
 - Add, rename, archive, restore, and CSV-import clients without damaging historical task
   relationships.
 - Manage active/archived Consultants while preserving each task's assignment-time name.
@@ -74,7 +76,7 @@ information.
 
 ## Export Behavior
 
-All destinations consume one immutable canonical snapshot and the same 15 columns:
+All destinations consume one immutable canonical snapshot and the same 13 columns:
 
 1. Start date
 2. End date
@@ -85,12 +87,10 @@ All destinations consume one immutable canonical snapshot and the same 15 column
 7. Work type
 8. Billing Status
 9. Mileage
-10. Interval number
-11. Start time
-12. Stop time
-13. Interval duration
-14. Time spent
-15. Billing minutes
+10. Start time
+11. Stop time
+12. Time spent
+13. Billing minutes
 
 CSV and XLSX use Android's create-document interface, so the user chooses each output location.
 Every XLSX export creates a new workbook. Google Sheets writes to one connected spreadsheet and

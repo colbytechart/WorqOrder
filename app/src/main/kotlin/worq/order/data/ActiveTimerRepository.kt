@@ -1,7 +1,6 @@
 package worq.order.data
 
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import worq.order.model.ActiveTimer
@@ -17,12 +16,6 @@ sealed interface CreateActiveIntervalResult {
 
     data object AlreadyActive : CreateActiveIntervalResult
 }
-
-data class TimerSplitBoundary(
-    val instant: Instant,
-    val workDate: LocalDate,
-    val zoneId: ZoneId,
-)
 
 interface ActiveTimerRepository {
     fun observeActiveTimer(): Flow<ActiveTimer?>
@@ -48,31 +41,15 @@ interface ActiveTimerRepository {
     suspend fun closeActiveIntervalAtBoundary(
         expectedIntervalId: String,
         boundary: Instant,
-    ): ActiveTimerSnapshot? =
-        closeActiveInterval(
-            expectedIntervalId = expectedIntervalId,
-            boundaries = emptyList(),
-            stop = boundary,
-        )
-
-    /**
-     * Atomically closes the current open segment at every boundary, creates or finds each daily
-     * continuation task, and retargets the singleton active-timer pointer.
-     *
-     * Null means the expected active interval no longer exists.
-     */
-    suspend fun normalizeActiveInterval(
-        expectedIntervalId: String,
-        boundaries: List<TimerSplitBoundary>,
     ): ActiveTimerSnapshot?
 
     /**
-     * Performs the same boundary splitting as [normalizeActiveInterval], then atomically closes
-     * the final segment and clears the singleton active-timer pointer.
+     * Atomically closes the expected sole open interval and clears the singleton active-timer row.
+     *
+     * Null means another operation already changed or closed the expected active interval.
      */
     suspend fun closeActiveInterval(
         expectedIntervalId: String,
-        boundaries: List<TimerSplitBoundary>,
         stop: Instant,
     ): ActiveTimerSnapshot?
 }

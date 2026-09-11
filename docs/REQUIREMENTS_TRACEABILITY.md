@@ -2,8 +2,9 @@
 
 ## 1. Scope and status
 
-This matrix audits the `0.2.0` release candidate through Milestone 29 against the current approved
-specifications. `Pass` means the implementation and test evidence exist. `Partial` means
+This matrix retains the released `0.2.0` audit as historical evidence and adds the current
+`0.3.0` development traceability in Section 10. Rows explicitly marked historical are not live
+contracts; Section 10 and the current `0.3.0` specifications are authoritative. `Pass` means the implementation and test evidence exist. `Partial` means
 the implementation exists but final release-device, human, or external configuration evidence is
 still required. `N/A` identifies an explicitly optional or prohibited capability.
 
@@ -32,7 +33,7 @@ changing its implementation in this milestone.
 | Task creation and selection | `TaskMutationCoordinator`, `SelectionCoordinator`, create UI/ViewModel | Task mutation, create ViewModel/Compose, Main tests | Accepted Milestones 4/6 physical run | Pass |
 | Description and purchases fields, each 400 code points | `TaskMetadataValidator`, Room task columns, create/edit UI | Validator, create/edit ViewModel and Compose tests; migration 1→2 | Accepted Milestone 6 run | Pass |
 | Task edit/delete; same-series siblings retained | Task mutation coordinator, task repository/DAO, edit UI | Task mutation, edit ViewModel/Compose, Room cascade/restriction tests | Accepted Milestone 6 run | Pass |
-| Repeated ordered intervals and totals | Interval DAO/entity, duration queries, edit UI | Room interval ordering, duration math, task/timer tests | Accepted timer/task manual runs | Pass |
+| Repeated ordered intervals and totals (v0.2 historical) | Interval DAO/entity, duration queries, edit UI | Room interval ordering, duration math, task/timer tests | Accepted timer/task manual runs | Historical pass; superseded in v0.3 by one interval per task |
 | Manual add/edit/delete and overlap/date/DST validation | `ManualIntervalValidator`, task mutation coordinator, edit UI | Validator, mutation, edit ViewModel/Compose tests | Accepted Milestone 6 run | Pass |
 | Room is authoritative; DataStore is preference/selection only | Room repositories, typed DataStore repositories | Room persistence/reopen and DataStore recreation tests | Process/reboot manual tests | Pass |
 
@@ -45,7 +46,7 @@ changing its implementation in this milestone.
 | Timestamp-derived display; no persisted ticks | `LiveTimerSession`, collection-scoped Main ticker | Live session and “no tick writes” ViewModel tests | Background/screen-lock tests | Pass |
 | Process/activity/reboot reconstruction | Recovery coordinator, Room active snapshot, activity/Main resume hooks | Recovery concurrency/process tests | Rotation, Don't Keep Activities, process kill, Recents, reboot passed | Pass |
 | Daily selection rollover; no duplicate copy (v0.2 historical) | `SelectionCoordinator`, three-part task uniqueness | Released v0.2 selection/restart tests; Room unique index | Accepted v0.2 zone-change tests | Historical pass; superseded in v0.3 by no-rollover selection |
-| One/multiple midnight splitting and idempotence | Boundary calculator, active normalizer, transactional DAO | Real-zone/DST/multi-midnight unit and Room tests | Accepted automated evidence | Pass |
+| One/multiple midnight splitting and idempotence (v0.2 historical) | Boundary calculator, active normalizer, transactional DAO | Real-zone/DST/multi-midnight unit and Room tests | Accepted automated evidence | Historical pass; superseded in v0.3 by exact one-boundary closure |
 | Device/manual ZoneId and historical stability | Device zone source, settings provider/repository | Zone provider/settings/selection tests | Device and manual zone changes passed | Pass |
 | Spring-forward/fall-back correctness | `java.time` boundaries and validator | Boundary, validator, timer tests | Both transitions passed manually | Pass |
 | Forward/backward wall-clock correction while process lives | Monotonic projected Stop/normalization | Live session, coordinator, recovery, Main tests | Both correction tests passed after D-057 | Pass |
@@ -68,7 +69,7 @@ changing its implementation in this milestone.
 
 | Requirement / acceptance IDs | Implementation | Automated evidence | Manual evidence | Status |
 |---|---|---|---|---|
-| One immutable 15-column schema-4 canonical snapshot | `ExportSnapshotCoordinator`, `ExportModels` | Export row/CSV and destination coordinator tests | Cross-destination manual checks | Pass |
+| One immutable 15-column schema-4 canonical snapshot (v0.2 historical) | `ExportSnapshotCoordinator`, `ExportModels` | Export row/CSV and destination coordinator tests | Cross-destination manual checks | Historical pass; superseded in v0.3 by schema 5 |
 | Stable row ordering, zero-interval rows, escaping, Unicode, duration format | Export row builder and CSV serializer | CSV serializer/row tests | CSV export opened successfully | Pass |
 | CSV `ACTION_CREATE_DOCUMENT`, neutral cancellation, no mutation | CSV coordinator/document destination/Main | JVM, contract, Main tests | Accepted Milestone 8 run | Pass |
 | One-off XLSX from the same snapshot | Existing focused XLSX writer/coordinator | Existing writer/coordinator/contract/Main tests | Owner confirmed XLSX export works | Pass |
@@ -82,8 +83,8 @@ changing its implementation in this milestone.
 
 | Requirement / acceptance IDs | Implementation | Automated evidence | Manual evidence | Status |
 |---|---|---|---|---|
-| Room versioning/schema export/no destructive fallback | Database v4, explicit migrations, committed schemas 1/2/3/4 | Migration and packaged-schema instrumentation tests | Accepted emulator runs through Milestone 28 | Pass |
-| Existing populated v1/v2 data and open timer migrate to v4 | `MIGRATION_1_2`, `MIGRATION_2_3`, `MIGRATION_3_4` | Populated `1→4` and released `2→4` migration tests | Owner-signed populated `0.1.0` to `0.2.0` in-place update passed | Pass |
+| Room versioning/schema export/no destructive fallback (v0.2 historical) | Database v4, explicit migrations, committed schemas 1/2/3/4 | Migration and packaged-schema instrumentation tests | Accepted emulator runs through Milestone 28 | Historical pass; superseded in v0.3 by schema 5 |
+| Existing populated v1/v2 data and open timer migrate to v4 (v0.2 historical) | `MIGRATION_1_2`, `MIGRATION_2_3`, `MIGRATION_3_4` | Populated `1→4` and released `2→4` migration tests | Owner-signed populated `0.1.0` to `0.2.0` in-place update passed | Historical pass; retained as an input to the current v1/v2-to-v5 chain |
 | Data survives recreation/background/process/reboot | Room/DataStore/recovery architecture | Reopen/recovery tests | Owner's Milestone 13 checklist passed | Pass |
 | Accessibility semantics/touch/error/confirmation (`A11Y-01`–`A11Y-05`) | Compose screens and semantics | Compose semantics, large-font, dialog/state tests exist | Human TalkBack and display-scaling checks passed | Pass |
 | Narrow/standard/large/landscape/large-text usability | Adaptive Compose layouts, landscape top actions, bounded compact pinned header | Narrow, 200%-font, short-landscape/navigation tests and complete 79-test suite pass | Corrected large-scale landscape visual check passed | Pass |
@@ -95,7 +96,9 @@ changing its implementation in this milestone.
 
 ## 8. Current audit gate
 
-No required behavior is known to be failing. Permanent signing and production OAuth configuration
+No required behavior is known to be failing in the accepted release evidence. Milestone 34's
+obsolete-contract proof and final Sol quality gate passed; Milestone 35 still owns the complete
+release audit, so this section is not a `0.3.0` release declaration. Permanent signing and production OAuth configuration
 are complete, and the signed release APK verifies with one RSA-4096 signer. The owner-signed
 fresh-account Google exercise passed without a tester-list or owner-intervention dependency. The
 representative physical performance observation passes after the five-Hz timer refinement. The
@@ -108,7 +111,7 @@ step, not an implementation blocker.
 | Requirement | Planned implementation | Required automated evidence | Manual/official gate | Status |
 | --- | --- | --- | --- | --- |
 | Non-destructive `0.1.0` update | Room migration, schema export, typed preference defaults | Populated v1/v2 migrations including open timer passed in connected suite | Signed install-update smoke passed | Pass |
-| 15-column canonical schema 4 with repeated Start/End dates and Billing Status | Shared export row builder/snapshot | exact headers, `MM/DD/YYYY` duplicated dates, CSV/XLSX/Google equivalence, schema-2/schema-3 owned-tab upgrade | Open representative files/sheet | Pass through M28; final release regression repeats in M29 |
+| 15-column canonical schema 4 with repeated Start/End dates and Billing Status (v0.2 historical) | Shared export row builder/snapshot | exact headers, `MM/DD/YYYY` duplicated dates, CSV/XLSX/Google equivalence, schema-2/schema-3 owned-tab upgrade | Open representative files/sheet | Historical pass through M29; superseded in v0.3 by schema 5 |
 | Client-name CSV import append/A–Z | `ClientCsvParser`, Android bounded document source, import coordinator, Client DAO transaction, Client Management UI | UTF-8/BOM/quoting/line breaks/limits, file policy, normalization/duplicates, restore/rollback, ViewModel and Compose states | Owner verified valid and invalid import behavior in Milestone 20 | Pass |
 | Consultant directory/selection/history | Employee Room repository, `ConsultantSelectionCoordinator`, typed DataStore selection, dedicated Consultant Management route, Settings selector, Create/Edit UI, transaction-captured task snapshot | repository/coordinator/ViewModel plus Room snapshot, active-reference race, persistence, dedicated-route navigation, and connected UI tests | Consultant Management, Settings selection, and Create/Edit assignment workflow | Pass through M23; final 97-test connected gate and manual Settings inspection passed |
 | Work Type, Billing Status, and Mileage | Task metadata/repository/Create/Edit UI | persistence/migration, nullable history, Billable default, canonical decimal/input validation, ViewModel, Compose, and rollover coverage | Create/edit workflow including migrated blank status | Pass through M28 |
@@ -123,14 +126,14 @@ step, not an implementation blocker.
 
 | Requirement | Owning milestone/location | Required automated evidence | Manual gate | Planning status |
 | --- | --- | --- | --- | --- |
-| Preserve all schema-4 data while converting one task/many intervals to one task/one interval | M30; Room 4-to-5 migration, entities, DAOs | populated zero/one/many/open migration, counts/fields/FKs, reopen, schema JSON | signed populated `0.2.0` update in M35 | Approved, not implemented |
-| Enforce zero or one interval per task | M30; unique interval `task_id` plus repositories | constraint, cascade, active-slot/singleton, invalid second insert | DB Inspector spot check | Approved, not implemented |
+| Preserve all schema-4 data while converting one task/many intervals to one task/one interval | M30; Room 4-to-5 migration, entities, DAOs | populated zero/one/many/open migration, counts/fields/FKs, reopen, schema JSON | signed populated `0.2.0` update in M35 | Pass through M30; signed populated upgrade evidence remains M35 |
+| Enforce zero or one interval per task | M30; unique interval `task_id` plus repositories | constraint, cascade, active-slot/singleton, invalid second insert | DB Inspector spot check | Pass through M30 |
 | Repeated Start creates exactly one copied task at zero | M30/M31; TimerCoordinator and atomic Room operation | metadata/null copy, selection, concurrent Start, source immutability | repeated Start workflow passed | Pass through M31 Sol gate |
 | No date/ZoneId rollover task creation | M31; SelectionCoordinator/recovery | startup/resume/date/zone/browse no-creation and stale-selection clear | date/ZoneId change and date-browsing scenarios passed | Pass through M31 Sol gate |
 | Midnight closes exactly once with no continuation | M32; normalizer/recovery/notification | boundary/DST/missed-day/idempotence/concurrency/process/reboot | owner exercised foreground boundary closure; final external-close visible-date race is deterministic | Pass through M32 Sol gate |
 | Midnight close precedes captured-date automatic Google export | M32; automatic manager/worker | close-before-snapshot, delay/pending/idempotence/auth/failure | owner exercised captured-date automatic and pending-completion exports | Pass through M32 Sol gate |
-| Singular Interval UI | M33; Edit Task/ViewModels | empty/add/edit/delete/running/semantics/large-text | portrait/landscape inspection | Approved, not implemented |
-| One 13-column schema-5 row per task in CSV/XLSX/Google | M33; shared ExportRowBuilder/adapters | exact headers/values/order/equivalence, owned schema 2–4 upgrade, conflicts | open all three outputs | Approved, not implemented |
-| No stale current rollover/multi-interval contracts | M34; code/docs audit | reference/static checks plus full regression | documentation review | Approved, not implemented |
+| Singular Interval UI | M33; Edit Task/ViewModels | empty/add/edit/delete/running/semantics/large-text | portrait/landscape inspection | Pass through M33 |
+| One 13-column schema-5 row per task in CSV/XLSX/Google | M33; shared ExportRowBuilder/adapters | exact headers/values/order/equivalence, owned schema 2–4 upgrade, conflicts | open all three outputs | Pass through M33 |
+| No stale current rollover/multi-interval contracts | M34; code/docs audit | reference/static checks plus full regression | documentation review | Pass through M34; live continuation API removed, migration/history evidence retained, and full owner-run gate passed |
 | Release-safe `0.2.0` upgrade and `0.3.0` artifact | M35; QA/release documents | full clean/API matrix/security/dependency gates | signed update, Google/export, checksum/install | Approved, not implemented |
 | Safe optional environment retirement instructions | M36; `PROJECT_TEARDOWN_GUIDE.md` | documentation/path/safety review only | owner inventory review | Approved, not started |

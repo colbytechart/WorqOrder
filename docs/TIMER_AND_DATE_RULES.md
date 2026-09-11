@@ -325,7 +325,7 @@ approval.
 
 ## 15. Current v0.3.0 timer and date rules
 
-Milestone 31 implemented the Section 15 selection and repetition rules. Milestone 32 implements
+Milestone 31 implemented the Section 15 selection and repetition rules. Milestone 32 implemented
 the exact-boundary closure and automatic-export ordering rules below; this section is authoritative
 for current v0.3 behavior.
 

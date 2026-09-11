@@ -105,7 +105,7 @@ bottom action.
 - Expected: the action is disabled and reads **Stop Timer to Export**.
 - Attempting to dispatch the export event programmatically launches no picker or Google request.
 - After Stop, export is enabled and contains the authoritative completed Stop Local and duration.
-- CSV/XLSX/Google still receive the same 15 schema-version-4 headers, order, and canonical values.
+- CSV/XLSX/Google still receive the same 13 schema-version-5 headers, order, and canonical values.
 
 ## 4. Evidence to record
 

@@ -33,7 +33,6 @@ import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
 import worq.order.data.TimeZoneSettingResult
 import worq.order.data.TaskRepository
-import worq.order.data.TimerSplitBoundary
 import worq.order.data.UpdateTaskMetadataResult
 import worq.order.export.csv.DocumentOutputDestination
 import worq.order.export.csv.DocumentWriteResult
@@ -451,17 +450,6 @@ class FakeTaskRepository : TaskRepository {
                 )
             }
 
-    suspend fun findLegacyContinuationTask(
-        seriesId: String,
-        workDate: LocalDate,
-        zoneId: ZoneId,
-    ): DailyTask? =
-        taskState.value.values.firstOrNull {
-            it.seriesId == seriesId &&
-                it.workDate == workDate &&
-                it.zoneId == zoneId
-        }
-
     override suspend fun insertDailyTask(newTask: NewDailyTask): DailyTask =
         mutex.withLock {
             val now = Instant.parse("2026-01-01T00:00:00Z").plusSeconds(taskId.toLong())
@@ -489,29 +477,6 @@ class FakeTaskRepository : TaskRepository {
 
     override suspend fun createDailyTask(newTask: NewDailyTask): CreateDailyTaskResult =
         CreateDailyTaskResult.Created(insertDailyTask(newTask))
-
-    suspend fun findOrCreateLegacyContinuationTask(
-        sourceTaskId: String,
-        workDate: LocalDate,
-        zoneId: ZoneId,
-    ): DailyTask? =
-        mutex.withLock {
-            val source = taskState.value[sourceTaskId] ?: return@withLock null
-            taskState.value.values
-                .firstOrNull {
-                    it.seriesId == source.seriesId &&
-                        it.workDate == workDate &&
-                        it.zoneId == zoneId
-                } ?: source.copy(
-                id = "task-${++taskId}",
-                workDate = workDate,
-                zoneId = zoneId,
-                createdAt = source.updatedAt.plusSeconds(taskId.toLong()),
-                updatedAt = source.updatedAt.plusSeconds(taskId.toLong()),
-            ).also { copy ->
-                taskState.value = taskState.value + (copy.id to copy)
-            }
-        }
 
     override suspend fun updateTaskMetadata(
         taskId: String,
@@ -868,40 +833,29 @@ class FakeActiveTimerRepository(
 
     override suspend fun closeActiveInterval(stop: Instant): ActiveTimerSnapshot? {
         val expected = active.value?.interval?.id ?: return null
-        return closeActiveInterval(
-            expectedIntervalId = expected,
-            boundaries = emptyList(),
-            stop = stop,
-        )
+        return closeActiveInterval(expectedIntervalId = expected, stop = stop)
     }
 
     override suspend fun closeActiveIntervalAtBoundary(
         expectedIntervalId: String,
         boundary: Instant,
     ): ActiveTimerSnapshot? =
-        closeActiveInterval(
-            expectedIntervalId = expectedIntervalId,
-            boundaries = emptyList(),
-            stop = boundary,
-        )
-
-    override suspend fun normalizeActiveInterval(
-        expectedIntervalId: String,
-        boundaries: List<TimerSplitBoundary>,
-    ): ActiveTimerSnapshot? =
-        mutex.withLock {
-            applyBoundaries(expectedIntervalId, boundaries)
-        }
+        closeActiveInterval(expectedIntervalId = expectedIntervalId, stop = boundary)
 
     override suspend fun closeActiveInterval(
         expectedIntervalId: String,
-        boundaries: List<TimerSplitBoundary>,
         stop: Instant,
     ): ActiveTimerSnapshot? =
         mutex.withLock {
-            val continued = applyBoundaries(expectedIntervalId, boundaries) ?: return@withLock null
+            val current = active.value ?: return@withLock null
+            if (current.interval.id != expectedIntervalId) {
+                return@withLock null
+            }
+            require(stop.isAfter(current.interval.start)) {
+                "An active interval must stop after it starts"
+            }
             val closed =
-                continued.interval.copy(
+                current.interval.copy(
                     stop = stop,
                     updatedAt = stop,
                 )
@@ -909,55 +863,8 @@ class FakeActiveTimerRepository(
             tasks.markStopped(closed.taskId)
             active.value = null
             ActiveTimerSnapshot(
-                activeTimer = continued.activeTimer.copy(updatedAt = stop),
+                activeTimer = current.activeTimer.copy(updatedAt = stop),
                 interval = closed,
             )
         }
-
-    private suspend fun applyBoundaries(
-        expectedIntervalId: String,
-        boundaries: List<TimerSplitBoundary>,
-    ): ActiveTimerSnapshot? {
-        var snapshot = active.value ?: return null
-        if (snapshot.interval.id != expectedIntervalId) {
-            return null
-        }
-        boundaries.forEach { boundary ->
-            val closed =
-                snapshot.interval.copy(
-                    stop = boundary.instant,
-                    updatedAt = boundary.instant,
-                )
-            tasks.replaceInterval(closed)
-            tasks.markStopped(closed.taskId)
-            val nextTask =
-                requireNotNull(
-                    tasks.findOrCreateLegacyContinuationTask(
-                        sourceTaskId = snapshot.interval.taskId,
-                        workDate = boundary.workDate,
-                        zoneId = boundary.zoneId,
-                    ),
-                )
-            val continuation =
-                tasks.newInterval(
-                    taskId = nextTask.id,
-                    start = boundary.instant,
-                    stop = null,
-                )
-            tasks.addInterval(continuation)
-            tasks.markRunning(nextTask.id)
-            snapshot =
-                ActiveTimerSnapshot(
-                    activeTimer =
-                        snapshot.activeTimer.copy(
-                            intervalId = continuation.id,
-                            taskId = nextTask.id,
-                            updatedAt = boundary.instant,
-                        ),
-                    interval = continuation,
-                )
-            active.value = snapshot
-        }
-        return snapshot
-    }
 }

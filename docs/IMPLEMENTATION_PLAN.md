@@ -37,7 +37,8 @@ a time.
 4. Minimum SDK is API 26. The build-proven scaffold uses target API 36 and compile SDK
    API 36.1.
 5. CSV and XLSX delivery use the standard `ACTION_CREATE_DOCUMENT` save flow.
-6. Daily-task identity is unique by `(task series ID, work date, ZoneId)`.
+6. Released `0.2.0` daily-task identity used `(task series ID, work date, ZoneId)` uniqueness;
+   current `0.3.0` schema 5 treats `seriesId` as lineage and does not create rollover copies.
 7. Room is authoritative; CSV, XLSX, and Google Sheets remain one-way export
    destinations.
 8. WorqOrder remains free and open source under GPLv3. No supported milestone may introduce
@@ -772,6 +773,10 @@ This is a release gate, not a source of optional product features.
 
 ## 21. WorqOrder `0.3.0` development roadmap
 
+This roadmap is authoritative for current development. Earlier milestone descriptions in Sections
+4–20 preserve the released `0.1.0`/`0.2.0` implementation history and are not current behavior
+when this roadmap or a later decision explicitly supersedes them.
+
 `0.3.0` is a narrow compatibility-preserving release. It removes daily rollover/midnight
 continuation and converts task timing from many intervals to zero or one interval per task. All
 milestone branches descend from `v0.3.0-development` and merge back into it sequentially. The
@@ -844,6 +849,10 @@ proven unreachable production paths and resolves bounded compile/test fallout; L
 traceability/evidence pass; Sol audits the removals for retained migration/history behavior and
 alone closes the milestone. Do not redesign architecture, change dependencies, alter Room schema,
 or broaden product scope.
+
+**Implementation status:** complete. Luna's classification, Terra's bounded cleanup, Luna's
+traceability pass, and Sol's final audit are complete. The owner-run JVM/lint/debug/release/
+connected gate passed in 5m 31s with 138 actionable tasks (31 executed, 107 up-to-date).
 
 ### Milestone 35 — Final tests, upgrade audit, and GitHub release
 

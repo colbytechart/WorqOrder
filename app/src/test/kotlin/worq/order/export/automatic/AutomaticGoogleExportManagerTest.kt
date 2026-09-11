@@ -17,7 +17,6 @@ import worq.order.data.AutomaticGooglePendingReason
 import worq.order.data.CreateActiveIntervalResult
 import worq.order.data.ExportDestination
 import worq.order.data.GoogleSpreadsheetConnection
-import worq.order.data.TimerSplitBoundary
 import worq.order.export.google.GoogleSheetExportReceipt
 import worq.order.export.google.GoogleSheetsExportFailure
 import worq.order.export.google.GoogleSheetsExportOperationResult
@@ -465,8 +464,14 @@ class AutomaticGoogleExportManagerTest {
         override suspend fun createActiveInterval(taskId: String, boundaryZoneId: ZoneId, start: Instant) =
             CreateActiveIntervalResult.AlreadyActive
         override suspend fun closeActiveInterval(stop: Instant): ActiveTimerSnapshot? = null
-        override suspend fun normalizeActiveInterval(expectedIntervalId: String, boundaries: List<TimerSplitBoundary>): ActiveTimerSnapshot? = null
-        override suspend fun closeActiveInterval(expectedIntervalId: String, boundaries: List<TimerSplitBoundary>, stop: Instant): ActiveTimerSnapshot? = null
+        override suspend fun closeActiveIntervalAtBoundary(
+            expectedIntervalId: String,
+            boundary: Instant,
+        ): ActiveTimerSnapshot? = null
+        override suspend fun closeActiveInterval(
+            expectedIntervalId: String,
+            stop: Instant,
+        ): ActiveTimerSnapshot? = null
     }
 
     private companion object {

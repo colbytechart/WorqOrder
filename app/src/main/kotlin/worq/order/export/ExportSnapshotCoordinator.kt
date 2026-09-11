@@ -51,7 +51,6 @@ class ExportSnapshotCoordinator(
                 NormalizeTimerResult.NoActiveTimer,
                 NormalizeTimerResult.NoChange,
                 is NormalizeTimerResult.ClosedAtBoundary,
-                is NormalizeTimerResult.Normalized,
                 -> Unit
             }
             if (activeTimerRepository.readActiveTimerSnapshot() != null) {

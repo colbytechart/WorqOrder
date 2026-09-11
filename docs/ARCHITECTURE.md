@@ -1,5 +1,10 @@
 # WorqOrder Architecture
 
+Version authority: this document retains released `0.1.0`/`0.2.0` milestone descriptions for
+upgrade and historical traceability. References explicitly labeled `0.2.0` or a released milestone
+are historical; the current `0.3.0` behavior is authoritative in Section 17 and its linked
+specifications.
+
 ## 1. Architectural goals
 
 The architecture keeps the offline core small, testable, and independent of Google services:
@@ -284,7 +289,7 @@ best-effort deletion of partial provider documents, and unit tests remain isolat
 occurs before this adapter is called. The complete CSV string is serialized before the picker
 opens, and output streams close deterministically.
 
-Milestone 12 adds a one-off XLSX document boundary:
+Milestone 12 (`0.2.0` historical) added a one-off XLSX document boundary:
 
 - Compose launches `ActivityResultContracts.CreateDocument` with the official XLSX MIME type for
   every export; no storage permission or retained URI grant is requested.
@@ -571,14 +576,14 @@ Milestone 31 integration evidence now covers stale date/ZoneId selection clearin
 browsing and restart reconciliation, active-timer authority during recovery, repeated-Start
 selection and metadata copying, singular Add/Edit/Delete behavior, selected-task deletion, and
 idempotent stale-selection reconciliation. Milestone 32 replaces the active continuation path with
-one exact pinned-zone boundary close; legacy continuation code remains isolated for migration and
-later classified cleanup only.
+one exact pinned-zone boundary close. Milestone 34 removes the proven-unreachable live continuation
+APIs; legacy continuation behavior remains only where required by migration/history evidence.
 
 Milestone 30C evidence: `Schema5MigrationCoreTest` covers a populated schema-4 migration with
 archived directory references, nullable metadata, zero-/one-/many-interval tasks, deterministic
 copies, and an active non-first interval. It verifies endpoint/ID/metadata preservation,
 active-pointer repointing, foreign-key integrity, and reopen persistence. `WorqOrderDatabaseTest`
-covers the packaged schema-5 asset, the unique task-to-interval guard, same-series date copies,
+covers the packaged schema-5 asset, the unique task-to-interval guard, same-series lineage rows,
 and version 1/2-to-5 migration paths. The production `WorkInterval` presentation adapter may
 temporarily expose a derived `ordinal = 1` for legacy UI callers; schema 5 itself persists no
 ordinal column.

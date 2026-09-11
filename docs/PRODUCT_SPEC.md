@@ -1,6 +1,6 @@
 # WorqOrder Product Specification
 
-Status: released `0.1.0` baseline plus implemented `0.2.0` release-candidate specification
+Status: released `0.1.0`/`0.2.0` history plus the current `0.3.0` development specification
 Product: WorqOrder for Android  
 Minimum Android version: API 26  
 Authoritative data store: local Room database
@@ -19,7 +19,8 @@ authoritative. Exports are copies and never feed data back into Room.
 
 - Native Kotlin Android application using Compose and Material 3.
 - Daily task creation, selection, metadata editing, confirmation-based deletion, and interval editing.
-- One globally active timer with activity/process recovery and local-midnight splitting.
+- One globally active timer with activity/process recovery and exact pinned-zone midnight closure
+  without continuation records.
 - Active and archived client management.
 - Device geographical time zone in the production UI, with historical stored ZoneIds preserved.
   The existing manual-zone data/domain capability remains internal and is not exposed in `0.2.0`
@@ -486,10 +487,12 @@ This section is the complete feature scope for `0.3.0`. It supersedes the earlie
 midnight-continuation, multi-interval, and one-row-per-interval rules only after the corresponding
 `0.3.0` implementation milestones land. Every other accepted `0.2.0` behavior remains unchanged.
 
-Milestones 30 and 31 have now implemented the schema-5 one-interval model, repeated-Start
-transaction, and no-rollover selection behavior on the `0.3.0` development branch. Midnight
-closure, automatic-export ordering, final presentation, and release gates remain owned by later
-milestones and are not claimed as complete here.
+Milestones 30 through 33 have implemented the schema-5 one-interval model, repeated-Start
+transaction, no-rollover selection behavior, exact midnight closure, automatic-export ordering,
+final presentation, and schema-5 export behavior on the `0.3.0` development branch. Milestone 34
+has reconciled obsolete references and removed only the proven-unreachable live continuation
+surface while retaining migration and historical evidence. The final release audit remains owned
+by Milestone 35 and is not claimed as complete here.
 
 1. **No automatic task rollover.** A selected task is never copied merely because the effective
    date or ZoneId changes, the app resumes, recovery runs, or Start is evaluated. At a real date

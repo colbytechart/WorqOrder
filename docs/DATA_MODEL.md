@@ -1,5 +1,9 @@
 # WorqOrder Data Model
 
+Version scope: schema and behavior descriptions explicitly labeled released `0.1.0`/`0.2.0` or
+versions 1–4 preserve historical/migration compatibility. The current `0.3.0` schema-5 model and
+its no-rollover, zero-or-one-interval rules are authoritative in Section 14.
+
 ## 1. Storage conventions
 
 - Stable IDs are random UUID strings generated in the application before insert. They are never reused or derived from mutable text.
@@ -33,7 +37,10 @@ unscheduled Milestone E may add a separately authorized at-rest encryption adapt
 owner explicitly assigns it, without changing these entities,
 relationships, IDs, UTC/date/ZoneId semantics, or Room's authority.
 
-Daily tasks in a series are intentionally not parented by a separate series table in version 1. The stable `seriesId` plus work date and assignment zone identifies a rollover copy, and each daily copy carries the metadata used for the next rollover.
+Daily tasks in a series are intentionally not parented by a separate series table. The stable
+`seriesId` is lineage metadata only in current schema 5; current date/ZoneId reconciliation and
+midnight handling never create rollover or continuation copies. Rows on other dates may be
+historical migrated copies or explicit user-created tasks.
 
 ## 3. `clients`
 
@@ -74,7 +81,10 @@ Constraints/indexes:
 - Index `(client_id)` supports joins and client history.
 - Short-description and purchases-text validation is primarily a domain constraint; migrations may add compatible SQLite checks when Room schema support is proven.
 
-Changing client, short description, or hardware/software-purchases text changes only this daily task. A later rollover copies the changed values. Deleting a daily task cascades to its intervals, does not affect clients, and does not affect another row with the same series ID.
+Changing client, short description, or hardware/software-purchases text changes only this daily
+task. Current schema-5 behavior never copies those values automatically to another date. Deleting a
+daily task cascades to its intervals, does not affect clients, and does not affect another row with
+the same series ID.
 
 The `hardware_software_purchases` column was introduced by the implemented version-2 migration in
 Milestone 6. It is non-null with `DEFAULT ''` so every version-1 daily task migrates without
@@ -133,8 +143,9 @@ The active row is the process-recovery pointer while `work_intervals.active_slot
 `ActiveTimerDao.createActiveIntervalAndTimer` inserts the sole open interval, inserts singleton ID `1`, and
 touches the task in one Room transaction. `closeActiveIntervalAndClearTimer` validates the pointer, closes
 the interval, releases `active_slot`, clears the singleton, and touches the task in one transaction. A
-failed statement rolls back the whole change. Today/selection checks, midnight splitting, overlap validation,
-and clock-anomaly policy remain later domain-service responsibilities.
+failed statement rolls back the whole change. Today/selection checks, exact pinned-zone boundary closure,
+overlap validation, and clock-anomaly policy remain domain-service responsibilities; current schema 5
+boundary closure does not split or create continuation rows.
 
 Monotonic anchors are process-local and are not stored here. Persisting elapsed-realtime values across boots would be invalid.
 
@@ -426,4 +437,4 @@ directory rows, nullable task metadata, zero-/one-/many-interval tasks, and an a
 interval. It verifies deterministic copied task IDs, preserved IDs/endpoints/metadata and archived
 foreign-key links, active-pointer repointing, foreign-key integrity, reopen persistence, and removal
 of the legacy `ordinal` column. `WorqOrderDatabaseTest` additionally verifies packaged schema 5,
-the structural one-interval guard, same-series date copies, and populated version 1/2-to-5 paths.
+the structural one-interval guard, same-series lineage rows, and populated version 1/2-to-5 paths.

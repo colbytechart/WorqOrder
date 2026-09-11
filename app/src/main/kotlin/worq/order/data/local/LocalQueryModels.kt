@@ -59,14 +59,6 @@ data class StartTimerTransactionEntity(
     val repeatedTaskCreated: Boolean,
 )
 
-data class TimerContinuationEntityInput(
-    val boundaryEpochMs: Long,
-    val workDateEpochDay: Long,
-    val zoneId: String,
-    val proposedTaskId: String,
-    val proposedIntervalId: String,
-)
-
 enum class TaskMetadataWriteStatus {
     UPDATED,
     TASK_NOT_FOUND,

@@ -218,3 +218,13 @@ errors, or skips, plus debug lint and debug/release assembly. Manual checks pass
 permission denial/recovery, channel and privacy behavior, private/public content, accumulated
 chronometer, direct navigation, swipe dismissal, Stop cleanup, new-interval reappearance,
 background/lock/Recents, process/reboot/force-stop recovery, and a short resource check.
+
+## 7. `0.3.0` midnight-policy addendum
+
+Sections 3 and 4 above preserve the released `0.2.0` notification behavior. Current `0.3.0`
+midnight handling closes the sole interval exactly at its first pinned-ZoneId boundary, clears the
+active-timer row, and creates no continuation task or interval. Reconciliation therefore cancels
+the running notification rather than reposting it for a continuation. If Android has no executing
+WorqOrder component at the boundary, the old chronometer may remain visible until the next
+legitimate worker, resume, boot-recovery, or launch callback performs the authoritative close and
+notification reconciliation. No exact alarm, wake lock, or foreground stopwatch service is added.

@@ -1,5 +1,9 @@
 # WorqOrder Acceptance Tests
 
+Version scope: sections that explicitly identify released `0.1.0`/`0.2.0` behavior preserve
+historical acceptance evidence. Section 15 is the authoritative current `0.3.0` acceptance set;
+its one-interval, no-rollover, exact-boundary, and schema-5 rules supersede earlier expectations.
+
 ## 1. Test policy
 
 These scenarios define observable MVP behavior. Automated coverage may combine pure unit, coroutine, Room instrumentation, ViewModel, and Compose UI tests, but a requirement is not complete merely because one layer was tested. Use fake UTC clock, fake monotonic time, fake effective-zone provider, fake document destination, and fake Google Sheets gateway to make time/failure cases deterministic.
@@ -973,7 +977,7 @@ snapshots exist only as needed in process memory and are not staged to app-priva
 ## 15. v0.3.0 acceptance tests
 
 These cases supersede multi-interval, midnight-splitting, selection-rollover, and schema-4 row
-cardinality expectations when `0.3.0` is implemented. Prior-version migration fixtures remain
+cardinality expectations for current `0.3.0` behavior. Prior-version migration fixtures remain
 mandatory precisely because released data may contain those older shapes.
 
 Milestone 31 provides the current evidence for V3-TMR-01 through V3-TMR-03's selection and
@@ -1091,7 +1095,7 @@ a multi-interval task, and an open non-first interval. The test verifies that ev
 metadata value survives deterministic task splitting, the active pointer follows the open interval,
 foreign keys remain valid, the reopened file is stable, and schema 5 has no persisted `ordinal`.
 `WorqOrderDatabaseTest` verifies the packaged version-5 schema, the task-to-interval uniqueness
-guard, same-series date copies, and populated version 1/2-to-5 migration paths.
+guard, same-series lineage rows, and populated version 1/2-to-5 migration paths.
 
 ### V3-DB-05 Milestone 30 Sol quality gate
 

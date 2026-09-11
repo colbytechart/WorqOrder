@@ -1,7 +1,11 @@
 # WorqOrder Security Review
 
 Audit date: 2026-08-09
-Scope: WorqOrder `0.2.0` through Milestone 29
+Scope: WorqOrder `0.2.0` through Milestone 29 (historical release evidence)
+
+This document remains the accepted `0.2.0` security review. Current `0.3.0` security policy and
+release status are tracked in `REQUIREMENTS_TRACEABILITY.md`, `KNOWN_LIMITATIONS.md`, and the
+current milestone documents; Milestone 34 does not add encryption or broaden the threat model.
 
 ## 1. Security posture
 

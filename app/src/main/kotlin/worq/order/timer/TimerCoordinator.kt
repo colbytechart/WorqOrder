@@ -44,7 +44,6 @@ sealed interface StopTimerResult {
 
     data class Stopped(
         val interval: WorkInterval,
-        val splitCount: Int,
     ) : StopTimerResult
 }
 
@@ -58,11 +57,6 @@ sealed interface NormalizeTimerResult {
     data class ClockChanged(
         val intervalStart: Instant,
         val evaluationInstant: Instant,
-    ) : NormalizeTimerResult
-
-    data class Normalized(
-        val snapshot: ActiveTimerSnapshot,
-        val splitCount: Int,
     ) : NormalizeTimerResult
 
     data class ClosedAtBoundary(
@@ -296,14 +290,12 @@ class TimerCoordinator(
                 is BoundaryCloseResult.Closed ->
                     return@withLock StopTimerResult.Stopped(
                         interval = boundaryResult.snapshot.interval,
-                        splitCount = 1,
                     )
                 BoundaryCloseResult.BeforeBoundary -> Unit
             }
             val closed =
                 activeTimerRepository.closeActiveInterval(
                     expectedIntervalId = current.interval.id,
-                    boundaries = emptyList(),
                     stop = stop,
                 ) ?: return@withLock StopTimerResult.ActiveTimerChanged
             val finalTask = taskRepository.readTaskWithClient(closed.interval.taskId)?.task
@@ -320,7 +312,6 @@ class TimerCoordinator(
             liveTimerSession.clear()
             StopTimerResult.Stopped(
                 interval = closed.interval,
-                splitCount = 0,
             )
         }
 }

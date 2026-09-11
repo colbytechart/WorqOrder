@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.map
 import worq.order.data.ActiveTimerRepository
 import worq.order.data.CreateActiveIntervalResult
 import worq.order.data.EntityIdGenerator
-import worq.order.data.TimerSplitBoundary
 import worq.order.model.ActiveTimer
 import worq.order.model.ActiveTimerSnapshot
 import worq.order.timer.UtcClock
@@ -81,42 +80,16 @@ class RoomActiveTimerRepository(
                 updatedAtEpochMs = clock.now().toEpochMilli(),
             )?.toModel()
 
-    override suspend fun normalizeActiveInterval(
-        expectedIntervalId: String,
-        boundaries: List<TimerSplitBoundary>,
-    ): ActiveTimerSnapshot? {
-        val updatedAtEpochMs = clock.now().toEpochMilli()
-        return activeTimerDao
-            .normalizeActiveInterval(
-                expectedIntervalId = expectedIntervalId,
-                continuations = boundaries.toEntityInputs(),
-                updatedAtEpochMs = updatedAtEpochMs,
-            )?.toModel()
-    }
-
     override suspend fun closeActiveInterval(
         expectedIntervalId: String,
-        boundaries: List<TimerSplitBoundary>,
         stop: Instant,
     ): ActiveTimerSnapshot? {
         val updatedAtEpochMs = clock.now().toEpochMilli()
         return activeTimerDao
             .closeActiveIntervalAndClearTimer(
                 expectedIntervalId = expectedIntervalId,
-                continuations = boundaries.toEntityInputs(),
                 stopEpochMs = stop.toEpochMilli(),
                 updatedAtEpochMs = updatedAtEpochMs,
             )?.toModel()
     }
-
-    private fun List<TimerSplitBoundary>.toEntityInputs(): List<TimerContinuationEntityInput> =
-        map { boundary ->
-            TimerContinuationEntityInput(
-                boundaryEpochMs = boundary.instant.toEpochMilli(),
-                workDateEpochDay = boundary.workDate.toEpochDay(),
-                zoneId = boundary.zoneId.id,
-                proposedTaskId = idGenerator.newId(),
-                proposedIntervalId = idGenerator.newId(),
-            )
-        }
 }

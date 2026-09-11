@@ -364,8 +364,9 @@ Use only the disposable marked-test and conflict spreadsheets from section 9:
 2. With a completely blank test spreadsheet, verify its original first tab is renamed/reused as
    `WorqOrder_YYYY-MM-DD`; no unused blank default tab remains. With a separate spreadsheet that
    has any existing content, verify that content/tab is preserved and a new date tab is added.
-   Row 1 must contain the exact 15 schema-version-4 headers and row 2 onward must match a CSV
-   captured from the same unchanged local data.
+   Row 1 must contain the exact 13 schema-version-5 headers and row 2 onward must match a CSV
+   captured from the same unchanged local data. The released v0.2.0 15-column schema-4 layout is
+   historical; a known owned v0.2 tab is upgraded safely to schema 5 rather than appended.
 3. Export the unchanged date again. Verify the existing marked tab is recognized, no ownership
    conflict is shown, and no second tab or duplicate row appears.
 4. Edit/delete/add local task or interval data and re-export. Verify the marked table is completely

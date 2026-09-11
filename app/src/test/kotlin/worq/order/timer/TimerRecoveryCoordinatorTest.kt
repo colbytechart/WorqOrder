@@ -201,12 +201,10 @@ class TimerRecoveryCoordinatorTest {
             val jumped = fixture.recovery.recover()
 
             assertTrue(jumped is TimerRecoveryResult.ClosedAtBoundary)
-            assertNull(
-                fixture.tasks.findLegacyContinuationTask(
-                    seriesId = task.seriesId,
-                    workDate = LocalDate.of(2026, 7, 26),
-                    zoneId = NEW_YORK,
-                ),
+            assertTrue(
+                fixture.tasks
+                    .readTasksWithIntervalsForDate(LocalDate.of(2026, 7, 26))
+                    .none { it.taskWithClient.task.seriesId == task.seriesId },
             )
             assertNull(fixture.active.readActiveTimerSnapshot())
             assertEquals(
@@ -218,10 +216,7 @@ class TimerRecoveryCoordinatorTest {
             fixture.clock.instant = start.plus(Duration.ofMinutes(30))
             val corrected = fixture.recovery.recover()
 
-            assertEquals(
-                0,
-                (corrected as TimerRecoveryResult.Recovered).normalizedSplitCount,
-            )
+            assertTrue(corrected is TimerRecoveryResult.Recovered)
             assertNull(fixture.active.readActiveTimerSnapshot())
         }
 

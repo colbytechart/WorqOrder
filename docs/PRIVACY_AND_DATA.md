@@ -1,6 +1,8 @@
 # Privacy and Data
 
-Effective for WorqOrder `0.2.0`
+This document describes the released `0.2.0` data contract and the current `0.3.0` development
+contract. Where the two differ, the current v0.3 section is authoritative for the development
+branch; the v0.2 details remain for upgrade and historical-data transparency.
 
 ## 1. Summary
 
@@ -20,7 +22,9 @@ The app stores the following in its app-private storage:
 - task IDs/series IDs, client and optional Consultant relationships, assignment-time Consultant
   snapshot, work date, stored geographical ZoneId, description, hardware/software-purchase text,
   Work Type, nullable Billing Status, canonical Mileage, and timestamps;
-- interval IDs, ordinal, UTC start/stop timestamps, manual-edit flag, and timestamps;
+- interval IDs, UTC start/stop timestamps, manual-edit flag, and timestamps. Databases migrated
+  from v0.2 may contain legacy ordinal information only in their migration source; schema 5 does
+  not persist an ordinal column and each task owns zero or one interval;
 - the singleton active-timer pointer;
 - appearance, time-zone, landscape-handedness, export-destination, automatic-Google target/pending,
   notification-dismissal, and task-selection preferences;
@@ -58,7 +62,8 @@ the document, persist its URI permission, or import tasks.
 CSV and XLSX documents are written only after the user chooses a destination through Android's
 document interface. Google Sheets exports go only to the connected spreadsheet.
 
-All three destinations receive the same 15 visible fields:
+The released `0.2.0` destinations received the historical 15-field schema described below. Current
+`0.3.0` destinations receive the same immutable 13-field schema:
 
 1. Start date
 2. End date
@@ -69,16 +74,17 @@ All three destinations receive the same 15 visible fields:
 7. Work type
 8. Billing Status
 9. Mileage
-10. Interval number
-11. Start time
-12. Stop time
-13. Interval duration
-14. Time spent
-15. Billing minutes
+10. Start time
+11. Stop time
+12. Time spent
+13. Billing minutes
 
 These external documents are plaintext/readable copies. They are not end-to-end encrypted by
 WorqOrder. Anyone with access to the selected file location or spreadsheet may be able to read
 them.
+
+The v0.2 historical schema also included `Interval number` and `Interval duration`; those columns
+are retained in the documented historical release record only and are not emitted by schema 5.
 
 ## 5. Retention and Deletion
 

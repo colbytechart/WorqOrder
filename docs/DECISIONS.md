@@ -4,6 +4,11 @@ Status terms: **Accepted** is a fixed product/architecture decision; **Proposed*
 
 ## Accepted decisions
 
+Version scope: decisions D-001 through D-080 preserve the accepted `0.1.0`/`0.2.0` history and
+are not current when a later decision explicitly supersedes them. Decisions D-081 and later define
+the current `0.3.0` development behavior; migration fixtures and historical wording remain for
+upgrade traceability and must not be interpreted as live production contracts.
+
 ### D-001 — Native stable Android stack
 
 Use Kotlin-only native Android, Jetpack Compose/Material 3, Compose Navigation, ViewModel, coroutines/Flow, Room, Preferences DataStore, `java.time`, Gradle Kotlin DSL/version catalog, KSP where supported, and minimum API 26. Use stable dependency/tool releases only. The scaffold has proven the installed API 36.1 compile platform with target API 36.
@@ -1120,8 +1125,9 @@ The current `0.3.0` selection contract is covered by explicit regression cases f
 date/ZoneId clearing, persisted selection and process reconstruction, Room active-timer authority,
 date browsing without writes, repeated-Start selection and metadata/null copying, singular
 Add/Edit/Delete, selected-task deletion, and repeated reconciliation without idle duplication.
-These tests do not alter the legacy migration fixtures or the midnight continuation compatibility
-surface; those remain inputs to Milestones 32 and 34.
+These tests do not alter the legacy migration fixtures. Milestone 32 replaced the live midnight
+continuation behavior, and Milestone 34 removed its unreachable production API while retaining
+schema-1-through-4 migration fixtures and labeled historical evidence.
 
 The final Milestone 31 Sol audit found no hidden non-midnight rollover writer, stale DataStore
 authority, duplicate repeated-Start path, transaction race violating the one-interval/global-timer
@@ -1176,6 +1182,17 @@ The owner-run Milestone 33 final gate passed 235 JVM tests and 109 connected tes
 failures, errors, or skips. Debug/release lint and debug, Android-test, and release assembly also
 passed. The Sol review found no Room mutation, destination-specific projection, unsafe Google-tab
 overwrite, or singular-interval availability defect.
+
+### D-095 - Remove only unreachable continuation code and retain upgrade evidence
+
+Milestone 34 removes the live `0.2.0` continuation writer, its boundary-list contracts, and the
+unreachable normalization/split-count result shapes. Current boundary handling has one path: a
+transactional compare-and-close at the first pinned-ZoneId boundary, with no new task or interval.
+Schema-1-through-4 migrations, populated schema-4 fixtures, historical release documentation,
+known-owned Google schema upgrades, and the temporary derived `WorkInterval.ordinal = 1` model
+adapter remain. This is a contract reconciliation and dead-code reduction, not a Room schema,
+export, UI, dependency, permission, or product-scope change. The complete owner-run gate passed in
+5m 31s with 138 actionable tasks (31 executed, 107 up-to-date).
 
 ## Deferred decisions
 

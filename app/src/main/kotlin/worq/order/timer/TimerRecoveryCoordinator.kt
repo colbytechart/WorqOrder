@@ -8,7 +8,6 @@ import worq.order.domain.SelectionReconciliationResult
 
 sealed interface TimerRecoveryResult {
     data class Recovered(
-        val normalizedSplitCount: Int,
         val selectionResult: SelectionReconciliationResult,
     ) : TimerRecoveryResult
 
@@ -63,12 +62,6 @@ class TimerRecoveryCoordinator(
                 NormalizeTimerResult.NoChange,
                 ->
                     TimerRecoveryResult.Recovered(
-                        normalizedSplitCount = 0,
-                        selectionResult = selection,
-                    )
-                is NormalizeTimerResult.Normalized ->
-                    TimerRecoveryResult.Recovered(
-                        normalizedSplitCount = normalization.splitCount,
                         selectionResult = selection,
                     )
                 is NormalizeTimerResult.ClosedAtBoundary ->

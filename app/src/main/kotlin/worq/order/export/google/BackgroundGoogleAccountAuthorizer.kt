@@ -26,8 +26,12 @@ class BackgroundGoogleAccountAuthorizer(
     override suspend fun authorizeSpreadsheet(spreadsheetId: String): GoogleAuthorizationResult =
         authorizeSilently(GoogleAuthorizationRequestFactory.spreadsheetPickerRequest(spreadsheetId))
 
-    override suspend fun authorizeConnectedSpreadsheet(): GoogleAuthorizationResult =
-        authorizeSilently(GoogleAuthorizationRequestFactory.connectedSpreadsheetRequest())
+    override suspend fun authorizeConnectedSpreadsheet(
+        accountId: String,
+    ): GoogleAuthorizationResult =
+        authorizeSilently(
+            GoogleAuthorizationRequestFactory.connectedSpreadsheetRequest(accountId),
+        )
 
     private suspend fun authorizeSilently(
         request: com.google.android.gms.auth.api.identity.AuthorizationRequest,

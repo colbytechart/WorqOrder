@@ -17,7 +17,7 @@ import worq.order.timer.LiveTimerSession
 
 class RunningTimerNotificationCoordinatorTest {
     @Test
-    fun postsTaskDescriptionWithAccumulatedCompletedAndActiveTime() =
+    fun repeatedTaskNotificationUsesOnlyTheNewTaskActiveTime() =
         runTest {
             val fixture = fixture()
             fixture.tasks.insertCompletedInterval(
@@ -35,7 +35,7 @@ class RunningTimerNotificationCoordinatorTest {
             assertEquals("Client", content.clientName)
             assertEquals("Inspect roof", content.taskDescription)
             assertEquals(
-                Instant.parse("2026-08-08T13:30:00Z").toEpochMilli(),
+                Instant.parse("2026-08-08T14:30:00Z").toEpochMilli(),
                 content.chronometerBaseEpochMillis,
             )
         }

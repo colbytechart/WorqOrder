@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import worq.order.timer.TimerRecoveryResult
 
 class MainActivity : ComponentActivity() {
     private var openPendingGoogleExport by mutableStateOf(false)
@@ -39,17 +40,22 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         lifecycleScope.launch {
             try {
-                (application as WorqOrderApplication)
-                    .container
-                    .timerRecoveryCoordinator
-                    .recover()
+                val worqOrderApplication = application as WorqOrderApplication
+                val recovery =
+                    worqOrderApplication
+                        .container
+                        .timerRecoveryCoordinator
+                        .recover()
+                if (recovery is TimerRecoveryResult.ClosedAtBoundary) {
+                    worqOrderApplication.container.automaticGoogleExportManager.onTimerStopped()
+                }
                 runCatching {
-                    (application as WorqOrderApplication)
+                    worqOrderApplication
                         .container
                         .runningTimerNotificationController
                         .reconcile()
                 }
-                (application as WorqOrderApplication)
+                worqOrderApplication
                     .container
                     .automaticGoogleExportManager
                     .reconcile()

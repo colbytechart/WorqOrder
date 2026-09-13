@@ -1,6 +1,8 @@
 # WorqOrder User Guide
 
-Version: `0.2.0`
+Publication status: the latest published release is `0.2.0`. This guide also documents the
+current `0.3.0` development behavior, which remains subject to the final release gate and is not
+published yet.
 
 ## 1. What WorqOrder Stores
 
@@ -76,9 +78,9 @@ nothing. Tapping a task row selects it when no timer is running.
 - Choose **Start**. WorqOrder creates one open interval in Room.
 - Choose **Stop** to close the interval.
 
-The timer shows all completed intervals for the selected daily task plus the current active
-interval. Selecting another task is blocked until Stop. Starting the same task again creates
-another interval and continues from its accumulated total.
+Each task has zero or one interval. Selecting another task is blocked until Stop. Starting a
+task that already has a completed interval creates and selects a new same-day task carrying the
+source task's metadata, then starts that new task. The source task and its interval remain intact.
 
 Accumulated durations are displayed as `HH:MM:SS`. WorqOrder still records precise interval
 boundaries internally; fractional seconds are omitted from the interface to reduce visual clutter.
@@ -99,9 +101,9 @@ Use the previous/next arrows or calendar action in the pinned date controls. **T
 directly to the current date in the effective application time zone.
 
 Browsing another date does not move or rewrite tasks and does not stop a running timer. Live Start
-is available only while displaying today. If a timer crosses one or more local midnights,
-WorqOrder normalizes the data into corresponding daily task copies when it resumes, normalizes, or
-stops.
+is available only while displaying today. A timer that reaches local midnight closes its sole
+interval at the exact boundary in its pinned ZoneId and does not create a continuation task or
+interval. If Android resumes the process later, the same boundary is applied retrospectively.
 
 ## 6. Edit or Delete a Task
 
@@ -145,8 +147,8 @@ current geographical time zone. Existing date/ZoneId persistence remains intact,
 task dates, stored task zones, and intervals are never rewritten.
 
 The bottom of Settings displays the installed build version and stability as bare footer text, for
-example **WorqOrder v0.2.0 - stable**. There is no About card, and the text does not open a website
-or repository.
+example `WorqOrder v[installed version] - stable`. There is no About card, and the text does not
+open a website or repository.
 
 ## 8. Choose an Export Destination
 
@@ -207,12 +209,19 @@ completion.
 2. Display the required work date.
 3. Choose **Submit [date] to Google Sheets**.
 
-WorqOrder writes one `WorqOrder_YYYY-MM-DD` worksheet per date. Re-exporting replaces the
-application-owned table so rows are not duplicated.
+WorqOrder writes one `WorqOrder_YYYY-MM-DD` worksheet per date. Re-exporting updates this
+device's previously exported tasks and appends new tasks while preserving rows exported by
+another device. The 13 task columns remain visible; a hidden task-ID column enables matching.
+Deleting a task locally does not remove a row already exported to the shared sheet.
 
 If the workbook is entirely blank, WorqOrder may reuse its blank initial worksheet. If a
 same-named worksheet contains data but lacks WorqOrder's ownership marker, WorqOrder does not
 overwrite it. Rename that worksheet and retry.
+
+If an older WorqOrder worksheet uses an incompatible schema or contains ambiguous pre-ID rows,
+no rows are changed. Preserve and rename that tab before retrying; the new export will create a
+current-schema date tab. An edited row exported before hidden IDs were introduced may remain as
+an old copy because its identity cannot be proven from the edited text alone.
 
 If authorization expires, retry and approve the same spreadsheet. If edit permission is lost,
 restore Editor access or connect another spreadsheet. Offline, timeout, quota, and server failures

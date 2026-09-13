@@ -51,6 +51,7 @@ data class MainExportFeedback(
 
 enum class MainMessage {
     SELECT_A_TASK_FIRST,
+    TIMING_SELECTION_CLEARED,
     LIVE_TIMING_TODAY_ONLY,
     TIMER_ALREADY_RUNNING,
     STOP_BEFORE_SWITCHING,

@@ -28,7 +28,6 @@ import androidx.room.PrimaryKey
         Index(
             name = "index_daily_tasks_series_date_zone",
             value = ["series_id", "work_date_epoch_day", "zone_id"],
-            unique = true,
         ),
         Index(
             name = "index_daily_tasks_work_date_sort",

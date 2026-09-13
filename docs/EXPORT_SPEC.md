@@ -6,8 +6,9 @@
 - Build one immutable logical snapshot from Room, the authoritative source.
 - Use the same logical columns, row ordering, and value semantics for CSV, XLSX, and Google Sheets.
 - Export is one-way. It never imports, marks tasks exported, deletes local records, or resolves changes made in an external copy.
-- A retry is safe. Google Sheets re-export replaces the existing date tab idempotently; CSV and
-  XLSX intentionally create independent user-selected files.
+- A retry is safe. Current Google Sheets re-export merges task rows by stable internal task ID;
+  it does not replace rows contributed by another device. CSV and XLSX intentionally create
+  independent user-selected files.
 - Export requires no globally active timer. Main disables its export action for every destination
   while timing and identifies **Stop Timer to Export** as the required next action.
 - XLSX is an approved focused destination after Google Sheets export. Do not use Apache POI or
@@ -30,8 +31,8 @@
    escape/package/transport values but must not choose fields, change formatting, or reorder rows.
 9. Persist a safe last-attempt result in settings; do not modify tasks/intervals.
 
-An empty date still exports the header with no data rows. A task without intervals emits one row
-with blank interval number/start/stop/duration and a zero task total. The normal product workflow
+An empty date still exports the header with no data rows. A task without an interval emits one row
+with blank Start/Stop values, `00:00:00` Time spent, and `0` Billing minutes. The normal product workflow
 does not prepare or dispatch an export while an interval is open. The shared builder retains
 defensive support for immutable data construction, but a running row is not an approved
 user-visible export state.
@@ -44,7 +45,7 @@ dataset into one in-memory string before the create-document picker opens. Chang
 picker opens cannot change that pending payload. XLSX and Google adapters consume the same
 dataset object.
 
-## 3. Canonical export schema version 4 (`0.2.0`)
+## 3. Canonical export schema version 4 (`0.2.0` historical)
 
 Schema version 4 is internal compatibility metadata. It is used by WorqOrder markers and export
 adapters but is not a visible data column. Version `0.2.0` advances every destination together to
@@ -178,9 +179,9 @@ existing workbook.
 - Android launches `ActivityResultContracts.CreateDocument` for every export. It stores no
   document URI, persistable grant, workbook name, or connection status.
 - Each new workbook contains exactly one visible worksheet named
-  `WorqOrder_YYYY-MM-DD`. Row 1 contains the exact 15 canonical headers and row 2 onward contains
-  the same canonical rows used by CSV and Google Sheets.
-- User text, dates, times, interval numbers, and durations are literal inline-string cells.
+  `WorqOrder_YYYY-MM-DD`. Row 1 contains the current schema-5 set of 13 canonical headers and row 2
+  onward contains the same canonical rows used by CSV and Google Sheets.
+- User text, dates, times, and durations are literal inline-string cells.
   Formula-like values beginning with `=`, `+`, `-`, or `@` never become formulas. Formatted
   durations remain text so accumulated hours do not wrap at 24.
 - The focused internal writer emits a deterministic, minimal OOXML ZIP package with no macros,
@@ -209,17 +210,18 @@ The implemented package contains these fixed parts in deterministic order:
 5. `xl/styles.xml`
 6. `xl/worksheets/sheet1.xml`
 
-For schema version 4, `sheet1.xml` declares `A1:O<last-row>`, writes the header with the package's
-bold text style, and
+For current schema version 5, `sheet1.xml` declares `A1:M<last-row>`. Released schema version 4
+used `A1:O<last-row>` and remains a historical compatibility fixture. The writer uses the package's
+bold text style for the header and
 writes every canonical value as an `inlineStr` cell with `xml:space="preserve"`. SpreadsheetML
 escape sequences preserve carriage returns and otherwise-illegal XML control characters; literal
 user text that already resembles `_xHHHH_` is escaped so it is not misinterpreted. ZIP entry names
 are fixed, entry timestamps are deterministic, and no task/client/account value appears in package
 metadata.
 
-Milestone 12 verification parses every generated workbook with an independent test reader and
+Milestone verification parses every generated workbook with an independent test reader and
 manually opens representative outputs in Microsoft Excel and LibreOffice. Golden tests cover the
-unified schema, exact single-sheet name, empty/zero/multiple intervals, running-export lockout, stable order,
+unified schema, exact single-sheet name, empty/untimed/timed tasks, running-export lockout, stable order,
 clock-only local values, long durations, Unicode, commas, quotes, CR/LF, formula-prefixed text,
 package integrity, large-snapshot memory/time, picker cancellation/output failure, repeated
 independent exports, and no Room mutation.
@@ -312,7 +314,7 @@ Current official references reviewed on 2026-07-26:
 - [Read, write, and search developer metadata](https://developers.google.com/workspace/sheets/api/guides/metadata)
 - [Google Drive/Sheets file and cell limits](https://support.google.com/drive/answer/37603)
 
-## 8. Google worksheet contract
+## 8. Google worksheet contract (`0.2.0` historical schema 4 details)
 
 For displayed date `YYYY-MM-DD`, the application-owned tab name is exactly:
 
@@ -402,7 +404,7 @@ and never reported as success; retry is safe because the next complete batch rep
 marked date tab. The gateway parses sheet-scoped metadata from each `sheets[].developerMetadata`
 collection; this is required for a subsequent export to recognize the marker it created.
 
-## 9. v0.2.0 automatic Google daily export
+## 9. v0.2.0 automatic Google daily export (historical scheduling contract)
 
 Automation is opt-in and defaults off. Its switch exists only while Google Sheets is the selected
 export destination and remains disabled until an authorized account and connected spreadsheet are
@@ -429,9 +431,12 @@ At execution:
 1. If the target was already confirmed exported by this automatic job, exit idempotently.
 2. Revalidate that automation remains enabled, Google is still the selected destination, the same
    spreadsheet is connected, and authorization can be obtained through the approved flow. A
-   worker may proceed only when `AuthorizationClient.authorize()` returns an already-granted token
-   without interaction. A returned `PendingIntent` becomes authorization-required pending state;
-   it is never launched from the worker.
+   worker binds `AuthorizationClient.authorize()` to the persisted signed-in account hint and may
+   proceed only when Google returns an already-granted token without interaction. A returned
+   `PendingIntent` becomes authorization-required pending state; it is never launched from the
+   worker. That state preserves the account/spreadsheet metadata, captured date, and enabled Auto
+   Export preference. The next foreground interactive retry may launch Google's recovery UI and a
+   successful write restores the connection's validated status.
 3. If no timer is active, build a new authoritative immutable schema-4 snapshot for the captured
    target date and run the same marker-validated replacement protocol as manual Google export.
 4. If any timer is active, do not snapshot or export. Persist the captured date as pending.
@@ -524,7 +529,7 @@ Tests must prove:
   bounded-memory behavior, and no app-private plaintext staging;
 - one connected spreadsheet only;
 - URL/ID parsing and validation;
-- create marked date tab with invisible metadata, exact 15-column visible table, re-export
+- create marked date tab with invisible metadata, exact 13-column visible table, re-export
   replacement, obsolete-row clearing/grid resizing, and stable shared ordering;
 - unchanged re-export has no duplicate rows;
 - local edit/delete is reflected by replacement;
@@ -536,11 +541,84 @@ Tests must prove:
 - offline, auth expiration, permission, rate-limit, server, and ambiguous-response states are useful/retryable; and
 - all failures leave Room task data unchanged.
 
-Version `0.2.0` additionally tests consultant snapshot stability, Work type, nullable/exact Billing
-Status, normalized/blank Mileage, Billing minutes at zero/positive/boundary/long totals, exact 15 renamed headers and
+Version `0.2.0` historical tests cover consultant snapshot stability, Work type, nullable/exact Billing
+Status, normalized/blank Mileage, Billing minutes at zero/positive/boundary/long totals, exact 15 schema-4 headers and
 duplicated `MM/DD/YYYY` Start date/End date values,
 schema-2/schema-3 owned-tab upgrade to schema 4, unowned-tab protection, and equivalent CSV/XLSX/Google
 values. Automatic-export tests cover captured-date execution before/after midnight, inexact delay,
 running-timer pending state, post-Stop notification action, notification dismissal, reboot/Doze,
 zone changes, disconnect/sign-out, authorization/offline/quota failure, manual/automatic races,
 idempotency, no Main success message, no sensitive notification content, and no CSV/XLSX schedule.
+
+## 13. Canonical export schema version 5 (`0.3.0` current)
+
+Schema 5 is active after the Room single-interval migration and replaces schema 4 across CSV, XLSX,
+manual Google, and automatic Google together. Every task produces exactly one row.
+There is no interval ordinal and no second duration value.
+
+The exact visible column order and spelling is:
+
+| # | Header | Value |
+| ---: | --- | --- |
+| 1 | Start date | task work date as `MM/dd/yyyy` |
+| 2 | End date | the same task work date as `MM/dd/yyyy` |
+| 3 | Consultant | assignment-time Consultant snapshot or blank |
+| 4 | Client | current referenced Client display name |
+| 5 | Description | complete task Description |
+| 6 | Expense | complete Hardware / Software Purchases value |
+| 7 | Work type | `On-Site`, `In-Office`, or blank migrated value |
+| 8 | Billing Status | `Billable`, `Do not bill`, `Do not charge`, or blank migrated value |
+| 9 | Mileage | canonical non-negative decimal text or blank |
+| 10 | Start time | sole interval start in task ZoneId as `hh:mm AM/PM`, or blank |
+| 11 | Stop time | sole completed stop in task ZoneId as `hh:mm AM/PM`, or blank |
+| 12 | Time spent | sole completed duration as accumulated `HH:MM:SS`; `00:00:00` when untimed |
+| 13 | Billing minutes | derived 15-minute-ceiling integer; `0` when untimed |
+
+`Interval number` and `Interval duration` are intentionally absent. Exact UTC instants, IDs,
+ZoneIds, manual-edit state, and internal schema metadata remain in Room or the immutable snapshot
+context but are not visible export columns.
+
+### Snapshot and ordering
+
+The coordinator first performs any required midnight boundary closure, verifies that no unstable
+target-date interval remains, and captures one immutable task-plus-optional-interval projection.
+Sort tasks by creation timestamp ascending and task ID ascending. There is no interval-level sort.
+Picker delay or UI changes cannot mutate the prepared
+snapshot, and export never mutates Room.
+
+### Destination effects
+
+- CSV emits the exact 13 headers and one RFC-style UTF-8 row per task.
+- XLSX writes one worksheet with an `A:M` table and the same literal values.
+- Google writes the 13 visible fields in columns A:M. Columns N:O are reserved and P contains a
+  hidden, app-prefixed stable task ID used only for Google row reconciliation. This transport
+  identity is never added to CSV/XLSX or the visible canonical schema.
+- The gateway reads the existing marked schema-5 date tab (A:P) before writing. An existing task
+  ID updates only that row's A:M values; a new ID appends one A:P row. It never resizes or clears
+  an existing tab or removes rows absent from the local device. Thus another device's exported
+  tasks survive re-export, and repeated exports of a keyed task do not duplicate it.
+- On the first export after this change, a schema-5 row without a hidden ID is claimed only when
+  its 13 visible values uniquely and exactly match the local task. Otherwise the pre-existing row
+  is preserved and the local task is appended. Ambiguous identical unkeyed matches fail closed.
+  Edits to a previously unkeyed row may leave its old exported copy because identity cannot be
+  established from edited visible values alone.
+- Older schema-2/3/4 date tabs are now protected compatibility conflicts rather than replaced:
+  they can contain another device's rows with no stable identity. The user must preserve the old
+  tab separately and resolve the conflict deliberately before creating a current-schema tab.
+  Unknown/newer markers and unowned same-name tabs also fail closed.
+- Google is a one-way accumulated export, not synchronization. Deleting a local task does not
+  delete a previously exported remote row; edits update keyed rows on the next export from the
+  originating task ID. A cross-device simultaneous export can race between read and batch write;
+  there is no custom backend or cross-device lock. Inspect/retry a rare duplicate-key conflict
+  rather than silently deleting any row.
+- Automatic Google export uses the captured preceding date after midnight closure. CSV and XLSX
+  remain user-initiated `ACTION_CREATE_DOCUMENT` flows.
+
+Example header:
+
+```csv
+Start date,End date,Consultant,Client,Description,Expense,Work type,Billing Status,Mileage,Start time,Stop time,Time spent,Billing minutes
+```
+
+An untimed task has blank Start/Stop, `00:00:00` Time spent, and `0` Billing minutes. A running
+interval is never projected with a blank Stop as a successful export row.

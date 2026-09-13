@@ -110,6 +110,14 @@ class TaskMutationCoordinatorTest {
                     stopLocal = LocalDateTime.of(2026, 7, 25, 10, 30),
                 )
             assertTrue(overlap is ManualIntervalOperationResult.Invalid)
+            assertEquals(
+                ManualIntervalOperationResult.TaskAlreadyHasInterval,
+                fixture.coordinator.saveManualInterval(
+                    taskId = task.id,
+                    startLocal = LocalDateTime.of(2026, 7, 25, 11, 0),
+                    stopLocal = LocalDateTime.of(2026, 7, 25, 12, 0),
+                ),
+            )
 
             val edited =
                 fixture.coordinator.saveManualInterval(

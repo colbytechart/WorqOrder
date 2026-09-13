@@ -33,7 +33,6 @@ import worq.order.data.LandscapeHandedness
 import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
 import worq.order.data.TimeZoneSettingResult
-import worq.order.data.TimerSplitBoundary
 import worq.order.model.ActiveTimer
 import worq.order.model.ActiveTimerSnapshot
 import worq.order.timer.TimerOperationLock
@@ -278,14 +277,13 @@ class PreferencesSettingsRepositoryTest {
 
         override suspend fun closeActiveInterval(stop: Instant): ActiveTimerSnapshot? = null
 
-        override suspend fun normalizeActiveInterval(
+        override suspend fun closeActiveIntervalAtBoundary(
             expectedIntervalId: String,
-            boundaries: List<TimerSplitBoundary>,
+            boundary: Instant,
         ): ActiveTimerSnapshot? = null
 
         override suspend fun closeActiveInterval(
             expectedIntervalId: String,
-            boundaries: List<TimerSplitBoundary>,
             stop: Instant,
         ): ActiveTimerSnapshot? = null
     }

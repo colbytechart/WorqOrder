@@ -27,9 +27,9 @@ class GoogleSheetsExportCoordinator(
         if (!connection.hasAccountHint || !connection.hasSpreadsheetMetadata) {
             return GoogleSheetsExportOperationResult.SetupRequired
         }
-        if (!connection.isConnected) {
-            return GoogleSheetsExportOperationResult.AuthorizationRequired
-        }
+        val accountId =
+            connection.accountId
+                ?: return GoogleSheetsExportOperationResult.SetupRequired
         val spreadsheetId =
             connection.spreadsheetId
                 ?: return GoogleSheetsExportOperationResult.SetupRequired
@@ -40,12 +40,14 @@ class GoogleSheetsExportCoordinator(
             when (val result = snapshotProvider.prepare(workDate)) {
                 PrepareExportSnapshotResult.ActiveTimerChanged ->
                     return GoogleSheetsExportOperationResult.ActiveTimerChanged
+                PrepareExportSnapshotResult.ActiveTimerRunning ->
+                    return GoogleSheetsExportOperationResult.ActiveTimerChanged
                 PrepareExportSnapshotResult.ClockChanged ->
                     return GoogleSheetsExportOperationResult.ClockChanged
                 is PrepareExportSnapshotResult.Ready -> result.snapshot
             }
         val authorization =
-            when (val result = authorizer.authorizeConnectedSpreadsheet()) {
+            when (val result = authorizer.authorizeConnectedSpreadsheet(accountId)) {
                 is GoogleAuthorizationResult.Authorized -> result
                 GoogleAuthorizationResult.Canceled ->
                     return GoogleSheetsExportOperationResult.Canceled
@@ -70,7 +72,16 @@ class GoogleSheetsExportCoordinator(
                     snapshot = snapshot,
                 )
         ) {
-            GoogleSheetsGatewayExportResult.Success ->
+            GoogleSheetsGatewayExportResult.Success -> {
+                localResult {
+                    connectionRepository.saveConnectedSpreadsheet(
+                        spreadsheetId = spreadsheetId,
+                        spreadsheetTitle = spreadsheetTitle,
+                        validatedAt = snapshot.exportedAt,
+                    )
+                }.getOrElse {
+                    return failed(GoogleSheetsExportFailure.LOCAL_STORAGE)
+                }
                 GoogleSheetsExportOperationResult.Success(
                     GoogleSheetExportReceipt(
                         workDate = snapshot.workDate,
@@ -84,6 +95,7 @@ class GoogleSheetsExportCoordinator(
                         dataRowCount = snapshot.rows.size,
                     ),
                 )
+            }
             is GoogleSheetsGatewayExportResult.TabNameConflict ->
                 failed(
                     reason = GoogleSheetsExportFailure.TAB_NAME_CONFLICT,

@@ -9,7 +9,8 @@ At every committed database state:
 3. The referenced interval belongs to one daily task and uses the `boundaryZoneId` captured at Start.
 4. Every completed interval has `start < stop` and lies within its task's stored local-date boundaries.
 5. Intervals for a task do not overlap.
-6. A series has at most one daily task for a `(work date, assignment ZoneId)` pair.
+6. Released `0.2.0` used at most one daily task for a `(work date, assignment ZoneId)` pair.
+   In `0.3.0`, `series_id` is lineage only and no reconciliation path creates another date copy.
 7. The visible timer is derived state, never a persisted counter.
 
 All algorithms use injected time sources and execute rule-dependent database changes in Room transactions.
@@ -97,7 +98,10 @@ Android elapsed realtime, not uptime, is the planned monotonic source so device 
 
 After activity recreation, reuse the application-scoped live anchor when available. After process death or an anchor mismatch, reconstruct the open contribution once from `clock.now() - persistedStart`, clamp only the visual provisional contribution to zero if the device clock is anomalous, then establish a new monotonic anchor. Historical data remains based on persisted wall instants.
 
-When the app stays foreground across a date boundary, the ticker/date observer requests normalization on the first refresh after the detected local-date change. The app need not wake exactly at midnight.
+When the app stays foreground across a date boundary, the ticker/date observer requests recovery on
+the first refresh after the detected local-date change. Recovery closes the open interval at the
+first pinned-zone boundary and does not create a continuation task. The app need not wake exactly
+at midnight.
 
 The ticker is a single `StateFlow` pipeline shared by all Main collectors. It runs only while Main
 state is collected and an active interval exists, stops after the collection grace period, and
@@ -113,16 +117,13 @@ the persisted interval continues logically. Android elapsed realtime includes de
 2. If a valid process-local anchor exists, calculate
    `logicalStop = currentSegmentStart + activeDurationAtAnchor + monotonicDelta`. Otherwise use
    the wall-clock sample reconstructed after process death/reboot.
-3. Normalize the interval through every boundary strictly before `logicalStop` using the active
-   session's pinned zone.
-4. If `logicalStop` equals a boundary, close the preceding segment at that boundary without
-   creating a zero-length next interval.
-5. Close the final open interval at `logicalStop`.
+3. If `logicalStop` reaches the first next-day boundary in the active session's pinned zone, close
+   the existing interval exactly at that boundary, clear active state, and create no continuation.
+4. Otherwise close the sole open interval at `logicalStop`.
 6. Validate positive duration and the owning task boundary.
 7. Delete the singleton active row and update affected timestamps.
-8. Select the task owning the final closed segment. If Stop was exactly at midnight, ordinary
-   selection reconciliation may subsequently select/create the new day's task without creating a
-   zero-length interval.
+8. Keep the closed task as the persisted task selection when ordinary Stop succeeds; a boundary
+   close clears stale timing selection because no new daily task exists.
 9. Clear the process-local monotonic anchor after commit.
 
 The database still stores a UTC stop instant. While a valid in-process anchor exists, that instant
@@ -131,36 +132,53 @@ total matches the live display even if wall time moves. This deliberately favors
 work over copying a corrected wall-clock label. After process death or reboot, the monotonic
 reference is gone and wall-clock reconstruction remains the only available source.
 
-## 7. Midnight splitting
+## 7. Midnight closure (v0.3)
 
-Given an open segment starting at `segmentStart` and a normalization endpoint `now`, use `active_timer.boundaryZoneId`:
+Given an open interval and an evaluation endpoint, use the active timer's pinned
+`boundaryZoneId` to calculate the first next-day boundary:
 
-1. Determine `segmentDate = LocalDate.ofInstant(segmentStart, zone)`; at an exact boundary, associate it with the new local date unless it is already the prior segment's stop.
-2. Compute `nextBoundary = segmentDate.plusDays(1).atStartOfDay(zone).toInstant()`.
-3. While `nextBoundary < now` (or `<= now` when normalizing without immediately stopping):
-   - close the current segment at `nextBoundary`;
-   - find/create the next date's task with the same series ID, copied employee ID/name snapshot,
-     client, short description, hardware/software-purchases text, Work Type, Billing Status
-     (including blank), Mileage, and the
-     pinned boundary ZoneId;
-   - create the next interval at `nextBoundary`, open unless another boundary/end is known;
-   - assign a new stable interval ID and next ordinal on that daily task;
-   - retarget `active_timer` to the new open interval;
-   - continue from the new task/date.
-4. Select the currently open daily task.
+1. Compute `nextBoundary = LocalDate.ofInstant(segmentStart, zone).plusDays(1)`
+   `.atStartOfDay(zone).toInstant()` using real `ZoneId` rules.
+2. If the endpoint is before `nextBoundary`, leave the open interval unchanged.
+3. If the endpoint reaches or exceeds `nextBoundary`, close the existing interval exactly at
+   `nextBoundary`, clear the singleton `active_timer`, clear stale timing selection, and clear the
+   process-local monotonic anchor.
+4. Create no next-day task, continuation interval, or replacement active-timer row.
 
-For a known Stop endpoint exactly equal to a boundary, do not emit the next zero-duration segment. For recovery/continued running at or after a boundary, the active interval must ultimately be on the current session-local date. The entire chain commits atomically.
+The expected boundary-driven selection clear is silent. It is not presented as an invalid or
+historical user selection because the user did not request a new timing action.
 
-Example in `America/New_York`:
+The Main screen's visible-day transition is independent of the active-timer stream. While the
+screen is lifecycle-collected, it calculates and suspends until the next real midnight in the
+effective geographical ZoneId. If the screen was following Today, that boundary advances it to
+the new Today even when WorkManager or another recovery caller closes the timer first. An
+intentionally browsed historical date remains selected. This signal performs no Room write and
+does not poll continuously.
+
+The Room operation is compare-and-close transactional and idempotent. A repeated recovery, Stop,
+worker, or export call observes no active timer and makes no further change. Several missed local
+dates still close once at the first boundary; the implementation never adds fixed 24-hour periods
+or iterates over missed dates. DST and unusual `atStartOfDay` behavior are supplied by `ZoneId`.
+
+Example in `America/New_York`: an interval starting at `2026-07-24T23:30-04:00` closes at
+`2026-07-25T00:00-04:00`; no July 25 task or continuation interval is generated.
+
+The following split example is retained only as released v0.2 historical compatibility evidence;
+it is not the current v0.3 behavior:
 
 ```text
 Jul 22 task: 2026-07-22T23:30-04:00 → 2026-07-23T00:00-04:00
 Jul 23 task: 2026-07-23T00:00-04:00 → 2026-07-23T01:00-04:00
 ```
 
-For multiple missed dates, repeat at each `atStartOfDay` boundary. Never add fixed 24-hour durations to find midnight.
+The v0.2 historical split implementation repeated at each `atStartOfDay` boundary; the v0.3
+implementation above closes once at the first boundary and never creates continuations.
 
 ## 8. Daily selection rollover
+
+The rules in this section describe the released `0.2.0` behavior and remain as historical
+compatibility documentation. The current `0.3.0` branch does not perform this find-or-create
+rollover; Section 15 is authoritative for current selection reconciliation.
 
 Rollover is based on an actual change of today or the effective geographical zone, not ordinary browsing with the date selector.
 Selection preferences therefore retain the selected task ID, preferred series ID, effective date
@@ -268,15 +286,17 @@ The application-scoped `TimerRecoveryCoordinator` performs each recovery in this
 1. Wait for the first DataStore-backed effective ZoneId.
 2. Capture one UTC evaluation instant.
 3. Read and validate Room's singleton/open-interval state.
-4. Split every crossed local-date boundary transactionally with the active session's pinned zone.
+4. Close an open interval at the first crossed local-date boundary transactionally with the active
+   session's pinned zone, without creating a continuation.
 5. Rebuild the process-local monotonic anchor if it is absent or was a negative provisional
    recovery anchor.
-6. Reconcile persistent selection, with an active Room timer taking precedence.
+6. Reconcile persistent selection, with an active Room timer taking precedence; a boundary close
+   clears stale timing selection.
 7. Let Room/DataStore flows rebuild ViewModel and Compose presentation.
 
 Concurrent resume calls are serialized and the timer-operation mutex serializes them with
-Start/Stop/export normalization. The Room continuation transaction and three-part task uniqueness
-remain the final duplicate-prevention boundary.
+Start/Stop/export normalization. The Room compare-and-close transaction and singleton active-timer
+invariant remain the final duplicate-prevention boundary.
 
 An open interval without the singleton pointer, a singleton with zero/multiple open candidates,
 or a mismatched/closed referenced interval is an explicit persistence-invariant error. It is not
@@ -302,3 +322,72 @@ This scheduler is not a timer wake-up mechanism, does not split intervals itself
 an exact alarm, foreground stopwatch service, or tick loop merely to approach 11:59 PM. The exact
 stable Android scheduler/auth mechanism is chosen only after current official research and owner
 approval.
+
+## 15. Current v0.3.0 timer and date rules
+
+Milestone 31 implemented the Section 15 selection and repetition rules. Milestone 32 implemented
+the exact-boundary closure and automatic-export ordering rules below; this section is authoritative
+for current v0.3 behavior.
+
+The following rules supersede Sections 4, 6, 7, 8, and 14 where they describe repeated intervals,
+midnight continuation, or selection rollover. All UTC, monotonic-clock, pinned-ZoneId, DST,
+non-negative-duration, and one-global-timer rules remain.
+
+### Start and repetition
+
+1. Start still requires a concrete selected task assigned to today in the effective ZoneId and no
+   globally active timer.
+2. If the selected task has no interval, atomically create its sole open interval and active-timer
+   row.
+3. If it has one completed interval, atomically create a new same-day task carrying the source
+   lineage and current user metadata, select it, and create its sole open interval and active-timer
+   row. Its displayed accumulated time begins at zero. The source task remains unchanged.
+4. If its interval is open, the global active-timer rule rejects another Start.
+5. Concurrent Start calls must never create more than one repetition or open interval.
+
+### Stop
+
+Ordinary Stop closes the sole interval at the monotonic projection already defined by the clock
+anomaly policy and clears `active_timer`. Task total equals that one interval's non-negative
+duration. Stop with no active timer remains an expected no-op result.
+
+### Midnight closure
+
+For an open interval, calculate the first `LocalDate.plusDays(1).atStartOfDay(pinnedZone)` boundary
+after its start. When the evaluated/projected instant reaches or exceeds that boundary:
+
+1. close the existing interval exactly at the boundary;
+2. clear the singleton active timer and live monotonic session;
+3. cancel/reconcile the running notification;
+4. clear the stale timing selection; and
+5. create no task, interval, or continuation for the new date.
+
+The operation is transactional, idempotent, and safe under concurrent resume, worker, Start, and
+Stop entry points. It never iterates over missed days because there is no continuation. A device
+that does not execute WorqOrder at midnight may temporarily retain an open row/chronometer, but the
+next legitimate execution writes the exact historical boundary rather than its later wake time.
+This is the strongest correct behavior compatible with the prohibition on exact alarms, app-owned
+wake locks, and a foreground stopwatch service.
+
+### Selection and dates
+
+Date-selector browsing never creates data. When actual today or effective ZoneId no longer matches
+the selected task's stored context, clear timing selection; never find or create a series copy.
+Historical/future tasks remain viewable and editable, but Start is unavailable. A user must select
+or create an eligible task for the new day.
+
+### Automatic Google ordering
+
+Capture the intended work date and pinned ZoneId before its boundary, but schedule the earliest
+best-effort automatic execution after that boundary. The worker first applies midnight closure for
+any stale interval belonging to the captured date, then prepares the current canonical snapshot
+and exports. Milestone 33 separately changes that projection to schema 5. A delay still exports the
+captured date. Offline, authorization, quota, or Android scheduling limitations retain the existing
+typed pending state. No successful Main-screen notification is added, and CSV/XLSX remain manual.
+Because WorkManager execution is deliberately inexact, an active foreground process and normal
+startup/resume reconciliation also execute an overdue, non-pending target directly after enforcing
+the same exact-boundary close. WorkManager remains the persistent background fallback. Both paths
+compare the durable date, ZoneId, and connection key before writing, so a later worker delivery is
+stale and cannot duplicate a completed export. The foreground post-close callback is launched from
+the ViewModel scope independently of the active-only ticker flow: clearing Room's active row stops
+that ticker but cannot cancel the export handoff it just triggered.

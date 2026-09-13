@@ -52,12 +52,11 @@ data class ActiveTimerTransactionEntity(
     val interval: WorkIntervalEntity,
 )
 
-data class TimerContinuationEntityInput(
-    val boundaryEpochMs: Long,
-    val workDateEpochDay: Long,
-    val zoneId: String,
-    val proposedTaskId: String,
-    val proposedIntervalId: String,
+data class StartTimerTransactionEntity(
+    val startedTask: DailyTaskEntity,
+    val activeTimer: ActiveTimerEntity,
+    val interval: WorkIntervalEntity,
+    val repeatedTaskCreated: Boolean,
 )
 
 enum class TaskMetadataWriteStatus {
@@ -83,6 +82,7 @@ enum class ManualIntervalWriteStatus {
     SAVED,
     DELETED,
     TASK_NOT_FOUND,
+    TASK_ALREADY_HAS_INTERVAL,
     INTERVAL_NOT_FOUND,
     RUNNING_TASK,
     RUNNING_INTERVAL,

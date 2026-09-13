@@ -18,10 +18,14 @@ class AutomaticGoogleExportWorker(
             return Result.failure()
         }
         return try {
-            (applicationContext as WorqOrderApplication)
+            val application = applicationContext as WorqOrderApplication
+            application
                 .container
                 .automaticGoogleExportManager
                 .runScheduled(workDateEpochDay, zoneId, connectionKey)
+            runCatching {
+                application.container.runningTimerNotificationController.reconcile()
+            }
             Result.success()
         } catch (cancellation: CancellationException) {
             throw cancellation

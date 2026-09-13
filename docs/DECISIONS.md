@@ -4,6 +4,11 @@ Status terms: **Accepted** is a fixed product/architecture decision; **Proposed*
 
 ## Accepted decisions
 
+Version scope: decisions D-001 through D-080 preserve the accepted `0.1.0`/`0.2.0` history and
+are not current when a later decision explicitly supersedes them. Decisions D-081 and later define
+the current `0.3.0` development behavior; migration fixtures and historical wording remain for
+upgrade traceability and must not be interpreted as live production contracts.
+
 ### D-001 — Native stable Android stack
 
 Use Kotlin-only native Android, Jetpack Compose/Material 3, Compose Navigation, ViewModel, coroutines/Flow, Room, Preferences DataStore, `java.time`, Gradle Kotlin DSL/version catalog, KSP where supported, and minimum API 26. Use stable dependency/tool releases only. The scaffold has proven the installed API 36.1 compile platform with target API 36.
@@ -66,11 +71,11 @@ a counter running.
 
 Split at every local-date boundary using `ZoneId` rules, including missed/multiple boundaries. The app may normalize lazily on foreground/resume/stop; the active segment ultimately belongs to the current session-local date.
 
-### D-013 — Selection rollover
+### D-013 — Selection rollover (v0.2 historical behavior)
 
 Persist preferred series/concrete-task hints. On actual configured-date rollover, find/create the same-series daily task with current metadata under `(seriesId, workDate, assignmentZoneId)` uniqueness and select it. Browsing a date alone does not create a copy. Including the zone refines the suggested series/date key so a future task created in another zone is not silently repurposed or made inconsistent with interval boundaries.
 
-### D-014 — One row per interval
+### D-014 — One row per interval (v0.2 historical behavior)
 
 All three exports use one row per interval with repeated task metadata. A zero-interval task emits
 one blank-interval row. Schema version 1 and exact current columns are defined in
@@ -1011,6 +1016,205 @@ risk breaking Credential Manager and Google sign-in. The clean debug/release gat
 debug/release Maven coordinates. This decision does not authorize any direct preview dependency or
 future transitive preview change; either requires a new documented review and owner decision.
 
+### D-081 — v0.3.0 is a narrow behavioral release
+
+`0.3.0` contains only two product changes: eliminate automatic task rollover/midnight
+continuation, and replace task multi-interval history with one task per interval. Supporting Room
+migration, selection, automatic-export ordering, UI, export-schema, documentation, and regression
+work are required consequences rather than additional product features. Every unrelated `0.2.0`
+behavior and permanent policy remains.
+
+### D-082 — Schema 5 preserves every interval as one task
+
+Room advances explicitly from version 4 to 5. `work_intervals` remains a separate table but gains
+a unique `task_id` and loses `ordinal`, enforcing zero or one interval per task. A populated task
+with several intervals is split deterministically: the original task retains its earliest ordered
+interval and each later interval moves to a newly identified task carrying all user metadata. No
+interval endpoint, task metadata, client/Consultant relationship, manual-edit state, active timer,
+date, ZoneId, or identity that can remain stable is discarded.
+
+The active-timer composite reference is repointed transactionally if its open interval moves.
+Zero-/one-interval tasks remain semantically unchanged. Migration failure is explicit and
+non-destructive. This supersedes the multi-interval portion of D-008 and ordinal assumptions in
+D-027; it does not weaken D-009, D-010, or D-020.
+
+### D-083 — Series IDs are lineage, not rollover uniqueness
+
+Schema 5 replaces the unique `(seriesId, workDate, ZoneId)` index with a normal lookup index.
+`seriesId` remains stable, non-user-visible lineage shared by task repetitions and any historical
+v0.2 daily copies, but no code may use it to create a task for another date. A repeated Start
+creates a new task and interval ID while retaining the source lineage and current user metadata.
+This supersedes the uniqueness/copy behavior in D-013 and D-037.
+
+### D-084 — Repeated Start duplicates the task atomically
+
+Start on an eligible task with no interval uses that task. Start on an eligible task with one
+completed interval atomically creates one same-day metadata copy, selects it, and creates its sole
+open interval plus singleton active-timer state. The new timer begins at zero; the source task and
+completed interval never change. Concurrent Start operations remain serialized and cannot create
+duplicate repetitions. Manual Add Interval is available only to an untimed task; Edit/Delete owns
+the singular completed interval.
+
+### D-085 — Midnight is an exact logical stop without a wake guarantee
+
+At the first next local-day boundary calculated in the active timer's pinned ZoneId, the sole open
+interval ends, active state and stale timing selection clear, and no continuation task/interval is
+created. Foreground observation may apply this promptly. If Android has suspended the process,
+WorkManager, resume, launch, or post-unlock recovery applies the exact boundary retrospectively at
+its next legitimate execution opportunity. The app will not add an exact alarm, app-owned wake
+lock, or foreground stopwatch service merely to execute at the physical instant of midnight.
+
+Automatic Google work targets the preceding captured date and is scheduled no earlier than its
+local boundary. It applies this close before snapshot/export. Other failures retain typed pending
+state. This supersedes D-012 and the timer-running scheduling portions of D-071/D-076/D-077 while
+retaining best-effort scheduling, idempotency, no billing/backend, and content-free recovery.
+
+### D-086 — Date changes clear selection and never create tasks
+
+Actual date or effective-zone reconciliation clears a selected task that is no longer eligible for
+today. Startup, resume, normalization, Start eligibility checks, and historical browsing never
+find or create a daily series copy. The user must select or create today's task. This supersedes
+selection-rollover creation in D-013, D-037, and D-042 without changing historical stored dates or
+ZoneIds.
+
+### D-087 — Canonical schema 5 has 13 task rows
+
+All export destinations move together to internal schema version 5. The exact visible columns are
+Start date, End date, Consultant, Client, Description, Expense, Work type, Billing Status,
+Mileage, Start time, Stop time, Time spent, and Billing minutes. Every task emits exactly one row.
+`Interval number` and redundant `Interval duration` are removed. Owned Google tabs using known
+schemas 2–4 may be replaced and upgraded; unknown/newer and unowned tabs remain protected. This
+supersedes D-014 and the schema-4 visible projection in D-079 while preserving the shared immutable
+projection requirement.
+
+### D-088 — v0.3.0 task-level model delegation and teardown milestone
+
+Every v0.3 milestone is divided into explicitly ordered task phases in
+`V0_3_MILESTONE_PROMPTS.md`; whole-milestone model ownership is superseded. Each phase is assigned
+to Luna, Terra, or Sol at Extra High reasoning according to the narrowest capable model, with token
+efficiency prioritized before equivalent-quality implementation. Luna owns highly specified
+inventory, mechanical fixtures, documentation, and evidence work. Terra owns bounded application,
+UI, adapter, and integration work. Sol owns migration/invariant design, concurrency, security,
+release judgment, destructive-system guidance, and the final quality review for every milestone.
+
+The owner supplies the current weekly-token-budget percentage and explicit permission once at the
+start of a milestone; the first phase estimates the whole milestone and verifies its branch. Later
+phases inspect the existing diff and prior handoff instead of repeating broad discovery. At every
+model transition, work stops until the owner confirms the requested model is active. No phase may
+perform another model's assigned work, and a milestone cannot close until its Sol review accepts
+the combined work and required tests.
+
+The final teardown milestone produces conservative, inventory-first instructions only. It never
+removes software or changes BIOS/firmware itself, must distinguish project-exclusive components
+from tools shared by other projects, protects Git history/release keys/backups first, and requires
+explicit confirmation before every destructive user action.
+
+### D-089 — Schema 5 migration evidence baseline
+
+Milestone 30C records the first executable schema-5 evidence baseline. The populated migration
+fixture includes archived Client and Consultant rows, nullable metadata, zero-/one-/many-interval
+tasks, and an active non-first interval; assertions verify deterministic split IDs, preserved
+metadata/endpoints/relationships, active-pointer repointing, foreign-key integrity, reopen
+persistence, and removal of the persisted ordinal. Room's packaged schema-5 JSON is checked in
+alongside version 1–4 inputs. The compatibility `WorkInterval.ordinal` value is derived as `1`
+for legacy presentation callers only and is not persisted.
+
+### D-090 — Milestone 31 no-rollover regression evidence
+
+The current `0.3.0` selection contract is covered by explicit regression cases for stale
+date/ZoneId clearing, persisted selection and process reconstruction, Room active-timer authority,
+date browsing without writes, repeated-Start selection and metadata/null copying, singular
+Add/Edit/Delete, selected-task deletion, and repeated reconciliation without idle duplication.
+These tests do not alter the legacy migration fixtures. Milestone 32 replaced the live midnight
+continuation behavior, and Milestone 34 removed its unreachable production API while retaining
+schema-1-through-4 migration fixtures and labeled historical evidence.
+
+The final Milestone 31 Sol audit found no hidden non-midnight rollover writer, stale DataStore
+authority, duplicate repeated-Start path, transaction race violating the one-interval/global-timer
+constraints, or accidental midnight-policy change. The complete owner-run Gradle gate passed in
+10 seconds with 40 actionable tasks (1 executed, 39 up-to-date), followed by successful manual
+date/ZoneId, browsing, singular interval, repeated Start, deletion, and Recents recovery checks.
+
+### D-091 - Automatic Google authorization recovery preserves its target
+
+Connected-spreadsheet authorization explicitly targets the persisted Google account hint. A
+background `AuthorizationClient` result that requires UI marks the authorization stale but keeps
+the account/spreadsheet metadata, enabled Auto Export preference, and captured work date. It does
+not disable automation or make the stored destination indistinguishable from a disconnect. The
+pending action remains visible after restart, and an Activity-backed retry may invoke Google's
+resolution even while validation is stale. A successful complete export reaffirms the stored
+connection validation. Passive next-day selection cleanup is silent; explicit attempts to start
+an ineligible historical task retain their validation message.
+
+### D-092 - Main visible date has an independent boundary signal
+
+The active-timer stream is not authoritative for the Main screen's calendar day. A lifecycle-
+collected signal calculates the next real midnight in the effective ZoneId and suspends directly
+until it. This closes the race where WorkManager or another recovery caller clears the active timer
+and cancels the 200 ms presentation tick before that tick can advance the visible date. A screen
+following Today advances; a deliberately browsed date remains unchanged. The signal does not poll,
+write Room, schedule exact alarms, or depend on Google export completion.
+
+### D-093 - Milestone 32 quality gate accepts layered boundary execution
+
+Exact boundary closure has one Room compare-and-close transaction and several legitimate bounded
+entry points: foreground date observation, Activity/application recovery, post-unlock boot recovery,
+scheduled WorkManager execution, and export preparation. All entry points converge through the same
+operation lock and idempotent Room predicate. Automatic Google execution retains one captured date,
+ZoneId, and connection key; foreground/startup execution can handle an overdue target while
+WorkManager remains its durable background fallback. A later stale delivery cannot duplicate the
+completed export. No exact alarm, continuation record, app-owned wake lock, foreground stopwatch
+service, continuous background loop, or UI-tick database write was added. The final owner-run gate
+passed 235 JVM tests, 108 connected tests, debug lint, and debug/release assembly.
+
+### D-094 - Milestone 33 activates the singular interval and schema-5 projection
+
+The current `0.3.0` UI exposes at most one optional interval per task: untimed tasks offer Add
+Interval, while a completed interval offers Edit/Delete and a running interval remains locked.
+Starting a task that already has a completed interval creates a new same-day metadata-preserving
+task before opening its sole interval. The shared immutable export projection is schema 5 with
+exactly 13 visible columns and one row per task; CSV, one-off XLSX, manual Google, and automatic
+Google consume the same values. Known-owned Google schema-2/3/4 tabs may be upgraded by replacing
+the complete owned range, while unowned or unknown/newer tabs remain protected. The released
+`0.2.0` schema-4 projection remains a migration/compatibility fixture only.
+
+The owner-run Milestone 33 final gate passed 235 JVM tests and 109 connected tests with zero
+failures, errors, or skips. Debug/release lint and debug, Android-test, and release assembly also
+passed. The Sol review found no Room mutation, destination-specific projection, unsafe Google-tab
+overwrite, or singular-interval availability defect.
+
+### D-095 - Remove only unreachable continuation code and retain upgrade evidence
+
+Milestone 34 removes the live `0.2.0` continuation writer, its boundary-list contracts, and the
+unreachable normalization/split-count result shapes. Current boundary handling has one path: a
+transactional compare-and-close at the first pinned-ZoneId boundary, with no new task or interval.
+Schema-1-through-4 migrations, populated schema-4 fixtures, historical release documentation,
+known-owned Google schema upgrades, and the temporary derived `WorkInterval.ordinal = 1` model
+adapter remain. This is a contract reconciliation and dead-code reduction, not a Room schema,
+export, UI, dependency, permission, or product-scope change. The complete owner-run gate passed in
+5m 31s with 138 actionable tasks (31 executed, 107 up-to-date).
+
+### D-096 - Google date tabs merge by stable task identity across devices
+
+The prior owned-tab replacement policy in D-016, D-054, D-086, and D-094 is superseded for
+current exports. A second WorqOrder installation can hold different local Room tasks while
+connecting to the same spreadsheet; replacing the entire date tab from either device silently
+erased the other device's rows. CSV and XLSX remain one-off and unchanged. For schema 5, the 13
+canonical visible columns remain A:M, while hidden column P records an app-prefixed stable local
+task ID; N:O are reserved and hidden. Before each Google export, read the owned date tab. Update
+only A:M of keyed matching tasks, append previously unseen tasks, and never shrink, clear, or
+replace existing rows. The batch remains atomic, but no Sheets API transaction can lock the
+read/planning window across independent devices; simultaneous exports can still race.
+
+Existing schema-5 rows without IDs are adopted only on a unique exact visible-value match.
+Ambiguous matches and duplicate remote IDs fail closed. Unmatched older rows remain untouched;
+an edited pre-identity row may therefore remain alongside its new version. Owned schema-2/3/4
+tabs are no longer automatically replaced/upgraded, because they may contain another device's
+unidentifiable records; they return a compatibility conflict until the owner deliberately
+preserves/renames the old tab. Local deletion does not delete a previously exported Google row.
+This is an accumulated one-way export, not cross-device Room synchronization. The source task ID
+is transport-only and is not a visible column or a change to the canonical CSV/XLSX schema.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.
@@ -1034,3 +1238,5 @@ future transitive preview change; either requires a new documented review and ow
   required.
 - Final validation still uses the prepared fresh non-test Google account and a disposable editable
   spreadsheet; these are test inputs, not application credentials or repository files.
+- Before Milestone 35 changes release identity, the owner must explicitly confirm the `0.3.0`
+  `versionCode`. The plan does not infer it merely from `versionName`.

@@ -7,9 +7,9 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Persistent timing-selection hints.
  *
- * [selectedOnDate] records the effective local date on which the selection was made. It lets the
- * rollover coordinator distinguish a task carried through a real date change from a historical
- * task the user intentionally selected while browsing today.
+ * [selectedOnDate] and [selectedInZone] record the context in which the selection was made. They
+ * are never eligibility authority: reconciliation and Start validate the selected Room task's
+ * own work date and ZoneId, and stale context is cleared without creating another task.
  */
 data class SelectedTaskState(
     val taskId: String,
@@ -26,4 +26,12 @@ interface SelectedTaskRepository {
     suspend fun select(selection: SelectedTaskState)
 
     suspend fun clear()
+
+    /**
+     * Clears the persisted selection only when it still identifies [taskId].
+     *
+     * Boundary auto-stop uses this compare-and-clear operation so it cannot erase a newer
+     * selection made after the authoritative Room timer was closed.
+     */
+    suspend fun clearIfSelected(taskId: String): Boolean
 }

@@ -1,7 +1,12 @@
 # WorqOrder Security Review
 
-Audit date: 2026-08-09
-Scope: WorqOrder `0.2.0` through Milestone 29
+Audit date: 2026-09-11
+Scope: WorqOrder `0.2.0` historical release evidence plus the Milestone 35 `0.3.0` static audit
+
+Sections 1–8 retain the accepted `0.2.0` security review. Section 9 records the current `0.3.0`
+repository-only audit; dynamic release evidence remains governed by
+`MILESTONE_35_RELEASE_EVIDENCE.md`. Milestones 30–35 do not add encryption or broaden the threat
+model.
 
 ## 1. Security posture
 
@@ -30,7 +35,7 @@ custom backend.
 | Storage permissions | Medium | None; CSV/XLSX use user-mediated create-document contracts |
 | Timer/background privileges | Medium | No foreground timer service, exact alarm, app-owned wake lock, or tick worker. One post-unlock notification receiver and opt-in Google-only WorkManager schedule are narrowly scoped and documented. |
 | Notification privacy | Medium | Running Timer uses a private notification with a blank public supporting line; pending-export notifications contain no client/task/Consultant/date/spreadsheet content. |
-| Destructive Room recovery/migration | High | None; explicit `1→2→3→4` migrations and fail-closed invariant handling |
+| Destructive Room recovery/migration | High | None; explicit `1→2→3→4→5` migrations and fail-closed invariant handling |
 | CSV formula interpretation | Medium | Accepted documented risk: faithful RFC CSV may be interpreted by downstream spreadsheet software; no silent data mutation |
 | Google/XLSX formula execution | High | Mitigated by literal string cell APIs/types |
 | Published dependency advisories | High | All 180 resolved debug/release Maven coordinates checked against OSV on 2026-08-09; zero vulnerability records returned |
@@ -152,3 +157,58 @@ API-26/API-36.1 connected and manual gates, merged-manifest inspection, signed `
 device update, production non-test-account Google/export exercise, and current dependency advisory
 check all pass. No known pre-publication security blocker remains; the published APK must still be
 downloaded and checked against the recorded checksum and signer after the GitHub Release exists.
+
+## 9. Milestone 35 `0.3.0` static addendum
+
+The 2026-09-11 repository audit verified:
+
+- the source manifest directly requests only `INTERNET`, `POST_NOTIFICATIONS`, and
+  `RECEIVE_BOOT_COMPLETED`; application-owned receivers are non-exported and backup is disabled
+  through `allowBackup=false`, pre-Android-12 `fullBackupContent=false`, and Android 12+ extraction
+  exclusions;
+- the merged release manifest's biometric/fingerprint permissions come from AndroidX
+  Credentials/Biometric, while wake-lock, network-state, foreground-service, job-service, and
+  diagnostics entries come from WorkManager. The job service requires `BIND_JOB_SERVICE`; the
+  diagnostics receiver requires `DUMP`. WorqOrder does not invoke an app lock, foreground
+  stopwatch service, exact alarm, app-owned wake lock, or foreground WorkManager execution;
+- production source contains no `allowMainThreadQueries`, destructive Room fallback, broad-storage
+  or exact-alarm permission, Firebase, Apache POI, raw token logging, or stack-trace logging;
+- the only tracked secret-like filename is the deliberately inert
+  `keystore.properties.example`; strict credential/key/token value patterns found no match; and
+- Google authorization requests exactly `drive.file`. Tokens remain operation-scoped and are not
+  persisted by WorqOrder.
+
+All direct dependency pins are stable. The previously approved D-080 transitive Google identity
+preview exception remains unchanged. With narrow owner-approved read-only access on 2026-09-11,
+the OSV exact-version query covered 400 artifacts present in the project-local Gradle cache. It
+returned 87 records across 19 coordinates, all belonging to stale/cache-only or build-tool
+artifacts. None intersects the 175-coordinate resolved `releaseRuntimeClasspath`, so no known OSV
+record was found in the shipped release runtime graph.
+
+One build-time result is relevant: Kotlin Gradle plugin 2.3.10 is affected by
+`GHSA-r937-wjx7-w2jp`, a medium-severity local unsafe-deserialization issue in build-cache metadata.
+It does not ship in the APK. WorqOrder configures no shared or remote build cache and builds use the
+trusted project-local Gradle home. Because the first OSV-listed fix is a preview Kotlin release and
+the repository prohibits unapproved preview dependencies, Milestone 35 did not perform a late
+toolchain upgrade. Instead, `org.gradle.caching=false` disables Gradle build-output cache reads by
+default while retaining the dependency cache and configuration cache needed for offline builds.
+The owner ran the pre-Google-fix clean gate with `--no-build-cache`; all 234 JVM tests, both lint variants,
+and debug/debug-test/release assembly passed. This mitigation therefore does not block the release.
+
+The owner reports that final artifact inspection and the populated in-place upgrade passed on
+API 36.1. A real midnight captured-date Google export also passed. Remaining release exercises are
+tracked in `MILESTONE_35_RELEASE_EVIDENCE.md`; these reports are not a publication declaration.
+
+That 16,478,421-byte candidate and SHA-256
+`27DD6814CB4AEFC922275253301C3372769E9C2F19E4C1C4CFBA986EAFECDA99` were superseded by the
+Google cross-device merge fix. The current in-project 16,494,849-byte `0.3.0` APK has SHA-256
+`CBF04232B810BAC9BC2A64952E31D28FE5E6A51BF664762228904973AFB54D08`. Current generated
+test XML records 237 JVM and 108 connected tests with zero failures, errors, or skips; the owner
+reports the supplied post-fix manual checks passed. The owner subsequently confirmed that
+`apksigner`, `aapt2`, and checksum checks on this exact APK returned the expected permanent
+signer, package, and version. The preceding candidate's captured tool output showed APK
+Signature Scheme v2, certificate SHA-1
+`57:51:0C:CB:30:01:A7:E7:0C:43:91:C9:16:A8:0A:0C:C6:03:BB:19`, package `worq.order`, version
+`0.3.0`/code 3, min API 26, and target API 36. The current result is owner-reported rather than
+independently captured by this repository-only review. Public-asset checksum/signature comparison
+remains a post-publication gate.

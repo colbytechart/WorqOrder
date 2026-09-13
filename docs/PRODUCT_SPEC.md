@@ -1,6 +1,6 @@
 # WorqOrder Product Specification
 
-Status: released `0.1.0` baseline plus implemented `0.2.0` release-candidate specification
+Status: released `0.1.0`/`0.2.0` history plus the current `0.3.0` development specification
 Product: WorqOrder for Android  
 Minimum Android version: API 26  
 Authoritative data store: local Room database
@@ -19,7 +19,8 @@ authoritative. Exports are copies and never feed data back into Room.
 
 - Native Kotlin Android application using Compose and Material 3.
 - Daily task creation, selection, metadata editing, confirmation-based deletion, and interval editing.
-- One globally active timer with activity/process recovery and local-midnight splitting.
+- One globally active timer with activity/process recovery and exact pinned-zone midnight closure
+  without continuation records.
 - Active and archived client management.
 - Device geographical time zone in the production UI, with historical stored ZoneIds preserved.
   The existing manual-zone data/domain capability remains internal and is not exposed in `0.2.0`
@@ -225,9 +226,9 @@ explicitly edited.
 ## 6. Tasks and interval editing
 
 A task-edit screen changes the daily task's consultant assignment, client, short description,
-**Hardware / Software Purchases**, Work Type, Billing Status, and Mileage and lists intervals chronologically. It
-supports manually adding an interval, editing a completed interval's start/stop, and deleting a
-completed interval through the same validation path.
+**Hardware / Software Purchases**, Work Type, Billing Status, and Mileage and shows its optional
+Interval. It supports manually adding one interval when untimed, editing a completed interval's
+start/stop, and deleting that completed interval through the same validation path.
 
 Routine interval cards omit the individual Duration field and show **Start Time** and **Stop
 Time** as task-zone local 12-hour `hh:mm a`, without seconds or an appended UTC offset. Task Total
@@ -310,7 +311,7 @@ and does not alter Room.
   fresh user-mediated create-document result.
 - Versioned, non-destructive migrations and Room schema exports begin at database version 1.
 - Selection persists as a preferred task-series ID plus the last concrete daily-task ID and the date/zone context in which that task was selected. Invalid references are repaired safely. The displayed date is not persisted; normal startup displays today.
-- When the effective local date or geographical zone changes, an eligible timing selection lazily finds or creates its new daily task using `(series ID, work date, assignment ZoneId)` uniqueness, copies the prior daily task's current client, short description, hardware/software-purchases text, Consultant snapshot, Work Type, Billing Status (including blank), and Mileage, and becomes selected. A task intentionally selected outside its own stored date/zone context remains view-only instead of being rolled. The zone context prevents a task assigned under a different zone from being silently repurposed.
+- In current `0.3.0` behavior, an effective local date or geographical zone change never finds or creates a daily task. An earlier-day timing selection is cleared, today begins without an automatically selected task, and the user selects or creates today's task explicitly. Historical `0.2.0` rollover records remain preserved by migration.
 - The current required production sequence does not add WorqOrder-managed at-rest encryption to
   Room or DataStore. Android's app sandbox remains the local access boundary; optional Milestone
   E retains the separately authorized encryption and non-destructive migration plan.
@@ -323,19 +324,21 @@ and does not alter Room.
 
 - CSV, XLSX, and Google Sheets use the same row model and stable column order defined in
   `EXPORT_SPEC.md`.
-- Version `0.2.0` advances the shared visible schema to exactly 15 columns: Start date, End date,
-  Consultant, Client, Description, Expense, Work type, Billing Status, Mileage, Interval number, Start time, Stop
-  time, Interval duration, Time spent, and Billing minutes. Both date values repeat the task's one
-  stored work date as `MM/DD/YYYY`; this export projection does not change in-app date behavior.
+- Current `0.3.0` schema 5 advances the shared visible schema to exactly 13 columns: Start date, End
+  date, Consultant, Client, Description, Expense, Work type, Billing Status, Mileage, Start time,
+  Stop time, Time spent, and Billing minutes. Both date values repeat the task's one stored work date
+  as `MM/DD/YYYY`; this export projection does not change in-app date behavior. The released `0.2.0`
+  schema-4 columns remain documented in its historical acceptance section.
   Destination adapters do not independently select or format fields.
-- CSV is UTF-8, RFC-style quoted, repeatable, and one row per interval; zero-interval tasks still emit one row.
+- CSV is UTF-8, RFC-style quoted, repeatable, and one row per task; untimed tasks still emit one row.
 - Every XLSX export creates one new standards-compliant, unencrypted OOXML workbook through
   `ACTION_CREATE_DOCUMENT`. It contains one `WorqOrder_YYYY-MM-DD` worksheet for the displayed
   date and never opens, reads, or updates an existing workbook.
 - Exactly one Google spreadsheet can be connected. Its per-date tab is
   `WorqOrder_YYYY-MM-DD`.
-- In Google Sheets, a marked WorqOrder tab is replaced from the current authoritative date
-  snapshot on re-export. An unmarked same-name tab is a conflict and is not overwritten. Repeated
+- In Google Sheets, a marked schema-5 date tab merges rows by hidden stable task identity:
+  previously exported tasks are updated and unseen tasks are appended, while rows from other
+  devices are preserved. An unmarked same-name tab is a conflict and is not overwritten. Repeated
   XLSX exports intentionally create independent files, each containing one complete snapshot.
 - No export modifies or deletes local data. Failures and cancellation do not claim success.
   Canceling a document picker or Google authorization returns to unchanged Main content without a
@@ -379,7 +382,10 @@ accessibility traversal. Responsive sizing may depart from the mockup to prevent
 
 ## 11. Requirement reconciliations and risks
 
-1. **Google re-export:** the early append-and-sort wording conflicts with the later marker-and-replace rule. Marker-validated replacement is authoritative because it is idempotent and reflects local edits/deletions. Rows are generated in stable sorted order.
+1. **Google re-export:** the released marker-and-replace behavior erased same-date rows from a
+   second device. Current schema-5 tabs use marker validation plus hidden task-ID merging.
+   Deleting local work does not remove a previously exported Google row; this is one-way export,
+   not cloud synchronization. CSV and XLSX remain independent one-off snapshots.
 2. **CSV folder versus create-document:** use `ACTION_CREATE_DOCUMENT` for every export. The system picker/user owns the final location, so the app may suggest but cannot force or silently create `Downloads/WorqOrder`. No broad storage permissions or directory-tree grant are used.
 3. **Google authorization scope:** the user still pastes a spreadsheet URL/ID, then confirms that
    exact file through the official Android Google Picker resource-authorization flow. Request only
@@ -478,3 +484,54 @@ biometric/device-credential/approved-PIN app locking, and separately reviewed sc
 privacy controls, together with their dedicated migration, security, accessibility, performance,
 and regression testing. It must not add a mandatory account, backend, destructive recovery, or
 false protection claims.
+
+## 15. Approved v0.3.0 product changes
+
+This section is the complete feature scope for `0.3.0`. It supersedes the earlier rollover,
+midnight-continuation, multi-interval, and one-row-per-interval rules only after the corresponding
+`0.3.0` implementation milestones land. Every other accepted `0.2.0` behavior remains unchanged.
+
+Milestones 30 through 33 have implemented the schema-5 one-interval model, repeated-Start
+transaction, no-rollover selection behavior, exact midnight closure, automatic-export ordering,
+final presentation, and schema-5 export behavior on the `0.3.0` development branch. Milestone 34
+has reconciled obsolete references and removed only the proven-unreachable live continuation
+surface while retaining migration and historical evidence. The final release audit remains owned
+by Milestone 35 and is not claimed as complete here.
+
+1. **No automatic task rollover.** A selected task is never copied merely because the effective
+   date or ZoneId changes, the app resumes, recovery runs, or Start is evaluated. At a real date
+   change, an earlier-day timing selection is cleared. Today begins with no automatically selected
+   or generated task; the user selects or creates one explicitly.
+2. **Midnight closes instead of continuing.** A timer that reaches the next local-day boundary in
+   its pinned geographical ZoneId closes at that exact boundary. It does not create a next-day task
+   or continuation interval. If Android has suspended the process, the next legitimate worker,
+   resume, reboot recovery, or launch records the same exact boundary retrospectively. No exact
+   alarm, wake lock, or foreground stopwatch service is introduced.
+3. **At most one interval per task.** A task contains zero or one interval. Edit Task presents a
+   singular **Interval** section. An untimed task may receive its interval through Start or manual
+   entry; a completed interval may be edited or deleted, but a second interval may not be appended.
+4. **Repeated timing creates a task.** Pressing Start on today's selected task with a completed
+   interval atomically creates a new task with a new stable task ID, copies all user metadata and
+   the source lineage ID, selects it, and opens its sole interval. The original task and interval
+   remain unchanged. Client, Consultant snapshot, Description, Expense, Work type, Billing Status,
+   Mileage, work date, and assignment ZoneId are copied. Creation/update timestamps and interval
+   identity are new rather than copied.
+5. **Safe historical conversion.** The Room 4-to-5 migration converts every existing task with
+   several intervals into one task per interval without losing clients, Consultants, task
+   metadata, IDs that can be preserved, UTC endpoints, manual-edit state, dates, zones, or a
+   running timer. The original task retains its earliest interval; later intervals receive
+   deterministic copied tasks in chronological order. A running interval and singleton active
+   timer are repointed transactionally when necessary. Zero- and one-interval tasks are unchanged.
+6. **One export row per task.** Canonical schema 5 contains exactly 13 columns: Start date, End
+   date, Consultant, Client, Description, Expense, Work type, Billing Status, Mileage, Start time,
+   Stop time, Time spent, and Billing minutes. `Interval number` and the redundant `Interval
+   duration` are removed. CSV, XLSX, manual Google, and automatic Google export use the identical
+   immutable dataset.
+7. **Automatic-export ordering.** Automatic Google export retains the captured preceding work
+   date and runs at Android's first best-effort opportunity after its local midnight. Before the
+   snapshot, any still-open interval from that date is transactionally closed at the exact
+   boundary. Google authorization, connectivity, and scheduling failures retain the existing safe
+   pending behavior. CSV and XLSX remain manual.
+
+`0.3.0` does not otherwise redesign clients, Consultants, task metadata, Settings, landscape
+layout, notifications, authentication, destinations, backup policy, licensing, or distribution.

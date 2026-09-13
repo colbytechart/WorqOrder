@@ -23,7 +23,6 @@ data class OffsetChoiceUi(
 
 data class IntervalItemUi(
     val id: String,
-    val ordinal: Int,
     val startText: String,
     val stopText: String,
     val isRunning: Boolean,
@@ -48,6 +47,7 @@ enum class EditTaskMessage {
     CLIENT_UNAVAILABLE,
     CONSULTANT_UNAVAILABLE,
     RUNNING_TASK,
+    TASK_ALREADY_HAS_INTERVAL,
     INTERVAL_NOT_FOUND,
     RUNNING_INTERVAL,
     INTERVAL_CHANGED,
@@ -76,7 +76,7 @@ data class EditTaskUiState(
     val metadataErrors: Set<TaskMetadataValidationError> = emptySet(),
     val totalDuration: String = "00:00:00",
     val billingMinutes: Long = 0,
-    val intervals: List<IntervalItemUi> = emptyList(),
+    val interval: IntervalItemUi? = null,
     val isRunning: Boolean = false,
     val isSavingMetadata: Boolean = false,
     val hasUnsavedMetadataChanges: Boolean = false,

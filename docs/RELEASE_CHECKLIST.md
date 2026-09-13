@@ -1,6 +1,8 @@
-# WorqOrder `0.2.0` Release Checklist
+# WorqOrder `0.2.0` Release Checklist (Historical)
 
-Status: all pre-publication gates passed; ready for reviewed integration, tag, and GitHub Release
+Status: historical `0.2.0` pre-publication record. Do not use its artifact identity, branch names,
+or version values for `0.3.0`. The active `0.3.0` release gate is
+`MILESTONE_35_RELEASE_EVIDENCE.md`.
 Release: `0.2.0` (`versionCode = 2`)
 Upgrade baseline: public `0.1.0` (`versionCode = 1`)
 Application ID: `worq.order`
@@ -83,6 +85,12 @@ $projectUserHome = (Resolve-Path -LiteralPath '.android-user').Path
 
 With one unlocked emulator/device attached:
 
+Use a disposable debug-test device, not an emulator containing the owner-signed release app:
+debug and release signatures cannot update one another. The current project setting
+`android.injected.androidTest.leaveApksInstalledAfterRun=true` is intended to keep the debug app
+and test APK installed after this command, but post-run package presence must be checked. It does
+not prevent test cases from changing their own test data.
+
 ```powershell
 & .\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon `
     :app:connectedDebugAndroidTest
@@ -110,7 +118,10 @@ Required release evidence:
 6. Auto Export switch visibility/eligibility, pending notification, and at least one live
    captured-date Google export or accepted documented best-effort limitation.
 7. Client CSV import with valid, duplicate/archived, invalid, and cancel samples.
-8. CSV, XLSX, and Google schema-4 output with representative task metadata.
+8. CSV, XLSX, and current Google schema-5 output with representative task metadata. On two
+   devices connected to one test spreadsheet, export different tasks for the same work date,
+   verify both remain, then re-export an edited task from the first device and verify the second
+   device's row remains unchanged. Verify the visible table still has exactly 13 columns.
 
 ### Signed `0.1.0` to `0.2.0` update
 

@@ -320,38 +320,39 @@ private fun EditTaskContent(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                text = stringResource(R.string.intervals),
+                text = stringResource(R.string.interval),
                 style = MaterialTheme.typography.titleLarge,
             )
-            Button(
-                onClick = { onEvent(EditTaskEvent.OpenAddInterval) },
-                enabled = !uiState.isRunning,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                )
-                Text(stringResource(R.string.add_interval))
+            if (uiState.interval == null) {
+                Button(
+                    onClick = { onEvent(EditTaskEvent.OpenAddInterval) },
+                    enabled = !uiState.isRunning,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                    )
+                    Text(stringResource(R.string.add_interval))
+                }
             }
         }
-        if (uiState.intervals.isEmpty()) {
+        val interval = uiState.interval
+        if (interval == null) {
             Text(
-                text = stringResource(R.string.no_intervals),
+                text = stringResource(R.string.no_interval),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            uiState.intervals.forEach { interval ->
-                IntervalCard(
-                    interval = interval,
-                    enabled = !uiState.isRunning && !interval.isRunning,
-                    onEdit = {
-                        onEvent(EditTaskEvent.OpenEditInterval(interval.id))
-                    },
-                    onDelete = {
-                        onEvent(EditTaskEvent.RequestDeleteInterval(interval.id))
-                    },
-                )
-            }
+            IntervalCard(
+                interval = interval,
+                enabled = !uiState.isRunning && !interval.isRunning,
+                onEdit = {
+                    onEvent(EditTaskEvent.OpenEditInterval(interval.id))
+                },
+                onDelete = {
+                    onEvent(EditTaskEvent.RequestDeleteInterval(interval.id))
+                },
+            )
         }
         OutlinedButton(
             onClick = { onEvent(EditTaskEvent.RequestDeleteTask) },
@@ -379,10 +380,6 @@ private fun IntervalCard(
             modifier = Modifier.padding(WorqOrderDimens.ItemPadding),
             verticalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
         ) {
-            Text(
-                text = stringResource(R.string.interval_number, interval.ordinal),
-                style = MaterialTheme.typography.titleMedium,
-            )
             Text(stringResource(R.string.interval_start, interval.startText))
             Text(
                 stringResource(
@@ -528,7 +525,7 @@ private fun EditTaskDialogs(
     }
     uiState.intervalPendingDeletion?.let { interval ->
         ConfirmDialog(
-            title = stringResource(R.string.delete_interval_title, interval.ordinal),
+            title = stringResource(R.string.delete_interval_title),
             message = stringResource(R.string.delete_interval_message),
             confirmLabel = stringResource(R.string.delete),
             onConfirm = { onEvent(EditTaskEvent.ConfirmDeleteInterval) },
@@ -705,6 +702,7 @@ private fun EditTaskMessage.stringResource(): Int =
         EditTaskMessage.CLIENT_UNAVAILABLE -> R.string.task_client_archived_during_edit
         EditTaskMessage.CONSULTANT_UNAVAILABLE -> R.string.task_consultant_unavailable
         EditTaskMessage.RUNNING_TASK -> R.string.running_task_edit_blocked
+        EditTaskMessage.TASK_ALREADY_HAS_INTERVAL -> R.string.task_already_has_interval
         EditTaskMessage.INTERVAL_NOT_FOUND -> R.string.interval_no_longer_exists
         EditTaskMessage.RUNNING_INTERVAL -> R.string.running_interval_edit_blocked
         EditTaskMessage.INTERVAL_CHANGED -> R.string.interval_changed_retry

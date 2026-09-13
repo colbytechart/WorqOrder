@@ -1,5 +1,9 @@
 # WorqOrder Acceptance Tests
 
+Version scope: sections that explicitly identify released `0.1.0`/`0.2.0` behavior preserve
+historical acceptance evidence. Section 15 is the authoritative current `0.3.0` acceptance set;
+its one-interval, no-rollover, exact-boundary, and schema-5 rules supersede earlier expectations.
+
 ## 1. Test policy
 
 These scenarios define observable MVP behavior. Automated coverage may combine pure unit, coroutine, Room instrumentation, ViewModel, and Compose UI tests, but a requirement is not complete merely because one layer was tested. Use fake UTC clock, fake monotonic time, fake effective-zone provider, fake document destination, and fake Google Sheets gateway to make time/failure cases deterministic.
@@ -176,7 +180,7 @@ On a spring-forward date, a nonexistent local time is rejected and no instant is
 
 On a fall-back date, the earlier/later occurrence is distinguishable by offset, the chosen instant persists, and reopening the editor shows the same occurrence.
 
-## 5. Timer and recovery
+## 5. Timer and recovery (v0.2 historical compatibility)
 
 ### TMR-01 Start transaction
 
@@ -257,7 +261,7 @@ contribution is clamped to zero and a clock anomaly is shown. After wall time is
 app resumes, the provisional anchor may be rebuilt without changing any persisted start/stop
 boundary.
 
-## 6. Midnight, rollover, and time zones
+## 6. Midnight, rollover, and time zones (v0.2 historical compatibility)
 
 ### DATE-01 Single midnight
 
@@ -387,15 +391,15 @@ Given Jul 22 is displayed while today is Jul 23, CSV uses only Jul 22 rows and s
 
 ### CSV-02 Exact schema
 
-Header and each row use schema version 2's exact nine visible columns and canonical strings in the
-documented order. Internal schema/snapshot metadata is not a visible column. A date with no tasks
-has only a header; a zero-interval task has one row with blank interval number/start/stop/duration
-and `00:00:00` task total.
+Header and each row use current schema version 5's exact 13 visible columns and canonical strings
+in the documented order. Internal schema/snapshot metadata is not a visible column. A date with no
+tasks has only a header; an untimed task has one row with blank Start/Stop, `00:00:00` Time spent,
+and `0` Billing minutes.
 
-### CSV-03 One row per interval
+### CSV-03 One row per task
 
-A task with three intervals produces exactly three rows with repeated task/client metadata,
-including hardware/software-purchases text, and stable interval ordinals.
+A task produces exactly one row with its task/client metadata and optional sole interval values,
+including hardware/software-purchases text. A task with no interval still produces one row.
 
 ### CSV-04 Escaping/Unicode
 
@@ -442,8 +446,8 @@ without visible feedback.
 ### CSV-11 Shared snapshot boundary
 
 `ExportSnapshotCoordinator` performs normalization/read/build once and returns the immutable
-canonical dataset (nine columns in released `0.1.0`, 15 in implemented schema-version-4 `0.2.0`). CSV serialization
-changes no field/order/value. XLSX/Google adapters
+current schema-5 dataset of 13 columns. Released `0.1.0` and `0.2.0` schema versions remain
+historical compatibility fixtures. CSV serialization changes no field/order/value. XLSX/Google adapters
 consume the same object rather than rebuilding destination-specific rows.
 
 ## 9. Google Sheets
@@ -484,14 +488,16 @@ all marker requests, and the complete literal cell table.
 
 ### GS-05 Idempotent re-export
 
-Given a correctly marked date tab, unchanged re-export replaces application-owned content and
-creates no duplicate rows. The visible table remains identical. The production response parser
+Given a correctly marked schema-5 date tab, unchanged re-export updates only matching task-ID
+rows and creates no duplicate rows. Other devices' rows remain. The production response parser
 recognizes metadata returned under `sheets[].developerMetadata`; it does not misclassify its own
 previously exported tab as unowned.
 
-### GS-06 Authoritative replacement
+### GS-06 Cross-device merge
 
-Given local edit/deletion/addition after first export, re-export removes obsolete application-owned rows and exactly reflects current Room snapshot in stable sorted order.
+Given local edit/addition after first export, re-export updates the matching keyed task row or
+appends a new row without clearing another device's data. A local deletion does not remove an
+already-exported remote row. CSV/XLSX still represent independent current Room snapshots.
 
 ### GS-07 Tab-name conflict
 
@@ -504,7 +510,8 @@ reports compatibility conflict.
 
 ### GS-09 Other content untouched
 
-Export/re-export never modifies other tabs. Within a marked tab, documented app-owned contents may be replaced.
+Export/re-export never modifies other tabs. Within a marked schema-5 tab, only matching task rows
+are updated and new rows appended; no existing row is removed.
 
 ### GS-10 Raw values
 
@@ -514,7 +521,7 @@ written as `UpdateCellsRequest.userEnteredValue.stringValue`, not executable for
 ### GS-10A Shared visible table and capacity
 
 Row 1 and every visible row exactly match CSV/XLSX headers, order, and canonical strings. Marker
-metadata is not visible. Re-export clears stale rows and right-sizes the grid to nine columns and
+metadata is not visible. Re-export clears stale rows and right-sizes the grid to 13 columns and
 required rows so unused allocation does not unnecessarily consume the official 10-million-cell
 spreadsheet limit.
 
@@ -817,6 +824,11 @@ until caught up; no target is overwritten and no worker contains an unbounded lo
 automation, selecting CSV/XLSX, disconnecting, or signing out cancels future unique work and clears
 automatic pending state safely.
 
+The silent connected-spreadsheet request targets the persisted Google account explicitly. If
+Google instead requires interactive authorization, the connection metadata, enabled switch, and
+captured target survive restart; Settings exposes the pending action, and an Activity-backed retry
+can authorize and export without forcing spreadsheet reconnection.
+
 Unit and WorkManager integration tests additionally prove unique-work replacement rules,
 calculated initial delay, network constraint, one-date-per-worker execution, persisted target/ZoneId
 recovery, no interactive `PendingIntent` launch from a worker, one bounded 401 token-clear attempt,
@@ -964,3 +976,140 @@ this optional milestone.
 Static/runtime inspection finds no protected task/client/export content in logs, exceptions,
 analytics, notifications, clipboard, recent temporary files, or credentials. Plaintext export
 snapshots exist only as needed in process memory and are not staged to app-private disk.
+
+## 15. v0.3.0 acceptance tests
+
+These cases supersede multi-interval, midnight-splitting, selection-rollover, and schema-4 row
+cardinality expectations for current `0.3.0` behavior. Prior-version migration fixtures remain
+mandatory precisely because released data may contain those older shapes.
+
+Milestone 31 provides the current evidence for V3-TMR-01 through V3-TMR-03's selection and
+singular-interval portions, and for V3-DATE-01's no-rollover behavior. Milestone 32 implements the
+exact pinned-zone boundary close, foreground/process/boot recovery integration, notification
+reconciliation, and automatic-Google ordering described by V3-DATE-02, V3-DATE-03, and
+V3-EXPORT-03. Its deterministic clock/ZoneId, typed-pending, authorization-recovery, late-worker,
+visible-date, and no-duplicate-export coverage passed the final Sol quality gate. The owner-run
+project-local gate passed 235 JVM tests and 108 connected tests with no failures; debug lint and
+both debug/release builds also passed.
+
+Milestone 33 activates V3-EXPORT-01/V3-EXPORT-02 and the singular Edit Task presentation in
+V3-TMR-03. Its owner-run final gate passed 235 JVM tests and 109 connected tests with zero failures,
+errors, or skips; debug/release lint and debug, Android-test, and release assembly also passed.
+
+### V3-DB-01 Non-destructive schema 4-to-5 migration
+
+Given a populated schema-4 database containing clients, Consultants, zero-/one-/many-interval
+tasks, archived directory rows, all task metadata, repeated dates/zones, and an active non-first
+interval, migration preserves every user value and interval endpoint. Each post-migration task has
+at most one interval, the total task and interval counts reflect one generated task for every
+additional interval, foreign keys pass, and the active timer points to the generated owner of the
+same open interval. Closing/reopening remains stable and schema 5 is exported and committed.
+
+### V3-DB-02 Structural one-interval rule
+
+Room rejects a second interval for one task even if a caller bypasses UI validation. It still
+rejects a second global open interval, cascades the sole interval on task deletion, and never uses
+a destructive migration fallback.
+
+### V3-TMR-01 First Start uses an untimed task
+
+Given an eligible selected task with no interval, Start creates one open interval on that task and
+the singleton active timer in one transaction. No additional task is created and the display begins
+at zero before advancing monotonically.
+
+### V3-TMR-02 Repeated Start creates one task
+
+Given today's selected task has one completed interval, Start atomically creates and selects one
+new task with copied user metadata and lineage, creates its sole open interval, and begins its
+display at zero. The source task/interval and every exported value remain unchanged. Two concurrent
+Start calls create only one repetition and one active timer.
+
+### V3-TMR-03 Singular manual interval
+
+Edit Task labels the section **Interval**. An untimed task permits one valid manual interval. Once
+present, only Edit/Delete actions are available; Add is absent or disabled with a clear reason. A
+running interval remains non-editable. Deleting the sole completed interval returns the same task
+to the untimed state, after which Start uses it rather than duplicating it.
+
+### V3-DATE-01 No idle rollover
+
+Given no timer is active and the effective date or device ZoneId changes, resume/recovery/startup
+creates no task. A previous-day timing selection is cleared, today shows no selected task, and
+historical date browsing remains read-only for live timing.
+
+### V3-DATE-02 Midnight closes without continuation
+
+Given a timer started before local midnight in its pinned ZoneId, evaluation at or after the first
+next-day boundary closes that same interval exactly at the boundary, clears active state and stale
+selection, and creates no next-day task or interval. Repeating normalization is a no-op. Spring
+forward, fall back, unusual `atStartOfDay` rules, several missed days, resume, reboot, and process
+recovery produce the same result.
+
+### V3-DATE-03 Android may execute late without changing stored time
+
+Given the process does not run at midnight, its notification may remain temporarily platform-
+rendered, but the next legitimate execution stores the stop at the exact pinned-zone boundary—not
+the later wake time—and cancels/reconciles the running surface. No exact alarm, foreground timer
+service, app-owned wake lock, or tick persistence exists.
+
+### V3-EXPORT-01 Canonical schema 5
+
+CSV, XLSX, manual Google, and automatic Google expose exactly these 13 headers in order: Start
+date, End date, Consultant, Client, Description, Expense, Work type, Billing Status, Mileage,
+Start time, Stop time, Time spent, Billing minutes. Each task produces exactly one equivalent row.
+Untimed tasks have blank Start/Stop, `00:00:00` Time spent, and `0` Billing minutes. No Interval
+number or Interval duration exists.
+
+### V3-EXPORT-02 Owned Google schema compatibility
+
+Re-exporting an owned schema-5 tab preserves rows from other devices, updates existing keyed task
+rows, and appends new tasks. Pre-ID schema-5 rows are claimed only on a unique exact match.
+Owned schema-2/3/4 tabs now fail closed rather than being replaced, because other-device rows
+cannot be identified. Unknown/newer and unowned tabs also remain untouched. CSV/XLSX and visible
+Google values remain byte/logically equivalent as applicable.
+
+### V3-EXPORT-03 Midnight precedes automatic export
+
+Automatic Google work targets the captured preceding date and cannot export its open pre-midnight
+interval. At the first allowed execution after the boundary, WorqOrder first performs the
+idempotent exact-boundary close, then snapshots and exports the active canonical projection.
+Foreground boundary handling and startup/resume reconciliation may execute an overdue target
+without waiting for inexact WorkManager dispatch; WorkManager remains the durable background
+fallback. Delays, offline access, authorization resolution, quota failure, process death, reboot,
+and repeated worker delivery never lose the captured date, duplicate a row, or mutate Room beyond
+the required timer close. Milestone 33 changes that shared projection to schema 5 without changing
+this ordering policy.
+
+If another recovery caller closes the timer before the Main screen's active-timer tick, the Main
+screen still advances from yesterday to the new Today through an independent ZoneId-aware
+date-boundary signal. It does not advance an intentionally browsed historical date and does not
+poll, write Room, or depend on Google success.
+
+### V3-REG-01 Unchanged product behavior
+
+Client/Consultant management, metadata validation, Billing Minutes, date browsing, task editing and
+deletion, themes, handed landscape, CSV/XLSX document flows, Google connection/re-export,
+notifications, backup-disabled policy, GPLv3 distribution, and release signing retain their
+accepted `0.2.0` behavior except where the cases above explicitly supersede it.
+
+### V3-DB-04 Milestone 30C executable evidence
+
+`Schema5MigrationCoreTest` is the populated schema-4 evidence fixture. It includes archived Client
+and Consultant directory rows, nullable task metadata, a zero-interval task, a one-interval task,
+a multi-interval task, and an open non-first interval. The test verifies that every interval and
+metadata value survives deterministic task splitting, the active pointer follows the open interval,
+foreign keys remain valid, the reopened file is stable, and schema 5 has no persisted `ordinal`.
+`WorqOrderDatabaseTest` verifies the packaged version-5 schema, the task-to-interval uniqueness
+guard, same-series lineage rows, and populated version 1/2-to-5 migration paths.
+
+### V3-DB-05 Milestone 30 Sol quality gate
+
+The generated version-5 Room schema uses identity hash
+`01298237042e1a0bb2998ab5f1522ec8`, a non-unique lineage/date/zone index, a unique
+`work_intervals.task_id` index, and no persisted `ordinal`. The Sol audit corrected stale
+multi-interval test assumptions, added a true one-interval schema-4 fixture, and strengthened
+fresh-schema, deterministic timestamp, rejected-write, and reopen assertions. The project-local
+offline JVM/lint/debug/release gate passed, and the complete connected API-36 instrumentation
+suite passed all 105 tests. The signed populated-install upgrade walkthrough remains a final
+release gate in Milestone 35; schema migration behavior is currently verified by populated
+instrumentation fixtures rather than a user-data-bearing release installation.

@@ -7,6 +7,7 @@ import java.time.ZoneId
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -45,41 +46,63 @@ class TimerRecoveryCoordinatorTest {
                     boundaryZoneId = NEW_YORK,
                     start = NOW.minus(Duration.ofMinutes(30)),
                 )
-            val intervalId =
-                (persisted as worq.order.data.CreateActiveIntervalResult.Created)
-                    .snapshot
-                    .interval
-                    .id
+            persisted as worq.order.data.CreateActiveIntervalResult.Created
+            val intervalId = persisted.snapshot.interval.id
+            val repeatedTaskId = persisted.startedTask.id
+            assertTrue(repeatedTaskId != runningTask.id)
 
             val result = fixture.recovery.recover()
 
             assertTrue(result is TimerRecoveryResult.Recovered)
             assertEquals(
-                SelectionReconciliationResult.ActiveTimerOwnsSelection(runningTask.id),
+                SelectionReconciliationResult.ActiveTimerOwnsSelection(repeatedTaskId),
                 (result as TimerRecoveryResult.Recovered).selectionResult,
             )
-            assertEquals(runningTask.id, fixture.selection.readSelection()?.taskId)
+            assertEquals(repeatedTaskId, fixture.selection.readSelection()?.taskId)
             assertEquals(
-                Duration.ofMinutes(45),
+                Duration.ofMinutes(30),
                 fixture.live.read(intervalId)?.total,
             )
 
             fixture.monotonic.nanos += Duration.ofMinutes(5).toNanos()
 
             assertEquals(
-                Duration.ofMinutes(50),
+                Duration.ofMinutes(35),
                 fixture.live.read(intervalId)?.total,
             )
-            val stored =
+            val sourceStored =
                 requireNotNull(
                     fixture.tasks.readTaskWithIntervals(runningTask.id),
                 ).intervals
-            assertEquals(2, stored.size)
-            assertNull(stored.single { it.id == intervalId }.stop)
+            val repeatedStored =
+                requireNotNull(
+                    fixture.tasks.readTaskWithIntervals(repeatedTaskId),
+                ).intervals
+            assertEquals(1, sourceStored.size)
+            assertEquals(1, repeatedStored.size)
+            assertNull(repeatedStored.single { it.id == intervalId }.stop)
         }
 
     @Test
-    fun concurrentResumeRecoverySplitsEveryMissedMidnightOnlyOnce() =
+    fun processRecoveryClearsStaleSelectionWithoutCreatingTask() =
+        runTest {
+            val fixture = Fixture()
+            val historical = fixture.addTask(TODAY.minusDays(1))
+            fixture.select(historical, selectedOnDate = historical.workDate)
+
+            val result = fixture.recovery.recover()
+
+            assertEquals(
+                SelectionReconciliationResult.IneligibleSelectionCleared,
+                (result as TimerRecoveryResult.Recovered).selectionResult,
+            )
+            assertNull(fixture.selection.readSelection())
+            assertTrue(fixture.tasks.observeTasksForDate(TODAY).first().isEmpty())
+            assertEquals(historical, fixture.tasks.readTaskWithClient(historical.id)?.task)
+        }
+
+    @Test
+    fun concurrentResumeRecoveryClosesAtFirstMissedMidnightOnlyOnce() =
         runTest {
             val fixture =
                 Fixture(
@@ -110,38 +133,20 @@ class TimerRecoveryCoordinatorTest {
             assertEquals(
                 1,
                 results.count {
-                    (it as TimerRecoveryResult.Recovered)
-                        .normalizedSplitCount == 3
-                },
-            )
-            val dates =
-                (24..27).map { day -> LocalDate.of(2026, 7, day) }
-            val dailyTasks =
-                dates.map { date ->
-                    requireNotNull(
-                        fixture.tasks.findCorrespondingTask(
-                            seriesId = "multi-day-series",
-                            workDate = date,
-                            zoneId = NEW_YORK,
-                        ),
-                    )
-                }
-            assertEquals(
-                4,
-                dailyTasks.sumOf { dailyTask ->
-                    requireNotNull(
-                        fixture.tasks.readTaskWithIntervals(dailyTask.id),
-                    ).intervals.size
+                    it is TimerRecoveryResult.ClosedAtBoundary
                 },
             )
             assertEquals(
-                LocalDate.of(2026, 7, 27),
-                requireNotNull(fixture.active.readActiveTimerSnapshot())
-                    .interval
-                    .start
-                    .atZone(NEW_YORK)
-                    .toLocalDate(),
+                1,
+                requireNotNull(fixture.tasks.readTaskWithIntervals(task.id)).intervals.size,
             )
+            assertEquals(
+                Instant.parse("2026-07-25T04:00:00Z"),
+                requireNotNull(fixture.tasks.readTaskWithIntervals(task.id))
+                    .intervals.single().stop,
+            )
+            assertNull(fixture.active.readActiveTimerSnapshot())
+            assertNull(fixture.selection.readSelection())
         }
 
     @Test
@@ -179,7 +184,7 @@ class TimerRecoveryCoordinatorTest {
         }
 
     @Test
-    fun liveWallJumpUsesMonotonicProjectionAndCreatesOnlyRealMidnightSplit() =
+    fun liveWallJumpUsesMonotonicProjectionAndClosesAtRealMidnight() =
         runTest {
             val start = Instant.parse("2026-07-25T03:30:00Z")
             val fixture = Fixture(now = start)
@@ -195,42 +200,28 @@ class TimerRecoveryCoordinatorTest {
 
             val jumped = fixture.recovery.recover()
 
-            assertEquals(
-                1,
-                (jumped as TimerRecoveryResult.Recovered).normalizedSplitCount,
+            assertTrue(jumped is TimerRecoveryResult.ClosedAtBoundary)
+            assertTrue(
+                fixture.tasks
+                    .readTasksWithIntervalsForDate(LocalDate.of(2026, 7, 26))
+                    .none { it.taskWithClient.task.seriesId == task.seriesId },
             )
-            assertNull(
-                fixture.tasks.findCorrespondingTask(
-                    seriesId = task.seriesId,
-                    workDate = LocalDate.of(2026, 7, 26),
-                    zoneId = NEW_YORK,
-                ),
-            )
+            assertNull(fixture.active.readActiveTimerSnapshot())
             assertEquals(
-                LocalDate.of(2026, 7, 25),
-                requireNotNull(fixture.active.readActiveTimerSnapshot())
-                    .interval.start.atZone(NEW_YORK).toLocalDate(),
+                Instant.parse("2026-07-25T04:00:00Z"),
+                requireNotNull(fixture.tasks.readTaskWithIntervals(task.id))
+                    .intervals.single().stop,
             )
 
             fixture.clock.instant = start.plus(Duration.ofMinutes(30))
             val corrected = fixture.recovery.recover()
 
-            assertEquals(
-                0,
-                (corrected as TimerRecoveryResult.Recovered).normalizedSplitCount,
-            )
-            assertEquals(
-                LocalDate.of(2026, 7, 25),
-                requireNotNull(fixture.active.readActiveTimerSnapshot())
-                    .interval
-                    .start
-                    .atZone(NEW_YORK)
-                    .toLocalDate(),
-            )
+            assertTrue(corrected is TimerRecoveryResult.Recovered)
+            assertNull(fixture.active.readActiveTimerSnapshot())
         }
 
     @Test
-    fun deviceZoneChangeDoesNotChangeActiveSessionsPinnedBoundaryZone() =
+    fun deviceZoneChangeDoesNotChangeActiveSessionsPinnedCloseBoundary() =
         runTest {
             val fixture =
                 Fixture(
@@ -250,16 +241,13 @@ class TimerRecoveryCoordinatorTest {
 
             val result = fixture.recovery.recover()
 
+            assertTrue(result is TimerRecoveryResult.ClosedAtBoundary)
             assertEquals(
-                1,
-                (result as TimerRecoveryResult.Recovered).normalizedSplitCount,
+                Instant.parse("2026-07-25T04:00:00Z"),
+                requireNotNull(fixture.tasks.readTaskWithIntervals(task.id))
+                    .intervals.single().stop,
             )
-            val active = requireNotNull(fixture.active.readActiveTimerSnapshot())
-            assertEquals(NEW_YORK, active.activeTimer.boundaryZoneId)
-            assertEquals(
-                LocalDate.of(2026, 7, 25),
-                active.interval.start.atZone(NEW_YORK).toLocalDate(),
-            )
+            assertNull(fixture.active.readActiveTimerSnapshot())
         }
 
     @Test

@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Test
 import worq.order.data.NewDailyTask
 import worq.order.data.SelectedTaskState
@@ -21,7 +21,7 @@ import worq.order.timer.EffectiveZoneIdProvider
 
 class SettingsSelectionRecoveryTest {
     @Test
-    fun restartWaitsForPersistedZoneThenRollsOverOnlyOnce() =
+    fun restartWaitsForPersistedZoneThenClearsWithoutCreatingTask() =
         runTest {
             val tasks = FakeTaskRepository()
             val source =
@@ -59,16 +59,15 @@ class SettingsSelectionRecoveryTest {
                     currentDateProvider = date,
                     zoneIdProvider = zone,
                 )
-            val rolled = first.reconcileForToday()
-            assertTrue(rolled is SelectionReconciliationResult.RolledOver)
-            val selectedTask =
-                requireNotNull(
-                    tasks.readTaskWithClient(
-                        requireNotNull(selection.readSelection()).taskId,
-                    ),
-                ).task
-            assertEquals(LocalDate.of(2026, 7, 25), selectedTask.workDate)
-            assertEquals(TOKYO, selectedTask.zoneId)
+            assertEquals(
+                SelectionReconciliationResult.IneligibleSelectionCleared,
+                first.reconcileForToday(),
+            )
+            assertNull(selection.readSelection())
+            assertEquals(
+                0,
+                tasks.observeTasksForDate(LocalDate.of(2026, 7, 25)).first().size,
+            )
 
             val recreated =
                 SelectionCoordinator(
@@ -79,11 +78,11 @@ class SettingsSelectionRecoveryTest {
                     zoneIdProvider = zone,
                 )
             assertEquals(
-                SelectionReconciliationResult.AlreadyCurrent,
+                SelectionReconciliationResult.NoSelection,
                 recreated.reconcileForToday(),
             )
             assertEquals(
-                1,
+                0,
                 tasks.observeTasksForDate(LocalDate.of(2026, 7, 25)).first().size,
             )
         }

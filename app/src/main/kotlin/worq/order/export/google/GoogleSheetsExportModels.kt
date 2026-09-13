@@ -92,6 +92,7 @@ interface GoogleSheetsExportGateway {
 internal data class GoogleSheetDescriptor(
     val sheetId: Int,
     val title: String,
+    val columnCount: Int = 13,
 )
 
 internal data class GoogleSheetDeveloperMetadata(
@@ -106,6 +107,8 @@ internal data class GoogleSpreadsheetStructure(
     val sheets: List<GoogleSheetDescriptor>,
     val developerMetadata: List<GoogleSheetDeveloperMetadata>,
     val isCompletelyBlank: Boolean = false,
+    /** A:P values for the target owned tab, keyed by sheet ID; absent means not inspected. */
+    val sheetValues: Map<Int, List<List<String>>> = emptyMap(),
 )
 
 internal sealed interface GoogleSheetsBatchRequest {
@@ -136,6 +139,29 @@ internal sealed interface GoogleSheetsBatchRequest {
         val sheetId: Int,
         val rowCount: Int,
         val columnCount: Int,
+    ) : GoogleSheetsBatchRequest
+
+    data class SetColumnCount(
+        val sheetId: Int,
+        val columnCount: Int,
+    ) : GoogleSheetsBatchRequest
+
+    data class HideColumns(
+        val sheetId: Int,
+        val startIndex: Int,
+        val endIndex: Int,
+    ) : GoogleSheetsBatchRequest
+
+    data class WriteCellsAt(
+        val sheetId: Int,
+        val rowIndex: Int,
+        val columnIndex: Int,
+        val rows: List<List<String>>,
+    ) : GoogleSheetsBatchRequest
+
+    data class AppendCells(
+        val sheetId: Int,
+        val rows: List<List<String>>,
     ) : GoogleSheetsBatchRequest
 
     data class ReplaceCells(

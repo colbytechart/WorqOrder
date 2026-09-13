@@ -14,7 +14,7 @@ abstract class WorkIntervalDao {
         SELECT *
         FROM work_intervals
         WHERE task_id = :taskId
-        ORDER BY start_epoch_ms ASC, ordinal ASC, id ASC
+        ORDER BY start_epoch_ms ASC, id ASC
         """,
     )
     abstract suspend fun readIntervalsForOverlapValidation(
@@ -26,7 +26,7 @@ abstract class WorkIntervalDao {
         SELECT *
         FROM work_intervals
         WHERE task_id = :taskId
-        ORDER BY start_epoch_ms ASC, ordinal ASC, id ASC
+        ORDER BY start_epoch_ms ASC, id ASC
         """,
     )
     abstract fun observeOrderedIntervals(taskId: String): Flow<List<WorkIntervalEntity>>
@@ -46,9 +46,6 @@ abstract class WorkIntervalDao {
 
     @Query("SELECT COUNT(*) FROM work_intervals WHERE task_id = :taskId")
     abstract suspend fun countIntervalsForTask(taskId: String): Int
-
-    @Query("SELECT MAX(ordinal) FROM work_intervals WHERE task_id = :taskId")
-    protected abstract suspend fun readMaxOrdinal(taskId: String): Int?
 
     @Query("SELECT COUNT(*) FROM daily_tasks WHERE id = :taskId")
     protected abstract suspend fun countTask(taskId: String): Int
@@ -121,12 +118,16 @@ abstract class WorkIntervalDao {
         require(startEpochMs < stopEpochMs) {
             "A completed interval must stop after it starts"
         }
+        if (countIntervalsForTask(taskId) != 0) {
+            throw PersistenceInvariantException(
+                "Schema-5 task $taskId already owns its sole interval",
+            )
+        }
 
         val interval =
             WorkIntervalEntity(
                 id = intervalId,
                 taskId = taskId,
-                ordinal = (readMaxOrdinal(taskId) ?: 0) + 1,
                 startEpochMs = startEpochMs,
                 stopEpochMs = stopEpochMs,
                 activeSlot = null,
@@ -164,6 +165,11 @@ abstract class WorkIntervalDao {
                 ManualIntervalWriteStatus.RUNNING_TASK,
             )
         }
+        if (countIntervalsForTask(taskId) != 0) {
+            return ManualIntervalWriteEntityResult(
+                ManualIntervalWriteStatus.TASK_ALREADY_HAS_INTERVAL,
+            )
+        }
         if (
             overlaps(
                 startEpochMs = startEpochMs,
@@ -179,7 +185,6 @@ abstract class WorkIntervalDao {
             WorkIntervalEntity(
                 id = intervalId,
                 taskId = taskId,
-                ordinal = (readMaxOrdinal(taskId) ?: 0) + 1,
                 startEpochMs = startEpochMs,
                 stopEpochMs = stopEpochMs,
                 activeSlot = null,

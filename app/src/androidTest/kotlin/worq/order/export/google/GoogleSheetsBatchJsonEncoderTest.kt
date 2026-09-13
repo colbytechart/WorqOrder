@@ -21,7 +21,7 @@ class GoogleSheetsBatchJsonEncoderTest {
                             sheetId = 42,
                             title = "WorqOrder_2026-07-24",
                             rowCount = 2,
-                            columnCount = 15,
+                            columnCount = 13,
                         ),
                         GoogleSheetsBatchRequest.CreateSheetMetadata(
                             sheetId = 42,
@@ -36,8 +36,10 @@ class GoogleSheetsBatchJsonEncoderTest {
                             sheetId = 42,
                             rows =
                                 listOf(
-                                    listOf("Header"),
-                                    listOf("=literal user text"),
+                                    List(13) { "Header" },
+                                    List(13) { index ->
+                                        if (index == 0) "=literal user text" else ""
+                                    },
                                 ),
                         ),
                     ),
@@ -56,6 +58,12 @@ class GoogleSheetsBatchJsonEncoderTest {
             "WorqOrder_2026-07-24",
             addProperties.getString("title"),
         )
+        assertEquals(
+            13,
+            addProperties
+                .getJSONObject("gridProperties")
+                .getInt("columnCount"),
+        )
 
         val metadata =
             requests
@@ -73,6 +81,12 @@ class GoogleSheetsBatchJsonEncoderTest {
                 .getJSONObject(2)
                 .getJSONObject("updateCells")
         assertEquals("userEnteredValue", update.getString("fields"))
+        assertEquals(
+            13,
+            update
+                .getJSONObject("range")
+                .getInt("endColumnIndex"),
+        )
         val literalValue =
             update
                 .getJSONArray("rows")
@@ -114,6 +128,52 @@ class GoogleSheetsBatchJsonEncoderTest {
                 .getJSONObject("properties")
                 .getString("title"),
         )
+    }
+
+    @Test
+    fun encodesNonDestructiveMergeWithLiteralAppendAndHiddenIdentity() {
+        val plan =
+            GoogleSheetsBatchPlan(
+                tabName = "WorqOrder_2026-07-24",
+                requests = listOf(
+                    GoogleSheetsBatchRequest.SetColumnCount(27, 16),
+                    GoogleSheetsBatchRequest.HideColumns(27, 13, 16),
+                    GoogleSheetsBatchRequest.WriteCellsAt(27, 1, 0, listOf(listOf("=literal"))),
+                    GoogleSheetsBatchRequest.AppendCells(27, listOf(List(15) { "" } + "worqorder.task.v1:new")),
+                ),
+            )
+        val requests = JSONObject(GoogleSheetsBatchJsonEncoder.encode(plan)).getJSONArray("requests")
+        val columns = requests.getJSONObject(0).getJSONObject("updateSheetProperties")
+        assertEquals("gridProperties.columnCount", columns.getString("fields"))
+        assertEquals(16, columns.getJSONObject("properties").getJSONObject("gridProperties").getInt("columnCount"))
+        val hidden = requests.getJSONObject(1).getJSONObject("updateDimensionProperties")
+        assertEquals(13, hidden.getJSONObject("range").getInt("startIndex"))
+        assertTrue(hidden.getJSONObject("properties").getBoolean("hiddenByUser"))
+        val update = requests.getJSONObject(2).getJSONObject("updateCells")
+        assertEquals(1, update.getJSONObject("start").getInt("rowIndex"))
+        assertEquals("=literal", update.getJSONArray("rows").getJSONObject(0).getJSONArray("values")
+            .getJSONObject(0).getJSONObject("userEnteredValue").getString("stringValue"))
+        val append = requests.getJSONObject(3).getJSONObject("appendCells")
+        assertEquals("worqorder.task.v1:new", append.getJSONArray("rows").getJSONObject(0)
+            .getJSONArray("values").getJSONObject(15).getJSONObject("userEnteredValue").getString("stringValue"))
+    }
+
+    @Test
+    fun parsesExistingTabRowsAndRejectsMalformedValueData() {
+        val gateway = RestGoogleSheetsGateway()
+        assertEquals("'WorqOrder_2026-07-24'!A:M", gateway.dateTabValueRange(
+            GoogleSheetDescriptor(27, "WorqOrder_2026-07-24", 13),
+        ))
+        assertEquals("'WorqOrder_2026-07-24'!A:P", gateway.dateTabValueRange(
+            GoogleSheetDescriptor(27, "WorqOrder_2026-07-24", 16),
+        ))
+        assertEquals(
+            listOf(listOf("header"), listOf("data", "")),
+            gateway.parseSheetValues("""{"majorDimension":"ROWS","values":[["header"],["data",""]]}"""),
+        )
+        assertEquals(emptyList<List<String>>(), gateway.parseSheetValues("""{"range":"'Sheet'!A:P"}"""))
+        assertEquals(null, gateway.parseSheetValues("""{"majorDimension":"COLUMNS","values":[]}"""))
+        assertEquals(null, gateway.parseSheetValues("""{"values":[{"not":"a row"}]}"""))
     }
 
     @Test
@@ -170,7 +230,7 @@ class GoogleSheetsBatchJsonEncoderTest {
     }
 
     @Test
-    fun encodesAtomicLegacySchemaMetadataUpgrade() {
+    fun encodesAtomicSchemaMetadataUpgradeToCurrentVersion() {
         val plan =
             GoogleSheetsBatchPlan(
                 tabName = "WorqOrder_2026-07-24",
@@ -178,7 +238,7 @@ class GoogleSheetsBatchJsonEncoderTest {
                     listOf(
                         GoogleSheetsBatchRequest.UpdateSheetMetadataValue(
                             metadataId = 22,
-                            value = "3",
+                            value = "5",
                         ),
                     ),
             )
@@ -190,7 +250,7 @@ class GoogleSheetsBatchJsonEncoderTest {
                 .getJSONObject("updateDeveloperMetadata")
 
         assertEquals("metadataValue", update.getString("fields"))
-        assertEquals("3", update.getJSONObject("developerMetadata").getString("metadataValue"))
+        assertEquals("5", update.getJSONObject("developerMetadata").getString("metadataValue"))
         assertEquals(
             22,
             update

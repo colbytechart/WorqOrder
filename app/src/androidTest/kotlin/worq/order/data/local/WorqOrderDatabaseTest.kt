@@ -28,7 +28,6 @@ import org.junit.runner.RunWith
 import worq.order.data.ClientMutationResult
 import worq.order.data.CreateActiveIntervalResult
 import worq.order.data.EntityIdGenerator
-import worq.order.data.TimerSplitBoundary
 import worq.order.model.Client
 import worq.order.timer.UtcClock
 
@@ -78,6 +77,11 @@ class WorqOrderDatabaseTest {
 
         assertTrue(tableNames.containsAll(EXPECTED_TABLES))
         assertTrue(foreignKeysEnabled)
+        assertFalse(sqlite.tableColumns("work_intervals").contains("ordinal"))
+        assertTrue(sqlite.indexIsUnique("work_intervals", "index_work_intervals_task_id"))
+        assertFalse(
+            sqlite.indexIsUnique("daily_tasks", "index_daily_tasks_series_date_zone"),
+        )
     }
 
     @Test
@@ -250,13 +254,7 @@ class WorqOrderDatabaseTest {
                 workDateEpochDay = TEST_DATE.plusDays(1).toEpochDay(),
             )
             insertCompletedInterval(
-                id = "later",
-                taskId = "task-export",
-                startEpochMs = 3_000,
-                stopEpochMs = 4_000,
-            )
-            insertCompletedInterval(
-                id = "earlier",
+                id = "interval-export",
                 taskId = "task-export",
                 startEpochMs = 1_000,
                 stopEpochMs = 2_000,
@@ -273,7 +271,7 @@ class WorqOrderDatabaseTest {
             assertEquals("task-export", snapshot.single().taskWithClient.task.id)
             assertEquals("Export Client", snapshot.single().taskWithClient.clientName)
             assertEquals(
-                listOf("earlier", "later"),
+                listOf("interval-export"),
                 snapshot.single().intervals.map(WorkIntervalEntity::id),
             )
         }
@@ -339,18 +337,13 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
-    fun taskSeriesDateZoneKeyIsUniqueAndDifferentZoneRemainsDistinct() =
+    fun taskSeriesDateZoneLookupAllowsSameDateCopiesAndDifferentZones() =
         runBlocking {
             insertClient(id = "client-1")
             insertEmployee(id = "employee-1", name = "Alex Rivera")
             insertTask(id = "task-1", clientId = "client-1")
 
-            expectConstraintFailure {
-                insertTask(
-                    id = "task-duplicate",
-                    clientId = "client-1",
-                )
-            }
+            insertTask(id = "task-duplicate", clientId = "client-1")
             insertTask(
                 id = "task-other-zone",
                 clientId = "client-1",
@@ -362,39 +355,37 @@ class WorqOrderDatabaseTest {
                     .taskDao()
                     .observeTasksForWorkDate(TEST_DATE.toEpochDay())
                     .first()
-            assertEquals(2, tasks.size)
+            assertEquals(3, tasks.size)
         }
 
     @Test
-    fun multipleIntervalsUseStableOrdinalsAndChronologicalDetailOrder() =
+    fun schemaFiveTaskOwnsAtMostOneIntervalAndDetailReadsItByStartAndId() =
         runBlocking {
             insertClient(id = "client-1")
             insertEmployee(id = "employee-1", name = "Alex Rivera")
             insertTask(id = "task-1", clientId = "client-1")
 
-            val later =
-                insertCompletedInterval(
-                    id = "interval-later",
-                    taskId = "task-1",
-                    startEpochMs = 2_000,
-                    stopEpochMs = 3_000,
-                )
-            val earlier =
-                insertCompletedInterval(
-                    id = "interval-earlier",
-                    taskId = "task-1",
-                    startEpochMs = 500,
-                    stopEpochMs = 1_500,
-                )
+            insertCompletedInterval(
+                id = "interval-one",
+                taskId = "task-1",
+                startEpochMs = 2_000,
+                stopEpochMs = 3_000,
+            )
             val detail = requireNotNull(database.taskDao().readTaskWithOrderedIntervals("task-1"))
 
-            assertEquals(1, later.ordinal)
-            assertEquals(2, earlier.ordinal)
             assertEquals(
-                listOf("interval-earlier", "interval-later"),
+                listOf("interval-one"),
                 detail.intervals.map(WorkIntervalEntity::id),
             )
-            assertEquals(2_000L, database.workIntervalDao().readCompletedDurationMs("task-1"))
+            expectPersistenceInvariant {
+                insertCompletedInterval(
+                    id = "interval-two",
+                    taskId = "task-1",
+                    startEpochMs = 4_000,
+                    stopEpochMs = 5_000,
+                )
+            }
+            assertEquals(1_000L, database.workIntervalDao().readCompletedDurationMs("task-1"))
         }
 
     @Test
@@ -454,7 +445,13 @@ class WorqOrderDatabaseTest {
             val repository =
                 RoomActiveTimerRepository(
                     activeTimerDao = database.activeTimerDao(),
-                    idGenerator = QueueIdGenerator("interval-1", "interval-2"),
+                    idGenerator =
+                        QueueIdGenerator(
+                            "interval-1",
+                            "unused-repeat-task-1",
+                            "unused-interval-2",
+                            "unused-repeat-task-2",
+                        ),
                     clock = FixedClock(TEST_NOW),
                 )
 
@@ -502,19 +499,17 @@ class WorqOrderDatabaseTest {
                     INSERT INTO work_intervals (
                         id,
                         task_id,
-                        ordinal,
                         start_epoch_ms,
                         stop_epoch_ms,
                         active_slot,
                         was_manually_edited,
                         created_at_epoch_ms,
                         updated_at_epoch_ms
-                    ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?)
                     """.trimIndent(),
                     arrayOf<Any?>(
                         "interval-2",
                         "task-2",
-                        1,
                         2_000,
                         WorkIntervalEntity.ACTIVE_SLOT,
                         0,
@@ -677,16 +672,17 @@ class WorqOrderDatabaseTest {
                     stop = Instant.ofEpochMilli(3_000),
                 )
             assertTrue(added is worq.order.data.ManualIntervalPersistenceResult.Saved)
-            val overlap =
+            val secondInterval =
                 repository.addManualInterval(
                     taskId = "task-1",
                     start = Instant.ofEpochMilli(2_500),
                     stop = Instant.ofEpochMilli(3_500),
                 )
             assertEquals(
-                worq.order.data.ManualIntervalPersistenceResult.Overlap,
-                overlap,
+                worq.order.data.ManualIntervalPersistenceResult.TaskAlreadyHasInterval,
+                secondInterval,
             )
+            assertEquals(1, database.workIntervalDao().countIntervalsForTask("task-1"))
 
             val edited =
                 repository.updateManualInterval(
@@ -708,6 +704,52 @@ class WorqOrderDatabaseTest {
                 0L,
                 database.workIntervalDao().readCompletedDurationMs("task-1"),
             )
+        }
+
+    @Test
+    fun concurrentManualAddsHaveOneWinnerAndStructuredSecondIntervalFailure() =
+        runBlocking {
+            insertClient(id = "client-1")
+            insertTask(id = "task-1", clientId = "client-1")
+            val repository =
+                RoomTaskRepository(
+                    taskDao = database.taskDao(),
+                    workIntervalDao = database.workIntervalDao(),
+                    idGenerator = AtomicIdGenerator(),
+                    clock = FixedClock(TEST_NOW),
+                )
+
+            val results =
+                coroutineScope {
+                    listOf(
+                        async(Dispatchers.IO) {
+                            repository.addManualInterval(
+                                taskId = "task-1",
+                                start = Instant.ofEpochMilli(1_000),
+                                stop = Instant.ofEpochMilli(2_000),
+                            )
+                        },
+                        async(Dispatchers.IO) {
+                            repository.addManualInterval(
+                                taskId = "task-1",
+                                start = Instant.ofEpochMilli(3_000),
+                                stop = Instant.ofEpochMilli(4_000),
+                            )
+                        },
+                    ).awaitAll()
+                }
+
+            assertEquals(
+                1,
+                results.count { it is worq.order.data.ManualIntervalPersistenceResult.Saved },
+            )
+            assertEquals(
+                1,
+                results.count {
+                    it == worq.order.data.ManualIntervalPersistenceResult.TaskAlreadyHasInterval
+                },
+            )
+            assertEquals(1, database.workIntervalDao().countIntervalsForTask("task-1"))
         }
 
     @Test
@@ -751,6 +793,22 @@ class WorqOrderDatabaseTest {
                 ),
             )
             assertEquals(
+                worq.order.data.ManualIntervalPersistenceResult.RunningTask,
+                repository.updateManualInterval(
+                    taskId = "task-1",
+                    intervalId = "active-interval",
+                    start = Instant.ofEpochMilli(100),
+                    stop = Instant.ofEpochMilli(500),
+                ),
+            )
+            assertEquals(
+                worq.order.data.ManualIntervalPersistenceResult.RunningTask,
+                repository.deleteManualInterval(
+                    taskId = "task-1",
+                    intervalId = "active-interval",
+                ),
+            )
+            assertEquals(
                 worq.order.data.DeleteTaskResult.RunningTask,
                 repository.deleteTask("task-1"),
             )
@@ -758,86 +816,65 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
-    fun activeTimerNormalizationCreatesDailyContinuationAndIsIdempotent() =
+    fun boundaryCloseIsAtomicIdempotentAndCreatesNoContinuationRecords() =
         runBlocking {
             insertClient(id = "client-1")
-            insertEmployee(id = "employee-1", name = "Alex Rivera")
             insertTask(
                 id = "task-day-1",
                 clientId = "client-1",
-                hardwareSoftwarePurchases = "Laptop",
-                employeeId = "employee-1",
-                employeeNameSnapshot = "Alex Rivera",
-                workType = "ON_SITE",
-                billingStatus = "DO_NOT_CHARGE",
-                mileage = "18.5",
                 workDateEpochDay = LocalDate.of(2026, 7, 24).toEpochDay(),
             )
             val repository =
                 RoomActiveTimerRepository(
                     activeTimerDao = database.activeTimerDao(),
-                    idGenerator =
-                        QueueIdGenerator(
-                            "interval-day-1",
-                            "task-day-2",
-                            "interval-day-2",
-                        ),
-                    clock = FixedClock(Instant.parse("2026-07-25T05:00:00Z")),
+                    idGenerator = QueueIdGenerator("boundary-interval", "unused-repeat-task"),
+                    clock = FixedClock(Instant.parse("2026-07-27T05:00:00Z")),
                 )
-            val start = Instant.parse("2026-07-25T03:30:00Z")
-            val boundary = Instant.parse("2026-07-25T04:00:00Z")
             val created =
                 repository.createActiveInterval(
                     taskId = "task-day-1",
                     boundaryZoneId = TEST_ZONE,
-                    start = start,
+                    start = Instant.parse("2026-07-25T03:30:00Z"),
                 ) as CreateActiveIntervalResult.Created
+            val firstBoundary = Instant.parse("2026-07-25T04:00:00Z")
 
-            val normalized =
-                requireNotNull(
-                    repository.normalizeActiveInterval(
-                        expectedIntervalId = created.snapshot.interval.id,
-                        boundaries =
-                            listOf(
-                                TimerSplitBoundary(
-                                    instant = boundary,
-                                    workDate = LocalDate.of(2026, 7, 25),
-                                    zoneId = TEST_ZONE,
-                                ),
-                            ),
-                    ),
-                )
+            val attempts =
+                coroutineScope {
+                    List(2) {
+                        async(Dispatchers.IO) {
+                            repository.closeActiveIntervalAtBoundary(
+                                expectedIntervalId = created.snapshot.interval.id,
+                                boundary = firstBoundary,
+                            )
+                        }
+                    }.awaitAll()
+                }
+            val closed = requireNotNull(attempts.singleOrNull { it != null })
             val repeated =
-                requireNotNull(
-                    repository.normalizeActiveInterval(
-                        expectedIntervalId = normalized.interval.id,
-                        boundaries = emptyList(),
-                    ),
+                repository.closeActiveIntervalAtBoundary(
+                    expectedIntervalId = created.snapshot.interval.id,
+                    boundary = firstBoundary,
                 )
 
-            val sourceInterval =
-                requireNotNull(database.workIntervalDao().readInterval("interval-day-1"))
-            val continuationTask =
-                requireNotNull(database.taskDao().readTask("task-day-2"))
-            assertEquals(boundary.toEpochMilli(), sourceInterval.stopEpochMs)
-            assertNull(sourceInterval.activeSlot)
-            assertEquals("series-1", continuationTask.seriesId)
-            assertEquals("client-1", continuationTask.clientId)
-            assertEquals("Task task-day-1", continuationTask.description)
-            assertEquals("Laptop", continuationTask.hardwareSoftwarePurchases)
-            assertEquals("employee-1", continuationTask.employeeId)
-            assertEquals("Alex Rivera", continuationTask.employeeNameSnapshot)
-            assertEquals("ON_SITE", continuationTask.workType)
-            assertEquals("DO_NOT_CHARGE", continuationTask.billingStatus)
-            assertEquals("18.5", continuationTask.mileage)
-            assertEquals(LocalDate.of(2026, 7, 25).toEpochDay(), continuationTask.workDateEpochDay)
-            assertEquals(TEST_ZONE.id, continuationTask.zoneId)
-            assertEquals("interval-day-2", normalized.interval.id)
-            assertEquals("task-day-2", normalized.interval.taskId)
-            assertNull(normalized.interval.stop)
-            assertEquals(normalized, repeated)
+            assertEquals(firstBoundary, closed.interval.stop)
+            assertEquals(1, attempts.count { it != null })
+            assertNull(repeated)
+            assertNull(database.activeTimerDao().readActiveTimer())
             assertEquals(1, database.workIntervalDao().countIntervalsForTask("task-day-1"))
-            assertEquals(1, database.workIntervalDao().countIntervalsForTask("task-day-2"))
+            assertEquals(
+                1,
+                database.taskDao()
+                    .observeTasksForWorkDate(LocalDate.of(2026, 7, 24).toEpochDay())
+                    .first()
+                    .size,
+            )
+            assertEquals(
+                0,
+                database.taskDao()
+                    .observeTasksForWorkDate(LocalDate.of(2026, 7, 25).toEpochDay())
+                    .first()
+                    .size,
+            )
         }
 
     @Test
@@ -850,19 +887,17 @@ class WorqOrderDatabaseTest {
                 INSERT INTO work_intervals (
                     id,
                     task_id,
-                    ordinal,
                     start_epoch_ms,
                     stop_epoch_ms,
                     active_slot,
                     was_manually_edited,
                     created_at_epoch_ms,
                     updated_at_epoch_ms
-                ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?)
                 """.trimIndent(),
                 arrayOf<Any?>(
                     "orphan-open",
                     "task-1",
-                    1,
                     TEST_NOW.toEpochMilli(),
                     WorkIntervalEntity.ACTIVE_SLOT,
                     0,
@@ -878,138 +913,6 @@ class WorqOrderDatabaseTest {
                 return@runBlocking
             }
             throw AssertionError("Expected orphan open interval to be reported")
-        }
-
-    @Test
-    fun failedMultiBoundaryNormalizationRollsBackTheWholeChain() =
-        runBlocking {
-            insertClient(id = "client-1")
-            insertTask(
-                id = "task-day-1",
-                clientId = "client-1",
-                workDateEpochDay = LocalDate.of(2026, 7, 24).toEpochDay(),
-            )
-            val repository =
-                RoomActiveTimerRepository(
-                    activeTimerDao = database.activeTimerDao(),
-                    idGenerator =
-                        QueueIdGenerator(
-                            "interval-day-1",
-                            "task-day-2",
-                            "interval-day-2",
-                            "task-day-3",
-                            "interval-day-3",
-                        ),
-                    clock = FixedClock(Instant.parse("2026-07-25T05:00:00Z")),
-                )
-            repository.createActiveInterval(
-                taskId = "task-day-1",
-                boundaryZoneId = TEST_ZONE,
-                start = Instant.parse("2026-07-25T03:30:00Z"),
-            )
-            val duplicatedBoundary = Instant.parse("2026-07-25T04:00:00Z")
-
-            try {
-                repository.normalizeActiveInterval(
-                    expectedIntervalId = "interval-day-1",
-                    boundaries =
-                        listOf(
-                            TimerSplitBoundary(
-                                instant = duplicatedBoundary,
-                                workDate = LocalDate.of(2026, 7, 25),
-                                zoneId = TEST_ZONE,
-                            ),
-                            TimerSplitBoundary(
-                                instant = duplicatedBoundary,
-                                workDate = LocalDate.of(2026, 7, 26),
-                                zoneId = TEST_ZONE,
-                            ),
-                        ),
-                )
-            } catch (_: IllegalArgumentException) {
-                val active =
-                    requireNotNull(
-                        database.activeTimerDao().readActiveTimerSnapshot(),
-                    )
-                assertEquals("interval-day-1", active.interval.id)
-                assertNull(active.interval.stopEpochMs)
-                assertEquals(
-                    WorkIntervalEntity.ACTIVE_SLOT,
-                    active.interval.activeSlot,
-                )
-                assertNull(database.taskDao().readTask("task-day-2"))
-                assertNull(database.workIntervalDao().readInterval("interval-day-2"))
-                return@runBlocking
-            }
-            throw AssertionError("Expected invalid continuation chain to roll back")
-        }
-
-    @Test
-    fun stoppingAcrossMultipleMidnightsSplitsAndClearsAtomically() =
-        runBlocking {
-            insertClient(id = "client-1")
-            insertTask(
-                id = "task-day-1",
-                clientId = "client-1",
-                workDateEpochDay = LocalDate.of(2026, 7, 24).toEpochDay(),
-            )
-            val stop = Instant.parse("2026-07-26T05:00:00Z")
-            val repository =
-                RoomActiveTimerRepository(
-                    activeTimerDao = database.activeTimerDao(),
-                    idGenerator =
-                        QueueIdGenerator(
-                            "interval-day-1",
-                            "task-day-2",
-                            "interval-day-2",
-                            "task-day-3",
-                            "interval-day-3",
-                        ),
-                    clock = FixedClock(stop),
-                )
-            val created =
-                repository.createActiveInterval(
-                    taskId = "task-day-1",
-                    boundaryZoneId = TEST_ZONE,
-                    start = Instant.parse("2026-07-25T03:30:00Z"),
-                ) as CreateActiveIntervalResult.Created
-
-            val closed =
-                requireNotNull(
-                    repository.closeActiveInterval(
-                        expectedIntervalId = created.snapshot.interval.id,
-                        boundaries =
-                            listOf(
-                                TimerSplitBoundary(
-                                    instant = Instant.parse("2026-07-25T04:00:00Z"),
-                                    workDate = LocalDate.of(2026, 7, 25),
-                                    zoneId = TEST_ZONE,
-                                ),
-                                TimerSplitBoundary(
-                                    instant = Instant.parse("2026-07-26T04:00:00Z"),
-                                    workDate = LocalDate.of(2026, 7, 26),
-                                    zoneId = TEST_ZONE,
-                                ),
-                            ),
-                        stop = stop,
-                    ),
-                )
-
-            assertEquals("interval-day-3", closed.interval.id)
-            assertEquals(stop, closed.interval.stop)
-            assertNull(database.activeTimerDao().readActiveTimer())
-            assertEquals(
-                Instant.parse("2026-07-25T04:00:00Z").toEpochMilli(),
-                database.workIntervalDao().readInterval("interval-day-1")?.stopEpochMs,
-            )
-            assertEquals(
-                Instant.parse("2026-07-26T04:00:00Z").toEpochMilli(),
-                database.workIntervalDao().readInterval("interval-day-2")?.stopEpochMs,
-            )
-            assertEquals(
-                stop.toEpochMilli(),
-                database.workIntervalDao().readInterval("interval-day-3")?.stopEpochMs,
-            )
         }
 
     @Test
@@ -1040,6 +943,58 @@ class WorqOrderDatabaseTest {
             assertEquals(1, results.count { it is CreateActiveIntervalResult.Created })
             assertEquals(1, results.count { it is CreateActiveIntervalResult.AlreadyActive })
             assertEquals(1, database.workIntervalDao().countIntervalsForTask("task-1"))
+        }
+
+    @Test
+    fun concurrentRepeatedStartsCreateExactlyOneSameDayTask() =
+        runBlocking {
+            insertClient(id = "client-1")
+            insertTask(id = "task-1", clientId = "client-1")
+            database.workIntervalDao().insertInterval(
+                intervalId = "completed-interval",
+                taskId = "task-1",
+                startEpochMs = 1_000,
+                stopEpochMs = 2_000,
+                wasManuallyEdited = false,
+                createdAtEpochMs = 1_000,
+                updatedAtEpochMs = 2_000,
+            )
+            val repository =
+                RoomActiveTimerRepository(
+                    activeTimerDao = database.activeTimerDao(),
+                    idGenerator = AtomicIdGenerator(),
+                    clock = FixedClock(TEST_NOW),
+                )
+
+            val results =
+                coroutineScope {
+                    List(2) {
+                        async(Dispatchers.IO) {
+                            repository.createActiveInterval(
+                                taskId = "task-1",
+                                boundaryZoneId = TEST_ZONE,
+                                start = TEST_NOW,
+                            )
+                        }
+                    }.awaitAll()
+                }
+
+            assertEquals(1, results.count { it is CreateActiveIntervalResult.Created })
+            assertEquals(1, results.count { it is CreateActiveIntervalResult.AlreadyActive })
+            val created = results.filterIsInstance<CreateActiveIntervalResult.Created>().single()
+            assertTrue(created.repeatedTaskCreated)
+            assertTrue(created.startedTask.id != "task-1")
+            assertEquals(TEST_DATE, created.startedTask.workDate)
+            assertEquals(TEST_ZONE, created.startedTask.zoneId)
+            assertEquals(
+                2,
+                database.taskDao().observeTasksForWorkDate(TEST_DATE.toEpochDay()).first().size,
+            )
+            assertEquals(1, database.workIntervalDao().countIntervalsForTask("task-1"))
+            assertEquals(
+                1,
+                database.workIntervalDao().countIntervalsForTask(created.startedTask.id),
+            )
         }
 
     @Test
@@ -1110,6 +1065,11 @@ class WorqOrderDatabaseTest {
                 .open(VERSION_FOUR_SCHEMA_ASSET_PATH)
                 .bufferedReader()
                 .use { it.readText() }
+        val versionFive =
+            testContext.assets
+                .open(VERSION_FIVE_SCHEMA_ASSET_PATH)
+                .bufferedReader()
+                .use { it.readText() }
 
         assertTrue(versionOne.contains("\"version\": 1"))
         assertTrue(versionTwo.contains("\"version\": 2"))
@@ -1121,10 +1081,14 @@ class WorqOrderDatabaseTest {
         assertTrue(versionThree.contains("\"columnName\": \"employee_name_snapshot\""))
         assertTrue(versionFour.contains("\"version\": 4"))
         assertTrue(versionFour.contains("\"columnName\": \"billing_status\""))
+        assertTrue(versionFive.contains("\"version\": 5"))
+        assertTrue(versionFive.contains("\"tableName\": \"work_intervals\""))
+        assertFalse(versionFive.contains("\"columnName\": \"ordinal\""))
+        assertFalse(versionFive.contains("schema5-generated-by-room"))
     }
 
     @Test
-    fun migrationOneToFourPreservesPopulatedTaskAndActiveTimer() =
+    fun migrationOneToFivePreservesPopulatedTaskAndActiveTimer() =
         runBlocking {
             context.deleteDatabase(MIGRATION_TEST_DATABASE)
             createPopulatedVersionOneDatabase()
@@ -1139,6 +1103,7 @@ class WorqOrderDatabaseTest {
                         WorqOrderMigrations.MIGRATION_1_2,
                         WorqOrderMigrations.MIGRATION_2_3,
                         WorqOrderMigrations.MIGRATION_3_4,
+                        WorqOrderMigrations.MIGRATION_4_5,
                     )
                     .allowMainThreadQueries()
                     .build()
@@ -1154,10 +1119,21 @@ class WorqOrderDatabaseTest {
                 val intervals =
                     migrated.workIntervalDao()
                         .readIntervalsForOverlapValidation("migration-task")
-                assertEquals(2, intervals.size)
+                assertEquals(1, intervals.size)
+                assertEquals("migration-complete", intervals.single().id)
+                val movedTaskId =
+                    WorqOrderMigrations.deriveMigratedTaskId(
+                        sourceTaskId = "migration-task",
+                        intervalId = "migration-active",
+                    )
+                assertNotNull(migrated.taskDao().readTask(movedTaskId))
                 assertEquals(
                     "migration-active",
                     migrated.activeTimerDao().readActiveTimer()?.intervalId,
+                )
+                assertEquals(
+                    movedTaskId,
+                    migrated.activeTimerDao().readActiveTimer()?.taskId,
                 )
             } finally {
                 migrated.close()
@@ -1166,7 +1142,7 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
-    fun migrationTwoToFourPreservesReleasedGraphAndAddsSafeDefaults() =
+    fun migrationTwoToFivePreservesReleasedGraphAndAddsSafeDefaults() =
         runBlocking {
             context.deleteDatabase(MIGRATION_TEST_DATABASE)
             createPopulatedVersionTwoDatabase()
@@ -1180,6 +1156,7 @@ class WorqOrderDatabaseTest {
                     ).addMigrations(
                         WorqOrderMigrations.MIGRATION_2_3,
                         WorqOrderMigrations.MIGRATION_3_4,
+                        WorqOrderMigrations.MIGRATION_4_5,
                     )
                     .allowMainThreadQueries()
                     .build()
@@ -1193,15 +1170,21 @@ class WorqOrderDatabaseTest {
                 assertNull(task.billingStatus)
                 assertNull(task.mileage)
                 assertEquals(
-                    listOf("migration-complete", "migration-active"),
+                    listOf("migration-complete"),
                     migrated.workIntervalDao()
                         .readIntervalsForOverlapValidation("migration-task")
                         .map(WorkIntervalEntity::id),
                 )
+                val movedTaskId =
+                    WorqOrderMigrations.deriveMigratedTaskId(
+                        sourceTaskId = "migration-task",
+                        intervalId = "migration-active",
+                    )
                 assertEquals(
                     "migration-active",
                     migrated.activeTimerDao().readActiveTimer()?.intervalId,
                 )
+                assertEquals(movedTaskId, migrated.activeTimerDao().readActiveTimer()?.taskId)
                 assertTrue(migrated.employeeDao().observeAllEmployees().first().isEmpty())
             } finally {
                 migrated.close()
@@ -1408,6 +1391,40 @@ class WorqOrderDatabaseTest {
         throw AssertionError("Expected SQLiteConstraintException")
     }
 
+    private suspend fun expectPersistenceInvariant(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (_: PersistenceInvariantException) {
+            return
+        }
+        throw AssertionError("Expected PersistenceInvariantException")
+    }
+
+    private fun androidx.sqlite.db.SupportSQLiteDatabase.tableColumns(tableName: String): Set<String> =
+        query("PRAGMA table_info($tableName)").use { cursor ->
+            val nameColumn = cursor.getColumnIndexOrThrow("name")
+            buildSet {
+                while (cursor.moveToNext()) {
+                    add(cursor.getString(nameColumn))
+                }
+            }
+        }
+
+    private fun androidx.sqlite.db.SupportSQLiteDatabase.indexIsUnique(
+        tableName: String,
+        indexName: String,
+    ): Boolean =
+        query("PRAGMA index_list($tableName)").use { cursor ->
+            val nameColumn = cursor.getColumnIndexOrThrow("name")
+            val uniqueColumn = cursor.getColumnIndexOrThrow("unique")
+            while (cursor.moveToNext()) {
+                if (cursor.getString(nameColumn) == indexName) {
+                    return@use cursor.getInt(uniqueColumn) == 1
+                }
+            }
+            throw AssertionError("Index $indexName was not found on $tableName")
+        }
+
     private class QueueIdGenerator(
         vararg ids: String,
     ) : EntityIdGenerator {
@@ -1451,5 +1468,7 @@ class WorqOrderDatabaseTest {
             "worq.order.data.local.WorqOrderDatabase/3.json"
         const val VERSION_FOUR_SCHEMA_ASSET_PATH =
             "worq.order.data.local.WorqOrderDatabase/4.json"
+        const val VERSION_FIVE_SCHEMA_ASSET_PATH =
+            "worq.order.data.local.WorqOrderDatabase/5.json"
     }
 }

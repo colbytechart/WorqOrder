@@ -33,7 +33,6 @@ import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
 import worq.order.data.TimeZoneSettingResult
 import worq.order.data.TaskRepository
-import worq.order.data.TimerSplitBoundary
 import worq.order.data.UpdateTaskMetadataResult
 import worq.order.export.csv.DocumentOutputDestination
 import worq.order.export.csv.DocumentWriteResult
@@ -353,6 +352,19 @@ class FakeSelectedTaskRepository(
     override suspend fun clear() {
         state.value = null
     }
+
+    override suspend fun clearIfSelected(taskId: String): Boolean {
+        require(taskId.isNotBlank()) { "taskId must not be blank" }
+        while (true) {
+            val current = state.value ?: return false
+            if (current.taskId != taskId) {
+                return false
+            }
+            if (state.compareAndSet(current, null)) {
+                return true
+            }
+        }
+    }
 }
 
 class FakeTaskRepository : TaskRepository {
@@ -397,7 +409,7 @@ class FakeTaskRepository : TaskRepository {
                     intervals =
                         intervals[taskId]
                             .orEmpty()
-                            .sortedWith(compareBy(WorkInterval::start, WorkInterval::ordinal)),
+                            .sortedWith(compareBy(WorkInterval::start, WorkInterval::id)),
                 )
             }
         }
@@ -433,22 +445,10 @@ class FakeTaskRepository : TaskRepository {
                             .orEmpty()
                             .sortedWith(
                                 compareBy<WorkInterval> { it.start }
-                                    .thenBy { it.ordinal }
                                     .thenBy { it.id },
                             ),
                 )
             }
-
-    override suspend fun findCorrespondingTask(
-        seriesId: String,
-        workDate: LocalDate,
-        zoneId: ZoneId,
-    ): DailyTask? =
-        taskState.value.values.firstOrNull {
-            it.seriesId == seriesId &&
-                it.workDate == workDate &&
-                it.zoneId == zoneId
-        }
 
     override suspend fun insertDailyTask(newTask: NewDailyTask): DailyTask =
         mutex.withLock {
@@ -471,42 +471,12 @@ class FakeTaskRepository : TaskRepository {
                     createdAt = now,
                     updatedAt = now,
                 )
-            check(
-                taskState.value.values.none {
-                    it.seriesId == task.seriesId &&
-                        it.workDate == task.workDate &&
-                        it.zoneId == task.zoneId
-                },
-            )
             taskState.value = taskState.value + (task.id to task)
             task
         }
 
     override suspend fun createDailyTask(newTask: NewDailyTask): CreateDailyTaskResult =
         CreateDailyTaskResult.Created(insertDailyTask(newTask))
-
-    override suspend fun findOrCreateDailyTaskCopy(
-        sourceTaskId: String,
-        workDate: LocalDate,
-        zoneId: ZoneId,
-    ): DailyTask? =
-        mutex.withLock {
-            val source = taskState.value[sourceTaskId] ?: return@withLock null
-            taskState.value.values
-                .firstOrNull {
-                    it.seriesId == source.seriesId &&
-                        it.workDate == workDate &&
-                        it.zoneId == zoneId
-                } ?: source.copy(
-                id = "task-${++taskId}",
-                workDate = workDate,
-                zoneId = zoneId,
-                createdAt = source.updatedAt.plusSeconds(taskId.toLong()),
-                updatedAt = source.updatedAt.plusSeconds(taskId.toLong()),
-            ).also { copy ->
-                taskState.value = taskState.value + (copy.id to copy)
-            }
-        }
 
     override suspend fun updateTaskMetadata(
         taskId: String,
@@ -592,6 +562,10 @@ class FakeTaskRepository : TaskRepository {
         if (taskId in runningTaskIds) {
             return ManualIntervalPersistenceResult.RunningTask
         }
+
+        if (intervals[taskId].orEmpty().isNotEmpty()) {
+            return ManualIntervalPersistenceResult.TaskAlreadyHasInterval
+        }
         if (hasOverlap(taskId, start, stop)) {
             return ManualIntervalPersistenceResult.Overlap
         }
@@ -605,6 +579,24 @@ class FakeTaskRepository : TaskRepository {
         addInterval(interval)
         return ManualIntervalPersistenceResult.Saved(interval)
     }
+
+    /**
+     * Schema-5 test helper for the Start transaction: repeats stay on the same work date and
+     * preserve only the source task's user metadata and lineage.
+     */
+    suspend fun copyTaskForRepeatedStart(sourceTaskId: String): DailyTask? =
+        mutex.withLock {
+            val source = taskState.value[sourceTaskId] ?: return@withLock null
+            val timestamp = source.updatedAt.plusSeconds((taskId + 1).toLong())
+            val copy =
+                source.copy(
+                    id = "task-${++taskId}",
+                    createdAt = timestamp,
+                    updatedAt = timestamp,
+                )
+            taskState.value = taskState.value + (copy.id to copy)
+            copy
+        }
 
     override suspend fun updateManualInterval(
         taskId: String,
@@ -680,7 +672,14 @@ class FakeTaskRepository : TaskRepository {
 
     suspend fun addInterval(interval: WorkInterval) {
         mutex.withLock {
-            intervals.getOrPut(interval.taskId, ::mutableListOf).add(interval)
+            check(taskState.value.containsKey(interval.taskId)) {
+                "Cannot add an interval to missing task ${interval.taskId}"
+            }
+            val taskIntervals = intervals.getOrPut(interval.taskId, ::mutableListOf)
+            check(taskIntervals.isEmpty()) {
+                "Schema-5 fake task ${interval.taskId} already owns its sole interval"
+            }
+            taskIntervals += interval
             intervalRevision.value += 1L
         }
     }
@@ -689,11 +688,10 @@ class FakeTaskRepository : TaskRepository {
         mutex.withLock {
             val taskIntervals = intervals.getOrPut(interval.taskId, ::mutableListOf)
             val index = taskIntervals.indexOfFirst { it.id == interval.id }
-            if (index >= 0) {
-                taskIntervals[index] = interval
-            } else {
-                taskIntervals += interval
+            check(index >= 0) {
+                "Cannot replace missing interval ${interval.id}"
             }
+            taskIntervals[index] = interval
             intervalRevision.value += 1L
         }
     }
@@ -721,7 +719,8 @@ class FakeTaskRepository : TaskRepository {
         return WorkInterval(
             id = id,
             taskId = taskId,
-            ordinal = intervals[taskId].orEmpty().size + 1,
+            // Match the narrow schema-5 presentation compatibility adapter in RoomMappers.
+            ordinal = 1,
             start = start,
             stop = stop,
             wasManuallyEdited = wasManuallyEdited,
@@ -794,48 +793,69 @@ class FakeActiveTimerRepository(
             if (active.value != null) {
                 return@withLock CreateActiveIntervalResult.AlreadyActive
             }
-            val interval = tasks.newInterval(taskId = taskId, start = start, stop = null)
+            val source =
+                requireNotNull(tasks.readTaskWithIntervals(taskId)) {
+                    "Cannot start missing task $taskId"
+                }
+            val repeatedTaskCreated = source.intervals.isNotEmpty()
+            val startedTask =
+                when (source.intervals.size) {
+                    0 -> source.taskWithClient.task
+                    1 -> {
+                        check(source.intervals.single().stop != null) {
+                            "Task $taskId has an open interval without active timer state"
+                        }
+                        requireNotNull(tasks.copyTaskForRepeatedStart(taskId))
+                    }
+                    else ->
+                        error("Schema-5 task $taskId owns ${source.intervals.size} intervals")
+                }
+            val interval =
+                tasks.newInterval(taskId = startedTask.id, start = start, stop = null)
             tasks.addInterval(interval)
-            tasks.markRunning(taskId)
+            tasks.markRunning(startedTask.id)
             val timer =
                 ActiveTimer(
                     intervalId = interval.id,
-                    taskId = taskId,
+                    taskId = startedTask.id,
                     boundaryZoneId = boundaryZoneId,
                     createdAt = start,
                     updatedAt = start,
                 )
             val snapshot = ActiveTimerSnapshot(activeTimer = timer, interval = interval)
             active.value = snapshot
-            CreateActiveIntervalResult.Created(snapshot)
+            CreateActiveIntervalResult.Created(
+                snapshot = snapshot,
+                startedTask = startedTask,
+                repeatedTaskCreated = repeatedTaskCreated,
+            )
         }
 
     override suspend fun closeActiveInterval(stop: Instant): ActiveTimerSnapshot? {
         val expected = active.value?.interval?.id ?: return null
-        return closeActiveInterval(
-            expectedIntervalId = expected,
-            boundaries = emptyList(),
-            stop = stop,
-        )
+        return closeActiveInterval(expectedIntervalId = expected, stop = stop)
     }
 
-    override suspend fun normalizeActiveInterval(
+    override suspend fun closeActiveIntervalAtBoundary(
         expectedIntervalId: String,
-        boundaries: List<TimerSplitBoundary>,
+        boundary: Instant,
     ): ActiveTimerSnapshot? =
-        mutex.withLock {
-            applyBoundaries(expectedIntervalId, boundaries)
-        }
+        closeActiveInterval(expectedIntervalId = expectedIntervalId, stop = boundary)
 
     override suspend fun closeActiveInterval(
         expectedIntervalId: String,
-        boundaries: List<TimerSplitBoundary>,
         stop: Instant,
     ): ActiveTimerSnapshot? =
         mutex.withLock {
-            val continued = applyBoundaries(expectedIntervalId, boundaries) ?: return@withLock null
+            val current = active.value ?: return@withLock null
+            if (current.interval.id != expectedIntervalId) {
+                return@withLock null
+            }
+            require(stop.isAfter(current.interval.start)) {
+                "An active interval must stop after it starts"
+            }
             val closed =
-                continued.interval.copy(
+                current.interval.copy(
                     stop = stop,
                     updatedAt = stop,
                 )
@@ -843,55 +863,8 @@ class FakeActiveTimerRepository(
             tasks.markStopped(closed.taskId)
             active.value = null
             ActiveTimerSnapshot(
-                activeTimer = continued.activeTimer.copy(updatedAt = stop),
+                activeTimer = current.activeTimer.copy(updatedAt = stop),
                 interval = closed,
             )
         }
-
-    private suspend fun applyBoundaries(
-        expectedIntervalId: String,
-        boundaries: List<TimerSplitBoundary>,
-    ): ActiveTimerSnapshot? {
-        var snapshot = active.value ?: return null
-        if (snapshot.interval.id != expectedIntervalId) {
-            return null
-        }
-        boundaries.forEach { boundary ->
-            val closed =
-                snapshot.interval.copy(
-                    stop = boundary.instant,
-                    updatedAt = boundary.instant,
-                )
-            tasks.replaceInterval(closed)
-            tasks.markStopped(closed.taskId)
-            val nextTask =
-                requireNotNull(
-                    tasks.findOrCreateDailyTaskCopy(
-                        sourceTaskId = snapshot.interval.taskId,
-                        workDate = boundary.workDate,
-                        zoneId = boundary.zoneId,
-                    ),
-                )
-            val continuation =
-                tasks.newInterval(
-                    taskId = nextTask.id,
-                    start = boundary.instant,
-                    stop = null,
-                )
-            tasks.addInterval(continuation)
-            tasks.markRunning(nextTask.id)
-            snapshot =
-                ActiveTimerSnapshot(
-                    activeTimer =
-                        snapshot.activeTimer.copy(
-                            intervalId = continuation.id,
-                            taskId = nextTask.id,
-                            updatedAt = boundary.instant,
-                        ),
-                    interval = continuation,
-                )
-            active.value = snapshot
-        }
-        return snapshot
-    }
 }

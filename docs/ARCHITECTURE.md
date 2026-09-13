@@ -1,5 +1,10 @@
 # WorqOrder Architecture
 
+Version authority: this document retains released `0.1.0`/`0.2.0` milestone descriptions for
+upgrade and historical traceability. References explicitly labeled `0.2.0` or a released milestone
+are historical; the current `0.3.0` behavior is authoritative in Section 17 and its linked
+specifications.
+
 ## 1. Architectural goals
 
 The architecture keeps the offline core small, testable, and independent of Google services:
@@ -153,13 +158,12 @@ DAO and canonical export ordering remain independently stable.
 
 - `ClientRepository`: implemented in Milestone 2 with active/all-client `Flow` observations and add, rename, archive, and restore operations using one canonical-name validator. It returns typed invalid-name, duplicate-active-name, and not-found outcomes.
 - `TaskRepository`: observes dates/tasks, fetches joined/detail models, reads one transactional
-  joined task/client/ordered-interval snapshot for a requested export date, and atomically finds or creates
-  an exact `(series, date, zone)` copy from current source metadata (client, short description, and
-  hardware/software-purchases text), creates/updates/deletes daily tasks, inserts completed
-  intervals, and exposes ordered validation history and completed totals.
-- `ActiveTimerRepository`: observes/reads the singleton and delegates atomic open, multi-boundary
-  continuation, retarget, and final close operations to `ActiveTimerDao`. Eligibility and boundary
-  calculation remain outside the DAO.
+  joined task/client/optional-interval snapshot for a requested export date, creates/updates/deletes
+  daily tasks, inserts or replaces the sole completed interval, and exposes validation history and
+  completed totals. Date changes never create task records in current `0.3.0` behavior.
+- `ActiveTimerRepository`: observes/reads the singleton and delegates atomic open, exact-boundary
+  close, and final close operations to `ActiveTimerDao`. Eligibility and boundary calculation
+  remain outside the DAO.
 - `SettingsRepository`: provides typed Flow access to theme, zone mode/manual ID, default export,
   and the safe last export attempt (destination/date/instant/outcome/category). Google connection
   metadata uses its owning typed repository; one-off XLSX retains no document connection metadata.
@@ -171,14 +175,15 @@ DAO and canonical export ordering remain independently stable.
 
 - `TimerCoordinator`: typed Start/Stop entry point; validates exact-today eligibility, coordinates
   the shared mutex and Room transaction APIs, and owns clock-anomaly results/live-anchor changes.
-- `ActiveTimerNormalizer`: calculates all crossed boundaries from the pinned session zone, applies
-  one atomic continuation chain, follows the active task selection, and establishes/re-establishes
-  process-local display state without changing persisted boundaries.
+- `ActiveTimerNormalizer`: calculates the first crossed boundary from the pinned session zone and
+  applies one atomic exact-boundary close. It never creates a continuation task or interval and
+  establishes/re-establishes process-local display state without changing persisted boundaries.
 - `TimerRecoveryCoordinator`: application-scoped startup/resume entry point that waits for the
   effective zone, captures one UTC instant, normalizes Room state, and then reconciles selection.
   Its own mutex makes duplicate Activity/Main resume signals idempotent.
 - `SelectionCoordinator`: select/clear/observe, active-timer switching lock, dangling repair, and
-  exact three-part daily rollover using current source metadata.
+  (in released `0.2.0`) exact three-part daily rollover using current source metadata. The current
+  `0.3.0` implementation clears an ineligible concrete selection and never creates a date copy.
 - `ManualIntervalValidator`: pure boundary, ordering, overlap, open/running-state, and explicit
   DST gap/overlap validation.
 - `TaskMutationCoordinator`: shared task metadata validation, active-client-at-commit enforcement,
@@ -190,9 +195,10 @@ DAO and canonical export ordering remain independently stable.
   under the timer-operation lock, normalizes crossed boundaries, reads the transactional Room
   snapshot, and returns the one immutable destination-neutral dataset. Main permits this workflow
   only when Room-derived active state is loaded and empty.
-- `ExportRowBuilder`: owns schema version 4 in `0.2.0`, the exact 15 visible columns, duplicated
-  `MM/DD/YYYY` Start/End dates, task-zone export `hh:mm a`,
-  accumulated `HH:MM:SS`, zero-interval rows, and deterministic internal-key sorting.
+- `ExportRowBuilder`: owns current schema version 5 in `0.3.0`, the exact 13 visible columns,
+  duplicated `MM/DD/YYYY` Start/End dates, task-zone export `hh:mm a`, accumulated `HH:MM:SS`,
+  one row per task (including untimed tasks), and deterministic task-key sorting. The released
+  `0.2.0` schema-4 projection remains historical compatibility behavior.
 - `CsvExportCoordinator`: consumes the prepared snapshot and only serializes/packages the pending
   UTF-8 CSV before the picker opens.
 - XLSX and Google adapters receive the same `ExportSnapshot`; destination adapters may
@@ -204,11 +210,16 @@ DAO and canonical export ordering remain independently stable.
 - Milestone 3 adds one application-scoped `Mutex`, selection/date validation, normalization, and
   clock policy. The mutex reduces same-process races; database constraints and transactions remain
   the cross-coordinator protection.
-- Open storage transaction: verify no active record/open candidate, allocate the next ordinal, insert one interval with `stop = null` and unique `active_slot = 1`, insert singleton active state with matching task/interval IDs, touch the task, and return one snapshot.
+- Open storage transaction: verify no active record/open candidate, insert the task's sole interval
+  with `stop = null` and unique `active_slot = 1`, insert singleton active state with matching
+  task/interval IDs, touch the task, and return one snapshot. Starting a task that already has a
+  completed interval first creates/selects a same-day metadata-preserving task, then starts that
+  task.
 - Close storage transaction: load and validate the singleton and referenced open interval, write a valid later stop, release `active_slot`, delete active state, touch the task, and return one snapshot. Missing active state is an idempotent no-op.
-- Midnight normalization receives a Kotlin-calculated ordered boundary plan. One Room transaction
-  closes each segment, finds or creates the exact three-part daily copy, inserts the continuation,
-  retargets the singleton, and either leaves the final interval open or closes/clears it for Stop.
+- Midnight handling receives a Kotlin-calculated boundary plan. In current `0.3.0` behavior, one
+  Room transaction closes the sole interval at the exact pinned-zone boundary and clears the
+  active singleton; it never creates a continuation task or interval. A later legitimate
+  execution applies the same persisted boundary retrospectively.
 - Snapshot reads verify that zero active rows means zero open candidates and that one active row
   means exactly one valid matching open candidate. Orphan/mismatched states fail explicitly; no
   startup repair discards an interval.
@@ -278,7 +289,7 @@ best-effort deletion of partial provider documents, and unit tests remain isolat
 occurs before this adapter is called. The complete CSV string is serialized before the picker
 opens, and output streams close deterministically.
 
-Milestone 12 adds a one-off XLSX document boundary:
+Milestone 12 (`0.2.0` historical) added a one-off XLSX document boundary:
 
 - Compose launches `ActivityResultContracts.CreateDocument` with the official XLSX MIME type for
   every export; no storage permission or retained URI grant is requested.
@@ -431,7 +442,7 @@ request. It captures the oldest unresolved target epoch day, ZoneId, and connect
 so an inexact execution after midnight still exports the preceding intended date. The adapter
 never owns task rows or tokens and advances missed dates one bounded worker at a time.
 
-It invokes the same `ExportSnapshotCoordinator` and Google replacement pipeline as manual export.
+It invokes the same `ExportSnapshotCoordinator` and Google task-ID merge pipeline as manual export.
 CSV/XLSX remain manual. If Room reports an active timer, Google returns an authorization
 resolution, or a safe terminal operation failure occurs, the coordinator retains typed pending
 state rather than exporting/retrying and asks the API-26+ notification adapter to expose a
@@ -518,3 +529,61 @@ the owner explicitly assigns it. It alone owns optional local at-rest encryption
 biometric/device-credential/PIN design, and screenshot/Recents privacy options. These concerns
 remain adapters around current repository/navigation boundaries, require separate explicit owner
 authorization, and may not be inferred from ordinary security or release work.
+
+## 17. v0.3.0 single-interval and no-rollover architecture
+
+The `0.3.0` implementation replaces only the interval cardinality, repeated-Start, date-boundary,
+selection-rollover, and canonical export projections. Existing layers and manual dependency
+injection remain intact.
+
+- Room schema 5 retains `daily_tasks`, `work_intervals`, and `active_timer`. `work_intervals.task_id`
+  becomes unique, creating a structural zero-or-one relationship. The interval table remains the
+  owner of start/stop/edit state and preserves the composite reference from the singleton active
+  timer.
+- `series_id` becomes non-unique lineage metadata. The unique `(series, date, zone)` index is
+  replaced with a normal lookup index. No repository may use a series ID to create a missing date
+  copy. A repetition created by Start retains lineage but receives new task/interval identities.
+- A versioned Room 4-to-5 migration splits historical multi-interval tasks without loss before it
+  installs the one-interval constraint. The original row retains the earliest ordered interval;
+  each later interval moves to a deterministic copied task. The active-timer composite reference
+  moves in the same migration transaction if its interval moves.
+- `TimerCoordinator.start` resolves the selected task while holding the existing operation lock.
+  A zero-interval task starts normally. A completed task is duplicated and selected, and its sole
+  open interval plus global active-timer row are created in one Room transaction. Concurrent Start
+  calls still yield at most one new task and one global active timer.
+- Midnight normalization becomes boundary closure. It calculates the first pinned-ZoneId
+  `atStartOfDay` after the interval start, closes the interval at that instant, clears
+  `active_timer`, ends the live monotonic session, clears stale timing selection, and never loops
+  across dates or creates continuation rows.
+- The foreground date observer may request closure promptly, but correctness never depends on an
+  in-memory callback firing at midnight. Recovery and automatic-export entry points invoke the
+  same idempotent close-through-boundary transaction before reconstructing UI or snapshot state.
+- `SelectionCoordinator` no longer has a find-or-create rollover path. A selection remains valid
+  only for its concrete task/date/zone context. When today moves beyond that context, it clears;
+  browsing historical dates never creates data.
+- Automatic Google work targets the completed captured date and has an earliest execution time
+  after that date's local boundary. It closes a stale target-date timer before the immutable
+  snapshot, then uses the unchanged marked-tab replacement gateway. WorkManager timing remains
+  best-effort and no background stopwatch mechanism is added.
+- `ExportRowBuilder` owns schema 5. Each task produces exactly one 13-value row. CSV, XLSX, Google,
+  and automatic Google adapters remain unaware of Room entities and interval cardinality.
+
+Tests preserve the existing operation mutex, Room transaction boundaries, lifecycle recovery,
+clock-anomaly policy, and notification ownership. Dead multi-interval and rollover APIs are removed
+only after all callers and tests have moved to the new contracts.
+
+Milestone 31 integration evidence now covers stale date/ZoneId selection clearing, no-write date
+browsing and restart reconciliation, active-timer authority during recovery, repeated-Start
+selection and metadata copying, singular Add/Edit/Delete behavior, selected-task deletion, and
+idempotent stale-selection reconciliation. Milestone 32 replaces the active continuation path with
+one exact pinned-zone boundary close. Milestone 34 removes the proven-unreachable live continuation
+APIs; legacy continuation behavior remains only where required by migration/history evidence.
+
+Milestone 30C evidence: `Schema5MigrationCoreTest` covers a populated schema-4 migration with
+archived directory references, nullable metadata, zero-/one-/many-interval tasks, deterministic
+copies, and an active non-first interval. It verifies endpoint/ID/metadata preservation,
+active-pointer repointing, foreign-key integrity, and reopen persistence. `WorqOrderDatabaseTest`
+covers the packaged schema-5 asset, the unique task-to-interval guard, same-series lineage rows,
+and version 1/2-to-5 migration paths. The production `WorkInterval` presentation adapter may
+temporarily expose a derived `ordinal = 1` for legacy UI callers; schema 5 itself persists no
+ordinal column.

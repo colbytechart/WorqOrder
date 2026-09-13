@@ -2,6 +2,7 @@ package worq.order.export
 
 import java.time.Instant
 import java.time.LocalDate
+import worq.order.data.ActiveTimerRepository
 import worq.order.data.TaskRepository
 import worq.order.export.csv.CsvSerializer
 import worq.order.timer.ActiveTimerNormalizer
@@ -33,6 +34,7 @@ class CsvExportCoordinator(
 ) {
     constructor(
         taskRepository: TaskRepository,
+        activeTimerRepository: ActiveTimerRepository,
         activeTimerNormalizer: ActiveTimerNormalizer,
         clock: UtcClock,
         timerOperationLock: TimerOperationLock,
@@ -42,6 +44,7 @@ class CsvExportCoordinator(
         snapshotCoordinator =
             ExportSnapshotCoordinator(
                 taskRepository = taskRepository,
+                activeTimerRepository = activeTimerRepository,
                 activeTimerNormalizer = activeTimerNormalizer,
                 clock = clock,
                 timerOperationLock = timerOperationLock,
@@ -53,6 +56,8 @@ class CsvExportCoordinator(
     suspend fun prepare(workDate: LocalDate): PrepareCsvExportResult =
         when (val result = snapshotCoordinator.prepare(workDate)) {
             PrepareExportSnapshotResult.ActiveTimerChanged ->
+                PrepareCsvExportResult.ActiveTimerChanged
+            PrepareExportSnapshotResult.ActiveTimerRunning ->
                 PrepareCsvExportResult.ActiveTimerChanged
             PrepareExportSnapshotResult.ClockChanged ->
                 PrepareCsvExportResult.ClockChanged

@@ -364,14 +364,19 @@ Use only the disposable marked-test and conflict spreadsheets from section 9:
 2. With a completely blank test spreadsheet, verify its original first tab is renamed/reused as
    `WorqOrder_YYYY-MM-DD`; no unused blank default tab remains. With a separate spreadsheet that
    has any existing content, verify that content/tab is preserved and a new date tab is added.
-   Row 1 must contain the exact 15 schema-version-4 headers and row 2 onward must match a CSV
-   captured from the same unchanged local data.
+   Row 1 must contain the exact 13 schema-version-5 headers and row 2 onward must match a CSV
+   captured from the same unchanged local data. The released v0.2.0 15-column schema-4 layout is
+   historical; a known owned v0.2 tab now reports a safe compatibility conflict until the old
+   tab is preserved and renamed deliberately.
 3. Export the unchanged date again. Verify the existing marked tab is recognized, no ownership
    conflict is shown, and no second tab or duplicate row appears.
-4. Edit/delete/add local task or interval data and re-export. Verify the marked table is completely
-   replaced, obsolete rows disappear, and unrelated spreadsheet tabs remain unchanged.
-5. Export an empty date and a date containing a zero-interval task. Verify header-only and
-   blank-interval-row behavior respectively.
+4. On a second device connected to the same test spreadsheet, export a different task for the
+   same date. Verify both devices' rows remain. Edit the first device's task and re-export; only
+   its keyed row should change. Local task deletion does not erase a previously exported row.
+   Unrelated spreadsheet tabs remain unchanged. CSV/XLSX continue as independent one-off files.
+5. Export a new empty date and a date containing a zero-interval task. Verify header-only and
+   blank-interval-row behavior respectively. An empty local date never clears a previously
+   populated shared Google date tab.
 6. Include Unicode, multiline, and formula-prefixed client/task text. Verify the Google cell type
    is literal text and no formula executes.
 7. Start a timer and verify the Main action reads **Stop Timer to Export**, is disabled, and sends

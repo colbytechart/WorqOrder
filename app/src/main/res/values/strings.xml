@@ -72,7 +72,7 @@
     <string name="google_export_authorization_required">Google authorization is required before exporting %1$s. Retry to open the recovery flow.</string>
     <string name="google_export_play_services">Google Play services is unavailable or requires an update. Local data was not changed.</string>
     <string name="google_export_tab_conflict">The worksheet “%1$s” already exists but is not owned by WorqOrder. Rename that worksheet, then retry.</string>
-    <string name="google_export_schema_conflict">The worksheet “%1$s” has incompatible WorqOrder metadata and was not changed.</string>
+    <string name="google_export_schema_conflict">The worksheet “%1$s” has older or ambiguous WorqOrder data. Nothing was changed. Preserve and rename that tab, then retry.</string>
     <string name="google_export_offline">Couldn’t export %1$s while offline. Reconnect and retry.</string>
     <string name="google_export_timeout">Google did not respond while exporting %1$s. Retry when the connection is stable.</string>
     <string name="google_export_not_found">The connected spreadsheet could not be opened. Confirm that it still exists and is shared with this account.</string>
@@ -84,6 +84,7 @@
     <string name="dismiss_message">Dismiss message</string>
 
     <string name="select_task_first">Select a task before starting the timer.</string>
+    <string name="timing_selection_cleared">The previous task is not available for timing today. Choose or create a task for today.</string>
     <string name="live_timing_today_only">Live timing is available only for a task assigned to today in the current time zone.</string>
     <string name="timer_already_running">A timer is already running. Stop it before starting another.</string>
     <string name="stop_before_switching">Stop the running timer before selecting another task.</string>
@@ -128,21 +129,21 @@
     <string name="task_total_duration">Task Total: %1$s</string>
     <string name="billing_minutes">Billing Minutes: %1$d</string>
     <string name="task_consultant_unavailable">Select an active Consultant before saving this task.</string>
-    <string name="intervals">Intervals</string>
-    <string name="no_intervals">No recorded intervals.</string>
+    <string name="interval">Interval</string>
+    <string name="no_interval">No recorded interval.</string>
     <string name="add_interval">Add interval</string>
     <string name="add_interval_title">Add Interval</string>
     <string name="edit_interval">Edit interval</string>
     <string name="edit_interval_title">Edit Interval</string>
     <string name="delete_interval">Delete interval</string>
-    <string name="interval_number">Interval %1$d</string>
     <string name="interval_start">Start Time: %1$s</string>
     <string name="interval_stop">Stop Time: %1$s</string>
-    <string name="delete_interval_title">Delete Interval %1$d?</string>
+    <string name="delete_interval_title">Delete Interval?</string>
     <string name="delete_interval_message">The recorded time will be removed and the task total will update immediately.</string>
     <string name="interval_no_longer_exists">That interval no longer exists.</string>
     <string name="running_interval_edit_blocked">The currently running interval cannot be edited or deleted.</string>
-    <string name="interval_changed_retry">The intervals changed while you were editing. Review them and try again.</string>
+    <string name="interval_changed_retry">The interval changed while you were editing. Review it and try again.</string>
+    <string name="task_already_has_interval">This task already has an interval. Delete it before adding another.</string>
     <string name="choose_start_time">Choose Start Time</string>
     <string name="choose_stop_time">Choose Stop Time</string>
     <string name="start_time_occurrence">Start-Time Occurrence</string>

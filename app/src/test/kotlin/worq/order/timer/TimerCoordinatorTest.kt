@@ -14,6 +14,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import worq.order.data.ManualIntervalPersistenceResult
 import worq.order.data.NewDailyTask
 import worq.order.data.SelectedTaskState
 import worq.order.model.DailyTask
@@ -37,10 +38,21 @@ class TimerCoordinatorTest {
             val historicalResult = fixture.coordinator().start()
             assertTrue(historicalResult is StartTimerResult.TaskNotEligibleToday)
 
+            val future = fixture.addTask(TODAY.plusDays(1), seriesId = "series-future")
+            fixture.select(future)
+            val futureResult = fixture.coordinator().start()
+            assertTrue(futureResult is StartTimerResult.TaskNotEligibleToday)
+
             val otherZone = fixture.addTask(TODAY, CHICAGO, seriesId = "series-zone")
             fixture.select(otherZone)
             val otherZoneResult = fixture.coordinator().start()
             assertTrue(otherZoneResult is StartTimerResult.TaskNotEligibleToday)
+            assertNull(fixture.active.readActiveTimerSnapshot())
+            assertTrue(
+                listOf(historical, future, otherZone).all { task ->
+                    fixture.tasks.readTaskWithIntervals(task.id)?.intervals?.isEmpty() == true
+                },
+            )
         }
 
     @Test
@@ -81,7 +93,7 @@ class TimerCoordinatorTest {
         }
 
     @Test
-    fun clarifiedRepeatedTaskExampleKeepsThreeSeparateCorrectIntervalsAndTotals() =
+    fun repeatedStartCreatesSelectedSameDayCopyAndPreservesSourceTask() =
         runTest {
             val fixture = Fixture()
             val task1 = fixture.addTask(TODAY, seriesId = "series-1")
@@ -104,25 +116,42 @@ class TimerCoordinatorTest {
             val restarted = fixture.coordinator().start()
             assertTrue(restarted is StartTimerResult.Started)
             assertEquals(
-                Duration.ofHours(1),
+                Duration.ZERO,
                 (restarted as StartTimerResult.Started).initialDisplayTotal,
             )
+            val repeatedTaskId = requireNotNull(fixture.selection.readSelection()).taskId
+            assertTrue(repeatedTaskId != task1.id)
+            val repeatedTask =
+                requireNotNull(fixture.tasks.readTaskWithIntervals(repeatedTaskId))
+                    .taskWithClient
+                    .task
+            assertEquals(task1.seriesId, repeatedTask.seriesId)
+            assertEquals(task1.clientId, repeatedTask.clientId)
+            assertEquals(task1.description, repeatedTask.description)
+            assertEquals(task1.workDate, repeatedTask.workDate)
+            assertEquals(task1.zoneId, repeatedTask.zoneId)
             fixture.advance(Duration.ofHours(1))
             assertTrue(fixture.coordinator().stop() is StopTimerResult.Stopped)
 
             val task1Intervals =
                 requireNotNull(fixture.tasks.readTaskWithIntervals(task1.id)).intervals
+            val repeatedTaskIntervals =
+                requireNotNull(fixture.tasks.readTaskWithIntervals(repeatedTaskId)).intervals
             val task2Intervals =
                 requireNotNull(fixture.tasks.readTaskWithIntervals(task2.id)).intervals
-            assertEquals(2, task1Intervals.size)
             assertEquals(
                 listOf(
                     Instant.parse("2026-07-24T13:00:00Z") to
                         Instant.parse("2026-07-24T14:00:00Z"),
+                ),
+                task1Intervals.map { it.start to it.stop },
+            )
+            assertEquals(
+                listOf(
                     Instant.parse("2026-07-24T17:00:00Z") to
                         Instant.parse("2026-07-24T18:00:00Z"),
                 ),
-                task1Intervals.map { it.start to it.stop },
+                repeatedTaskIntervals.map { it.start to it.stop },
             )
             assertEquals(
                 listOf(
@@ -132,8 +161,12 @@ class TimerCoordinatorTest {
                 task2Intervals.map { it.start to it.stop },
             )
             assertEquals(
-                Duration.ofHours(2).toMillis(),
+                Duration.ofHours(1).toMillis(),
                 fixture.tasks.readCompletedDurationMillis(task1.id),
+            )
+            assertEquals(
+                Duration.ofHours(1).toMillis(),
+                fixture.tasks.readCompletedDurationMillis(repeatedTaskId),
             )
             assertEquals(
                 Duration.ofMinutes(30).toMillis(),
@@ -142,7 +175,35 @@ class TimerCoordinatorTest {
         }
 
     @Test
-    fun normalizationSplitsAtMidnightAndIsIdempotent() =
+    fun deletingSoleCompletedIntervalMakesOriginalTaskEligibleForFirstStart() =
+        runTest {
+            val fixture = Fixture()
+            val task = fixture.addTask(TODAY)
+            val saved =
+                fixture.tasks.addManualInterval(
+                    taskId = task.id,
+                    start = NOW.minusSeconds(3_600),
+                    stop = NOW.minusSeconds(1_800),
+                )
+            assertTrue(saved is ManualIntervalPersistenceResult.Saved)
+            val intervalId = (saved as ManualIntervalPersistenceResult.Saved).interval.id
+            assertEquals(
+                ManualIntervalPersistenceResult.Deleted,
+                fixture.tasks.deleteManualInterval(task.id, intervalId),
+            )
+            fixture.select(task)
+
+            val started = fixture.coordinator().start()
+
+            assertTrue(started is StartTimerResult.Started)
+            started as StartTimerResult.Started
+            assertEquals(task.id, started.snapshot.interval.taskId)
+            assertEquals(task.id, fixture.selection.readSelection()?.taskId)
+            assertEquals(1, fixture.tasks.observeTasksForDate(TODAY).first().size)
+        }
+
+    @Test
+    fun normalizationClosesAtFirstMidnightWithoutContinuationAndIsIdempotent() =
         runTest {
             val fixture = Fixture()
             fixture.setTime("2026-07-25T03:30:00Z")
@@ -155,18 +216,21 @@ class TimerCoordinatorTest {
             val first = fixture.normalizer().normalize(evaluation)
             val second = fixture.normalizer().normalize(evaluation)
 
-            assertTrue(first is NormalizeTimerResult.Normalized)
-            assertEquals(1, (first as NormalizeTimerResult.Normalized).splitCount)
+            assertTrue(first is NormalizeTimerResult.ClosedAtBoundary)
+            first as NormalizeTimerResult.ClosedAtBoundary
             assertEquals(
-                LocalDate.of(2026, 7, 25),
-                first.snapshot.interval.start.atZone(NEW_YORK).toLocalDate(),
+                Instant.parse("2026-07-25T04:00:00Z"),
+                first.boundary,
             )
-            assertEquals(NormalizeTimerResult.NoChange, second)
-            assertEquals(2, fixture.allSeriesIntervals("series-1").size)
+            assertEquals(first.boundary, first.snapshot.interval.stop)
+            assertEquals(NormalizeTimerResult.NoActiveTimer, second)
+            assertNull(fixture.active.readActiveTimerSnapshot())
+            assertNull(fixture.selection.readSelection())
+            assertEquals(1, fixture.allSeriesIntervals("series-1").size)
         }
 
     @Test
-    fun normalizationSplitsEveryMissedMidnight() =
+    fun normalizationAfterSeveralMissedDaysStillClosesOnlyAtFirstMidnight() =
         runTest {
             val fixture = Fixture()
             fixture.setTime("2026-07-25T03:30:00Z")
@@ -178,13 +242,56 @@ class TimerCoordinatorTest {
 
             val result = fixture.normalizer().normalize(evaluation)
 
-            assertTrue(result is NormalizeTimerResult.Normalized)
-            assertEquals(3, (result as NormalizeTimerResult.Normalized).splitCount)
-            assertEquals(4, fixture.allSeriesIntervals("series-1").size)
+            assertTrue(result is NormalizeTimerResult.ClosedAtBoundary)
+            result as NormalizeTimerResult.ClosedAtBoundary
             assertEquals(
-                LocalDate.of(2026, 7, 27),
-                result.snapshot.interval.start.atZone(NEW_YORK).toLocalDate(),
+                Instant.parse("2026-07-25T04:00:00Z"),
+                result.snapshot.interval.stop,
             )
+            assertEquals(1, fixture.allSeriesIntervals("series-1").size)
+            assertNull(fixture.active.readActiveTimerSnapshot())
+        }
+
+    @Test
+    fun stopAfterSeveralMissedDaysUsesFirstBoundaryAndCreatesNoContinuation() =
+        runTest {
+            val fixture = Fixture()
+            fixture.setTime("2026-07-25T03:30:00Z")
+            val task = fixture.addTask(LocalDate.of(2026, 7, 24))
+            fixture.select(task)
+            assertTrue(fixture.coordinator().start() is StartTimerResult.Started)
+            fixture.advance(Duration.ofDays(2).plusMinutes(90))
+
+            val result = fixture.coordinator().stop()
+
+            assertTrue(result is StopTimerResult.Stopped)
+            result as StopTimerResult.Stopped
+            assertEquals(Instant.parse("2026-07-25T04:00:00Z"), result.interval.stop)
+            assertEquals(1, fixture.allSeriesIntervals(task.seriesId).size)
+            assertNull(fixture.active.readActiveTimerSnapshot())
+            assertNull(fixture.selection.readSelection())
+        }
+
+    @Test
+    fun boundaryCloseDoesNotEraseANewerDifferentSelection() =
+        runTest {
+            val fixture = Fixture()
+            fixture.setTime("2026-07-25T03:30:00Z")
+            val running = fixture.addTask(LocalDate.of(2026, 7, 24))
+            val newerSelection =
+                fixture.addTask(
+                    date = LocalDate.of(2026, 7, 24),
+                    seriesId = "series-newer-selection",
+                )
+            fixture.select(running)
+            assertTrue(fixture.coordinator().start() is StartTimerResult.Started)
+            fixture.select(newerSelection)
+            fixture.advance(Duration.ofMinutes(90))
+
+            val result = fixture.normalizer().normalize()
+
+            assertTrue(result is NormalizeTimerResult.ClosedAtBoundary)
+            assertEquals(newerSelection.id, fixture.selection.readSelection()?.taskId)
         }
 
     @Test
@@ -252,10 +359,10 @@ class TimerCoordinatorTest {
         }
 
     @Test
-    fun forwardWallJumpCannotCreateFalseMidnightSplitWhileAnchorIsAlive() =
+    fun liveMonotonicProjectionClosesExactlyWhenItReachesMidnight() =
         runTest {
             val fixture = Fixture()
-            val start = Instant.parse("2026-07-24T13:00:00Z")
+            val start = Instant.parse("2026-07-25T03:30:00Z")
             fixture.clock.instant = start
             val task = fixture.addTask(TODAY)
             fixture.select(task)
@@ -265,8 +372,13 @@ class TimerCoordinatorTest {
 
             val result = fixture.normalizer().normalize()
 
-            assertEquals(NormalizeTimerResult.NoChange, result)
+            assertTrue(result is NormalizeTimerResult.ClosedAtBoundary)
+            assertEquals(
+                Instant.parse("2026-07-25T04:00:00Z"),
+                (result as NormalizeTimerResult.ClosedAtBoundary).snapshot.interval.stop,
+            )
             assertEquals(1, fixture.allSeriesIntervals(task.seriesId).size)
+            assertNull(fixture.active.readActiveTimerSnapshot())
         }
 
     @Test
@@ -291,6 +403,41 @@ class TimerCoordinatorTest {
             assertEquals(1, results.count { it is StartTimerResult.Started })
             assertEquals(1, results.count { it is StartTimerResult.AlreadyActive })
             assertEquals(1, fixture.tasks.readTaskWithIntervals(task.id)?.intervals?.size)
+        }
+
+    @Test
+    fun concurrentNormalizeAndStopAtMidnightProduceOneExactBoundaryClose() =
+        runTest {
+            val fixture = Fixture()
+            fixture.setTime("2026-07-25T03:30:00Z")
+            val task = fixture.addTask(LocalDate.of(2026, 7, 24))
+            fixture.select(task)
+            assertTrue(fixture.coordinator().start() is StartTimerResult.Started)
+            fixture.advance(Duration.ofMinutes(90))
+
+            val results =
+                coroutineScope {
+                    val normalized = async { fixture.normalizer().normalize() }
+                    val stopped = async { fixture.coordinator().stop() }
+                    normalized.await() to stopped.await()
+                }
+
+            assertTrue(
+                results.first is NormalizeTimerResult.ClosedAtBoundary ||
+                    results.second is StopTimerResult.Stopped,
+            )
+            assertTrue(
+                results.first == NormalizeTimerResult.NoActiveTimer ||
+                    results.second == StopTimerResult.NoActiveTimer,
+            )
+            val intervals = requireNotNull(fixture.tasks.readTaskWithIntervals(task.id)).intervals
+            assertEquals(1, intervals.size)
+            assertEquals(
+                Instant.parse("2026-07-25T04:00:00Z"),
+                intervals.single().stop,
+            )
+            assertNull(fixture.active.readActiveTimerSnapshot())
+            assertNull(fixture.selection.readSelection())
         }
 
     private class Fixture {

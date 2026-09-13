@@ -1,5 +1,9 @@
 # WorqOrder Data Model
 
+Version scope: schema and behavior descriptions explicitly labeled released `0.1.0`/`0.2.0` or
+versions 1–4 preserve historical/migration compatibility. The current `0.3.0` schema-5 model and
+its no-rollover, zero-or-one-interval rules are authoritative in Section 14.
+
 ## 1. Storage conventions
 
 - Stable IDs are random UUID strings generated in the application before insert. They are never reused or derived from mutable text.
@@ -11,7 +15,7 @@
 - Booleans are SQLite integers through Room.
 - Every mutable entity has `createdAtEpochMs` and `updatedAtEpochMs`; updates use the injected UTC clock.
 - Entities are persistence details. Repositories map them to domain models and validate strings/time values before writes.
-- Room schema versions 1 through 4 store these primitive values directly and require no type converters. Domain mappings reconstruct `Instant`, `LocalDate`, and `ZoneId` deterministically.
+- Room schema versions 1 through 5 store these primitive values directly and require no type converters. Domain mappings reconstruct `Instant`, `LocalDate`, and `ZoneId` deterministically. Version 5 is the current production schema; versions 1–4 remain migration inputs for released installations.
 
 ## 2. Entity relationship overview
 
@@ -33,7 +37,10 @@ unscheduled Milestone E may add a separately authorized at-rest encryption adapt
 owner explicitly assigns it, without changing these entities,
 relationships, IDs, UTC/date/ZoneId semantics, or Room's authority.
 
-Daily tasks in a series are intentionally not parented by a separate series table in version 1. The stable `seriesId` plus work date and assignment zone identifies a rollover copy, and each daily copy carries the metadata used for the next rollover.
+Daily tasks in a series are intentionally not parented by a separate series table. The stable
+`seriesId` is lineage metadata only in current schema 5; current date/ZoneId reconciliation and
+midnight handling never create rollover or continuation copies. Rows on other dates may be
+historical migrated copies or explicit user-created tasks.
 
 ## 3. `clients`
 
@@ -68,12 +75,16 @@ Client deletion is not exposed. The task foreign key uses `ON DELETE RESTRICT` a
 
 Constraints/indexes:
 
-- Unique `(series_id, work_date_epoch_day, zone_id)` prevents duplicate rollover copies in one date-rule context. A same-series/same-date task assigned under a different geographical zone remains distinct rather than having its historical zone silently changed.
+- Index `(series_id, work_date_epoch_day, zone_id)` supports lineage/date/zone lookup. In schema 5 it is
+  non-unique because lineage no longer creates rollover copies; versions 1–4 used the unique form.
 - Index `(work_date_epoch_day)` supports the main list.
 - Index `(client_id)` supports joins and client history.
 - Short-description and purchases-text validation is primarily a domain constraint; migrations may add compatible SQLite checks when Room schema support is proven.
 
-Changing client, short description, or hardware/software-purchases text changes only this daily task. A later rollover copies the changed values. Deleting a daily task cascades to its intervals, does not affect clients, and does not affect another row with the same series ID.
+Changing client, short description, or hardware/software-purchases text changes only this daily
+task. Current schema-5 behavior never copies those values automatically to another date. Deleting a
+daily task cascades to its intervals, does not affect clients, and does not affect another row with
+the same series ID.
 
 The `hardware_software_purchases` column was introduced by the implemented version-2 migration in
 Milestone 6. It is non-null with `DEFAULT ''` so every version-1 daily task migrates without
@@ -86,7 +97,6 @@ inventing purchase data. The shared task-metadata validator enforces the two ind
 | --- | --- | --- |
 | `id` | TEXT PK | stable interval UUID |
 | `task_id` | TEXT FK | references `daily_tasks.id`, `ON DELETE CASCADE` |
-| `ordinal` | INTEGER | positive sequence within the task |
 | `start_epoch_ms` | INTEGER | UTC start instant |
 | `stop_epoch_ms` | INTEGER nullable | null only for the global open interval |
 | `active_slot` | INTEGER nullable UNIQUE | null when completed; fixed value `1` for the sole open interval |
@@ -96,8 +106,8 @@ inventing purchase data. The shared task-metadata validator enforces the two ind
 
 Constraints/indexes:
 
-- Unique `(task_id, ordinal)`.
-- Index `(task_id, start_epoch_ms)` for chronological display/overlap checks.
+- Unique `(task_id)` enforces the schema-5 zero-or-one interval relationship.
+- Index `(task_id, start_epoch_ms, id)` supports deterministic chronological display and validation.
 - Unique nullable `active_slot` structurally prevents a second open interval: SQLite permits many nulls for completed rows but only one row containing `1`.
 - Unique `(id, task_id)` supports the composite active-timer foreign key that proves the pointed interval belongs to the recorded task.
 - Completed rows require `start_epoch_ms < stop_epoch_ms`.
@@ -105,7 +115,8 @@ Constraints/indexes:
 - Intervals for the same task cannot overlap. Validate against current rows inside the write transaction.
 - Cross-midnight intervals are prohibited after normalization.
 
-Ordinals are stable presentation/export numbers, not array indexes. Deleting an interval does not renumber surviving rows; a new ordinal is `max + 1`. Chronological UI ordering uses start instant, then ordinal/ID. This avoids export identities changing after edits.
+Schema 5 does not persist an ordinal. The compatibility presentation model may expose `ordinal = 1`
+for the sole interval while older UI contracts are retired; it is never read from or written to Room.
 
 Version 1 deliberately uses the nullable unique `active_slot` instead of a custom partial SQLite index or trigger. This keeps the invariant in the exported Room schema and avoids out-of-band schema objects. Public repository insertion creates only completed intervals; the active-timer transaction is the only data-layer path that writes `stop_epoch_ms = NULL` and `active_slot = 1`.
 
@@ -129,7 +140,12 @@ The active row is the process-recovery pointer while `work_intervals.active_slot
 - no API outside the timer/data transaction layer may create a null-stop interval; and
 - startup consistency checking reports/repairs only well-defined incomplete commits, never silently discards recorded time.
 
-`ActiveTimerDao.createActiveIntervalAndTimer` allocates the next ordinal, inserts the open interval, inserts singleton ID `1`, and touches the task in one Room transaction. `closeActiveIntervalAndClearTimer` validates the pointer, closes the interval, releases `active_slot`, clears the singleton, and touches the task in one transaction. A failed statement rolls back the whole change. Today/selection checks, midnight splitting, overlap validation, and clock-anomaly policy remain later domain-service responsibilities.
+`ActiveTimerDao.createActiveIntervalAndTimer` inserts the sole open interval, inserts singleton ID `1`, and
+touches the task in one Room transaction. `closeActiveIntervalAndClearTimer` validates the pointer, closes
+the interval, releases `active_slot`, clears the singleton, and touches the task in one transaction. A
+failed statement rolls back the whole change. Today/selection checks, exact pinned-zone boundary closure,
+overlap validation, and clock-anomaly policy remain domain-service responsibilities; current schema 5
+boundary closure does not split or create continuation rows.
 
 Monotonic anchors are process-local and are not stored here. Persisting elapsed-realtime values across boots would be invalid.
 
@@ -141,7 +157,7 @@ Room projection `TaskListItemEntity` joins task/client and computes:
 completed total = SUM(max(stop_epoch_ms - start_epoch_ms, 0)) for completed intervals
 ```
 
-The running contribution is added in the domain/UI layer from the active interval and the display time source. No total-duration column is stored, preventing cache drift. `TaskWithOrderedIntervalsEntity` retrieves task/client metadata, including hardware/software-purchases text, and all intervals ordered by `start_epoch_ms`, then ordinal and ID.
+The running contribution is added in the domain/UI layer from the active interval and the display time source. No total-duration column is stored, preventing cache drift. `TaskWithOrderedIntervalsEntity` retrieves task/client metadata, including hardware/software-purchases text, and the optional interval ordered by `start_epoch_ms`, then ID.
 
 ## 8. Preferences DataStore schema
 
@@ -177,8 +193,11 @@ preserve the existing typed, version-tolerant preference contract if separately 
 - `selected_series_id` expresses the preferred logical task across days.
 - `selected_task_id` is a fast hint for the last concrete daily copy. Room validity always wins.
 - Deleting the currently selected daily task clears both its task hint and preferred-series hint so rollover cannot recreate a task the user just deleted. Deleting a non-selected daily task leaves selection unchanged.
-- Actual local-date rollover uses `(series_id, todayEpochDay, effectiveZoneId)` find-or-create in one transaction. On unique-insert race, fetch the winner. If another same-series/same-date task exists under a different stored zone, retain it as a distinct assignment; do not rewrite it.
-- Date-selector navigation alone does not create missing series copies. Creation occurs on an actual configured-date rollover or a Start operation that requires today's corresponding task.
+- Schema 5 no longer performs automatic local-date rollover. Date or ZoneId reconciliation clears a
+  stale timing selection and never creates a task. Repeated Start creates a same-day task only when
+  the selected task already owns a completed interval; its new ID retains lineage and metadata.
+- Date-selector navigation alone never creates missing series copies. Historical tasks and their
+  stored zones remain unchanged.
 
 ## 10. Referential and deletion behavior
 
@@ -207,15 +226,16 @@ Migration tests populate clients, archived clients, multiple task series/dates, 
 Implemented schema details:
 
 - production database name: `worqorder.db`;
-- Room annotation: `version = 4`, `exportSchema = true`;
+- Room annotation: `version = 5`, `exportSchema = true`;
 - committed schemas:
   `app/schemas/worq.order.data.local.WorqOrderDatabase/1.json`,
   `app/schemas/worq.order.data.local.WorqOrderDatabase/2.json`,
-  `app/schemas/worq.order.data.local.WorqOrderDatabase/3.json`, and
-  `app/schemas/worq.order.data.local.WorqOrderDatabase/4.json`;
+  `app/schemas/worq.order.data.local.WorqOrderDatabase/3.json`,
+  `app/schemas/worq.order.data.local.WorqOrderDatabase/4.json`, and
+  `app/schemas/worq.order.data.local.WorqOrderDatabase/5.json`;
 - production construction uses `Room.databaseBuilder` without startup deletion, seeding, or destructive fallback; and
 - there is no `0 -> 1` migration because version 1 is the first schema. Production construction
-  registers the explicit `MIGRATION_1_2`, `MIGRATION_2_3`, and `MIGRATION_3_4`; every later change must add another
+  registers the explicit `MIGRATION_1_2`, `MIGRATION_2_3`, `MIGRATION_3_4`, and `MIGRATION_4_5`; every later change must add another
   explicit forward migration and instrumentation test.
 
 Implemented first schema evolution:
@@ -241,7 +261,9 @@ ciphertext must never trigger destructive Room creation.
 - No `start1/stop1/...` columns.
 - No stored ticking stopwatch or denormalized task-total column.
 - No remote-ID columns for synchronization.
-- No Google row IDs or export flags are required because Google export replaces a marked date tab from an authoritative snapshot.
+- No Google row IDs or export flags are stored in Room. The Google adapter derives a hidden
+  transport key from each stable task ID and uses it to merge an owned date tab across devices;
+  this does not make Google Sheets a local-data authority or synchronize back into Room.
 - No XLSX entities are needed; XLSX remains a transient one-way document projection. There are
   also no attachments, user table, Firebase IDs, or server queues.
 
@@ -343,12 +365,78 @@ Employee 1 ---- * DailyTask (nullable relationship for migrated history)
 Client   1 ---- * DailyTask 1 ---- * WorkInterval
 ```
 
-Daily rollover and midnight continuation copy the source daily task's employee ID/name snapshot,
-Work Type, Billing Status (including null), Mileage, client, description, and purchases into the new daily copy. They do not
-re-resolve the employee name from the current directory and never alter the preceding task.
+Released `0.2.0` daily rollover and midnight continuation copied the source daily task's employee
+ID/name snapshot, Work Type, Billing Status (including null), Mileage, client, description, and
+purchases into a new daily copy. Current `0.3.0` behavior no longer performs either copy: date or
+midnight handling closes/clears the existing task's sole interval and leaves historical tasks
+unchanged.
 
 The explicit `MIGRATION_2_3` remains tested from a populated version-2 database containing
 active/archived clients, multiple tasks and intervals, and an open active timer. Destructive
 migration remains prohibited. Milestone 27 adds `MIGRATION_3_4`, which adds only the nullable
 `billing_status` column. Populated version-1, version-2, and version-3 upgrade paths preserve their
 entire task/interval/active-timer graph and leave Billing Status null.
+
+## 14. Current v0.3.0 Room schema 5
+
+Schema 5 is a mandatory non-destructive upgrade from the released schema 4. Room remains the
+authoritative store. It changes task/interval cardinality and lineage indexes without flattening
+interval timestamps into `daily_tasks`.
+
+### Task lineage and interval cardinality
+
+- `daily_tasks.series_id` remains a stable internal lineage value but is no longer unique with
+  work date and ZoneId. Drop `index_daily_tasks_series_date_zone` and replace it with a non-unique
+  lookup index over the same columns. No automatic copy operation may depend on it.
+- `work_intervals` retains its stable interval ID, task foreign key, UTC start/nullable stop,
+  active slot, manual-edit flag, and creation/update timestamps.
+- Remove `ordinal`; ordering is task-level rather than interval-within-task ordering.
+- Add a unique index on `work_intervals.task_id`. A task therefore owns zero or one interval.
+- Retain the globally unique nullable `active_slot`, composite interval/task identity, singleton
+  `active_timer`, task cascade, and client/Consultant restrictions.
+
+### Deterministic 4-to-5 conversion
+
+The migration must run as one Room/SQLite migration transaction and must be safe for a populated
+released database:
+
+1. Order every task's intervals by start instant, prior ordinal, then interval ID.
+2. Leave zero-interval and one-interval tasks unchanged except for the rebuilt table shape.
+3. For a multi-interval task, retain the original task ID and earliest interval relationship.
+4. For each later interval, insert a copied task with a deterministic collision-resistant UUID
+   derived from the source task and interval IDs. Retain the source `series_id`, client,
+   Consultant relationship/snapshot, Description, Expense, Work type, Billing Status, Mileage,
+   work date, and ZoneId. Use deterministic timestamps derived from preserved source/interval
+   timestamps so retry or test reconstruction cannot create different rows.
+5. Move each later interval to its copied task without changing interval ID, UTC endpoints,
+   manual-edit flag, or interval timestamps.
+6. If `active_timer` points to a moved interval, update its `task_id` in the same transaction while
+   preserving interval ID, boundary ZoneId, and timer timestamps.
+7. Rebuild constraints/indexes, enable foreign-key checking, and fail the upgrade rather than
+   deleting, merging, or reseeding data if any invariant cannot be proven.
+
+Migration tests must compare pre/post counts and field values, cover zero/one/many intervals,
+equal-start ordering, an open non-first interval, active-timer pointer integrity, selected-task
+reconciliation after open-interval movement, idempotent reopen, cascade/restrict behavior, and the
+committed version-5 schema JSON. Destructive fallback remains prohibited.
+
+### New writes after migration
+
+- New user-created tasks receive a new task and lineage ID.
+- Starting an untimed task inserts its sole interval and singleton active timer transactionally.
+- Starting a task whose completed interval remains present creates a copied task with a new task
+  ID, preserves its lineage and user metadata, selects it, and inserts the new open interval plus
+  active-timer row in one transaction.
+- Manual Add Interval is allowed only when the task has none. Edit/Delete operates only on the
+  sole completed interval; running edits remain blocked.
+- Date or ZoneId changes never create task records. Selection hints may be retained for migration
+  compatibility, but rollover lookup/creation is removed and stale timing selection is cleared.
+
+### Milestone 30C migration evidence
+
+`Schema5MigrationCoreTest` exercises a populated schema-4 file with archived Client/Consultant
+directory rows, nullable task metadata, zero-/one-/many-interval tasks, and an active non-first
+interval. It verifies deterministic copied task IDs, preserved IDs/endpoints/metadata and archived
+foreign-key links, active-pointer repointing, foreign-key integrity, reopen persistence, and removal
+of the legacy `ordinal` column. `WorqOrderDatabaseTest` additionally verifies packaged schema 5,
+the structural one-interval guard, same-series lineage rows, and populated version 1/2-to-5 paths.

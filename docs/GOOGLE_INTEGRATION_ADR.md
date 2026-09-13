@@ -106,6 +106,13 @@ valid. It makes a normal `authorize()` request for `drive.file`; Google can retu
 token without interaction. If the grant was removed, the user must reconnect or
 reauthorize the spreadsheet through Picker.
 
+Connected-spreadsheet authorization requests are explicitly bound to the non-secret
+persisted account hint. If silent background authorization returns a resolution, the
+worker never launches UI and records an actionable pending export without discarding
+the spreadsheet metadata or disabling automation. An Activity-backed retry is still
+allowed to invoke `AuthorizationClient`, complete Google's resolution, and restore the
+validated connection after a successful export.
+
 ## 4. Rejected scope alternatives
 
 ### Sensitive Sheets-wide scope
@@ -523,7 +530,7 @@ export safely while retaining CSV until the owner revisits the decision.
 The owner approved an opt-in Google-Sheets-only automatic daily export. CSV and XLSX remain manual.
 The job captures an intended work date/ZoneId near 11:59 PM and may execute shortly after midnight
 while still exporting that captured prior date. It uses the same `drive.file` grant, connected
-spreadsheet, current canonical schema-4 snapshot, and marked-tab replacement as manual export. It never
+ spreadsheet, then-current canonical schema-4 snapshot, and marked-tab replacement as manual export. It never
 stores a raw access/refresh token.
 
 Milestone 25 rechecked current official Android and Google documentation on 2026-08-05 and selects

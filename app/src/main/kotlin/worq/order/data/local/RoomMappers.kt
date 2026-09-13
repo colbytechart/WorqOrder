@@ -6,6 +6,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import worq.order.model.ActiveTimer
 import worq.order.model.ActiveTimerSnapshot
+import worq.order.model.BillingStatus
 import worq.order.model.Client
 import worq.order.model.DailyTask
 import worq.order.model.Employee
@@ -14,7 +15,6 @@ import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.model.WorkType
-import worq.order.model.BillingStatus
 
 internal fun ClientEntity.toModel(): Client =
     Client(
@@ -60,7 +60,9 @@ internal fun WorkIntervalEntity.toModel(): WorkInterval =
     WorkInterval(
         id = id,
         taskId = taskId,
-        ordinal = ordinal,
+        // `ordinal` is no longer persisted in schema 5. Retain this temporary presentation
+        // adapter only until the schema-5 task/editor/export phase removes the old UI contract.
+        ordinal = 1,
         start = Instant.ofEpochMilli(startEpochMs),
         stop = stopEpochMs?.let(Instant::ofEpochMilli),
         wasManuallyEdited = wasManuallyEdited,

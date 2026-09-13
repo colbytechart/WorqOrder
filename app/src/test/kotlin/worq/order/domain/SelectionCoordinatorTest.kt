@@ -40,7 +40,7 @@ class SelectionCoordinatorTest {
         }
 
     @Test
-    fun actualDateRolloverCreatesExactSeriesDateZoneCopyWithCurrentMetadata() =
+    fun dateChangeClearsSelectionWithoutCreatingDailyCopy() =
         runTest {
             val fixture = fixture()
             val source = fixture.addTask(TODAY.minusDays(1), NEW_YORK)
@@ -50,27 +50,35 @@ class SelectionCoordinatorTest {
 
             val result = fixture.coordinator().reconcileForToday()
 
-            assertTrue(result is SelectionReconciliationResult.RolledOver)
-            val copy = (result as SelectionReconciliationResult.RolledOver).task
-            assertEquals(source.seriesId, copy.seriesId)
-            assertEquals(source.clientId, copy.clientId)
-            assertEquals(source.description, copy.description)
-            assertEquals(
-                source.hardwareSoftwarePurchases,
-                copy.hardwareSoftwarePurchases,
-            )
-            assertEquals(source.employeeId, copy.employeeId)
-            assertEquals(source.employeeNameSnapshot, copy.employeeNameSnapshot)
-            assertEquals(source.workType, copy.workType)
-            assertEquals(source.billingStatus, copy.billingStatus)
-            assertEquals(source.mileage, copy.mileage)
-            assertEquals(TODAY, copy.workDate)
-            assertEquals(NEW_YORK, copy.zoneId)
-            assertEquals(copy.id, fixture.selection.readSelection()?.taskId)
+            assertEquals(SelectionReconciliationResult.IneligibleSelectionCleared, result)
+            assertNull(fixture.selection.readSelection())
+            assertTrue(fixture.tasks.observeTasksForDate(TODAY).first().isEmpty())
+            assertEquals(source, fixture.tasks.readTaskWithClient(source.id)?.task)
         }
 
     @Test
-    fun rolloverReusesExistingExactThreePartCopy() =
+    fun repeatedStaleSelectionReconciliationDoesNotCreateOrDuplicateTasks() =
+        runTest {
+            val fixture = fixture()
+            val source = fixture.addTask(TODAY.minusDays(1), NEW_YORK)
+            fixture.selection.select(
+                source.selection(selectedOnDate = TODAY.minusDays(1)),
+            )
+
+            assertEquals(
+                SelectionReconciliationResult.IneligibleSelectionCleared,
+                fixture.coordinator().reconcileForToday(),
+            )
+            assertEquals(
+                SelectionReconciliationResult.NoSelection,
+                fixture.coordinator().reconcileForToday(),
+            )
+            assertTrue(fixture.tasks.observeTasksForDate(TODAY).first().isEmpty())
+            assertEquals(source, fixture.tasks.readTaskWithClient(source.id)?.task)
+        }
+
+    @Test
+    fun sameSeriesTaskForTodayDoesNotOverrideSelectedRoomTask() =
         runTest {
             val fixture = fixture()
             val source = fixture.addTask(TODAY.minusDays(1), NEW_YORK)
@@ -90,58 +98,53 @@ class SelectionCoordinatorTest {
 
             val result = fixture.coordinator().reconcileForToday()
 
-            assertTrue(result is SelectionReconciliationResult.RolledOver)
+            assertEquals(SelectionReconciliationResult.IneligibleSelectionCleared, result)
+            assertNull(fixture.selection.readSelection())
             assertEquals(
-                existing.id,
-                (result as SelectionReconciliationResult.RolledOver).task.id,
+                listOf(existing.id),
+                fixture.tasks.observeTasksForDate(TODAY).first().map { it.task.id },
             )
-            assertEquals(existing.id, fixture.selection.readSelection()?.taskId)
         }
 
     @Test
-    fun sameSeriesDateUnderDifferentZoneIsNotRepurposed() =
+    fun dataStoreContextCannotMakeHistoricalRoomTaskEligible() =
         runTest {
             val fixture = fixture()
             val source = fixture.addTask(TODAY.minusDays(1), NEW_YORK)
-            val otherZone =
-                fixture.tasks.insertDailyTask(
-                    NewDailyTask(
-                        clientId = source.clientId,
-                        description = "Chicago copy",
-                        workDate = TODAY,
-                        zoneId = CHICAGO,
-                        seriesId = source.seriesId,
-                    ),
-                )
             fixture.selection.select(
-                source.selection(selectedOnDate = TODAY.minusDays(1)),
+                SelectedTaskState(
+                    taskId = source.id,
+                    seriesId = source.seriesId,
+                    selectedOnDate = TODAY,
+                    selectedInZone = NEW_YORK,
+                ),
             )
 
             val result = fixture.coordinator().reconcileForToday()
 
-            val rolled = (result as SelectionReconciliationResult.RolledOver).task
-            assertEquals(NEW_YORK, rolled.zoneId)
-            assertTrue(rolled.id != otherZone.id)
+            assertEquals(SelectionReconciliationResult.IneligibleSelectionCleared, result)
+            assertNull(fixture.selection.readSelection())
+            assertTrue(fixture.tasks.observeTasksForDate(TODAY).first().isEmpty())
         }
 
     @Test
-    fun historicalTaskSelectedTodayIsPreservedForViewingInsteadOfRolled() =
+    fun futureTaskSelectionIsClearedDuringReconciliation() =
         runTest {
             val fixture = fixture()
-            val historical = fixture.addTask(TODAY.minusDays(3), NEW_YORK)
-            fixture.selection.select(historical.selection(selectedOnDate = TODAY))
+            val future = fixture.addTask(TODAY.plusDays(3), NEW_YORK)
+            fixture.selection.select(future.selection(selectedOnDate = TODAY))
 
             val result = fixture.coordinator().reconcileForToday()
 
             assertEquals(
-                SelectionReconciliationResult.HistoricalSelectionPreserved,
+                SelectionReconciliationResult.IneligibleSelectionCleared,
                 result,
             )
-            assertEquals(historical.id, fixture.selection.readSelection()?.taskId)
+            assertNull(fixture.selection.readSelection())
         }
 
     @Test
-    fun effectiveZoneChangeRollsEligibleSelectionToSameDateNewZone() =
+    fun effectiveZoneChangeClearsSelectionWithoutCreatingCopy() =
         runTest {
             val fixture = fixture()
             val source = fixture.addTask(TODAY, NEW_YORK)
@@ -150,11 +153,12 @@ class SelectionCoordinatorTest {
 
             val result = fixture.coordinator().reconcileForToday()
 
-            val copy = (result as SelectionReconciliationResult.RolledOver).task
-            assertEquals(TODAY, copy.workDate)
-            assertEquals(CHICAGO, copy.zoneId)
-            assertEquals(copy.id, fixture.selection.readSelection()?.taskId)
-            assertEquals(source.seriesId, copy.seriesId)
+            assertEquals(SelectionReconciliationResult.IneligibleSelectionCleared, result)
+            assertNull(fixture.selection.readSelection())
+            assertEquals(
+                listOf(source.id),
+                fixture.tasks.observeTasksForDate(TODAY).first().map { it.task.id },
+            )
         }
 
     @Test
@@ -175,6 +179,28 @@ class SelectionCoordinatorTest {
                 fixture.coordinator().reconcileForToday(),
             )
             assertNull(fixture.selection.readSelection())
+        }
+
+    @Test
+    fun dataStoreSeriesHintCannotOverrideSelectedRoomTask() =
+        runTest {
+            val fixture = fixture()
+            val task = fixture.addTask(TODAY, NEW_YORK)
+            fixture.selection.select(
+                SelectedTaskState(
+                    taskId = task.id,
+                    seriesId = "stale-series-hint",
+                    selectedOnDate = TODAY,
+                    selectedInZone = NEW_YORK,
+                ),
+            )
+
+            assertEquals(
+                SelectionReconciliationResult.MissingSelectionCleared,
+                fixture.coordinator().reconcileForToday(),
+            )
+            assertNull(fixture.selection.readSelection())
+            assertEquals(task, fixture.tasks.readTaskWithClient(task.id)?.task)
         }
 
     @Test

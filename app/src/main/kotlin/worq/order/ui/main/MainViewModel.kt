@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
@@ -43,6 +44,7 @@ import worq.order.data.SettingsRepository
 import worq.order.data.TaskRepository
 import worq.order.domain.SelectTaskResult
 import worq.order.domain.SelectionCoordinator
+import worq.order.domain.SelectionReconciliationResult
 import worq.order.domain.DeleteTaskOperationResult
 import worq.order.domain.TaskMutationCoordinator
 import worq.order.export.CsvExportCoordinator
@@ -149,7 +151,7 @@ class MainViewModel(
 
     val effects = mutableEffects.asSharedFlow()
 
-    private val timerTicks: Flow<Unit> =
+    private val activeTimerTicks: Flow<Unit> =
         rawState
             .map { state ->
                 (state.activeTimer as? MainLoad.Value<ActivePresentation?>)
@@ -169,14 +171,49 @@ class MainViewModel(
                         }
                     }
                 }
-            }.onEach {
+            }
+
+    /**
+     * Keeps the visible calendar day independent of Room's active-timer flow. The flow sleeps
+     * directly until the next real midnight in the effective geographical ZoneId, so an external
+     * boundary close cannot cancel the only signal that advances a Main screen following Today.
+     */
+    private val dateBoundaryTicks: Flow<Unit> =
+        zoneIdProvider
+            .observeZoneId()
+            .distinctUntilChanged()
+            .flatMapLatest { zoneId ->
+                flow {
+                    while (true) {
+                        val now = utcClock.now()
+                        val nextBoundary =
+                            now
+                                .atZone(zoneId)
+                                .toLocalDate()
+                                .plusDays(1)
+                                .atStartOfDay(zoneId)
+                                .toInstant()
+                        delay(
+                            Duration
+                                .between(now, nextBoundary)
+                                .toMillis()
+                                .coerceAtLeast(1L),
+                        )
+                        emit(Unit)
+                    }
+                }
+            }
+
+    private val presentationTicks: Flow<Unit> =
+        merge(activeTimerTicks, dateBoundaryTicks)
+            .onEach {
                 reconcileChangedDateIfNeeded()
             }.onStart {
                 emit(Unit)
             }
 
     val uiState: StateFlow<MainUiState> =
-        combine(rawState, timerTicks) { state, _ ->
+        combine(rawState, presentationTicks) { state, _ ->
             state.toUiState()
         }.stateIn(
             scope = viewModelScope,
@@ -445,10 +482,11 @@ class MainViewModel(
     private fun startTimer() {
         runTimerOperation {
             refreshClockContext()
-            selectionCoordinator.reconcileForToday()
+            val reconciliation = selectionCoordinator.reconcileForToday()
             when (timerCoordinator.start()) {
                 is StartTimerResult.Started -> reconcileRunningTimerNotificationAfterStart()
-                StartTimerResult.NoSelectedTask -> MainMessage.SELECT_A_TASK_FIRST
+                StartTimerResult.NoSelectedTask ->
+                    reconciliation.toMainMessage() ?: MainMessage.SELECT_A_TASK_FIRST
                 StartTimerResult.SelectedTaskMissing -> MainMessage.SELECTED_TASK_MISSING
                 is StartTimerResult.TaskNotEligibleToday ->
                     MainMessage.LIVE_TIMING_TODAY_ONLY
@@ -583,16 +621,9 @@ class MainViewModel(
                         }
                         return@withLock
                     }
-                when (recovery) {
-                    is TimerRecoveryResult.ClockChanged ->
-                        rawState.update {
-                            it.copy(message = MainMessage.CLOCK_CHANGED)
-                        }
-                    is TimerRecoveryResult.ActiveTimerChanged ->
-                        rawState.update {
-                            it.copy(message = MainMessage.DATA_UNAVAILABLE)
-                        }
-                    is TimerRecoveryResult.Recovered -> Unit
+                applyRecoveryMessage(recovery)
+                if (recovery is TimerRecoveryResult.ClosedAtBoundary) {
+                    launchAutomaticExportAfterBoundary()
                 }
                 runCatching { runningTimerNotificationController?.reconcile() }
             }
@@ -622,16 +653,10 @@ class MainViewModel(
         }
         try {
             lifecycleRefreshMutex.withLock {
-                when (timerRecoveryCoordinator.recover()) {
-                    is TimerRecoveryResult.ClockChanged ->
-                        rawState.update {
-                            it.copy(message = MainMessage.CLOCK_CHANGED)
-                        }
-                    is TimerRecoveryResult.ActiveTimerChanged ->
-                        rawState.update {
-                            it.copy(message = MainMessage.DATA_UNAVAILABLE)
-                        }
-                    is TimerRecoveryResult.Recovered -> Unit
+                val recovery = timerRecoveryCoordinator.recover()
+                applyRecoveryMessage(recovery)
+                if (recovery is TimerRecoveryResult.ClosedAtBoundary) {
+                    launchAutomaticExportAfterBoundary()
                 }
                 runCatching { runningTimerNotificationController?.reconcile() }
             }
@@ -640,6 +665,25 @@ class MainViewModel(
         } catch (_: Exception) {
             rawState.update {
                 it.copy(message = MainMessage.DATA_UNAVAILABLE)
+            }
+        }
+    }
+
+    /**
+     * Room closing the interval removes it from [rawState], which cancels the active-only ticker
+     * flow that requested recovery. Launch the post-close export callback in the ViewModel scope
+     * so that self-cancellation cannot strand the durable automatic-export target.
+     */
+    private fun launchAutomaticExportAfterBoundary() {
+        val manager = automaticGoogleExportManager ?: return
+        viewModelScope.launch {
+            try {
+                manager.onTimerStopped()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                // The automatic-export manager persists typed failures when it begins an attempt.
+                // A later application/Activity reconcile retains the durable target as fallback.
             }
         }
     }
@@ -657,6 +701,21 @@ class MainViewModel(
                 today = today,
                 effectiveZoneId = zoneIdProvider.zoneId(),
             )
+        }
+    }
+
+    private fun applyRecoveryMessage(recovery: TimerRecoveryResult) {
+        val message =
+            when (recovery) {
+                is TimerRecoveryResult.ClockChanged -> MainMessage.CLOCK_CHANGED
+                is TimerRecoveryResult.ActiveTimerChanged -> MainMessage.DATA_UNAVAILABLE
+                is TimerRecoveryResult.ClosedAtBoundary -> null
+                // Clearing yesterday's persisted selection during passive startup/resume recovery
+                // is normal under the no-rollover policy, not a user-facing timing error.
+                is TimerRecoveryResult.Recovered -> null
+            }
+        if (message != null) {
+            rawState.update { it.copy(message = message) }
         }
     }
 
@@ -1427,3 +1486,16 @@ class MainViewModel(
         const val TIMER_REFRESH_MILLIS = 200L
     }
 }
+
+private fun SelectionReconciliationResult.toMainMessage(): MainMessage? =
+    when (this) {
+        SelectionReconciliationResult.IneligibleSelectionCleared ->
+            MainMessage.TIMING_SELECTION_CLEARED
+        SelectionReconciliationResult.MissingSelectionCleared ->
+            MainMessage.SELECTED_TASK_MISSING
+        SelectionReconciliationResult.NoSelection,
+        SelectionReconciliationResult.AlreadyCurrent,
+        is SelectionReconciliationResult.ActiveTimerOwnsSelection,
+        SelectionReconciliationResult.ActiveTimerTaskMissing,
+        -> null
+    }

@@ -38,10 +38,8 @@ class XlsxWorkbookWriterTest {
                             "On-Site",
                             "Billable",
                             "18.5",
-                            "1",
                             "09:00 AM",
                             "10:00 AM",
-                            "01:00:00",
                             "01:00:00",
                             "60",
                         ),
@@ -93,15 +91,13 @@ class XlsxWorkbookWriterTest {
                                 client,
                                 description,
                                 purchases,
-                                "In-Office",
-                                "Do not bill",
-                                "",
-                                "1",
-                                "09:00 AM",
-                                "10:00 AM",
-                                "01:00:00",
-                                "25:00:00",
-                                "1500",
+                            "In-Office",
+                            "Do not bill",
+                            "",
+                            "09:00 AM",
+                            "10:00 AM",
+                            "25:00:00",
+                            "1500",
                             ),
                         ),
                 ),
@@ -133,6 +129,7 @@ class XlsxWorkbookWriterTest {
         assertFalse(parts.keys.any { it.contains("customXml", ignoreCase = true) })
         assertFalse(FORMULA_ELEMENT_PATTERN.containsMatchIn(allXml))
         assertFalse(allXml.contains("TargetMode=\"External\""))
+        assertTrue(allXml.contains("<dimension ref=\"A1:M1\"/>"))
     }
 
     @Test
@@ -148,8 +145,6 @@ class XlsxWorkbookWriterTest {
                                 "",
                                 "Client",
                                 "Task",
-                                "",
-                                "",
                                 "",
                                 "",
                                 "",

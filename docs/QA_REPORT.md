@@ -1,8 +1,10 @@
 # WorqOrder Release QA Report
 
 Audit date: 2026-07-31
-Branch: `milestone17`
-Scope: required production behavior through Milestone 17
+Branch: `milestone17` (historical release evidence)
+Scope: required production behavior through Milestone 17. This report is retained as historical
+`0.2.0` evidence; current `0.3.0` status is tracked in `REQUIREMENTS_TRACEABILITY.md` Section 10
+and the Milestone 34 inventory.
 
 ## 1. Outcome
 
@@ -515,3 +517,131 @@ network, boot, wake-lock, `FOREGROUND_SERVICE`, job service, system foreground s
 reschedule components. WorqOrder never promotes the automatic-export worker to foreground work and
 does not use that library service for timer display. Other exported library components are guarded
 by `DUMP`, `BIND_JOB_SERVICE`, or Google revocation permissions.
+
+## 14. Milestone 32 midnight and automatic-export quality gate
+
+Milestone 32 replaces the released continuation behavior with one idempotent exact-boundary close
+in the active timer's pinned geographical ZoneId. The transaction closes the expected sole open
+interval, clears the singleton timer, and creates no task or interval. Foreground, startup,
+Activity, boot, export, and WorkManager callers converge on this operation; an independent
+lifecycle-collected boundary signal advances Main from yesterday when another caller wins the
+close race. Automatic Google work exports its preserved prior date only after closure and retains
+typed pending state through authorization, offline, permission, quota, and process-recovery paths.
+
+The final repository audit found no new continuation caller, exact alarm, app-owned wake lock,
+foreground stopwatch service, background tick loop, or UI-refresh persistence. The legacy split
+methods remain isolated compatibility material for the later classified cleanup milestone.
+`git diff --check` reported no whitespace errors; its CRLF/LF messages are informational working-
+copy notices.
+
+Final owner-run results:
+
+- `testDebugUnitTest`: 235 tests, zero failures/errors/skips.
+- `connectedDebugAndroidTest`: 108 tests, zero failures/errors/skips, 149.206 seconds.
+- Isolated `MainScreenTest.csvExportShowsDateProgressAndSuccessState`: passed before the full
+  connected rerun. Its earlier empty failure was a native emulator EGL `RenderThread` crash.
+- `lintDebug`: passed with zero errors.
+- `assembleDebug` and `assembleRelease`: passed.
+- `installDebug`: passed; the Android Gradle Plugin's connected-test cleanup intentionally removes
+  its temporary app/test packages, so visual inspection uses a subsequent debug install.
+
+The owner manually confirmed exact midnight closure without a duplicate continuation, preserved
+pending export completion, and successful automatic captured-date Google export while defects were
+being corrected. The final combined real-midnight visible-date scenario remains a later
+release-candidate smoke check; deterministic ViewModel coverage proves the corrected race. No
+Milestone 32 release blocker remains.
+
+## 15. Milestone 35 `0.3.0` final-gate status
+
+Task 35C's repository-only review on 2026-09-11 confirmed the expected milestone ancestry,
+explicit Room 1→2→3→4→5 route, committed schema exports 1–5, schema-5 one-interval constraints,
+one-row/13-column shared export projection, exact Google `drive.file` scope, disabled backup,
+narrow source permissions, and absence of destructive migration fallback or tracked credential
+values. Merged release-manifest library permissions were attributed to AndroidX Credentials and
+WorkManager; they do not add an app-owned foreground stopwatch, exact alarm, wake lock, or app
+access gate.
+
+One test-readiness defect was corrected: `SettingsScreenTest` no longer hardcodes the published
+`0.2.0` About label and instead asserts against `BuildConfig.VERSION_NAME`. This is test-only and
+does not change application behavior.
+
+The owner's first clean gate passed in 7m 15s: 140 actionable tasks (95 executed, 44 from cache,
+1 up-to-date), 234 JVM tests with zero failures/errors/skips, zero lint errors in both variants,
+and successful debug/debug-test/release assembly. Both lint variants initially reported 22
+warnings. One warning led to a bounded manifest hardening fix: `fullBackupContent=false` now makes
+the no-backup policy explicit for API 26–30 alongside `allowBackup=false` and the Android 12+
+extraction rules. The post-fix gate recorded below verifies that change; the remaining warnings are
+non-blocking SDK/version availability, hidden-but-retained time-zone resources, intentional icon
+duplication, and style suggestions. Third-party AndroidX/DataStore libraries that AGP could not
+strip were packaged unchanged, as reported by the successful build.
+
+The current API 36.1 connected suite passed in 3m 10s with 73 actionable tasks (6 executed,
+67 up-to-date). The first API 26 suite completed 106 tests with one failure caused by a test query,
+not the migration: Android 8 SQLite does not support selecting from the newer table-valued
+`pragma_foreign_key_check` form. Production already uses `PRAGMA foreign_key_check`; the test was
+changed to use the same API-26-compatible command and fail when it returns any row. The corrected
+reruns are recorded below.
+
+The corrected schema-5 migration class passed on API 26 in 53s with 73 actionable tasks
+(6 executed, 67 up-to-date). The complete API 26 connected suite then passed in 1m 22s with
+73 actionable tasks (1 executed, 72 up-to-date); all 106 instrumentation tests completed without
+failure. The API 26 and API 36.1 connected gates now pass for the current debug/test APKs. A signed
+release smoke remains separate from these instrumentation results.
+
+The post-fix clean gate passed in 2m 1s with 140 actionable tasks (70 executed, 67 from cache,
+3 up-to-date). It produced 234 passing JVM tests, zero failures/errors/skips, successful debug/
+debug-test/release assembly, and zero lint errors in both variants. Each lint variant now reports
+21 warnings; the backup/extraction warning is gone. The release output metadata reports
+`worq.order`, `0.3.0`/code 3, and minimum API 26. The 16,478,421-byte release candidate has SHA-256
+`F9FFCE361C1D87F8360B3F6EF495FF498947FD08E7B206FD34FF9A62A6B24F8E`.
+
+Owner-run `aapt2` inspection reports package `worq.order`, version `0.3.0`/code 3, min API 26,
+target API 36, and label `WorqOrder`. `apksigner` verifies APK Signature Scheme v2 with certificate
+SHA-1 `57:51:0C:CB:30:01:A7:E7:0C:43:91:C9:16:A8:0A:0C:C6:03:BB:19`, exactly matching the
+permanent v0.1/v0.2 release signer already recorded in this report. V2 signing covers the entire
+API 26+ support range; v3/v3.1/v4 are not required.
+
+The owner then generated the exact `releaseRuntimeClasspath` and build-environment reports from
+the offline project. The release graph contains 175 resolved Maven coordinates. A narrow,
+owner-approved OSV review on 2026-09-11 queried 400 exact coordinates present in the project-local
+Gradle cache; 87 vulnerability records mapped to 19 stale/cache-only or build-tool coordinates,
+and none mapped to the resolved release runtime graph. Kotlin Gradle plugin 2.3.10 is separately
+affected by build-cache metadata advisory `GHSA-r937-wjx7-w2jp`. The plugin is not packaged in the
+APK, no remote/shared build cache is configured, and Milestone 35 disabled Gradle build-output
+caching while retaining dependency and configuration caches.
+
+The owner then ran a clean `--no-build-cache` gate. It passed in 2m 43s with 140 actionable tasks
+(137 executed, 3 up-to-date): all 234 JVM tests passed with zero failures/errors/skips, debug and
+release lint each reported zero errors and the same 21 accepted warnings, and debug, debug-test,
+and owner-signed release APKs assembled. The regenerated 16,478,421-byte release candidate has
+SHA-256 `27DD6814CB4AEFC922275253301C3372769E9C2F19E4C1C4CFBA986EAFECDA99`.
+
+On 2026-09-12 the owner reported a successful signed v0.2→v0.3 install-over on a disposable
+API 36.1 emulator, including the Section 8 populated-data and reinstall/idempotency checks in
+`MILESTONE_35_RELEASE_EVIDENCE.md`. A legacy task with two completed and one running interval became
+three one-interval tasks with metadata retained, as required by schema 5. The owner also observed
+a real midnight automatic Google export: the captured date was exported with the expected
+13-column schema and no next-day task was created. These are owner-reported manual results, not
+device logs independently collected by the reviewer.
+
+The owner subsequently found that Google re-export from a second device replaced the first
+device's same-date rows. A non-destructive, hidden-task-ID merge fix and regression tests were
+added. The owner-run offline lint/JVM/debug/debug-test/release gate passed in 2m 49s with 139
+actionable tasks (50 executed, 89 up-to-date). An initial connected run performed zero tests
+because the installed app had a different signing certificate; the subsequent compatible-emulator
+connected run passed in 2m 30s with 73 actionable tasks (1 executed, 72 up-to-date). The current
+project-local test XML records 237 JVM and 108 connected tests with zero failures, errors, or
+skips. On 2026-09-13 the
+owner reported that the supplied Step 4 manual checks passed after this fix, including the
+same-date Google re-export checks. The owner separately confirmed force-stop and running-timer
+reboot recovery. Maximum text/display scaling had minor visual imperfections, which the owner
+accepted after functional checks. One sample showed 36,544 KiB total PSS, 150,832 KiB RSS, and
+3.5% instantaneous CPU; the owner accepted this limited resource observation rather than an
+extended profile, so no long-run memory or thermal pass is claimed. The current 16,494,849-byte
+release APK has SHA-256
+`CBF04232B810BAC9BC2A64952E31D28FE5E6A51BF664762228904973AFB54D08`; older candidate
+hashes are superseded. The owner reports that the current APK's `apksigner`, `aapt2`, and checksum
+results exactly match the permanent signer, `worq.order`, `0.3.0`/code 3, and this hash. Public
+asset comparison follows publication. `MILESTONE_35_RELEASE_EVIDENCE.md` tracks the accepted
+resource/accessibility limits and the still-unverified test-APK-retention convenience setting;
+`0.3.0` is not yet declared published.

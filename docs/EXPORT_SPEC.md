@@ -6,8 +6,9 @@
 - Build one immutable logical snapshot from Room, the authoritative source.
 - Use the same logical columns, row ordering, and value semantics for CSV, XLSX, and Google Sheets.
 - Export is one-way. It never imports, marks tasks exported, deletes local records, or resolves changes made in an external copy.
-- A retry is safe. Google Sheets re-export replaces the existing date tab idempotently; CSV and
-  XLSX intentionally create independent user-selected files.
+- A retry is safe. Current Google Sheets re-export merges task rows by stable internal task ID;
+  it does not replace rows contributed by another device. CSV and XLSX intentionally create
+  independent user-selected files.
 - Export requires no globally active timer. Main disables its export action for every destination
   while timing and identifies **Stop Timer to Export** as the required next action.
 - XLSX is an approved focused destination after Google Sheets export. Do not use Apache POI or
@@ -589,12 +590,27 @@ snapshot, and export never mutates Room.
 
 - CSV emits the exact 13 headers and one RFC-style UTF-8 row per task.
 - XLSX writes one worksheet with an `A:M` table and the same literal values.
-- Google writes headers/data below its existing ownership marker. An owned schema-2, schema-3, or
-  schema-4 tab may be atomically replaced and upgraded to schema 5; clear the complete previous
-  application-owned range so obsolete columns N/O cannot remain. Unknown/newer markers and
-  unowned same-name tabs still fail closed.
-- Re-export remains authoritative replacement and duplicate-free. A schema-5 task cannot create
-  multiple rows.
+- Google writes the 13 visible fields in columns A:M. Columns N:O are reserved and P contains a
+  hidden, app-prefixed stable task ID used only for Google row reconciliation. This transport
+  identity is never added to CSV/XLSX or the visible canonical schema.
+- The gateway reads the existing marked schema-5 date tab (A:P) before writing. An existing task
+  ID updates only that row's A:M values; a new ID appends one A:P row. It never resizes or clears
+  an existing tab or removes rows absent from the local device. Thus another device's exported
+  tasks survive re-export, and repeated exports of a keyed task do not duplicate it.
+- On the first export after this change, a schema-5 row without a hidden ID is claimed only when
+  its 13 visible values uniquely and exactly match the local task. Otherwise the pre-existing row
+  is preserved and the local task is appended. Ambiguous identical unkeyed matches fail closed.
+  Edits to a previously unkeyed row may leave its old exported copy because identity cannot be
+  established from edited visible values alone.
+- Older schema-2/3/4 date tabs are now protected compatibility conflicts rather than replaced:
+  they can contain another device's rows with no stable identity. The user must preserve the old
+  tab separately and resolve the conflict deliberately before creating a current-schema tab.
+  Unknown/newer markers and unowned same-name tabs also fail closed.
+- Google is a one-way accumulated export, not synchronization. Deleting a local task does not
+  delete a previously exported remote row; edits update keyed rows on the next export from the
+  originating task ID. A cross-device simultaneous export can race between read and batch write;
+  there is no custom backend or cross-device lock. Inspect/retry a rare duplicate-key conflict
+  rather than silently deleting any row.
 - Automatic Google export uses the captured preceding date after midnight closure. CSV and XLSX
   remain user-initiated `ACTION_CREATE_DOCUMENT` flows.
 

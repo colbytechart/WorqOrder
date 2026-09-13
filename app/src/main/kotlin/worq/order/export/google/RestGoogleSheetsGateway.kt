@@ -5,6 +5,7 @@ import java.io.InputStream
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.URL
+import java.net.URLEncoder
 import java.net.UnknownHostException
 import javax.net.ssl.HttpsURLConnection
 import kotlinx.coroutines.CoroutineDispatcher
@@ -139,7 +140,27 @@ class RestGoogleSheetsGateway(
                     parseSpreadsheetBlankness(blanknessResponse.body) ?: false
                 structure.copy(isCompletelyBlank = isCompletelyBlank)
             } else {
-                structure
+                val target =
+                    structure.sheets.singleOrNull {
+                        it.title == GoogleSheetsExportPlanner.tabName(snapshot.workDate.toString())
+                    }
+                if (target == null) {
+                    structure
+                } else {
+                    val range = URLEncoder.encode(dateTabValueRange(target), "UTF-8")
+                    val valuesResponse =
+                        execute(
+                            method = "GET",
+                            url = "$SHEETS_ENDPOINT/$spreadsheetId/values/$range" +
+                                "?majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE",
+                            accessToken = accessToken,
+                        )
+                    valuesResponse.exportFailureOrNull()?.let { return it }
+                    val values =
+                        parseSheetValues(valuesResponse.body)
+                            ?: return GoogleSheetsGatewayExportResult.MalformedResponse
+                    structure.copy(sheetValues = mapOf(target.sheetId to values))
+                }
             }
         val plan =
             when (
@@ -372,6 +393,9 @@ class RestGoogleSheetsGateway(
                             GoogleSheetDescriptor(
                                 sheetId = sheetId,
                                 title = properties.requireNonBlankString("title"),
+                                columnCount =
+                                    properties.optJSONObject("gridProperties")
+                                        ?.optInt("columnCount", 13) ?: 13,
                             ),
                         )
                         metadata +=
@@ -394,6 +418,34 @@ class RestGoogleSheetsGateway(
         } catch (_: JSONException) {
             null
         }
+
+    internal fun parseSheetValues(body: String): List<List<String>>? {
+        return try {
+            val root = JSONObject(body)
+            if (root.optString("majorDimension", "ROWS") != "ROWS") return null
+            if (root.has("values") && root.optJSONArray("values") == null) return null
+            val values = root.optJSONArray("values") ?: return emptyList()
+            buildList {
+                for (rowIndex in 0 until values.length()) {
+                    val row = values.getJSONArray(rowIndex)
+                    add(buildList {
+                        for (columnIndex in 0 until row.length()) {
+                            add(row.getString(columnIndex))
+                        }
+                    })
+                }
+            }
+        } catch (_: JSONException) {
+            null
+        }
+    }
+
+    internal fun dateTabValueRange(sheet: GoogleSheetDescriptor): String {
+        // Pre-fix tabs have only 13 grid columns; asking for P before adding it can exceed
+        // that grid. Read every existing column up to P, then extend in the update batch.
+        val lastColumn = ('A'.code + sheet.columnCount.coerceIn(1, 16) - 1).toChar()
+        return "'${sheet.title}'!A:$lastColumn"
+    }
 
     internal fun parseSpreadsheetBlankness(body: String): Boolean? {
         return try {

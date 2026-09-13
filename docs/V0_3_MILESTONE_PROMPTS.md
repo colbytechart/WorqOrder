@@ -280,6 +280,10 @@ same 13 strings and set XLSX bounds to A:M. Do not modify Google range ownership
 
 ### Task 33B — Sol: Google owned-range safety
 
+Historical executed directive only. The Milestone 35 cross-device regression supersedes its
+replacement instruction: current schema-5 Google tabs merge by hidden task ID, and older owned
+schemas are protected conflicts rather than automatically replaced.
+
 ```text
 Continue Milestone 33, Task 33B, using Sol at Extra High reasoning. Make manual and automatic
 Google export consume the exact shared schema-5 projection. Safely replace and upgrade only

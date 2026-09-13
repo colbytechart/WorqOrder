@@ -1,6 +1,8 @@
 # WorqOrder User Guide
 
-Version: `0.2.0`
+Publication status: the latest published release is `0.2.0`. This guide also documents the
+current `0.3.0` development behavior, which remains subject to the final release gate and is not
+published yet.
 
 ## 1. What WorqOrder Stores
 
@@ -145,8 +147,8 @@ current geographical time zone. Existing date/ZoneId persistence remains intact,
 task dates, stored task zones, and intervals are never rewritten.
 
 The bottom of Settings displays the installed build version and stability as bare footer text, for
-example **WorqOrder v0.2.0 - stable**. There is no About card, and the text does not open a website
-or repository.
+example `WorqOrder v[installed version] - stable`. There is no About card, and the text does not
+open a website or repository.
 
 ## 8. Choose an Export Destination
 
@@ -207,12 +209,19 @@ completion.
 2. Display the required work date.
 3. Choose **Submit [date] to Google Sheets**.
 
-WorqOrder writes one `WorqOrder_YYYY-MM-DD` worksheet per date. Re-exporting replaces the
-application-owned table so rows are not duplicated.
+WorqOrder writes one `WorqOrder_YYYY-MM-DD` worksheet per date. Re-exporting updates this
+device's previously exported tasks and appends new tasks while preserving rows exported by
+another device. The 13 task columns remain visible; a hidden task-ID column enables matching.
+Deleting a task locally does not remove a row already exported to the shared sheet.
 
 If the workbook is entirely blank, WorqOrder may reuse its blank initial worksheet. If a
 same-named worksheet contains data but lacks WorqOrder's ownership marker, WorqOrder does not
 overwrite it. Rename that worksheet and retry.
+
+If an older WorqOrder worksheet uses an incompatible schema or contains ambiguous pre-ID rows,
+no rows are changed. Preserve and rename that tab before retrying; the new export will create a
+current-schema date tab. An edited row exported before hidden IDs were introduced may remain as
+an old copy because its identity cannot be proven from the edited text alone.
 
 If authorization expires, retry and approve the same spreadsheet. If edit permission is lost,
 restore Editor access or connect another spreadsheet. Offline, timeout, quota, and server failures

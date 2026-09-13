@@ -93,6 +93,52 @@ internal object GoogleSheetsBatchJsonEncoder {
                             "gridProperties(rowCount,columnCount)",
                         ),
                 )
+            is GoogleSheetsBatchRequest.SetColumnCount ->
+                JSONObject().put(
+                    "updateSheetProperties",
+                    JSONObject()
+                        .put(
+                            "properties",
+                            JSONObject()
+                                .put("sheetId", sheetId)
+                                .put("gridProperties", JSONObject().put("columnCount", columnCount)),
+                        ).put("fields", "gridProperties.columnCount"),
+                )
+            is GoogleSheetsBatchRequest.HideColumns ->
+                JSONObject().put(
+                    "updateDimensionProperties",
+                    JSONObject()
+                        .put(
+                            "range",
+                            JSONObject()
+                                .put("sheetId", sheetId)
+                                .put("dimension", "COLUMNS")
+                                .put("startIndex", startIndex)
+                                .put("endIndex", endIndex),
+                        ).put("properties", JSONObject().put("hiddenByUser", true))
+                        .put("fields", "hiddenByUser"),
+                )
+            is GoogleSheetsBatchRequest.WriteCellsAt ->
+                JSONObject().put(
+                    "updateCells",
+                    JSONObject()
+                        .put(
+                            "start",
+                            JSONObject()
+                                .put("sheetId", sheetId)
+                                .put("rowIndex", rowIndex)
+                                .put("columnIndex", columnIndex),
+                        ).put("rows", rows.toCellRows())
+                        .put("fields", "userEnteredValue"),
+                )
+            is GoogleSheetsBatchRequest.AppendCells ->
+                JSONObject().put(
+                    "appendCells",
+                    JSONObject()
+                        .put("sheetId", sheetId)
+                        .put("rows", rows.toCellRows())
+                        .put("fields", "userEnteredValue"),
+                )
             is GoogleSheetsBatchRequest.ReplaceCells ->
                 JSONObject().put(
                     "updateCells",
@@ -108,31 +154,29 @@ internal object GoogleSheetsBatchJsonEncoder {
                                     "endColumnIndex",
                                     rows.firstOrNull()?.size ?: 0,
                                 ),
-                        ).put(
-                            "rows",
-                            JSONArray().apply {
-                                rows.forEach { row ->
-                                    put(
-                                        JSONObject().put(
-                                            "values",
-                                            JSONArray().apply {
-                                                row.forEach { value ->
-                                                    put(
-                                                        JSONObject().put(
-                                                            "userEnteredValue",
-                                                            JSONObject().put(
-                                                                "stringValue",
-                                                                value,
-                                                            ),
-                                                        ),
-                                                    )
-                                                }
-                                            },
-                                        ),
-                                    )
-                                }
-                            },
-                        ).put("fields", "userEnteredValue"),
+                        ).put("rows", rows.toCellRows())
+                        .put("fields", "userEnteredValue"),
                 )
+        }
+
+    private fun List<List<String>>.toCellRows(): JSONArray =
+        JSONArray().apply {
+            this@toCellRows.forEach { row ->
+                put(
+                    JSONObject().put(
+                        "values",
+                        JSONArray().apply {
+                            row.forEach { value ->
+                                put(
+                                    JSONObject().put(
+                                        "userEnteredValue",
+                                        JSONObject().put("stringValue", value),
+                                    ),
+                                )
+                            }
+                        },
+                    ),
+                )
+            }
         }
 }

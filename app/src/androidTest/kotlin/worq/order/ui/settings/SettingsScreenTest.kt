@@ -22,6 +22,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import worq.order.BuildConfig
 import worq.order.data.ThemeMode
 import worq.order.data.LandscapeHandedness
 import worq.order.ui.employees.ConsultantSettingsUiState
@@ -34,6 +35,7 @@ class SettingsScreenTest {
 
     @Test
     fun aboutShowsBuildVersionAndHasNoRepositoryLink() {
+        val expectedVersionText = "WorqOrder v${BuildConfig.VERSION_NAME} - stable"
         setContent(
             state =
                 SettingsUiState(
@@ -43,10 +45,10 @@ class SettingsScreenTest {
 
         composeRule
             .onNode(hasScrollAction())
-            .performScrollToNode(hasText("WorqOrder v0.2.0 - stable"))
+            .performScrollToNode(hasText(expectedVersionText))
         composeRule.onAllNodesWithText("About").assertCountEquals(0)
         composeRule
-            .onNodeWithText("WorqOrder v0.2.0 - stable")
+            .onNodeWithText(expectedVersionText)
             .assertIsDisplayed()
             .assertHasNoClickAction()
         composeRule.onAllNodesWithText("GitHub", substring = true).assertCountEquals(0)

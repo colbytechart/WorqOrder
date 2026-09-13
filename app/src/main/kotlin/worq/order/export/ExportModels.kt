@@ -37,6 +37,8 @@ object ExportSchema {
 
 data class ExportRow(
     val values: List<String>,
+    /** Stable local identity for Google row reconciliation; never a visible export column. */
+    val sourceTaskId: String? = null,
 ) {
     init {
         require(values.size == ExportSchema.headers.size) {
@@ -107,6 +109,7 @@ class ExportRowBuilder {
         val stop = interval?.stop
         val exportDate = ExportValueFormatter.date(task.workDate)
         return ExportRow(
+            sourceTaskId = task.id,
             values =
                 listOf(
                     exportDate,

@@ -1194,6 +1194,27 @@ adapter remain. This is a contract reconciliation and dead-code reduction, not a
 export, UI, dependency, permission, or product-scope change. The complete owner-run gate passed in
 5m 31s with 138 actionable tasks (31 executed, 107 up-to-date).
 
+### D-096 - Google date tabs merge by stable task identity across devices
+
+The prior owned-tab replacement policy in D-016, D-054, D-086, and D-094 is superseded for
+current exports. A second WorqOrder installation can hold different local Room tasks while
+connecting to the same spreadsheet; replacing the entire date tab from either device silently
+erased the other device's rows. CSV and XLSX remain one-off and unchanged. For schema 5, the 13
+canonical visible columns remain A:M, while hidden column P records an app-prefixed stable local
+task ID; N:O are reserved and hidden. Before each Google export, read the owned date tab. Update
+only A:M of keyed matching tasks, append previously unseen tasks, and never shrink, clear, or
+replace existing rows. The batch remains atomic, but no Sheets API transaction can lock the
+read/planning window across independent devices; simultaneous exports can still race.
+
+Existing schema-5 rows without IDs are adopted only on a unique exact visible-value match.
+Ambiguous matches and duplicate remote IDs fail closed. Unmatched older rows remain untouched;
+an edited pre-identity row may therefore remain alongside its new version. Owned schema-2/3/4
+tabs are no longer automatically replaced/upgraded, because they may contain another device's
+unidentifiable records; they return a compatibility conflict until the owner deliberately
+preserves/renames the old tab. Local deletion does not delete a previously exported Google row.
+This is an accumulated one-way export, not cross-device Room synchronization. The source task ID
+is transport-only and is not a visible column or a change to the canonical CSV/XLSX schema.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.

@@ -72,7 +72,7 @@
     <string name="google_export_authorization_required">Google authorization is required before exporting %1$s. Retry to open the recovery flow.</string>
     <string name="google_export_play_services">Google Play services is unavailable or requires an update. Local data was not changed.</string>
     <string name="google_export_tab_conflict">The worksheet “%1$s” already exists but is not owned by WorqOrder. Rename that worksheet, then retry.</string>
-    <string name="google_export_schema_conflict">The worksheet “%1$s” has incompatible WorqOrder metadata and was not changed.</string>
+    <string name="google_export_schema_conflict">The worksheet “%1$s” has older or ambiguous WorqOrder data. Nothing was changed. Preserve and rename that tab, then retry.</string>
     <string name="google_export_offline">Couldn’t export %1$s while offline. Reconnect and retry.</string>
     <string name="google_export_timeout">Google did not respond while exporting %1$s. Retry when the connection is stable.</string>
     <string name="google_export_not_found">The connected spreadsheet could not be opened. Confirm that it still exists and is shared with this account.</string>

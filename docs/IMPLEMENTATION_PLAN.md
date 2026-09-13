@@ -863,6 +863,11 @@ dependency, security, signer, and artifact audit, owns any high-risk correction,
 or withholds readiness. Sol also supplies the exact integration/main/tag/GitHub Release procedure.
 Do not release if a required gate fails or signing/OAuth identity differs.
 
+**Implementation status:** Task 35A evidence assembly and Task 35B documentation polish are
+complete. The owner approved `versionName = 0.3.0` and `versionCode = 3`, and Task 35C applied that
+identity. The owner-signed artifact, populated upgrade, manual release matrix, and remaining Task
+35C verification gates are still required before release.
+
 ### Milestone 36 — Safe project-environment teardown guide
 
 **Task sequence:** Luna follows an explicit questionnaire and builds the non-destructive component
@@ -978,7 +983,7 @@ Milestone E is separately authorized and must pass this checklist before being a
 | Collaborative sheet changes race an export | Possible remote conflict | Marker, narrow reads, atomic batch, raw values, idempotent retry; never change Room |
 | XLSX writer is incompatible or unsafe | Malformed workbooks or formula execution | Focused internal Milestone 12 writer, literal cells, independent-parser/golden tests, Excel/LibreOffice checks, and no Apache POI |
 | One-off XLSX provider write fails after document creation | A partial external file may remain | Build and validate bytes before the picker, close output deterministically, attempt provider deletion on failure, report partial-output risk, and never change Room |
-| Per-date sheets exhaust Google grid allocation or become unwieldy | Export failure or poor spreadsheet usability | Schema-5's exact 13 columns, required row counts, resize on replacement, monitor the official 10-million-cell spreadsheet limit, and surface a capacity error before mutation |
+| Per-date sheets exhaust Google grid allocation or become unwieldy | Export failure or poor spreadsheet usability | Keep 13 visible canonical columns plus three hidden transport/reserved columns, append rows only as needed, monitor the official spreadsheet cell limit, and surface capacity errors without altering Room |
 | Plaintext app-private database/preferences are extracted from a compromised or sufficiently privileged device | Sensitive client/task data is disclosed | Document that current production relies on Android's application sandbox and does not provide WorqOrder-managed at-rest encryption; retain stronger protection only as optional Milestone E |
 | Optional encryption key is lost or invalidated | Authoritative local data becomes unavailable if optional Milestone E is later implemented | Require versioned key hierarchy, documented recovery limits, non-destructive failure, interrupted-migration tests, and never silently reset Room |
 | Optional encryption degrades core performance | Slow startup, task lists, or timer mutations if optional Milestone E is later implemented | Record pre-encryption baselines and enforce focused startup/query/migration/memory benchmarks within that optional milestone |

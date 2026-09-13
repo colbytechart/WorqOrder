@@ -131,6 +131,52 @@ class GoogleSheetsBatchJsonEncoderTest {
     }
 
     @Test
+    fun encodesNonDestructiveMergeWithLiteralAppendAndHiddenIdentity() {
+        val plan =
+            GoogleSheetsBatchPlan(
+                tabName = "WorqOrder_2026-07-24",
+                requests = listOf(
+                    GoogleSheetsBatchRequest.SetColumnCount(27, 16),
+                    GoogleSheetsBatchRequest.HideColumns(27, 13, 16),
+                    GoogleSheetsBatchRequest.WriteCellsAt(27, 1, 0, listOf(listOf("=literal"))),
+                    GoogleSheetsBatchRequest.AppendCells(27, listOf(List(15) { "" } + "worqorder.task.v1:new")),
+                ),
+            )
+        val requests = JSONObject(GoogleSheetsBatchJsonEncoder.encode(plan)).getJSONArray("requests")
+        val columns = requests.getJSONObject(0).getJSONObject("updateSheetProperties")
+        assertEquals("gridProperties.columnCount", columns.getString("fields"))
+        assertEquals(16, columns.getJSONObject("properties").getJSONObject("gridProperties").getInt("columnCount"))
+        val hidden = requests.getJSONObject(1).getJSONObject("updateDimensionProperties")
+        assertEquals(13, hidden.getJSONObject("range").getInt("startIndex"))
+        assertTrue(hidden.getJSONObject("properties").getBoolean("hiddenByUser"))
+        val update = requests.getJSONObject(2).getJSONObject("updateCells")
+        assertEquals(1, update.getJSONObject("start").getInt("rowIndex"))
+        assertEquals("=literal", update.getJSONArray("rows").getJSONObject(0).getJSONArray("values")
+            .getJSONObject(0).getJSONObject("userEnteredValue").getString("stringValue"))
+        val append = requests.getJSONObject(3).getJSONObject("appendCells")
+        assertEquals("worqorder.task.v1:new", append.getJSONArray("rows").getJSONObject(0)
+            .getJSONArray("values").getJSONObject(15).getJSONObject("userEnteredValue").getString("stringValue"))
+    }
+
+    @Test
+    fun parsesExistingTabRowsAndRejectsMalformedValueData() {
+        val gateway = RestGoogleSheetsGateway()
+        assertEquals("'WorqOrder_2026-07-24'!A:M", gateway.dateTabValueRange(
+            GoogleSheetDescriptor(27, "WorqOrder_2026-07-24", 13),
+        ))
+        assertEquals("'WorqOrder_2026-07-24'!A:P", gateway.dateTabValueRange(
+            GoogleSheetDescriptor(27, "WorqOrder_2026-07-24", 16),
+        ))
+        assertEquals(
+            listOf(listOf("header"), listOf("data", "")),
+            gateway.parseSheetValues("""{"majorDimension":"ROWS","values":[["header"],["data",""]]}"""),
+        )
+        assertEquals(emptyList<List<String>>(), gateway.parseSheetValues("""{"range":"'Sheet'!A:P"}"""))
+        assertEquals(null, gateway.parseSheetValues("""{"majorDimension":"COLUMNS","values":[]}"""))
+        assertEquals(null, gateway.parseSheetValues("""{"values":[{"not":"a row"}]}"""))
+    }
+
+    @Test
     fun parsesSheetNestedOwnershipMetadataUsedByReExport() {
         val gateway = RestGoogleSheetsGateway()
         val structure =

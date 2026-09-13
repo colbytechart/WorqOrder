@@ -4,6 +4,26 @@ All notable changes to WorqOrder are documented here.
 
 The project follows semantic versioning for public release identifiers.
 
+## [Unreleased] - `0.3.0`
+
+### Changed
+
+- Room schema 5 losslessly migrates prior tasks and intervals to the zero-or-one-interval task
+  model. Each additional historical interval becomes a distinct task row with retained metadata
+  and lineage; no historical interval is discarded or merged.
+- Starting a completed task creates and selects a new same-day task carrying the source task's
+  user metadata and lineage. Browsing dates or changing the effective ZoneId does not create a
+  task.
+- A timer that crosses local midnight closes at the exact pinned-ZoneId boundary without creating
+  a continuation task or interval.
+- CSV, XLSX, and Google Sheets consume the shared schema-5 immutable projection: 13 visible
+  columns and one row per task, without interval-number or interval-duration columns.
+
+### Release Status
+
+- `0.3.0` has not been published. Its owner-approved identity is `versionCode = 3`; its signed
+  artifact, populated `0.2.0` upgrade, device matrix, and final audit remain release gates.
+
 ## [0.2.0] - 2026-08-09
 
 ### Added

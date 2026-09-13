@@ -75,7 +75,7 @@ changing its implementation in this milestone.
 | One-off XLSX from the same snapshot | Existing focused XLSX writer/coordinator | Existing writer/coordinator/contract/Main tests | Owner confirmed XLSX export works | Pass |
 | Google sign-in, `drive.file`, one spreadsheet, disconnect/sign-out | Google authorizer/coordinator/repository/settings | Coordinator, DataStore, request-scope, ViewModel/UI tests | Owner-signed release passed with a fresh account never listed as a tester; connection/restart/sign-out passed | Pass |
 | Google validation and typed failure mapping | Google coordinator and REST gateway | Parser/coordinator/fake gateway tests | Live validation passed | Pass |
-| Per-date marked Google worksheet and idempotent replacement | Planner, encoder, gateway, export coordinator | Planner/encoder/coordinator tests | Re-export and blank-first-sheet flows passed after fixes | Pass |
+| Per-date marked Google worksheet and cross-device merge | Planner, encoder, gateway, export coordinator | Planner/encoder/coordinator tests; second-device append and keyed re-export regressions | Owner reports supplied post-fix Step 4 manual checks passed, including same-date re-export; current connected XML records 108/108 passing | Pass by owner report; simultaneous cross-device writes remain a documented limitation |
 | Running-timer export lockout for all destinations | Main ViewModel/UI and shared snapshot precondition | Main ViewModel/Compose tests | Manual lifecycle test 18 passed after fix | Pass |
 | `0.2.0`: no task import/sync/local mutation or unbounded automatic retry | Export/import coordinators and gateway boundaries | Coordinator/fake tests and static review | Live export/import behavior accepted | Pass |
 
@@ -96,15 +96,12 @@ changing its implementation in this milestone.
 
 ## 8. Current audit gate
 
-No required behavior is known to be failing in the accepted release evidence. Milestone 34's
-obsolete-contract proof and final Sol quality gate passed; Milestone 35 still owns the complete
-release audit, so this section is not a `0.3.0` release declaration. Permanent signing and production OAuth configuration
-are complete, and the signed release APK verifies with one RSA-4096 signer. The owner-signed
-fresh-account Google exercise passed without a tester-list or owner-intervention dependency. The
-representative physical performance observation passes after the five-Hz timer refinement. The
-accessibility, minimum, target, next-API, populated-update, complete connected, performance, and
-production Google gates pass. Staging the verified APK as a GitHub Release asset is a publication
-step, not an implementation blocker.
+The accepted evidence in Sections 2–7 records the published `0.2.0` release and completed
+Milestones 30–34. No current `0.3.0` behavior is known to be failing from those gates, but that is
+not a `0.3.0` release declaration. The owner-signed `0.3.0` artifact, populated upgrade, repeated
+API/device matrix, fresh-account Google exercise, performance observations, and final security/
+dependency review are governed by the Milestone 35 evidence inventory; several of those gates now
+have owner-reported passes, while other current-release manual checks remain outstanding.
 
 ## 9. `0.2.0` traceability
 
@@ -124,16 +121,21 @@ step, not an implementation blocker.
 
 ## 10. Planned `0.3.0` traceability
 
+Milestone 35 release-evidence status, owner-run commands, and explicit blockers are tracked in
+`docs/MILESTONE_35_RELEASE_EVIDENCE.md`. Task 35A evidence assembly and Task 35B documentation
+polish are complete; Task 35C final audit and the listed owner gates remain. This inventory does
+not declare the current branch ready for release.
+
 | Requirement | Owning milestone/location | Required automated evidence | Manual gate | Planning status |
 | --- | --- | --- | --- | --- |
-| Preserve all schema-4 data while converting one task/many intervals to one task/one interval | M30; Room 4-to-5 migration, entities, DAOs | populated zero/one/many/open migration, counts/fields/FKs, reopen, schema JSON | signed populated `0.2.0` update in M35 | Pass through M30; signed populated upgrade evidence remains M35 |
+| Preserve all schema-4 data while converting one task/many intervals to one task/one interval | M30; Room 4-to-5 migration, entities, DAOs | populated zero/one/many/open migration, counts/fields/FKs, reopen, schema JSON | owner reports signed populated `0.2.0` update passed on API 36.1, including two completed plus one active interval becoming three one-interval tasks | Pass through M35 owner report |
 | Enforce zero or one interval per task | M30; unique interval `task_id` plus repositories | constraint, cascade, active-slot/singleton, invalid second insert | DB Inspector spot check | Pass through M30 |
 | Repeated Start creates exactly one copied task at zero | M30/M31; TimerCoordinator and atomic Room operation | metadata/null copy, selection, concurrent Start, source immutability | repeated Start workflow passed | Pass through M31 Sol gate |
 | No date/ZoneId rollover task creation | M31; SelectionCoordinator/recovery | startup/resume/date/zone/browse no-creation and stale-selection clear | date/ZoneId change and date-browsing scenarios passed | Pass through M31 Sol gate |
 | Midnight closes exactly once with no continuation | M32; normalizer/recovery/notification | boundary/DST/missed-day/idempotence/concurrency/process/reboot | owner exercised foreground boundary closure; final external-close visible-date race is deterministic | Pass through M32 Sol gate |
 | Midnight close precedes captured-date automatic Google export | M32; automatic manager/worker | close-before-snapshot, delay/pending/idempotence/auth/failure | owner exercised captured-date automatic and pending-completion exports | Pass through M32 Sol gate |
 | Singular Interval UI | M33; Edit Task/ViewModels | empty/add/edit/delete/running/semantics/large-text | portrait/landscape inspection | Pass through M33 |
-| One 13-column schema-5 row per task in CSV/XLSX/Google | M33; shared ExportRowBuilder/adapters | exact headers/values/order/equivalence, owned schema 2–4 upgrade, conflicts | open all three outputs | Pass through M33 |
+| One 13-column schema-5 row per task in CSV/XLSX/Google | M33; shared ExportRowBuilder/adapters | exact headers/values/order/equivalence; owned legacy tabs now fail closed, not overwritten | owner reports post-fix Step 4 manual checks passed | Pass by owner report and current connected gate; public artifact still requires final verification |
 | No stale current rollover/multi-interval contracts | M34; code/docs audit | reference/static checks plus full regression | documentation review | Pass through M34; live continuation API removed, migration/history evidence retained, and full owner-run gate passed |
-| Release-safe `0.2.0` upgrade and `0.3.0` artifact | M35; QA/release documents | full clean/API matrix/security/dependency gates | signed update, Google/export, checksum/install | Approved, not implemented |
+| Release-safe `0.2.0` upgrade and `0.3.0` artifact | M35; QA/release documents | full clean/API matrix/security/dependency gates | signed update, Google/export, checksum/install | Automated gates, populated update, post-fix manual checks, and current APK signer/package/checksum pass by owner report; public upload verification follows publication, with limited performance evidence accepted by owner |
 | Safe optional environment retirement instructions | M36; `PROJECT_TEARDOWN_GUIDE.md` | documentation/path/safety review only | owner inventory review | Approved, not started |

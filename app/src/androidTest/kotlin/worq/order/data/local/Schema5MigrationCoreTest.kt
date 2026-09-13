@@ -227,7 +227,9 @@ class Schema5MigrationCoreTest {
                     ),
                 )
                 assertFalse(sqlite.columns("work_intervals").contains("ordinal"))
-                assertEquals(0L, sqlite.scalarLong("SELECT COUNT(*) FROM pragma_foreign_key_check"))
+                sqlite.query("PRAGMA foreign_key_check").use { cursor ->
+                    assertFalse(cursor.moveToFirst())
+                }
             } finally {
                 migrated.close()
             }

@@ -442,7 +442,7 @@ request. It captures the oldest unresolved target epoch day, ZoneId, and connect
 so an inexact execution after midnight still exports the preceding intended date. The adapter
 never owns task rows or tokens and advances missed dates one bounded worker at a time.
 
-It invokes the same `ExportSnapshotCoordinator` and Google replacement pipeline as manual export.
+It invokes the same `ExportSnapshotCoordinator` and Google task-ID merge pipeline as manual export.
 CSV/XLSX remain manual. If Room reports an active timer, Google returns an authorization
 resolution, or a safe terminal operation failure occurs, the coordinator retains typed pending
 state rather than exporting/retrying and asks the API-26+ notification adapter to expose a

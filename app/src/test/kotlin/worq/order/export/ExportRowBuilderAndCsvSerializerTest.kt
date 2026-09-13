@@ -120,6 +120,7 @@ class ExportRowBuilderAndCsvSerializerTest {
             )
 
         assertEquals(3, first.rows.size)
+        assertEquals(listOf("zero", "one", "later"), first.rows.map { it.sourceTaskId })
         assertEquals(
             listOf("Zero", "One", "Later"),
             first.rows.map { it["Description"] },
@@ -135,6 +136,7 @@ class ExportRowBuilderAndCsvSerializerTest {
             serializer.serialize(first),
             serializer.serialize(second),
         )
+        assertFalse(serializer.serialize(first).contains("worqorder.task.v1:"))
     }
 
     @Test

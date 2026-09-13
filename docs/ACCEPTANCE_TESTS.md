@@ -488,14 +488,16 @@ all marker requests, and the complete literal cell table.
 
 ### GS-05 Idempotent re-export
 
-Given a correctly marked date tab, unchanged re-export replaces application-owned content and
-creates no duplicate rows. The visible table remains identical. The production response parser
+Given a correctly marked schema-5 date tab, unchanged re-export updates only matching task-ID
+rows and creates no duplicate rows. Other devices' rows remain. The production response parser
 recognizes metadata returned under `sheets[].developerMetadata`; it does not misclassify its own
 previously exported tab as unowned.
 
-### GS-06 Authoritative replacement
+### GS-06 Cross-device merge
 
-Given local edit/deletion/addition after first export, re-export removes obsolete application-owned rows and exactly reflects current Room snapshot in stable sorted order.
+Given local edit/addition after first export, re-export updates the matching keyed task row or
+appends a new row without clearing another device's data. A local deletion does not remove an
+already-exported remote row. CSV/XLSX still represent independent current Room snapshots.
 
 ### GS-07 Tab-name conflict
 
@@ -508,7 +510,8 @@ reports compatibility conflict.
 
 ### GS-09 Other content untouched
 
-Export/re-export never modifies other tabs. Within a marked tab, documented app-owned contents may be replaced.
+Export/re-export never modifies other tabs. Within a marked schema-5 tab, only matching task rows
+are updated and new rows appended; no existing row is removed.
 
 ### GS-10 Raw values
 
@@ -1057,11 +1060,13 @@ Start time, Stop time, Time spent, Billing minutes. Each task produces exactly o
 Untimed tasks have blank Start/Stop, `00:00:00` Time spent, and `0` Billing minutes. No Interval
 number or Interval duration exists.
 
-### V3-EXPORT-02 Owned Google schema upgrade
+### V3-EXPORT-02 Owned Google schema compatibility
 
-Re-exporting a date whose WorqOrder-owned tab uses schema 2, 3, or 4 atomically replaces it with
-schema 5, removes obsolete columns/rows, and produces no duplicates. Unknown/newer and unowned tabs
-remain untouched. CSV/XLSX and Google values remain byte/logically equivalent as applicable.
+Re-exporting an owned schema-5 tab preserves rows from other devices, updates existing keyed task
+rows, and appends new tasks. Pre-ID schema-5 rows are claimed only on a unique exact match.
+Owned schema-2/3/4 tabs now fail closed rather than being replaced, because other-device rows
+cannot be identified. Unknown/newer and unowned tabs also remain untouched. CSV/XLSX and visible
+Google values remain byte/logically equivalent as applicable.
 
 ### V3-EXPORT-03 Midnight precedes automatic export
 

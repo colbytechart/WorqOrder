@@ -336,8 +336,9 @@ and does not alter Room.
   date and never opens, reads, or updates an existing workbook.
 - Exactly one Google spreadsheet can be connected. Its per-date tab is
   `WorqOrder_YYYY-MM-DD`.
-- In Google Sheets, a marked WorqOrder tab is replaced from the current authoritative date
-  snapshot on re-export. An unmarked same-name tab is a conflict and is not overwritten. Repeated
+- In Google Sheets, a marked schema-5 date tab merges rows by hidden stable task identity:
+  previously exported tasks are updated and unseen tasks are appended, while rows from other
+  devices are preserved. An unmarked same-name tab is a conflict and is not overwritten. Repeated
   XLSX exports intentionally create independent files, each containing one complete snapshot.
 - No export modifies or deletes local data. Failures and cancellation do not claim success.
   Canceling a document picker or Google authorization returns to unchanged Main content without a
@@ -381,7 +382,10 @@ accessibility traversal. Responsive sizing may depart from the mockup to prevent
 
 ## 11. Requirement reconciliations and risks
 
-1. **Google re-export:** the early append-and-sort wording conflicts with the later marker-and-replace rule. Marker-validated replacement is authoritative because it is idempotent and reflects local edits/deletions. Rows are generated in stable sorted order.
+1. **Google re-export:** the released marker-and-replace behavior erased same-date rows from a
+   second device. Current schema-5 tabs use marker validation plus hidden task-ID merging.
+   Deleting local work does not remove a previously exported Google row; this is one-way export,
+   not cloud synchronization. CSV and XLSX remain independent one-off snapshots.
 2. **CSV folder versus create-document:** use `ACTION_CREATE_DOCUMENT` for every export. The system picker/user owns the final location, so the app may suggest but cannot force or silently create `Downloads/WorqOrder`. No broad storage permissions or directory-tree grant are used.
 3. **Google authorization scope:** the user still pastes a spreadsheet URL/ID, then confirms that
    exact file through the official Android Google Picker resource-authorization flow. Request only

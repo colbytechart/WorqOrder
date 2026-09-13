@@ -7,8 +7,8 @@
 - Minimum SDK: 26
 - Target SDK: 36
 - Compile SDK: 36.1
-- Current release: `0.2.0`
-- Version code: `2`
+- Latest published release: `0.2.0` (`versionCode = 2`)
+- Next release under preparation: `0.3.0` (`versionCode = 3`, explicitly owner-approved)
 - License: GPLv3
 - Distribution artifact: owner-signed APK attached to a GitHub Release
 
@@ -67,7 +67,8 @@ permanent key.
 
 ## 4. Google Configuration
 
-The owner configuration for `0.2.0` is:
+The owner configuration established for `0.2.0` remains the required configuration for the next
+directly signed release unless the owner explicitly changes it:
 
 - Google Auth Platform audience: External;
 - publishing status: In Production;
@@ -97,7 +98,9 @@ Important invariants:
 - only Room's singleton active-timer state authorizes a running timer;
 - timer display ticks never write Room;
 - UTC interval boundaries plus stored geographical ZoneId determine history;
-- daily rollover uniqueness includes series, work date, and assignment ZoneId;
+- schema-5 tasks carry lineage but date/ZoneId changes never create rollover tasks;
+- each task has zero or one interval, and a midnight crossing closes at the exact pinned-ZoneId
+  boundary without a continuation;
 - migrations are explicit and non-destructive;
 - all exports consume one immutable canonical snapshot;
 - no destination imports or synchronizes back into Room; and
@@ -108,15 +111,19 @@ Important invariants:
 With the environment from section 2:
 
 ```powershell
-.\gradlew.bat "-Duser.home=$projectUserHome" --offline clean
-.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:testDebugUnitTest
-.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:lintDebug :app:lintRelease
-.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:assembleDebug :app:assembleDebugAndroidTest
-.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:connectedDebugAndroidTest
-.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:assembleRelease
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon clean
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon :app:testDebugUnitTest
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon :app:lintDebug :app:lintRelease
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon :app:connectedDebugAndroidTest
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon :app:assembleRelease
 ```
 
-Connected tests require an unlocked emulator/device. The Room schema files in `app/schemas` must
+Connected tests require an unlocked disposable debug-test emulator/device. The AGP property
+`android.injected.androidTest.leaveApksInstalledAfterRun=true` is configured to retain the debug
+app and test APK after the run, but its actual post-run effect still needs a package-presence
+check. Do not run these tests against an emulator with the differently signed release app. The
+Room schema files in `app/schemas` must
 remain packaged as Android-test assets for migration verification.
 
 The project has no configured formatter task. Use `git diff --check`, Kotlin compilation, and lint;
@@ -139,23 +146,26 @@ Get-FileHash -Algorithm SHA256 -LiteralPath $apk
 Confirm exactly one signer and compare its SHA-1 to the registered release OAuth client. Publish
 the SHA-256 alongside the APK. Do not publish the keystore or passwords.
 
-## 8. Release Procedure
+## 8. Next Release Procedure
 
-1. Confirm the working tree contains only intended tracked release changes.
-2. Run the complete clean verification suite.
-3. Install the release APK on a supported device.
-4. With the fresh non-tester Google account, sign in, connect an editable spreadsheet, export a
-   date, re-export it, disconnect, reconnect, and sign out.
-5. Complete the manual API/accessibility/performance checks in `docs/RELEASE_CHECKLIST.md`.
-6. Verify the APK signature and SHA-256.
-7. Copy/rename the artifact to `WorqOrder-0.2.0.apk` without modifying its bytes.
-8. Commit with `chore: prepare WorqOrder 0.2.0 release`.
-9. Merge `milestone29` into `v0.2.0-development`, then merge the reviewed integration branch into
-   `main`.
-10. Create annotated tag `v0.2.0` on the verified commit in `main`.
-11. Create a GitHub Release from that tag; attach the APK and publish its SHA-256 in the notes.
-12. Test the public download and installation instructions on another supported phone if
-    available.
+Do not release `0.3.0` until every blocker in `MILESTONE_35_RELEASE_EVIDENCE.md` is resolved.
+
+1. Confirm the source remains at the owner-approved `versionName = 0.3.0` and `versionCode = 3`.
+2. Confirm the working tree contains only intended tracked release changes and run the complete
+   clean verification suite.
+3. Build the owner-signed release APK. Install it over a populated owner-signed `0.2.0` build
+   without uninstalling or clearing storage, then complete the migration, lifecycle, accessibility,
+   performance, fresh-install, and Google checks in the Milestone 35 evidence inventory.
+4. Verify the APK package, exactly one permanent signer, and SHA-256. Copy it without changing
+   bytes to `WorqOrder-0.3.0.apk`.
+5. Commit the reviewed Milestone 35 changes on `milestone35`, then merge that branch into
+   `v0.3.0-development`.
+6. Open the final reviewed pull request from `v0.3.0-development` into `main`; do not rewrite
+   `main` history.
+7. Tag the exact verified merge commit `v0.3.0`, create a GitHub Release, attach
+   `WorqOrder-0.3.0.apk`, and publish the exact SHA-256 in the release notes.
+8. Download the public asset, recompute its checksum, verify its signature, and install it on a
+   separate supported device or profile.
 
 Build outputs are intentionally ignored and are not committed to Git.
 

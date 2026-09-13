@@ -1,5 +1,11 @@
 # Known Limitations
 
+## Release status
+
+The latest published build is `0.2.0`. The `0.3.0` behavior documented below is pre-release until
+the owner-signed artifact and final release gates recorded in
+`MILESTONE_35_RELEASE_EVIDENCE.md` pass.
+
 ## Client CSV import limits
 
 Client import is deliberately bounded to a 1 MiB UTF-8 CSV document, 10,000 records, 20,000 cells,
@@ -70,8 +76,11 @@ they are not partially imported.
   announcements, confirmations, and 200% font behavior. Human TalkBack and representative
   display-scaling checks passed for `0.1.0`; device/OEM combinations beyond the documented release
   matrix remain best-effort rather than tablet- or OEM-specific layouts.
+- During `0.3.0` release checks, the owner observed minor visual imperfections with both text and
+  display scaling at their maximum settings. Functional checks passed and the owner accepted this
+  as non-blocking; exact appearance may vary by device and accessibility configuration.
 
-## Planned v0.2.0 limitations
+## Automatic export and notification
 
 - Automatic daily export is Google-Sheets-only and best-effort under Android background scheduling.
   The implementation uses stable unique one-time WorkManager jobs and captures the intended work
@@ -125,7 +134,10 @@ they are not partially imported.
   new task row with copied metadata. It preserves all work data and lineage, but task-row counts
   increase for users who recorded multiple intervals in v0.2.0 or earlier.
 - Existing external CSV/XLSX files and Google tab contents are not rewritten automatically.
-  Re-exporting an owned Google date tab upgrades that tab to schema 5; prior standalone documents
-  remain historical plaintext artifacts in their original schema.
+  Current schema-5 Google exports merge rows by hidden task ID; old schema-2/3/4 tabs now fail
+  closed rather than being replaced, because they may contain work from another device.
+  Previously exported schema-5 rows without IDs are claimed only on a unique exact match.
+  Edited unmatched rows can remain as historical copies, and local deletion cannot safely
+  delete rows from a shared Google tab. Users must resolve older-tab conflicts deliberately.
 - One task can no longer aggregate separated work sessions. Resuming completed work creates a new
   task row with the same metadata and a zero-based timer by design.

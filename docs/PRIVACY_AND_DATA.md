@@ -1,8 +1,9 @@
 # Privacy and Data
 
 This document describes the released `0.2.0` data contract and the current `0.3.0` development
-contract. Where the two differ, the current v0.3 section is authoritative for the development
-branch; the v0.2 details remain for upgrade and historical-data transparency.
+contract. `0.3.0` is not published until its final release gate passes. Where the two differ, the
+current v0.3 section is authoritative for the development branch; the v0.2 details remain for
+upgrade and historical-data transparency.
 
 ## 1. Summary
 
@@ -103,10 +104,10 @@ backup/restore or device-transfer recovery.
 
 ## 6. Security Boundaries
 
-Android's application sandbox is the local access boundary. WorqOrder `0.2.0` does not add its own
-at-rest encryption layer to Room or DataStore. Android backup is disabled, credentials and signing
-keys are not embedded, broad storage permissions are not requested, and no cleartext network
-traffic is enabled.
+Android's application sandbox is the local access boundary. Neither published `0.2.0` nor current
+`0.3.0` development adds its own at-rest encryption layer to Room or DataStore. Android backup is
+disabled, credentials and signing keys are not embedded, broad storage permissions are not
+requested, and no cleartext network traffic is enabled.
 
 Rooted/compromised devices, unlocked physical access, debugging/forensic privileges, operating
 system vulnerabilities, or access to external exports may expose data. Optional application-lock
@@ -126,7 +127,7 @@ Use this repository's issue tracker for privacy questions or reports. Changes to
 storage, permissions, OAuth scopes, or network destinations must be documented in this file, the
 product decisions, and release notes before distribution.
 
-## 9. `0.2.0` notification and automation details
+## 9. Notification and automation details
 
 Billing Minutes is derived from interval durations rather than stored independently. Automatic
 Google export is opt-in and stores only a non-sensitive captured target date, ZoneId, connection

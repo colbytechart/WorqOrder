@@ -261,7 +261,9 @@ ciphertext must never trigger destructive Room creation.
 - No `start1/stop1/...` columns.
 - No stored ticking stopwatch or denormalized task-total column.
 - No remote-ID columns for synchronization.
-- No Google row IDs or export flags are required because Google export replaces a marked date tab from an authoritative snapshot.
+- No Google row IDs or export flags are stored in Room. The Google adapter derives a hidden
+  transport key from each stable task ID and uses it to merge an owned date tab across devices;
+  this does not make Google Sheets a local-data authority or synchronize back into Room.
 - No XLSX entities are needed; XLSX remains a transient one-way document projection. There are
   also no attachments, user table, Firebase IDs, or server queues.
 

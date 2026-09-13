@@ -4,6 +4,13 @@ WorqOrder is a free, open-source Android work tracker for recording client tasks
 work time. Its core workflow is local and offline: Room is the authoritative data store, while
 CSV, XLSX, and Google Sheets are optional one-way exports.
 
+## Development Status
+
+The latest published release is `0.2.0`. Version `0.3.0` (`versionCode = 3`) is in its final release
+audit and is not published yet. Its signed artifact, populated-update verification, and final device
+gates must be recorded before release. See the [Milestone 35 release evidence]
+(docs/MILESTONE_35_RELEASE_EVIDENCE.md).
+
 ## Install WorqOrder From GitHub
 
 WorqOrder supports Android 8.0 (API 26) and newer. Install only APKs published by the repository
@@ -11,12 +18,12 @@ owner on this repository's official [Releases page](../../releases).
 
 1. On the Android phone, open this repository's **Releases** page.
 2. Open the latest release and download the APK asset, such as
-   `WorqOrder-0.2.0.apk`. Do not download the source-code archive when you want to install the app.
+   `WorqOrder-<version>.apk`. Do not download the source-code archive when you want to install the app.
 3. Optionally compare the release's published SHA-256 value with the downloaded APK. On a
    computer with PowerShell:
 
    ```powershell
-   Get-FileHash -Algorithm SHA256 -LiteralPath '.\WorqOrder-0.2.0.apk'
+   Get-FileHash -Algorithm SHA256 -LiteralPath '.\WorqOrder-<version>.apk'
    ```
 
 4. Open the downloaded APK on the phone.
@@ -53,8 +60,8 @@ signing identity.
 - Use the device's geographical time zone while preserving every task's assigned historical zone.
 - Choose Right- or Left-handed two-column landscape layouts.
 - Export the displayed date as UTF-8 CSV or a new XLSX workbook.
-- Connect one editable Google spreadsheet and replace one WorqOrder-owned worksheet per date
-  without duplicate rows.
+- Connect one editable Google spreadsheet and merge task rows into one WorqOrder-owned worksheet
+  per date, preserving rows exported from other devices.
 - Optionally schedule a best-effort captured-date Google export near each day's end.
 
 See the [User Guide](docs/USER_GUIDE.md) for complete operating instructions.
@@ -94,7 +101,7 @@ All destinations consume one immutable canonical snapshot and the same 13 column
 
 CSV and XLSX use Android's create-document interface, so the user chooses each output location.
 Every XLSX export creates a new workbook. Google Sheets writes to one connected spreadsheet and
-uses a marked `WorqOrder_YYYY-MM-DD` worksheet for each exported date. Re-exporting replaces that
+uses a marked `WorqOrder_YYYY-MM-DD` worksheet for each exported date. Re-exporting merges into that
 owned date table. Export is disabled while a timer is running.
 
 ## Architecture and Technology
@@ -167,9 +174,9 @@ $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 $env:GRADLE_USER_HOME = (Resolve-Path -LiteralPath '.gradle').Path
 $projectUserHome = (Resolve-Path -LiteralPath '.android-user').Path
 
-.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:assembleDebug :app:testDebugUnitTest
-.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:lintDebug :app:lintRelease
-.\gradlew.bat "-Duser.home=$projectUserHome" --offline :app:connectedDebugAndroidTest
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon :app:assembleDebug :app:testDebugUnitTest
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon :app:lintDebug :app:lintRelease
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon :app:connectedDebugAndroidTest
 ```
 
 The connected test command requires an unlocked emulator or device. See
@@ -182,12 +189,13 @@ Release signing uses an owner-controlled keystore stored outside the repository.
 passwords. Then run:
 
 ```powershell
-.\gradlew.bat "-Duser.home=$projectUserHome" --offline clean :app:assembleRelease
+.\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon clean :app:assembleRelease
 ```
 
 Never create a new signing key for an update. Losing the permanent key prevents existing users
-from installing future updates over the app. The complete checklist is in
-[Release Checklist](docs/RELEASE_CHECKLIST.md).
+from installing future updates over the app. The `0.2.0` checklist is historical; the current
+release gate and owner-run verification commands are in
+[Milestone 35 release evidence](docs/MILESTONE_35_RELEASE_EVIDENCE.md).
 
 ## Troubleshooting
 

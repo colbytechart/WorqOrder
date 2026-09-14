@@ -1115,7 +1115,23 @@ suite passed all 105 tests. At the later Milestone 35 release gate, the owner al
 signed populated-install upgrade and confirmed retained data. This paragraph preserves the
 earlier Milestone 30 test counts rather than substituting the final release suite counts.
 
-## 16. Planned `0.4.0` acceptance tests (not yet implementation evidence)
+## 16. `0.4.0` acceptance requirements and pending implementation evidence
+
+### V4-DB-00 Milestone 37 implementation evidence (Sol quality gate passed)
+
+`Schema6MigrationCoreTest` includes populated schema-3 and schema-5 fixtures containing archived
+Client/Consultant references, timed and untimed tasks, an open interval, and the active-timer
+singleton. It asserts additive upgrade to version 6, blank Notes for every existing task,
+preservation of task/interval/active-timer counts and metadata, foreign-key integrity, and
+reopen persistence. Earlier schema-1/2/4 fixtures also continue through the new migration.
+`TaskMetadataValidatorTest`, `CreateTaskViewModelTest`,
+`EditTaskViewModelTest`, and `TimerCoordinatorTest` cover optional trimmed Notes, the 999-code-point
+boundary, edit persistence, and blank Notes on repeated Start. The generated Room `6.json` has
+only the new Notes column relative to schema 5; existing indexes and foreign keys are unchanged.
+The owner-run offline lint/JVM/debug/release gate passed with 240 JVM tests and zero failures.
+The owner-run connected suite passed 110 tests with zero failures, errors, or skips. Sol verified
+both test-result XML files and `git diff --check` returned success. This evidence covers Milestone
+37 persistence and domain behavior only; export and Compose presentation remain later milestones.
 
 ### V4-DB-01 Non-destructive task Notes upgrade
 

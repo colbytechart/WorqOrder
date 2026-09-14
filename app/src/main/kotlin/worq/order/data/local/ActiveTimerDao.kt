@@ -153,6 +153,7 @@ abstract class ActiveTimerDao {
                     val copy =
                         sourceTask.copy(
                             id = repeatedTaskId,
+                            notes = "",
                             createdAtEpochMs = createdAtEpochMs,
                             updatedAtEpochMs = createdAtEpochMs,
                         )

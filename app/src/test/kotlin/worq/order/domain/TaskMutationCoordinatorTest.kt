@@ -37,6 +37,7 @@ class TaskMutationCoordinatorTest {
             val created = result as CreateTaskOperationResult.Created
             assertEquals("Install workstation", created.task.description)
             assertEquals("Laptop", created.task.hardwareSoftwarePurchases)
+            assertEquals("", created.task.notes)
             assertEquals(BillingStatus.BILLABLE, created.task.billingStatus)
             assertTrue(created.selectedForTiming)
             assertEquals(created.task.id, fixture.selection.readSelection()?.taskId)

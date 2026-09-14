@@ -21,6 +21,7 @@ data class NewDailyTask(
     val workType: WorkType = WorkType.UNSPECIFIED,
     val billingStatus: BillingStatus? = null,
     val mileage: String? = null,
+    val notes: String = "",
     val workDate: LocalDate,
     val zoneId: ZoneId,
     val seriesId: String? = null,
@@ -115,6 +116,7 @@ interface TaskRepository {
         workType: WorkType,
         billingStatus: BillingStatus? = null,
         mileage: String?,
+        notes: String,
     ): UpdateTaskMetadataResult
 
     suspend fun deleteTask(taskId: String): DeleteTaskResult

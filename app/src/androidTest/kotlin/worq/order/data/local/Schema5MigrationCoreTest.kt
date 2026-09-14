@@ -40,7 +40,10 @@ class Schema5MigrationCoreTest {
                         context,
                         WorqOrderDatabase::class.java,
                         DATABASE_NAME,
-                    ).addMigrations(WorqOrderMigrations.MIGRATION_4_5)
+                    ).addMigrations(
+                        WorqOrderMigrations.MIGRATION_4_5,
+                        WorqOrderMigrations.MIGRATION_5_6,
+                    )
                     .allowMainThreadQueries()
                     .build()
             try {
@@ -212,6 +215,11 @@ class Schema5MigrationCoreTest {
                         "SELECT mileage FROM daily_tasks WHERE id = 'empty-task'",
                     ),
                 )
+                assertTrue(sqlite.columns("daily_tasks").contains("notes"))
+                assertEquals(
+                    0L,
+                    sqlite.scalarLong("SELECT COUNT(*) FROM daily_tasks WHERE notes != ''"),
+                )
                 assertEquals(
                     3_000L,
                     sqlite.scalarLong(
@@ -262,6 +270,7 @@ class Schema5MigrationCoreTest {
                     ),
                     reopened.activeTimerDao().readActiveTimer()?.taskId,
                 )
+                assertEquals("", reopened.taskDao().readTask("source-task")?.notes)
             } finally {
                 reopened.close()
             }
@@ -312,6 +321,7 @@ class Schema5MigrationCoreTest {
                         workType = "ON_SITE",
                         billingStatus = "DO_NOT_BILL",
                         mileage = "12.5",
+                        notes = "Source-only note",
                         workDateEpochDay = 20_000,
                         zoneId = "America/New_York",
                         createdAtEpochMs = 1_000,
@@ -354,6 +364,8 @@ class Schema5MigrationCoreTest {
                     result.startedTask.billingStatus,
                 )
                 assertEquals("12.5", result.startedTask.mileage)
+                assertEquals("Source-only note", database.taskDao().readTask("source-task")?.notes)
+                assertEquals("", database.taskDao().readTask("repeated-task")?.notes)
                 assertEquals(java.time.LocalDate.ofEpochDay(20_000), result.startedTask.workDate)
                 assertEquals(ZoneId.of("America/New_York"), result.startedTask.zoneId)
                 assertEquals(Instant.ofEpochMilli(5_000), result.startedTask.createdAt)

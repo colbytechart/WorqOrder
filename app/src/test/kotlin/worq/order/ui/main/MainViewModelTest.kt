@@ -872,6 +872,7 @@ class MainViewModelTest {
                 employeeId = task.employeeId,
                 workType = task.workType,
                 mileage = task.mileage,
+                notes = task.notes,
             )
             viewModel.onEvent(
                 MainEvent.CsvDocumentSelected("content://documents/export.csv"),
@@ -920,6 +921,7 @@ class MainViewModelTest {
                 employeeId = task.employeeId,
                 workType = task.workType,
                 mileage = task.mileage,
+                notes = task.notes,
             )
             viewModel.onEvent(
                 MainEvent.XlsxDocumentSelected(

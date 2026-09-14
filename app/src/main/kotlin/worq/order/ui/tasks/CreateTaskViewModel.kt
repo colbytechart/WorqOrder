@@ -118,6 +118,15 @@ class CreateTaskViewModel(
                         )
                     }
                 }
+            is CreateTaskEvent.EditNotes ->
+                mutableUiState.update {
+                    it.copy(
+                        notes = event.value,
+                        metadataErrors = emptySet(),
+                        hasUnsavedTaskChanges = true,
+                        message = null,
+                    )
+                }
             CreateTaskEvent.CreateTask -> createTask()
             CreateTaskEvent.RequestClose -> requestClose()
             CreateTaskEvent.ConfirmDiscard -> {
@@ -416,6 +425,7 @@ class CreateTaskViewModel(
                 workType = state.workType,
                 billingStatus = state.billingStatus,
                 mileage = state.mileage,
+                notes = state.notes,
             )
         val metadataErrors =
             (validation as? TaskMetadataValidationResult.Invalid)
@@ -457,6 +467,7 @@ class CreateTaskViewModel(
                         workType = state.workType,
                         billingStatus = state.billingStatus,
                         mileage = state.mileage,
+                        notes = state.notes,
                     )
                 }.getOrElse {
                     createInFlight = false

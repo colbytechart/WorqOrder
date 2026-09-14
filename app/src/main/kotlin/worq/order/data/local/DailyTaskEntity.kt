@@ -74,6 +74,11 @@ data class DailyTaskEntity(
     val billingStatus: String? = null,
     @ColumnInfo(name = "mileage")
     val mileage: String? = null,
+    @ColumnInfo(
+        name = "notes",
+        defaultValue = "''",
+    )
+    val notes: String = "",
     @ColumnInfo(name = "work_date_epoch_day")
     val workDateEpochDay: Long,
     @ColumnInfo(name = "zone_id")

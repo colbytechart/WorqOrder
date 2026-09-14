@@ -94,6 +94,7 @@ class RoomTaskRepository(
         workType: WorkType,
         billingStatus: BillingStatus?,
         mileage: String?,
+        notes: String,
     ): UpdateTaskMetadataResult {
         require(taskId.isNotBlank()) { "taskId must not be blank" }
         require(clientId.isNotBlank()) { "clientId must not be blank" }
@@ -104,6 +105,7 @@ class RoomTaskRepository(
                 workType = workType,
                 billingStatus = billingStatus,
                 mileage = mileage,
+                notes = notes,
             )
         val result =
             taskDao.updateStoppedTaskMetadata(
@@ -115,6 +117,7 @@ class RoomTaskRepository(
                 workType = metadata.workType.name,
                 billingStatus = metadata.billingStatus?.name,
                 mileage = metadata.mileage,
+                notes = metadata.notes,
                 updatedAtEpochMs = clock.now().toEpochMilli(),
             )
         return when (result.status) {
@@ -215,6 +218,7 @@ class RoomTaskRepository(
                 workType = workType,
                 billingStatus = billingStatus,
                 mileage = mileage,
+                notes = notes,
             )
         val nowEpochMs = clock.now().toEpochMilli()
         return DailyTaskEntity(
@@ -228,6 +232,7 @@ class RoomTaskRepository(
             workType = metadata.workType.name,
             billingStatus = metadata.billingStatus?.name,
             mileage = metadata.mileage,
+            notes = metadata.notes,
             workDateEpochDay = workDate.toEpochDay(),
             zoneId = zoneId.id,
             createdAtEpochMs = nowEpochMs,
@@ -241,6 +246,7 @@ class RoomTaskRepository(
         workType: WorkType = WorkType.UNSPECIFIED,
         billingStatus: BillingStatus? = null,
         mileage: String? = null,
+        notes: String = "",
     ): NormalizedTaskMetadata =
         when (
             val validation =
@@ -250,6 +256,7 @@ class RoomTaskRepository(
                     workType = workType,
                     billingStatus = billingStatus,
                     mileage = mileage,
+                    notes = notes,
                 )
         ) {
             is TaskMetadataValidationResult.Valid -> validation.metadata

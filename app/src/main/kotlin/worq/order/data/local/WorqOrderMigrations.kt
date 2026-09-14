@@ -549,12 +549,23 @@ object WorqOrderMigrations {
             }
         }
 
+    /** Adds optional Notes without rebuilding or rewriting any existing task or timer row. */
+    val MIGRATION_5_6 =
+        object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE daily_tasks ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
+                )
+            }
+        }
+
     val ALL: Array<Migration> =
         arrayOf(
             MIGRATION_1_2,
             MIGRATION_2_3,
             MIGRATION_3_4,
             MIGRATION_4_5,
+            MIGRATION_5_6,
         )
 
     internal fun deriveMigratedTaskId(

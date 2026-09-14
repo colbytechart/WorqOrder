@@ -155,6 +155,15 @@ class EditTaskViewModel(
                         )
                     }
                 }
+            is EditTaskEvent.EditNotes ->
+                mutableUiState.update {
+                    it.copy(
+                        notes = event.value,
+                        metadataErrors = emptySet(),
+                        hasUnsavedMetadataChanges = true,
+                        message = null,
+                    )
+                }
             EditTaskEvent.SaveMetadata -> saveMetadata()
             EditTaskEvent.RequestClose -> requestClose()
             EditTaskEvent.ConfirmDiscard -> {
@@ -290,6 +299,7 @@ class EditTaskViewModel(
                             if (refreshMetadata) task.billingStatus else state.billingStatus,
                         mileage =
                             if (refreshMetadata) task.mileage.orEmpty() else state.mileage,
+                        notes = if (refreshMetadata) task.notes else state.notes,
                         totalDuration = detail.completedDurationText(),
                         billingMinutes =
                             BillingMinutes.fromDuration(detail.completedDuration()),
@@ -327,6 +337,7 @@ class EditTaskViewModel(
                 workType = state.workType,
                 billingStatus = state.billingStatus,
                 mileage = state.mileage,
+                notes = state.notes,
             )
         val errors =
             (validation as? TaskMetadataValidationResult.Invalid)
@@ -364,6 +375,7 @@ class EditTaskViewModel(
                         workType = state.workType,
                         billingStatus = state.billingStatus,
                         mileage = state.mileage,
+                        notes = state.notes,
                     )
                 }.getOrElse {
                     mutableUiState.update {

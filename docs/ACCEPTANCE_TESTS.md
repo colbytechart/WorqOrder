@@ -1165,6 +1165,18 @@ Milestone 39 verifies the header cleanup, Notes field events and overlength erro
 creation, and retained Consultant selection through ViewModel and Compose tests. The pinned footer
 and its short-screen/IME acceptance checks are reserved for Milestone 40.
 
+Milestone 40 UI regression coverage verifies that the pinned footer remains visible after scrolling
+each Create field, that Cancel and Create expose click semantics, that both actions are disabled
+while a save is in flight, and that Cancel still emits the existing close event. On a real device,
+repeat this check in portrait, short landscape, large font scale, large display scale, and with the
+keyboard open: every field must be reachable, the footer must remain above system/IME insets, and
+no footer control may obscure the field currently being edited.
+
+The Sol connected gate passed 117 tests. A later focused Create suite passed 11 tests after adding
+a constrained 280 dp viewport with 1.5 font scale and 1.2 display-density scale; Notes accepted
+text input and its semantic bounds stayed above the footer. Physical-device visual checks for each
+configuration remain separate manual evidence, not an automated pass claim.
+
 ### V4-EXPORT-01 One immutable 14-column dataset
 
 CSV, one-off XLSX, manual Google, and automatic Google expose the exact schema-5 first 13 headers

@@ -73,6 +73,9 @@ created and edited, but cannot be timed live.
 If no active client exists, use the inline **Add client** action. Canceling task creation saves
 nothing. Tapping a task row selects it when no timer is running.
 
+In the `0.4.0` development build, **Cancel** and **Create** stay at the bottom of the Create Task
+screen while you scroll through the fields. They remain available when the keyboard is open.
+
 ## 4. Start and Stop Timing
 
 - Select a task assigned to today.

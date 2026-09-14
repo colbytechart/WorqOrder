@@ -1,8 +1,7 @@
 # WorqOrder User Guide
 
-Publication status: the latest published release is `0.2.0`. This guide also documents the
-current `0.3.0` development behavior, which remains subject to the final release gate and is not
-published yet.
+Publication status: the latest published release is `0.3.0`. This guide describes released
+behavior; planned `0.4.0` Notes and UI changes are not available in the published app yet.
 
 ## 1. What WorqOrder Stores
 

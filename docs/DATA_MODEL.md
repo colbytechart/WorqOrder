@@ -440,3 +440,20 @@ interval. It verifies deterministic copied task IDs, preserved IDs/endpoints/met
 foreign-key links, active-pointer repointing, foreign-key integrity, reopen persistence, and removal
 of the legacy `ordinal` column. `WorqOrderDatabaseTest` additionally verifies packaged schema 5,
 the structural one-interval guard, same-series lineage rows, and populated version 1/2-to-5 paths.
+
+## 15. Planned `0.4.0` Room schema 6 — task Notes
+
+This section is an approved plan, **not** a description of current schema 5. Add `notes` to
+`daily_tasks` as task-level optional text, defaulting to the empty string for new and existing
+tasks. The explicit `MIGRATION_5_6` must add the field without rebuilding/deleting rows or
+changing IDs, Client/Consultant relationships, interval cardinality, the active-timer singleton,
+UTC boundaries, work dates, ZoneIds, lineage, or existing metadata. Keep schema export enabled,
+commit the version-6 schema JSON, and add populated upgrade tests for every supported chain.
+Fail rather than use destructive fallback if a migration invariant cannot be satisfied.
+
+The repository validates at most 999 Unicode code points for Notes and persists the text with
+the task. A fresh task starts with blank Notes. Edits change only that task's Notes. The atomic
+repeated-Start path creates a new task with **blank Notes** even if the source has nonblank Notes;
+all preexisting non-Notes copy rules remain unchanged. Historical schema-1-through-5 tasks gain
+blank Notes and must remain editable. Export schema 6 appends Notes as a visible field but does
+not become the source of truth.

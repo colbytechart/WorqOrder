@@ -4,7 +4,14 @@ All notable changes to WorqOrder are documented here.
 
 The project follows semantic versioning for public release identifiers.
 
-## [Unreleased] - `0.3.0`
+## [Unreleased] - `0.4.0` (planning only)
+
+- Approved optional, editable task Notes with a 999-character limit, blank for migrated and new
+  tasks and blank on repeated-Start copies.
+- Approved canonical 14-column export schema with Notes appended; implementation pending.
+- Approved Create Task header simplification and fixed bottom Cancel/Create footer; pending.
+
+## [0.3.0] - 2026-09-13
 
 ### Changed
 
@@ -21,8 +28,8 @@ The project follows semantic versioning for public release identifiers.
 
 ### Release Status
 
-- `0.3.0` has not been published. Its owner-approved identity is `versionCode = 3`; its signed
-  artifact, populated `0.2.0` upgrade, device matrix, and final audit remain release gates.
+- Publicly released as `versionCode = 3`. The owner verified the public APK checksum, installed
+  it on a physical device over existing data, and confirmed new task timing and intervals.
 
 ## [0.2.0] - 2026-08-09
 

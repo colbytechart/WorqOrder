@@ -1,6 +1,6 @@
 # WorqOrder Product Specification
 
-Status: released `0.1.0`/`0.2.0` history plus the current `0.3.0` development specification
+Status: released `0.1.0`/`0.2.0`/`0.3.0` history; approved `0.4.0` planning follows
 Product: WorqOrder for Android  
 Minimum Android version: API 26  
 Authoritative data store: local Room database
@@ -494,9 +494,9 @@ midnight-continuation, multi-interval, and one-row-per-interval rules only after
 Milestones 30 through 33 have implemented the schema-5 one-interval model, repeated-Start
 transaction, no-rollover selection behavior, exact midnight closure, automatic-export ordering,
 final presentation, and schema-5 export behavior on the `0.3.0` development branch. Milestone 34
-has reconciled obsolete references and removed only the proven-unreachable live continuation
-surface while retaining migration and historical evidence. The final release audit remains owned
-by Milestone 35 and is not claimed as complete here.
+reconciled obsolete references while retaining migration and historical evidence. The owner
+completed the Milestone 35 release gate and published `0.3.0`; this section now describes released
+behavior.
 
 1. **No automatic task rollover.** A selected task is never copied merely because the effective
    date or ZoneId changes, the app resumes, recovery runs, or Start is evaluated. At a real date
@@ -535,3 +535,30 @@ by Milestone 35 and is not claimed as complete here.
 
 `0.3.0` does not otherwise redesign clients, Consultants, task metadata, Settings, landscape
 layout, notifications, authentication, destinations, backup policy, licensing, or distribution.
+
+## 16. Approved `0.4.0` product changes (planned; not implemented in Milestone 36)
+
+1. **Task Notes.** New tasks have an optional blank `Notes` field below Mileage on Create Task.
+   Notes accept up to 999 Unicode characters and can be edited later in Edit Task. A
+   non-destructive Room migration initializes every pre-`0.4.0` task's Notes to blank. When Start
+   on a completed task creates a new same-day task, that new task's Notes are **blank**, even if
+   the source task contains Notes. Other approved copied metadata and lineage remain unchanged.
+2. **Cleaner Create Task introduction.** After `Task for [date]`, present the client dropdown
+   without separate `Consultant`/`Client` headings or selected-Consultant name text. This is
+   presentation only: a selected Consultant is still required and assigned to the new task, and
+   active-client selection/validation remains in force.
+3. **Always-available Create actions.** Keep the existing fixed header. Put Cancel and Create in
+   a fixed bottom footer, visually above and separate from the scrollable form. Insets, keyboard,
+   short landscape, large text, and accessibility must not hide form fields or actions.
+4. **One shared export change.** Canonical export schema 6 has the same first 13 visible columns
+   and per-task row semantics as schema 5, followed by `Notes` as column 14. CSV, one-off XLSX,
+   manual Google, and automatic Google use the same immutable dataset. Existing owned Google
+   schema-5 date tabs, their rows, and hidden task IDs must survive a safe transition; ambiguous,
+   unowned, or unknown tabs fail closed. No export synchronizes back into Room.
+5. **Release continuity.** Preserve package `worq.order`, the permanent owner signer, prior data,
+   disabled Android backup, direct no-cost GitHub distribution, GPLv3, the narrow Google scope,
+   and existing timer/date rules. VersionCode for `0.4.0` requires separate owner approval.
+
+Milestones 36–41 own planning, implementation, verification, and public-release handoff. Project
+environment teardown work moves to post-release Milestone 42; actual cleanup is only optional,
+separately authorized Milestone 43. Security Milestone E stays unscheduled outside release scope.

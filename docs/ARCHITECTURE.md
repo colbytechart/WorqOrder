@@ -352,7 +352,8 @@ Google support is a replaceable gateway outside the offline core.
 - `GoogleSheetsExportCoordinator` captures the shared `ExportSnapshot`, obtains a normal fresh
   authorization token for the already Picker-granted file, and maps gateway results without
   exposing Google types to Main UI state. `GoogleSheetsExportPlanner` purely decides create,
-  ownership/schema conflict, or complete replacement. `GoogleSheetsBatchJsonEncoder` converts that
+  ownership/schema conflict, or keyed append/update for current schema-5 tabs. Older schema-2/3/4
+  tabs fail closed. `GoogleSheetsBatchJsonEncoder` converts the chosen mutation
   plan to one atomic batch, while `RestGoogleSheetsGateway` performs the narrow structure read and
   confirmed write. No class outside the shared snapshot builder selects or formats exported
   fields.
@@ -563,7 +564,7 @@ injection remain intact.
   browsing historical dates never creates data.
 - Automatic Google work targets the completed captured date and has an earliest execution time
   after that date's local boundary. It closes a stale target-date timer before the immutable
-  snapshot, then uses the unchanged marked-tab replacement gateway. WorkManager timing remains
+  snapshot, then uses the current marked-tab keyed merge gateway. WorkManager timing remains
   best-effort and no background stopwatch mechanism is added.
 - `ExportRowBuilder` owns schema 5. Each task produces exactly one 13-value row. CSV, XLSX, Google,
   and automatic Google adapters remain unaware of Room entities and interval cardinality.
@@ -587,3 +588,23 @@ covers the packaged schema-5 asset, the unique task-to-interval guard, same-seri
 and version 1/2-to-5 migration paths. The production `WorkInterval` presentation adapter may
 temporarily expose a derived `ordinal = 1` for legacy UI callers; schema 5 itself persists no
 ordinal column.
+
+## 18. Planned `0.4.0` Notes and export architecture
+
+This is an implementation plan, not current app behavior. Room schema 6 adds a blank-default
+`daily_tasks.notes` field through a non-destructive 5-to-6 migration. Notes are optional, editable
+task text limited to 999 Unicode code points. The repository's atomic repeated-Start operation
+creates a new task with blank Notes even when source Notes are nonblank; all other copy/selection/
+timer invariants remain. Existing records initialize blank and retain every existing field.
+
+`ExportRowBuilder` will append Notes as the fourteenth visible value in one immutable schema-6
+projection. CSV, one-off XLSX, manual Google, and automatic Google will consume it without
+independent field selection. Existing owned Google schema-5 tabs require a guarded in-place
+compatibility step: use formerly reserved N for Notes only when safe, leave O reserved and P as
+the hidden stable task ID, and preserve all rows and other-device data before keyed updates.
+
+Create/Edit Task will read/write the same task Notes field. Create Task will remove only redundant
+Consultant/Client heading text and selected-Consultant display text; the Consultant assignment
+requirement persists. Its fixed top header and planned fixed bottom action bar bracket a
+separately scrollable, keyboard-accessible form. These boundaries require no new account,
+storage permission, background timer service, or destination-specific data model.

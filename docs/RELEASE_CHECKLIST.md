@@ -1,8 +1,8 @@
 # WorqOrder `0.2.0` Release Checklist (Historical)
 
 Status: historical `0.2.0` pre-publication record. Do not use its artifact identity, branch names,
-or version values for `0.3.0`. The active `0.3.0` release gate is
-`MILESTONE_35_RELEASE_EVIDENCE.md`.
+or version values for later releases. The completed `0.3.0` release gate is archived in
+`MILESTONE_35_RELEASE_EVIDENCE.md`; planned `0.4.0` release work belongs to Milestone 41.
 Release: `0.2.0` (`versionCode = 2`)
 Upgrade baseline: public `0.1.0` (`versionCode = 1`)
 Application ID: `worq.order`

@@ -47,25 +47,33 @@
   privacy controls belong only to optional Milestone E and must not be implemented without
   explicit owner permission.
 - Do not start a later milestone unless the user explicitly requests it. In particular, do not scaffold or implement the app during the planning milestone.
-- The approved `0.3.0` target removes automatic daily-task rollover and permits at most one work
-  interval per task. Preserve every `0.2.0` record through an explicit Room 4-to-5 migration;
-  never discard or merge historical intervals. Do not claim these planned rules are implemented
-  until their owning `0.3.0` milestones pass.
-- Under the `0.3.0` target, starting a task that already has a completed interval creates and
+- Released `0.3.0` removes automatic daily-task rollover and permits at most one work interval per
+  task. Preserve every `0.2.0` record through the explicit Room 4-to-5 migration; never discard or
+  merge historical intervals.
+- Under released `0.3.0`, starting a task that already has a completed interval creates and
   selects a new same-day task carrying the source task's user metadata and lineage, then starts
   that new task. Stable task/interval identities and timestamps are not copied as user metadata.
-- Under the `0.3.0` target, a timer crossing local midnight closes at the exact pinned-ZoneId day
+- Under released `0.3.0`, a timer crossing local midnight closes at the exact pinned-ZoneId day
   boundary and never creates a continuation task or interval. If Android has not scheduled the
   process at that instant, apply the exact persisted boundary at the next legitimate execution
   opportunity; do not add an exact alarm, wake lock, or foreground stopwatch service.
 - Canonical export schema 5 has exactly 13 visible columns and one row per task. All three export
   adapters must continue consuming the same immutable projection; do not retain an interval
   number or redundant interval-duration column.
-- For every `0.3.0` milestone, require an explicit start instruction and the owner's current
-  weekly-token-budget percentage. Before implementation, state the estimated percentage cost,
-  verify the current branch matches the milestone, and summarize every bounded task phase and its
-  assigned model. Follow `docs/V0_3_MILESTONE_PROMPTS.md`. Milestones are divided into sequential
-  Luna, Terra, and/or Sol phases according to model strengths and token efficiency; do not perform
-  work assigned to a different model. At every phase whose assigned model differs from the active
-  model, stop and ask the owner to switch models, then wait for explicit confirmation before
-  continuing. A milestone is not complete until its designated Sol quality-review phase passes.
+- `0.4.0` development begins with documentation-only Milestone 36. Later milestones may start only
+  on explicit owner instruction, with the owner's current weekly-token-budget percentage and the
+  matching milestone branch. Follow `docs/V0_4_MILESTONE_PROMPTS.md` for sequential Luna, Terra,
+  and Sol phases. Before implementation, estimate the whole milestone's percentage cost and state
+  the bounded phases. Do not perform work assigned to a different active model; at each model
+  transition stop and wait for the owner to confirm the requested model. Every implementation
+  milestone requires its designated Sol quality-review phase before completion.
+- Planned `0.4.0` Notes are optional task text with a 999-character limit, editable after creation.
+  Existing tasks gain blank Notes through a non-destructive Room migration. Starting a completed
+  task creates a new task with blank Notes even if its source has Notes; other approved metadata
+  copying is unchanged.
+- Planned canonical export schema 6 has 14 visible columns, retaining schema-5 order and appending
+  `Notes` as column 14. CSV, one-off XLSX, manual Google, and automatic Google must share the same
+  immutable projection. Preserve existing Google date-tab rows and transport identities during a
+  reviewed schema-5-to-6 compatibility transition; never clear another device's rows.
+- Post-release project-environment teardown planning is deferred until after the public `0.4.0`
+  release. It is not part of Milestone 36 and never authorizes automatic deletion or uninstall.

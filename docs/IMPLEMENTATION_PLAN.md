@@ -773,9 +773,10 @@ This is a release gate, not a source of optional product features.
 
 ## 21. WorqOrder `0.3.0` development roadmap
 
-This roadmap is authoritative for current development. Earlier milestone descriptions in Sections
-4–20 preserve the released `0.1.0`/`0.2.0` implementation history and are not current behavior
-when this roadmap or a later decision explicitly supersedes them.
+This roadmap records the released `0.3.0` development history. Earlier milestone descriptions in
+Sections 4–20 preserve the released `0.1.0`/`0.2.0` implementation history and are not current
+behavior when this roadmap or a later decision explicitly supersedes them. The active planning
+roadmap is Section 21A below.
 
 `0.3.0` is a narrow compatibility-preserving release. It removes daily rollover/midnight
 continuation and converts task timing from many intervals to zero or one interval per task. All
@@ -863,22 +864,100 @@ dependency, security, signer, and artifact audit, owns any high-risk correction,
 or withholds readiness. Sol also supplies the exact integration/main/tag/GitHub Release procedure.
 Do not release if a required gate fails or signing/OAuth identity differs.
 
-**Implementation status:** Task 35A evidence assembly and Task 35B documentation polish are
-complete. The owner approved `versionName = 0.3.0` and `versionCode = 3`, and Task 35C applied that
-identity. The owner-signed artifact, populated upgrade, manual release matrix, and remaining Task
-35C verification gates are still required before release.
+**Release status:** `0.3.0`/code 3 was published and installed on a physical device. The owner
+reported that the update preserved existing data and that new task timing and intervals worked.
+Milestone 35's accepted audit and release evidence remain historical records.
 
-### Milestone 36 — Safe project-environment teardown guide
+The copy/paste prompts and gates for Milestones 30–35 remain archived in
+`docs/V0_3_MILESTONE_PROMPTS.md`. The former Milestone 36 teardown work is rescheduled after the
+`0.4.0` public release.
 
-**Task sequence:** Luna follows an explicit questionnaire and builds the non-destructive component
-inventory; Terra organizes verified Windows/Android Studio/SDK/Gradle cleanup procedures and
-rollback checks without executing them; Sol audits every instruction for target precision,
-shared-tool risk, credentials/signing preservation, firmware safety, and recoverability and alone
-finalizes the guide. This milestone creates instructions only and never deletes files, uninstalls
-software, or changes BIOS/system settings autonomously.
+## 21A. WorqOrder `0.4.0` development roadmap
 
-The copy/paste start prompts, branch gates, model handoffs, required tests, and stopping conditions
-for Milestones 30–36 are authoritative in `docs/V0_3_MILESTONE_PROMPTS.md`.
+The current development branch is `v0.4.0-development`, based on the published `0.3.0` `main`.
+Milestone branches 36–41 descend sequentially from that integration branch and merge back only
+after the owner's review. Milestone 36 changes documentation only. Implementation must preserve
+the `worq.order` application ID, permanent signer, Room authority and data, disabled backup,
+GPLv3, Google `drive.file` scope, no-cost direct-distribution policy, and one-off CSV/XLSX exports.
+Do not alter release versionCode or signing configuration without explicit owner approval.
+
+Each implementation milestone requires an explicit owner start instruction and current weekly
+token-budget percentage. The active first-phase model estimates the whole milestone, verifies
+branch ancestry, names all assigned phases, and stops for conflicts. Luna owns enumerated evidence,
+fixtures, and documentation; Terra owns bounded UI/repository/adapter integration; Sol owns Room
+migration, export data safety, high-risk decisions, and each final implementation quality gate.
+Follow the copy/paste phase prompts in `docs/V0_4_MILESTONE_PROMPTS.md`. At a model boundary, stop
+until the owner confirms the next model. No milestone branch is merged or released by Codex.
+
+### Milestone 36 — `0.4.0` planning and branch preparation (documentation only)
+
+Confirm `main` → `v0.4.0-development` → `milestone36`, record the approved Notes, Create Task,
+export, migration, and release gates, and divide the implementation into bounded model-assigned
+milestones. Do not change Kotlin, Gradle, Room, resources, or release identity. The owner separately
+commits and merges this planning branch before starting Milestone 37.
+
+### Milestone 37 — Notes persistence and repeat-Start semantics
+
+**Phases:** Sol designs and implements the additive Room 5-to-6 migration and atomic repeat-Start
+exception; Terra propagates Notes through entities, repositories, validation, and task state;
+Luna adds populated migration, fresh database, validation, and repeat-Start tests; Sol reviews
+preservation, concurrent Start, and schema evidence. Existing tasks receive blank Notes. New tasks
+default blank. Notes are editable up to 999 characters; starting an already-timed task creates a
+new task with blank Notes while retaining the existing non-Notes copy behavior. No UI/export change
+beyond compile-safe plumbing.
+
+### Milestone 38 — Canonical 14-column export and safe Google compatibility
+
+**Phases:** Sol designs and implements safe marked Google schema-5-to-6 tab handling; Terra adds
+Notes to one immutable schema-6 projection and propagates it through CSV, one-off XLSX, and manual/
+automatic Google; Luna adds exact-header, cross-destination, historical-tab, cross-device-row, and
+failure tests; Sol performs the final no-data-loss and idempotency review. Append `Notes` after
+`Billing minutes` as visible column 14; retain one row per task, current ordering, and the hidden
+Google task-ID transport. Existing owned date-tab rows and other-device rows must survive upgrade
+and re-export. Unknown, unowned, or unsafe tabs fail closed. Do not alter CSV/XLSX one-off behavior.
+
+### Milestone 39 — Create/Edit Task Notes and Create header cleanup
+
+**Phases:** Terra adds Notes to Create/Edit Task with field-level 999-character validation, keeps
+Edit Task persistence, removes only the redundant top `Consultant`/`Client` headings and selected-
+Consultant text from Create Task, and preserves assignment and client selection; Luna adds
+ViewModel/Compose/accessibility tests; Sol reviews data and UI behavior. The Create Task body begins
+with `Task for [date]` followed by the client selector. Notes appear below Mileage and begin blank.
+Do not remove Consultant metadata, validation, or Settings selection.
+
+### Milestone 40 — Pinned Create Task action footer
+
+**Phases:** Terra separates the Create Task scrolling form from a fixed bottom Cancel/Create bar;
+Luna tests portrait, short landscape, large text/display scale, IME/insets, touch targets, keyboard
+navigation, unsaved Cancel, validation, and duplicate-submit prevention; Sol performs the final
+layout/accessibility gate. The footer remains visible while the form scrolls underneath and uses
+the same visual layering principle as the existing fixed header. No form data or timer behavior
+changes.
+
+### Milestone 41 — Full `0.4.0` verification and public-release handoff
+
+**Phases:** Luna assembles migration/export/UI traceability and manual-device checklist; Terra
+reconciles user, privacy, release, and developer docs and fixes only bounded presentation issues;
+Sol audits data preservation, Google tab safety, signing, OAuth, dependencies, permissions,
+security, accessibility, lifecycle, battery/CPU, release artifact, and all tests before declaring
+readiness. Require clean offline lint/JVM/debug/release gates, relevant connected suites on API 26
+and a current API, and owner-performed populated `0.3.0` update and export checks. The owner
+supplies final `0.4.0` versionCode approval, signs with the permanent key, merges to `main`, tags,
+publishes, and verifies the public APK; no release-readiness claim precedes these gates.
+
+### Milestone 42 — Post-`0.4.0` safe teardown guide (documentation only)
+
+Only after the public `0.4.0` release and an explicit new owner start: Luna inventories verified
+project-specific versus shared tools, Terra drafts staged reversible Windows/Android cleanup and
+rollback instructions, and Sol audits target precision, release/signing/OAuth preservation, and
+recoverability. No deletion, uninstall, cloud change, or BIOS/system change is performed.
+
+### Milestone 43 — Optional owner-directed closeout
+
+This is a separate, opt-in execution gate after Milestone 42. The owner chooses exact targets and
+explicitly authorizes each material action. Preserve the repository, remote history/releases,
+permanent release key and backups, OAuth setup, and desired user/export data unless separately
+decided. Never infer cleanup authority merely because the guide exists.
 
 ## 22. Optional Milestone E — Data Protection, App Access, and Privacy Hardening
 
@@ -983,7 +1062,7 @@ Milestone E is separately authorized and must pass this checklist before being a
 | Collaborative sheet changes race an export | Possible remote conflict | Marker, narrow reads, atomic batch, raw values, idempotent retry; never change Room |
 | XLSX writer is incompatible or unsafe | Malformed workbooks or formula execution | Focused internal Milestone 12 writer, literal cells, independent-parser/golden tests, Excel/LibreOffice checks, and no Apache POI |
 | One-off XLSX provider write fails after document creation | A partial external file may remain | Build and validate bytes before the picker, close output deterministically, attempt provider deletion on failure, report partial-output risk, and never change Room |
-| Per-date sheets exhaust Google grid allocation or become unwieldy | Export failure or poor spreadsheet usability | Keep 13 visible canonical columns plus three hidden transport/reserved columns, append rows only as needed, monitor the official spreadsheet cell limit, and surface capacity errors without altering Room |
+| Per-date sheets exhaust Google grid allocation or become unwieldy | Export failure or poor spreadsheet usability | Keep released schema 5's 13 visible columns (planned schema 6 has 14), preserve reserved/hidden transport columns, append rows only as needed, monitor the official spreadsheet cell limit, and surface capacity errors without altering Room |
 | Plaintext app-private database/preferences are extracted from a compromised or sufficiently privileged device | Sensitive client/task data is disclosed | Document that current production relies on Android's application sandbox and does not provide WorqOrder-managed at-rest encryption; retain stronger protection only as optional Milestone E |
 | Optional encryption key is lost or invalidated | Authoritative local data becomes unavailable if optional Milestone E is later implemented | Require versioned key hierarchy, documented recovery limits, non-destructive failure, interrupted-migration tests, and never silently reset Room |
 | Optional encryption degrades core performance | Slow startup, task lists, or timer mutations if optional Milestone E is later implemented | Record pre-encryption baselines and enforce focused startup/query/migration/memory benchmarks within that optional milestone |

@@ -622,3 +622,32 @@ Start date,End date,Consultant,Client,Description,Expense,Work type,Billing Stat
 
 An untimed task has blank Start/Stop, `00:00:00` Time spent, and `0` Billing minutes. A running
 interval is never projected with a blank Stop as a successful export row.
+
+## 14. Planned canonical export schema version 6 (`0.4.0`; not yet implemented)
+
+The first **13** visible headers and their value formats remain exactly as in schema 5 above.
+Append `Notes` as **column 14**, with the complete optional task Notes text or blank. This is one
+visible row per task, including untimed tasks, and all four paths—CSV, one-off XLSX, manual Google,
+and automatic Google—consume the **same immutable schema-6 task projection**. No destination
+selects or formats Notes independently. Exact header sequence:
+
+```csv
+Start date,End date,Consultant,Client,Description,Expense,Work type,Billing Status,Mileage,Start time,Stop time,Time spent,Billing minutes,Notes
+```
+
+CSV has 14 headers and one row per task. XLSX's sole one-off worksheet has visible A:N. Google
+date tabs have visible A:N, reserved hidden O, and app-owned hidden task identity P. Notes uses N,
+previously a reserved hidden column in schema 5. The stable task identity stays in P and remains
+transport-only. Schema version moves to 6; this is **not** a change to the user's task date/time
+storage, the active-timer Stop-before-export policy, or CSV/XLSX document lifecycle.
+
+For an existing **owned schema-5** Google date tab, perform a reviewed in-place compatibility
+transition that preserves every existing row and its A:M values and P task identity, populates
+legacy N as blank, and updates the ownership schema marker. Never clear/resize the existing tab or
+delete another device's rows. Before using formerly reserved N, verify that it is unoccupied in
+the app-owned range; unexpected content or an ambiguous/unknown/unowned marker fails closed with
+an actionable conflict, not silent overwrite. Current keyed merge then updates a matching task's
+A:N values or appends a new task row; it does not remove absent local tasks. Older schema-2/3/4
+tabs retain their current fail-closed policy. Concurrent independent device writes remain a
+documented race, not a reason to erase rows. Test automatic Google's captured-date path with the
+same projection and compatibility behavior as manual export.

@@ -2,9 +2,8 @@
 
 ## Release status
 
-The latest published build is `0.2.0`. The `0.3.0` behavior documented below is pre-release until
-the owner-signed artifact and final release gates recorded in
-`MILESTONE_35_RELEASE_EVIDENCE.md` pass.
+The latest published build is `0.3.0`. The owner verified its public APK and physical-device
+upgrade. `0.4.0` is only planned; Notes and schema 6 are not implemented in the released build.
 
 ## Client CSV import limits
 

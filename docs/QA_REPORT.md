@@ -643,5 +643,7 @@ release APK has SHA-256
 hashes are superseded. The owner reports that the current APK's `apksigner`, `aapt2`, and checksum
 results exactly match the permanent signer, `worq.order`, `0.3.0`/code 3, and this hash. Public
 asset comparison follows publication. `MILESTONE_35_RELEASE_EVIDENCE.md` tracks the accepted
-resource/accessibility limits and the still-unverified test-APK-retention convenience setting;
-`0.3.0` is not yet declared published.
+resource/accessibility limits and the still-unverified test-APK-retention convenience setting.
+After this gate, the owner reported that the public `0.3.0` APK matched the published checksum and
+installed on a physical device over existing data; new task timing and intervals passed. This
+does not constitute `0.4.0` implementation or test evidence.

@@ -6,10 +6,11 @@ CSV, XLSX, and Google Sheets are optional one-way exports.
 
 ## Development Status
 
-The latest published release is `0.2.0`. Version `0.3.0` (`versionCode = 3`) is in its final release
-audit and is not published yet. Its signed artifact, populated-update verification, and final device
-gates must be recorded before release. See the [Milestone 35 release evidence]
-(docs/MILESTONE_35_RELEASE_EVIDENCE.md).
+The latest published release is `0.3.0` (`versionCode = 3`). The owner verified its published APK
+checksum and installed it on a physical device over an existing installation with data retained.
+Version `0.4.0` is in documentation-only planning on `milestone36`; no `0.4.0` app behavior has
+been implemented yet. See the [v0.4.0 roadmap](docs/V0_4_MILESTONE_PROMPTS.md) and
+[v0.3.0 release evidence](docs/MILESTONE_35_RELEASE_EVIDENCE.md).
 
 ## Install WorqOrder From GitHub
 
@@ -193,9 +194,9 @@ passwords. Then run:
 ```
 
 Never create a new signing key for an update. Losing the permanent key prevents existing users
-from installing future updates over the app. The `0.2.0` checklist is historical; the current
-release gate and owner-run verification commands are in
-[Milestone 35 release evidence](docs/MILESTONE_35_RELEASE_EVIDENCE.md).
+from installing future updates over the app. The `0.2.0` checklist and
+[Milestone 35 release evidence](docs/MILESTONE_35_RELEASE_EVIDENCE.md) are historical.
+`0.4.0` release gates will be documented under Milestone 41 before publication.
 
 ## Troubleshooting
 

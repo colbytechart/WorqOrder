@@ -1,8 +1,9 @@
 # WorqOrder Acceptance Tests
 
 Version scope: sections that explicitly identify released `0.1.0`/`0.2.0` behavior preserve
-historical acceptance evidence. Section 15 is the authoritative current `0.3.0` acceptance set;
-its one-interval, no-rollover, exact-boundary, and schema-5 rules supersede earlier expectations.
+historical acceptance evidence. Section 15 is the released `0.3.0` acceptance set; its
+one-interval, no-rollover, exact-boundary, and schema-5 rules supersede earlier expectations.
+Section 16 describes planned `0.4.0` tests and is not evidence of implemented behavior.
 
 ## 1. Test policy
 
@@ -1110,6 +1111,57 @@ The generated version-5 Room schema uses identity hash
 multi-interval test assumptions, added a true one-interval schema-4 fixture, and strengthened
 fresh-schema, deterministic timestamp, rejected-write, and reopen assertions. The project-local
 offline JVM/lint/debug/release gate passed, and the complete connected API-36 instrumentation
-suite passed all 105 tests. The signed populated-install upgrade walkthrough remains a final
-release gate in Milestone 35; schema migration behavior is currently verified by populated
-instrumentation fixtures rather than a user-data-bearing release installation.
+suite passed all 105 tests. At the later Milestone 35 release gate, the owner also reported a
+signed populated-install upgrade and confirmed retained data. This paragraph preserves the
+earlier Milestone 30 test counts rather than substituting the final release suite counts.
+
+## 16. Planned `0.4.0` acceptance tests (not yet implementation evidence)
+
+### V4-DB-01 Non-destructive task Notes upgrade
+
+Fresh Room schema 6 and populated schema-5-to-6 upgrades preserve every preexisting client,
+Consultant, task, interval, active-timer pointer, ID, date, ZoneId, UTC timestamp, and setting.
+All earlier tasks have blank Notes and can later be edited. Every supported version-1-through-5
+upgrade path reaches schema 6 without destructive fallback; the committed schema JSON matches.
+
+### V4-TASK-01 Optional Notes and bounded editing
+
+Create Task succeeds with Notes left blank. A task created with Notes retains them after navigation,
+process restart, and edit. Notes appear below Mileage on Create and Edit. Exactly 999 Unicode code
+points are accepted; 1000 produce field-level validation without saving. Cancel saves nothing.
+
+### V4-TASK-02 Repeated Start clears only Notes
+
+Given a task with a completed interval and nonblank Notes, pressing Start creates/selects a new
+same-day task with blank Notes and one open interval. The original task and its Notes are unchanged;
+all currently approved non-Notes metadata and lineage copying still apply. Concurrent attempts
+retain the singleton active-timer and one-interval-per-task constraints.
+
+### V4-UI-01 Create header and fixed footer
+
+The Create form begins with `Task for [date]`, then the client selector, without separate
+Consultant/Client headings or the selected-Consultant name text. Consultant assignment and active
+client validation still work. Cancel/Create stay visible in a pinned footer while all fields
+remain scrollable and reachable with the keyboard open, on a short landscape phone, and with large
+text/display scaling. TalkBack order and targets remain usable; Create cannot double-submit.
+
+### V4-EXPORT-01 One immutable 14-column dataset
+
+CSV, one-off XLSX, manual Google, and automatic Google expose the exact schema-5 first 13 headers
+plus `Notes` as header 14. One row per task, stable order, blank/Unicode/quoted/newline Notes,
+snapshot immutability, Stop-before-export, and no Room mutation are verified across all paths.
+
+### V4-EXPORT-02 Existing Google tabs survive
+
+An owned schema-5 tab upgrades to schema 6 without removing existing rows, modifying A:M values
+of unrelated tasks, losing hidden P identities, or duplicating a keyed task. Notes fills N; O
+remains reserved. Another device's rows remain after re-export. Unexpected content in formerly
+reserved N, unknown/unowned markers, ambiguous rows, and partial failures fail closed. Automatic
+and manual exports obey the same policy. CSV/XLSX remain one-off.
+
+### V4-RELEASE-01 Published-upgrade gate
+
+Before publication, the owner-approved versionCode, permanent signer SHA-1, `worq.order` package,
+disabled backup, GPLv3, exact Google scope, APK hash, populated `0.3.0` upgrade, API-26/current
+automated suites, and physical-device task/edit/export smoke tests must pass. Milestone 42
+teardown planning is not a prerequisite for app release and performs no cleanup.

@@ -1,9 +1,9 @@
 # Privacy and Data
 
-This document describes the released `0.2.0` data contract and the current `0.3.0` development
-contract. `0.3.0` is not published until its final release gate passes. Where the two differ, the
-current v0.3 section is authoritative for the development branch; the v0.2 details remain for
-upgrade and historical-data transparency.
+This document describes the released `0.3.0` data contract and retains `0.2.0` details for
+upgrade and historical-data transparency. Planned `0.4.0` Notes remain ordinary Room task data
+once implemented; they are not yet present in the published app. Any exported Notes will be
+readable plaintext in CSV/XLSX/Google Sheets under the existing export privacy policy.
 
 ## 1. Summary
 
@@ -104,8 +104,8 @@ backup/restore or device-transfer recovery.
 
 ## 6. Security Boundaries
 
-Android's application sandbox is the local access boundary. Neither published `0.2.0` nor current
-`0.3.0` development adds its own at-rest encryption layer to Room or DataStore. Android backup is
+Android's application sandbox is the local access boundary. Neither released `0.2.0` nor released
+`0.3.0` adds its own at-rest encryption layer to Room or DataStore. Android backup is
 disabled, credentials and signing keys are not embedded, broad storage permissions are not
 requested, and no cleartext network traffic is enabled.
 

@@ -7,8 +7,8 @@
 - Minimum SDK: 26
 - Target SDK: 36
 - Compile SDK: 36.1
-- Latest published release: `0.2.0` (`versionCode = 2`)
-- Next release under preparation: `0.3.0` (`versionCode = 3`, explicitly owner-approved)
+- Latest published release: `0.3.0` (`versionCode = 3`)
+- Next release in planning: `0.4.0` (versionCode requires explicit owner approval)
 - License: GPLv3
 - Distribution artifact: owner-signed APK attached to a GitHub Release
 
@@ -146,9 +146,10 @@ Get-FileHash -Algorithm SHA256 -LiteralPath $apk
 Confirm exactly one signer and compare its SHA-1 to the registered release OAuth client. Publish
 the SHA-256 alongside the APK. Do not publish the keystore or passwords.
 
-## 8. Next Release Procedure
+## 8. Historical `0.3.0` Release Procedure
 
-Do not release `0.3.0` until every blocker in `MILESTONE_35_RELEASE_EVIDENCE.md` is resolved.
+The procedure below records the completed `0.3.0` release. Do not reuse its version, tag, artifact
+name, or branch names for `0.4.0`; its new gate is planned in Milestone 41.
 
 1. Confirm the source remains at the owner-approved `versionName = 0.3.0` and `versionCode = 3`.
 2. Confirm the working tree contains only intended tracked release changes and run the complete

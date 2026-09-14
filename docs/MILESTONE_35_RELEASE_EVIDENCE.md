@@ -1,12 +1,13 @@
 # Milestone 35 Release Evidence
 
-Status: **Task 35A/35B complete; Task 35C pre-publication gates accepted by owner, ready for reviewed integration and GitHub release**  
+Status: **`0.3.0` publicly released; owner-confirmed public artifact and physical-device upgrade**
 Branch reviewed: `milestone35`  
 Integration branch: `v0.3.0-development`  
 Reviewed: 2026-09-13
 
-This inventory is evidence, not a release declaration. Existing Milestone 30–34 results are
-identified separately from checks that must be repeated against the owner-signed `0.3.0` artifact.
+This inventory preserves the pre-publication gate history. The owner subsequently confirmed the
+public release, downloaded APK checksum, and physical-device update over retained data. Existing
+Milestone 30–34 results are identified separately from the owner-signed `0.3.0` artifact checks.
 The owner accepted limited resource profiling and minor maximum-scale visual imperfections.
 Public-download checksum and install checks can occur only after publication; test-APK retention
 is a test-harness convenience still unverified, not a runtime release gate.
@@ -268,3 +269,12 @@ this document. The owner confirms `apksigner`, `aapt2`, and checksum checks on t
 returned the expected permanent identity. Confirmation that the public upload preserves these
 bytes follows publication. The connected-test APK-retention check remains unverified; it concerns
 test-device cleanup only and does not change release behavior.
+
+### Public-release owner confirmation
+
+The owner reports that `0.3.0` is officially published. The downloaded APK's SHA-256 matched
+`CBF04232B810BAC9BC2A64952E31D28FE5E6A51BF664762228904973AFB54D08`, and its inspected
+package was `worq.order`, versionName `0.3.0`, versionCode `3`, minimum API 26. The owner installed
+it on a physical device over an existing WorqOrder installation without uninstalling; prior data
+remained intact, and new task Start/Stop and interval accuracy passed. These are owner-reported
+results, not new tests executed during `0.4.0` planning.

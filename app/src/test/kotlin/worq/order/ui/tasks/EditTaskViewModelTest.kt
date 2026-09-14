@@ -17,6 +17,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import worq.order.data.NewDailyTask
+import worq.order.data.TaskMetadataValidationError
 import worq.order.domain.ManualIntervalValidationError
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
@@ -59,6 +60,7 @@ class EditTaskViewModelTest {
                 EditTaskEvent.SelectBillingStatus(BillingStatus.DO_NOT_CHARGE),
             )
             fixture.viewModel.onEvent(EditTaskEvent.EditMileage("012.500"))
+            fixture.viewModel.onEvent(EditTaskEvent.EditNotes(" Updated notes "))
             fixture.viewModel.onEvent(EditTaskEvent.SaveMetadata)
             runCurrent()
 
@@ -71,6 +73,7 @@ class EditTaskViewModelTest {
             assertEquals(WorkType.IN_OFFICE, changed.workType)
             assertEquals(BillingStatus.DO_NOT_CHARGE, changed.billingStatus)
             assertEquals("12.5", changed.mileage)
+            assertEquals("Updated notes", changed.notes)
             assertFalse(fixture.viewModel.uiState.value.hasUnsavedMetadataChanges)
             assertEquals(listOf(EditTaskEffect.NavigateBack), effects)
         }
@@ -120,6 +123,22 @@ class EditTaskViewModelTest {
             assertNull(fixture.viewModel.uiState.value.interval)
             assertEquals("00:00:00", fixture.viewModel.uiState.value.totalDuration)
             assertEquals(0L, fixture.viewModel.uiState.value.billingMinutes)
+        }
+
+    @Test
+    fun overlengthNotesBlockMetadataSaveAndPreserveExistingTask() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = fixture()
+            val before = requireNotNull(fixture.tasks.readTaskWithClient(fixture.taskId)).task
+            fixture.viewModel.onEvent(EditTaskEvent.EditNotes("x".repeat(1000)))
+            fixture.viewModel.onEvent(EditTaskEvent.SaveMetadata)
+            runCurrent()
+
+            assertTrue(
+                TaskMetadataValidationError.NOTES_TOO_LONG in
+                    fixture.viewModel.uiState.value.metadataErrors,
+            )
+            assertEquals(before, requireNotNull(fixture.tasks.readTaskWithClient(fixture.taskId)).task)
         }
 
     @Test

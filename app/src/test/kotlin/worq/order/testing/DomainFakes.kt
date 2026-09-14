@@ -466,6 +466,7 @@ class FakeTaskRepository : TaskRepository {
                     workType = newTask.workType,
                     billingStatus = newTask.billingStatus,
                     mileage = newTask.mileage,
+                    notes = newTask.notes.trim(),
                     workDate = newTask.workDate,
                     zoneId = newTask.zoneId,
                     createdAt = now,
@@ -487,6 +488,7 @@ class FakeTaskRepository : TaskRepository {
         workType: WorkType,
         billingStatus: BillingStatus?,
         mileage: String?,
+        notes: String,
     ): UpdateTaskMetadataResult =
         mutex.withLock {
             val current =
@@ -514,6 +516,7 @@ class FakeTaskRepository : TaskRepository {
                                 workType = workType,
                                 billingStatus = billingStatus,
                                 mileage = mileage,
+                                notes = notes.trim(),
                             )
                     )
             UpdateTaskMetadataResult.Updated(requireNotNull(taskState.value[taskId]))
@@ -582,7 +585,7 @@ class FakeTaskRepository : TaskRepository {
 
     /**
      * Schema-5 test helper for the Start transaction: repeats stay on the same work date and
-     * preserve only the source task's user metadata and lineage.
+     * preserve the approved source metadata and lineage except for Notes.
      */
     suspend fun copyTaskForRepeatedStart(sourceTaskId: String): DailyTask? =
         mutex.withLock {
@@ -591,6 +594,7 @@ class FakeTaskRepository : TaskRepository {
             val copy =
                 source.copy(
                     id = "task-${++taskId}",
+                    notes = "",
                     createdAt = timestamp,
                     updatedAt = timestamp,
                 )

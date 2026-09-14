@@ -5,11 +5,13 @@ import worq.order.model.BillingStatus
 
 const val MAX_TASK_DESCRIPTION_CODE_POINTS = 400
 const val MAX_TASK_PURCHASES_CODE_POINTS = 400
+const val MAX_TASK_NOTES_CODE_POINTS = 999
 
 enum class TaskMetadataValidationError {
     DESCRIPTION_REQUIRED,
     DESCRIPTION_TOO_LONG,
     PURCHASES_TOO_LONG,
+    NOTES_TOO_LONG,
     MILEAGE_MALFORMED,
     MILEAGE_TOO_LARGE,
     MILEAGE_TOO_PRECISE,
@@ -21,6 +23,7 @@ data class NormalizedTaskMetadata(
     val workType: WorkType = WorkType.UNSPECIFIED,
     val billingStatus: BillingStatus? = null,
     val mileage: String? = null,
+    val notes: String = "",
 )
 
 sealed interface TaskMetadataValidationResult {
@@ -40,9 +43,11 @@ object TaskMetadataValidator {
         workType: WorkType = WorkType.UNSPECIFIED,
         billingStatus: BillingStatus? = null,
         mileage: String? = null,
+        notes: String = "",
     ): TaskMetadataValidationResult {
         val normalizedDescription = description.trim()
         val normalizedPurchases = hardwareSoftwarePurchases.trim()
+        val normalizedNotes = notes.trim()
         val errors = linkedSetOf<TaskMetadataValidationError>()
 
         if (normalizedDescription.isEmpty()) {
@@ -58,6 +63,9 @@ object TaskMetadataValidator {
             MAX_TASK_PURCHASES_CODE_POINTS
         ) {
             errors += TaskMetadataValidationError.PURCHASES_TOO_LONG
+        }
+        if (normalizedNotes.codePointCount(0, normalizedNotes.length) > MAX_TASK_NOTES_CODE_POINTS) {
+            errors += TaskMetadataValidationError.NOTES_TOO_LONG
         }
 
         val normalizedMileage =
@@ -85,6 +93,7 @@ object TaskMetadataValidator {
                     workType = workType,
                     billingStatus = billingStatus,
                     mileage = normalizedMileage,
+                    notes = normalizedNotes,
                 ),
             )
         } else {

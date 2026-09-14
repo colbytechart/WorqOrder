@@ -96,7 +96,12 @@ class TimerCoordinatorTest {
     fun repeatedStartCreatesSelectedSameDayCopyAndPreservesSourceTask() =
         runTest {
             val fixture = Fixture()
-            val task1 = fixture.addTask(TODAY, seriesId = "series-1")
+            val task1 =
+                fixture.addTask(
+                    TODAY,
+                    seriesId = "series-1",
+                    notes = "Source notes",
+                )
             val task2 = fixture.addTask(TODAY, seriesId = "series-2")
 
             fixture.setTime("2026-07-24T13:00:00Z")
@@ -130,6 +135,8 @@ class TimerCoordinatorTest {
             assertEquals(task1.description, repeatedTask.description)
             assertEquals(task1.workDate, repeatedTask.workDate)
             assertEquals(task1.zoneId, repeatedTask.zoneId)
+            assertEquals("Source notes", task1.notes)
+            assertEquals("", repeatedTask.notes)
             fixture.advance(Duration.ofHours(1))
             assertTrue(fixture.coordinator().stop() is StopTimerResult.Stopped)
 
@@ -476,11 +483,13 @@ class TimerCoordinatorTest {
             date: LocalDate,
             zoneId: ZoneId = NEW_YORK,
             seriesId: String = "series-1",
+            notes: String = "",
         ): DailyTask =
             tasks.insertDailyTask(
                 NewDailyTask(
                     clientId = "client-1",
                     description = "Task $seriesId",
+                    notes = notes,
                     workDate = date,
                     zoneId = zoneId,
                     seriesId = seriesId,

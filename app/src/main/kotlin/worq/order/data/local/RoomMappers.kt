@@ -50,6 +50,7 @@ internal fun DailyTaskEntity.toModel(): DailyTask =
         workType = WorkType.valueOf(workType),
         billingStatus = billingStatus?.let(BillingStatus::valueOf),
         mileage = mileage,
+        notes = notes,
         workDate = LocalDate.ofEpochDay(workDateEpochDay),
         zoneId = ZoneId.of(zoneId),
         createdAt = Instant.ofEpochMilli(createdAtEpochMs),

@@ -169,6 +169,7 @@ abstract class TaskDao {
             work_type = :workType,
             billing_status = :billingStatus,
             mileage = :mileage,
+            notes = :notes,
             updated_at_epoch_ms = :updatedAtEpochMs
         WHERE id = :taskId
         """,
@@ -183,6 +184,7 @@ abstract class TaskDao {
         workType: String,
         billingStatus: String?,
         mileage: String?,
+        notes: String,
         updatedAtEpochMs: Long,
     ): Int
 
@@ -196,6 +198,7 @@ abstract class TaskDao {
         workType: String,
         billingStatus: String?,
         mileage: String?,
+        notes: String,
         updatedAtEpochMs: Long,
     ): TaskMetadataWriteEntityResult {
         val currentTask = readTask(taskId)
@@ -232,6 +235,7 @@ abstract class TaskDao {
                 workType = workType,
                 billingStatus = billingStatus,
                 mileage = mileage,
+                notes = notes,
                 updatedAtEpochMs = updatedAtEpochMs,
             ) != 1
         ) {

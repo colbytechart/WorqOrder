@@ -33,6 +33,7 @@ data class CreateTaskUiState(
     val workType: WorkType = WorkType.ON_SITE,
     val billingStatus: BillingStatus = BillingStatus.BILLABLE,
     val mileage: String = "",
+    val notes: String = "",
     val metadataErrors: Set<TaskMetadataValidationError> = emptySet(),
     val isSavingTask: Boolean = false,
     val hasUnsavedTaskChanges: Boolean = false,
@@ -74,6 +75,10 @@ sealed interface CreateTaskEvent {
     ) : CreateTaskEvent
 
     data class EditMileage(
+        val value: String,
+    ) : CreateTaskEvent
+
+    data class EditNotes(
         val value: String,
     ) : CreateTaskEvent
 

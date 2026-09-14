@@ -441,11 +441,12 @@ foreign-key links, active-pointer repointing, foreign-key integrity, reopen pers
 of the legacy `ordinal` column. `WorqOrderDatabaseTest` additionally verifies packaged schema 5,
 the structural one-interval guard, same-series lineage rows, and populated version 1/2-to-5 paths.
 
-## 15. Planned `0.4.0` Room schema 6 — task Notes
+## 15. `0.4.0` Room schema 6 — task Notes
 
-This section is an approved plan, **not** a description of current schema 5. Add `notes` to
-`daily_tasks` as task-level optional text, defaulting to the empty string for new and existing
-tasks. The explicit `MIGRATION_5_6` must add the field without rebuilding/deleting rows or
+This section describes schema-6 development on `milestone37`; the milestone's persistence and
+domain verification gate passed. Schema-6 export and Notes presentation are later milestones.
+`notes` is task-level optional text in `daily_tasks`, defaulting to the empty string for new and
+existing tasks. The explicit `MIGRATION_5_6` adds the field without rebuilding/deleting rows or
 changing IDs, Client/Consultant relationships, interval cardinality, the active-timer singleton,
 UTC boundaries, work dates, ZoneIds, lineage, or existing metadata. Keep schema export enabled,
 commit the version-6 schema JSON, and add populated upgrade tests for every supported chain.
@@ -457,3 +458,15 @@ repeated-Start path creates a new task with **blank Notes** even if the source h
 all preexisting non-Notes copy rules remain unchanged. Historical schema-1-through-5 tasks gain
 blank Notes and must remain editable. Export schema 6 appends Notes as a visible field but does
 not become the source of truth.
+
+### Milestone 37 implementation evidence (pending final quality gate)
+
+The current development branch implements the additive `MIGRATION_5_6` and version-6 Room entity.
+The migration is designed to preserve existing rows and relationships while assigning blank Notes
+to historical tasks. Core instrumentation coverage exercises populated task graphs, an open timer,
+foreign-key integrity, and close/reopen persistence. Notes are also carried through the typed
+repository and task mutation APIs with optional 999-code-point validation. Export schema 6 and
+the final Create/Edit presentation remain owned by later milestones. The exported `6.json` was
+checked against schema 5: Notes is the only added column, with a non-null empty-string default;
+indexes and foreign keys are unchanged. The owner-run offline JVM/lint/debug/release and connected
+gates passed for Milestone 37.

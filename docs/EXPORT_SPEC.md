@@ -623,7 +623,7 @@ Start date,End date,Consultant,Client,Description,Expense,Work type,Billing Stat
 An untimed task has blank Start/Stop, `00:00:00` Time spent, and `0` Billing minutes. A running
 interval is never projected with a blank Stop as a successful export row.
 
-## 14. Planned canonical export schema version 6 (`0.4.0`; not yet implemented)
+## 14. Canonical export schema version 6 (`0.4.0` development)
 
 The first **13** visible headers and their value formats remain exactly as in schema 5 above.
 Append `Notes` as **column 14**, with the complete optional task Notes text or blank. This is one
@@ -651,3 +651,19 @@ A:N values or appends a new task row; it does not remove absent local tasks. Old
 tabs retain their current fail-closed policy. Concurrent independent device writes remain a
 documented race, not a reason to erase rows. Test automatic Google's captured-date path with the
 same projection and compatibility behavior as manual export.
+
+Milestone 38A stages the Google compatibility planner before schema 6 becomes active. On a
+schema-5-to-6 transition it requires exactly one owned marker/schema/date tuple, a usable schema
+metadata ID, the old A:M header, and empty reserved N:O values. The gateway requests formula
+values so a formula that displays as blank is still detected. One batch unhides N, keeps O:P
+hidden, writes the Notes header, updates only matching local task rows or appends new rows, and
+changes the schema marker last. A uniquely matched unkeyed row gains Notes and a task ID without
+rewriting A:M; ambiguous identity fails closed. Other-device and unmatched rows remain untouched.
+After an upgrade batch, the gateway re-reads sheet ownership metadata and reports success only
+if the exact date tab is confirmed at schema 6; an unconfirmed response is ambiguous, not success.
+Milestone 38B activates the shared schema-6 projection. The 38D review makes a marked schema-5
+tab with a missing A:M header a safe conflict. Local JVM, lint, instrumentation-compilation, and
+debug/release gates pass. An API response missing the sheet's physical column count no longer
+defaults to 13, so it cannot hide occupied reserved columns. The owner's connected emulator gate
+passed 111 tests without failures, errors, or skips. Live Google schema-5 tab upgrade
+against a real account remains a later integration check before the `0.4.0` release.

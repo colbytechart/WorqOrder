@@ -1242,6 +1242,17 @@ in place only after verifying marker/previously reserved N and preserving all ex
 other-device values, and task IDs. Unknown, unowned, or unsafe tabs fail closed. No Room mutation
 or destination-specific projection is permitted.
 
+Milestone 38A stages the compatibility planner without activating schema-6 export. The planner
+checks the old A:M header and reserved N:O values, including formula cells that render blank;
+requires an addressable schema metadata ID; and puts Notes visibility, local keyed updates or
+appends, and the schema-marker change in one batch. It never replaces or shrinks an existing
+tab. Milestone 38B activated the shared schema-6 projection, including Notes in the same
+immutable row consumed by all three destinations. The 38D review also rejects a marked legacy
+tab whose A:M header is missing. Local JVM, lint, instrumentation-compilation, and debug/release
+build gates passed; the final review also removes the parser's unsafe default for an absent
+Google sheet column count. The owner's connected emulator gate passed 111 tests without failures,
+errors, or skips.
+
 ### D-100 — Create Task presentation changes do not remove Consultant assignment
 
 Remove the redundant Consultant/Client headings and selected-Consultant text above the client

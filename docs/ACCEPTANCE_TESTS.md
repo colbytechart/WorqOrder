@@ -1167,6 +1167,12 @@ CSV, one-off XLSX, manual Google, and automatic Google expose the exact schema-5
 plus `Notes` as header 14. One row per task, stable order, blank/Unicode/quoted/newline Notes,
 snapshot immutability, Stop-before-export, and no Room mutation are verified across all paths.
 
+Milestone 38C's bounded JVM evidence includes the schema-6 row builder/CSV serializer, one-off
+XLSX writer, manual Google planner, and automatic Google coordinator test paths. The current local
+run completed 249 JVM tests across 43 suites with zero failures. The owner's connected emulator
+run completed 111 tests with zero failures, errors, or skips, including Google batch encoding and
+Room schema-6 migration coverage.
+
 ### V4-EXPORT-02 Existing Google tabs survive
 
 An owned schema-5 tab upgrades to schema 6 without removing existing rows, modifying A:M values

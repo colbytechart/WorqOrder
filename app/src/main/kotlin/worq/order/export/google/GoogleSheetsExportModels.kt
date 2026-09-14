@@ -152,6 +152,12 @@ internal sealed interface GoogleSheetsBatchRequest {
         val endIndex: Int,
     ) : GoogleSheetsBatchRequest
 
+    data class ShowColumns(
+        val sheetId: Int,
+        val startIndex: Int,
+        val endIndex: Int,
+    ) : GoogleSheetsBatchRequest
+
     data class WriteCellsAt(
         val sheetId: Int,
         val rowIndex: Int,

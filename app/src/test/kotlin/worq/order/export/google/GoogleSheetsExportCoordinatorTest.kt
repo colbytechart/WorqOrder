@@ -199,6 +199,7 @@ class GoogleSheetsExportCoordinatorTest {
                                 "10:00 AM",
                                 "01:00:00",
                                 "60",
+                                "",
                             ),
                         ),
                     ),

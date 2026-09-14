@@ -15,7 +15,7 @@ import worq.order.timer.DurationMath
 import worq.order.util.ClockTimeFormatter
 
 object ExportSchema {
-    const val VERSION = 5
+    const val VERSION = 6
 
     val headers: List<String> =
         listOf(
@@ -32,6 +32,7 @@ object ExportSchema {
             "Stop time",
             "Time spent",
             "Billing minutes",
+            "Notes",
         )
 }
 
@@ -76,7 +77,7 @@ class ExportRowBuilder {
         val rows =
             sortedTasks.map { detail ->
                 require(detail.intervals.size <= 1) {
-                    "Schema 5 permits at most one interval per task"
+                    "Schema 6 permits at most one interval per task"
                 }
                 val interval = detail.intervals.singleOrNull()
                 val total =
@@ -129,6 +130,7 @@ class ExportRowBuilder {
                     }.orEmpty(),
                     ExportValueFormatter.duration(taskTotal),
                     BillingMinutes.fromDuration(taskTotal).toString(),
+                    task.notes,
                 ),
         )
     }

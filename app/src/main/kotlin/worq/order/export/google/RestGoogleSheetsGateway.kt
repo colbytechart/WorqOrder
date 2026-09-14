@@ -152,7 +152,7 @@ class RestGoogleSheetsGateway(
                         execute(
                             method = "GET",
                             url = "$SHEETS_ENDPOINT/$spreadsheetId/values/$range" +
-                                "?majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE",
+                                "?majorDimension=ROWS&valueRenderOption=FORMULA",
                             accessToken = accessToken,
                         )
                     valuesResponse.exportFailureOrNull()?.let { return it }
@@ -188,13 +188,34 @@ class RestGoogleSheetsGateway(
                 requestBody = GoogleSheetsBatchJsonEncoder.encode(plan),
             )
         batchResponse.exportFailureOrNull()?.let { return it }
-        return if (
-            parseBatchUpdateSpreadsheetId(batchResponse.body) == spreadsheetId
-        ) {
-            GoogleSheetsGatewayExportResult.Success
-        } else {
-            GoogleSheetsGatewayExportResult.MalformedResponse
+        if (parseBatchUpdateSpreadsheetId(batchResponse.body) != spreadsheetId) {
+            return GoogleSheetsGatewayExportResult.MalformedResponse
         }
+        if (plan.requests.any { it is GoogleSheetsBatchRequest.UpdateSheetMetadataValue }) {
+            // A successful batch ID alone does not prove that the marker lookup matched. A
+            // failed post-write read is ambiguous, never a claim that the upgrade succeeded.
+            val confirmationResponse =
+                execute(
+                    method = "GET",
+                    url =
+                        "$SHEETS_ENDPOINT/$spreadsheetId" +
+                            "?includeGridData=false&fields=$EXPORT_STRUCTURE_FIELDS",
+                    accessToken = accessToken,
+                )
+            if (confirmationResponse.exportFailureOrNull() != null) {
+                return GoogleSheetsGatewayExportResult.AmbiguousRemoteResult
+            }
+            val confirmedStructure =
+                parseSpreadsheetStructure(confirmationResponse.body)
+                    ?: return GoogleSheetsGatewayExportResult.AmbiguousRemoteResult
+            if (
+                confirmedStructure.spreadsheetId != spreadsheetId ||
+                !GoogleSheetsExportPlanner.confirmsOwnedSchema(confirmedStructure, snapshot)
+            ) {
+                return GoogleSheetsGatewayExportResult.AmbiguousRemoteResult
+            }
+        }
+        return GoogleSheetsGatewayExportResult.Success
     }
 
     private fun execute(
@@ -395,7 +416,7 @@ class RestGoogleSheetsGateway(
                                 title = properties.requireNonBlankString("title"),
                                 columnCount =
                                     properties.optJSONObject("gridProperties")
-                                        ?.optInt("columnCount", 13) ?: 13,
+                                        ?.optInt("columnCount", 0) ?: 0,
                             ),
                         )
                         metadata +=

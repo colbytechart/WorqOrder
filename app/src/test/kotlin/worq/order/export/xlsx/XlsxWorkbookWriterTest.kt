@@ -42,6 +42,7 @@ class XlsxWorkbookWriterTest {
                             "10:00 AM",
                             "01:00:00",
                             "60",
+                            "First note",
                         ),
                     ),
             )
@@ -98,6 +99,7 @@ class XlsxWorkbookWriterTest {
                             "10:00 AM",
                             "25:00:00",
                             "1500",
+                            "Note with newline\n and Unicode \uD83D\uDE00",
                             ),
                         ),
                 ),
@@ -110,6 +112,7 @@ class XlsxWorkbookWriterTest {
         assertEquals(client, readRows(bytes)[1][3])
         assertEquals(description, readRows(bytes)[1][4])
         assertEquals(purchases, readRows(bytes)[1][5])
+        assertEquals("Note with newline\n and Unicode \uD83D\uDE00", readRows(bytes)[1][13])
         assertFalse(worksheetXml.contains("<f"))
         assertTrue(worksheetXml.contains("=SUM(A1:A2)"))
         assertTrue(worksheetXml.contains("_x000D_"))
@@ -129,7 +132,7 @@ class XlsxWorkbookWriterTest {
         assertFalse(parts.keys.any { it.contains("customXml", ignoreCase = true) })
         assertFalse(FORMULA_ELEMENT_PATTERN.containsMatchIn(allXml))
         assertFalse(allXml.contains("TargetMode=\"External\""))
-        assertTrue(allXml.contains("<dimension ref=\"A1:M1\"/>"))
+        assertTrue(allXml.contains("<dimension ref=\"A1:N1\"/>"))
     }
 
     @Test
@@ -153,6 +156,7 @@ class XlsxWorkbookWriterTest {
                                 "",
                                 "00:00:00",
                                 "0",
+                                "",
                             ),
                         ),
                 )

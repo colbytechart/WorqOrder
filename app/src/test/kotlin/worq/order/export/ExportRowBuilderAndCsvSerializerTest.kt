@@ -41,10 +41,11 @@ class ExportRowBuilderAndCsvSerializerTest {
                 "Stop time",
                 "Time spent",
                 "Billing minutes",
+                "Notes",
             ),
             ExportSchema.headers,
         )
-        assertEquals(5, snapshot.schemaVersion)
+        assertEquals(6, snapshot.schemaVersion)
         assertEquals(
             ExportSchema.headers.joinToString(",") + "\r\n",
             csv,
@@ -132,6 +133,7 @@ class ExportRowBuilderAndCsvSerializerTest {
         assertEquals("", first.rows.first()["Billing Status"])
         assertEquals("00:00:00", first.rows.first()["Time spent"])
         assertEquals("0", first.rows.first()["Billing minutes"])
+        assertEquals("", first.rows.first()["Notes"])
         assertEquals(
             serializer.serialize(first),
             serializer.serialize(second),
@@ -144,12 +146,14 @@ class ExportRowBuilderAndCsvSerializerTest {
         val clientName = "Acme, International"
         val description = "Line 1\r\n\"quoted\", café 😀 東京"
         val purchases = "Suite,\nPro"
+        val notes = "Follow up:\r\n\"Call\" R\u00e9sum\u00e9 \uD83D\uDE80"
         val detail =
             detail(
                 taskId = "escaped",
                 clientName = clientName,
                 description = description,
                 purchases = purchases,
+                notes = notes,
             )
 
         val csv =
@@ -160,6 +164,7 @@ class ExportRowBuilderAndCsvSerializerTest {
         assertTrue(csv.contains("\"Acme, International\""))
         assertTrue(csv.contains("\"Line 1\r\n\"\"quoted\"\", café 😀 東京\""))
         assertTrue(csv.contains("\"Suite,\nPro\""))
+        assertTrue(csv.contains("\"Follow up:\r\n\"\"Call\"\" R\u00e9sum\u00e9 \uD83D\uDE80\""))
         assertEquals(
             csv,
             csv.toByteArray(StandardCharsets.UTF_8).toString(StandardCharsets.UTF_8),
@@ -245,7 +250,7 @@ class ExportRowBuilderAndCsvSerializerTest {
     }
 
     @Test
-    fun consultantWorkTypeBillingStatusMileageAndBillingMinutesUseCanonicalSchemaOnce() {
+    fun consultantWorkTypeBillingStatusMileageBillingMinutesAndNotesUseCanonicalSchemaOnce() {
         val detail =
             detail(
                 taskId = "v5",
@@ -253,6 +258,7 @@ class ExportRowBuilderAndCsvSerializerTest {
                 workType = WorkType.ON_SITE,
                 billingStatus = BillingStatus.DO_NOT_CHARGE,
                 mileage = "18.5",
+                notes = "Invoice after approval",
                 intervals =
                     listOf(
                         interval(
@@ -276,6 +282,7 @@ class ExportRowBuilderAndCsvSerializerTest {
         assertEquals("18.5", row["Mileage"])
         assertEquals("00:12:32", row["Time spent"])
         assertEquals("15", row["Billing minutes"])
+        assertEquals("Invoice after approval", row["Notes"])
         assertEquals(ExportSchema.headers, serializer.serialize(snapshot).lineSequence().first().split(','))
     }
 
@@ -289,6 +296,7 @@ class ExportRowBuilderAndCsvSerializerTest {
         clientName: String = "Client",
         description: String = "Description",
         purchases: String = "",
+        notes: String = "",
         employee: String = "",
         workType: WorkType = WorkType.UNSPECIFIED,
         billingStatus: BillingStatus? = null,
@@ -317,6 +325,7 @@ class ExportRowBuilderAndCsvSerializerTest {
                 workType = workType,
                 billingStatus = billingStatus,
                 mileage = mileage,
+                notes = notes,
                 workDate = workDate,
                 zoneId = zoneId,
                 createdAt = createdAt,

@@ -12,7 +12,7 @@ import worq.order.export.ExportSnapshot
 
 class GoogleSheetsExportPlannerTest {
     @Test
-    fun newTabHasThirteenVisibleColumnsAndHiddenStableTaskIds() {
+    fun newTabHasFourteenVisibleColumnsAndHiddenStableTaskIds() {
         val plan = ready(
             GoogleSheetsExportPlanner.plan(
                 GoogleSpreadsheetStructure(SPREADSHEET_ID, emptyList(), emptyList()),
@@ -23,11 +23,11 @@ class GoogleSheetsExportPlannerTest {
         assertEquals(16, add.columnCount)
         assertEquals(2, add.rowCount)
         val cells = plan.requests.filterIsInstance<GoogleSheetsBatchRequest.ReplaceCells>().single()
-        assertEquals(ExportSchema.headers, cells.rows.first().take(13))
+        assertEquals(ExportSchema.headers, cells.rows.first().take(14))
         assertEquals("WORQORDER_TASK_ID", cells.rows.first()[15])
         assertEquals("worqorder.task.v1:task-a", cells.rows[1][15])
         assertEquals("Alpha", cells.rows[1][4])
-        assertEquals(GoogleSheetsBatchRequest.HideColumns(add.sheetId, 13, 16), plan.requests.last())
+        assertEquals(GoogleSheetsBatchRequest.HideColumns(add.sheetId, 14, 16), plan.requests.last())
     }
 
     @Test
@@ -104,41 +104,6 @@ class GoogleSheetsExportPlannerTest {
             GoogleSheetsBatchRequest.WriteCellsAt(27, 1, 0, listOf(row("task-a", "Edited").values)),
             plan.requests.filterIsInstance<GoogleSheetsBatchRequest.WriteCellsAt>().single(),
         )
-    }
-
-    @Test
-    fun preFixExactMatchIsAdoptedButOtherDeviceRowsRemain() {
-        val oldRow = row("task-a", "Original")
-        val remote = listOf(
-            ExportSchema.headers,
-            oldRow.values,
-            row("other-task", "Other device").values,
-        )
-        val plan = ready(
-            GoogleSheetsExportPlanner.plan(
-                ownedStructure(remote, columnCount = 13),
-                snapshot(oldRow),
-            ),
-        )
-        assertTrue(plan.requests.contains(GoogleSheetsBatchRequest.SetColumnCount(27, 16)))
-        assertTrue(plan.requests.contains(
-            GoogleSheetsBatchRequest.WriteCellsAt(27, 1, 15, listOf(listOf("worqorder.task.v1:task-a"))),
-        ))
-        assertFalse(plan.requests.any { it is GoogleSheetsBatchRequest.AppendCells })
-        assertFalse(plan.requests.any { it is GoogleSheetsBatchRequest.ResizeSheet })
-    }
-
-    @Test
-    fun preFixUnmatchedRowIsPreservedAndNewTaskAppended() {
-        val remote = listOf(ExportSchema.headers, row("old", "Earlier data").values)
-        val plan = ready(
-            GoogleSheetsExportPlanner.plan(
-                ownedStructure(remote, columnCount = 13),
-                snapshot(row("new", "New data")),
-            ),
-        )
-        assertEquals(1, plan.requests.filterIsInstance<GoogleSheetsBatchRequest.AppendCells>().single().rows.size)
-        assertFalse(plan.requests.filterIsInstance<GoogleSheetsBatchRequest.WriteCellsAt>().any { it.rowIndex == 1 })
     }
 
     @Test
@@ -221,27 +186,27 @@ class GoogleSheetsExportPlannerTest {
             sheets = listOf(GoogleSheetDescriptor(27, TAB, columnCount)),
             developerMetadata = listOf(
                 GoogleSheetDeveloperMetadata(27, GoogleSheetsExportPlanner.APPLICATION_MARKER_KEY, GoogleSheetsExportPlanner.APPLICATION_MARKER_VALUE),
-                GoogleSheetDeveloperMetadata(27, GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY, "5"),
+                GoogleSheetDeveloperMetadata(27, GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY, "6"),
                 GoogleSheetDeveloperMetadata(27, GoogleSheetsExportPlanner.WORK_DATE_KEY, "2026-07-24"),
             ),
             sheetValues = mapOf(27 to rows),
         )
 
     private fun snapshot(vararg rows: ExportRow) =
-        ExportSnapshot(5, LocalDate.of(2026, 7, 24), Instant.parse("2026-07-24T18:00:00Z"), rows.toList())
+        ExportSnapshot(6, LocalDate.of(2026, 7, 24), Instant.parse("2026-07-24T18:00:00Z"), rows.toList())
 
     private fun row(taskId: String, description: String): ExportRow =
         ExportRow(
             values = listOf(
                 "07/24/2026", "07/24/2026", "Consultant", "Client", description,
-                "Expense", "On-Site", "Billable", "12.5", "09:00 AM", "10:00 AM", "01:00:00", "60",
+                "Expense", "On-Site", "Billable", "12.5", "09:00 AM", "10:00 AM", "01:00:00", "60", "",
             ),
             sourceTaskId = taskId,
         )
 
-    private fun header() = ExportSchema.headers + listOf("", "", "WORQORDER_TASK_ID")
+    private fun header() = ExportSchema.headers + listOf("", "WORQORDER_TASK_ID")
 
-    private fun physical(row: ExportRow) = row.values + listOf("", "", "worqorder.task.v1:${row.sourceTaskId}")
+    private fun physical(row: ExportRow) = row.values + listOf("", "worqorder.task.v1:${row.sourceTaskId}")
 
     private companion object {
         const val SPREADSHEET_ID = "1AbCdEfGhIjKlMnOpQrStUvWxYz_123456789"

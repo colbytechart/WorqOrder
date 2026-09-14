@@ -118,6 +118,20 @@ internal object GoogleSheetsBatchJsonEncoder {
                         ).put("properties", JSONObject().put("hiddenByUser", true))
                         .put("fields", "hiddenByUser"),
                 )
+            is GoogleSheetsBatchRequest.ShowColumns ->
+                JSONObject().put(
+                    "updateDimensionProperties",
+                    JSONObject()
+                        .put(
+                            "range",
+                            JSONObject()
+                                .put("sheetId", sheetId)
+                                .put("dimension", "COLUMNS")
+                                .put("startIndex", startIndex)
+                                .put("endIndex", endIndex),
+                        ).put("properties", JSONObject().put("hiddenByUser", false))
+                        .put("fields", "hiddenByUser"),
+                )
             is GoogleSheetsBatchRequest.WriteCellsAt ->
                 JSONObject().put(
                     "updateCells",

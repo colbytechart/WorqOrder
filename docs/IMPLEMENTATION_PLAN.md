@@ -940,6 +940,13 @@ layout/accessibility gate. The footer remains visible while the form scrolls und
 the same visual layering principle as the existing fixed header. No form data or timer behavior
 changes.
 
+**Implemented in the `0.4.0` development branch:** Cancel and Create occupy a fixed Material bottom
+bar with navigation/IME insets and 48 dp minimum action heights. The form is independently
+scrollable. Existing RequestClose, CreateTask, loading, validation, and duplicate-submit rules are
+unchanged. Debug/release builds and lint, 250 JVM tests, and the 117-test connected suite passed;
+a later focused 11-test Create suite also passed with short-viewport, large-text/display-scale,
+keyboard-entry, and non-overlap assertions.
+
 ### Milestone 41 — Full `0.4.0` verification and public-release handoff
 
 **Phases:** Luna assembles migration/export/UI traceability and manual-device checklist; Terra

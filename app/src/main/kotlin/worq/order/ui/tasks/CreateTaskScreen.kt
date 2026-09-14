@@ -3,15 +3,20 @@ package worq.order.ui.tasks
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.BottomAppBarDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,6 +53,8 @@ object CreateTaskScreenTestTags {
     const val PURCHASES = "create_task_purchases"
     const val MILEAGE = "create_task_mileage"
     const val NOTES = "create_task_notes"
+    const val FOOTER = "create_task_footer"
+    const val CANCEL = "create_task_cancel"
     const val CREATE = "create_task_confirm"
 }
 
@@ -73,6 +80,12 @@ fun CreateTaskScreen(
                         )
                     }
                 },
+            )
+        },
+        bottomBar = {
+            CreateTaskActionFooter(
+                uiState = uiState,
+                onEvent = onEvent,
             )
         },
     ) { scaffoldPadding ->
@@ -267,40 +280,6 @@ fun CreateTaskScreen(
                         },
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement =
-                    Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
-            ) {
-                OutlinedButton(
-                    onClick = { onEvent(CreateTaskEvent.RequestClose) },
-                    enabled = !uiState.isSavingTask,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
-                Button(
-                    onClick = { onEvent(CreateTaskEvent.CreateTask) },
-                    enabled =
-                        !uiState.isSavingTask &&
-                            !uiState.isLoadingClients &&
-                            !uiState.isLoadingConsultant &&
-                            !uiState.hasClientLoadError &&
-                            !uiState.hasConsultantLoadError &&
-                            uiState.activeClients.isNotEmpty() &&
-                            uiState.selectedConsultantId != null,
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .testTag(CreateTaskScreenTestTags.CREATE),
-                ) {
-                    if (uiState.isSavingTask) {
-                        CircularProgressIndicator()
-                    } else {
-                        Text(stringResource(R.string.create))
-                    }
-                }
-            }
         }
     }
 
@@ -335,6 +314,64 @@ fun CreateTaskScreen(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun CreateTaskActionFooter(
+    uiState: CreateTaskUiState,
+    onEvent: (CreateTaskEvent) -> Unit,
+) {
+    BottomAppBar(
+        modifier = Modifier.imePadding(),
+        contentPadding =
+            PaddingValues(
+                horizontal = WorqOrderDimens.ScreenPadding,
+                vertical = WorqOrderDimens.BottomActionVerticalPadding,
+            ),
+        windowInsets = BottomAppBarDefaults.windowInsets,
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .testTag(CreateTaskScreenTestTags.FOOTER),
+            horizontalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
+        ) {
+            OutlinedButton(
+                onClick = { onEvent(CreateTaskEvent.RequestClose) },
+                enabled = !uiState.isSavingTask,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = WorqOrderDimens.ActionButtonHeight)
+                        .testTag(CreateTaskScreenTestTags.CANCEL),
+            ) {
+                Text(stringResource(R.string.cancel))
+            }
+            Button(
+                onClick = { onEvent(CreateTaskEvent.CreateTask) },
+                enabled =
+                    !uiState.isSavingTask &&
+                        !uiState.isLoadingClients &&
+                        !uiState.isLoadingConsultant &&
+                        !uiState.hasClientLoadError &&
+                        !uiState.hasConsultantLoadError &&
+                        uiState.activeClients.isNotEmpty() &&
+                        uiState.selectedConsultantId != null,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = WorqOrderDimens.ActionButtonHeight)
+                        .testTag(CreateTaskScreenTestTags.CREATE),
+            ) {
+                if (uiState.isSavingTask) {
+                    CircularProgressIndicator()
+                } else {
+                    Text(stringResource(R.string.create))
+                }
+            }
+        }
     }
 }
 

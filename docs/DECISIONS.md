@@ -1263,7 +1263,10 @@ form-input changes, not changes to client validation, timer semantics, or signin
 
 Milestone 39 implements the heading cleanup and optional Notes on Create and Edit. The Consultant
 warning and Settings action still appear when assignment is missing, and task creation still
-requires a selected active Consultant. The pinned Cancel/Create footer is deferred to Milestone 40.
+requires a selected active Consultant. Milestone 40 implements the pinned Cancel/Create footer in
+the Scaffold bottom bar. The scrollable body consumes the Scaffold's header/footer padding, and
+the footer respects navigation and keyboard insets; each action keeps a 48 dp minimum height.
+No task data, save, or discard rule changed.
 
 ## Deferred decisions
 

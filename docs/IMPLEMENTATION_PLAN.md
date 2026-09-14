@@ -925,6 +925,12 @@ ViewModel/Compose/accessibility tests; Sol reviews data and UI behavior. The Cre
 with `Task for [date]` followed by the client selector. Notes appear below Mileage and begin blank.
 Do not remove Consultant metadata, validation, or Settings selection.
 
+**Implemented in the `0.4.0` development branch:** Create and Edit expose optional Notes below
+Mileage with a Unicode code-point count and field-level overlength error. Create starts with the
+date and client choice; Consultant assignment and missing-selection recovery remain in force even
+though the redundant heading and selected name are hidden. Compose, ViewModel, lint, JVM, and
+connected checks passed. The fixed Create footer remains Milestone 40 work.
+
 ### Milestone 40 — Pinned Create Task action footer
 
 **Phases:** Terra separates the Create Task scrolling form from a fixed bottom Cancel/Create bar;

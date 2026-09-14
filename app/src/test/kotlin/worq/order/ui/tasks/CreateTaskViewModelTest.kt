@@ -146,6 +146,29 @@ class CreateTaskViewModelTest {
         }
 
     @Test
+    fun blankNotesAreOptionalAndPersistAsBlank() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val repository =
+                FakeClientRepository(
+                    listOf(client("client-1", "Client")),
+                )
+            val fixture = taskFixture(repository)
+
+            fixture.viewModel.onEvent(CreateTaskEvent.SelectClient("client-1"))
+            fixture.viewModel.onEvent(CreateTaskEvent.EditDescription("Task without notes"))
+            fixture.viewModel.onEvent(CreateTaskEvent.CreateTask)
+            runCurrent()
+
+            val task = fixture.tasks.observeTasksForDate(WORK_DATE).first().single().task
+            assertEquals("", task.notes)
+            assertFalse(
+                fixture.viewModel.uiState.value.metadataErrors.contains(
+                    TaskMetadataValidationError.NOTES_TOO_LONG,
+                ),
+            )
+        }
+
+    @Test
     fun validationAndDiscardDoNotCreateTask() =
         runTest(mainDispatcherRule.dispatcher) {
             val repository =

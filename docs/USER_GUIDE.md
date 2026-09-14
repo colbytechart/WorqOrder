@@ -1,7 +1,7 @@
 # WorqOrder User Guide
 
-Publication status: the latest published release is `0.3.0`. This guide describes released
-behavior; planned `0.4.0` Notes and UI changes are not available in the published app yet.
+Publication status: the latest published release is `0.3.0`. This guide follows the current
+`0.4.0` development build where indicated; Notes are not available in the published app yet.
 
 ## 1. What WorqOrder Stores
 
@@ -62,11 +62,13 @@ creating a task.** Directory changes keep historical task Consultant snapshots i
 6. Choose **Work Type**.
 7. Choose **Billing Status**: **Billable** (the default), **Do not bill**, or **Do not charge**.
 8. Optionally enter **Mileage**.
-9. Choose **Create**.
+9. In the `0.4.0` development build, optionally enter **Notes** (up to 999 characters).
+10. Choose **Create**.
 
-Both text fields allow up to 400 characters. The new task belongs to the date that was displayed
-when creation opened. A new task for today becomes selected automatically. A historical or future
-task can be created and edited, but cannot be timed live.
+Short description and Hardware / Software Purchases allow up to 400 characters. Notes are optional
+and allow up to 999 characters. The new task belongs to the date that was displayed when creation
+opened. A new task for today becomes selected automatically. A historical or future task can be
+created and edited, but cannot be timed live.
 
 If no active client exists, use the inline **Add client** action. Canceling task creation saves
 nothing. Tapping a task row selects it when no timer is running.
@@ -79,7 +81,8 @@ nothing. Tapping a task row selects it when no timer is running.
 
 Each task has zero or one interval. Selecting another task is blocked until Stop. Starting a
 task that already has a completed interval creates and selects a new same-day task carrying the
-source task's metadata, then starts that new task. The source task and its interval remain intact.
+source task's metadata, then starts that new task. In the `0.4.0` development build, the new
+task's Notes start blank. The source task and its interval remain intact.
 
 Accumulated durations are displayed as `HH:MM:SS`. WorqOrder still records precise interval
 boundaries internally; fractional seconds are omitted from the interface to reduce visual clutter.
@@ -111,7 +114,8 @@ Open a task's overflow menu and choose **Edit**.
 The Edit Task screen allows you to:
 
 - change the active client;
-- change the short description or purchase notes;
+- change the short description or Hardware / Software Purchases;
+- in the `0.4.0` development build, edit the optional Notes field;
 - change Work Type, Billing Status, or Mileage (migrated tasks may initially have blank Billing
   Status);
 - view the read-only work date, task ZoneId, and total duration;

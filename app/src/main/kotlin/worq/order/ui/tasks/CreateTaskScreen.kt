@@ -35,6 +35,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import worq.order.R
 import worq.order.data.MAX_TASK_DESCRIPTION_CODE_POINTS
+import worq.order.data.MAX_TASK_NOTES_CODE_POINTS
 import worq.order.data.MAX_TASK_PURCHASES_CODE_POINTS
 import worq.order.data.TaskMetadataValidationError
 import worq.order.ui.clients.ClientEditorDialog
@@ -46,6 +47,7 @@ object CreateTaskScreenTestTags {
     const val DESCRIPTION = "create_task_description"
     const val PURCHASES = "create_task_purchases"
     const val MILEAGE = "create_task_mileage"
+    const val NOTES = "create_task_notes"
     const val CREATE = "create_task_confirm"
 }
 
@@ -94,37 +96,6 @@ fun CreateTaskScreen(
                     ),
                 style = MaterialTheme.typography.titleMedium,
             )
-            Text(
-                text = stringResource(R.string.consultant),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            when {
-                uiState.isLoadingConsultant -> CircularProgressIndicator()
-                uiState.selectedConsultantName != null ->
-                    Text(
-                        stringResource(
-                            R.string.selected_consultant,
-                            uiState.selectedConsultantName,
-                        ),
-                    )
-                else -> {
-                    Text(
-                        text = stringResource(R.string.task_consultant_required),
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    )
-                    OutlinedButton(
-                        onClick = { onEvent(CreateTaskEvent.OpenConsultantSettings) },
-                        enabled = !uiState.isSavingTask,
-                    ) {
-                        Text(stringResource(R.string.open_consultant_settings))
-                    }
-                }
-            }
-            Text(
-                text = stringResource(R.string.task_client),
-                style = MaterialTheme.typography.titleMedium,
-            )
             when {
                 uiState.isLoadingClients ->
                     CircularProgressIndicator()
@@ -170,6 +141,22 @@ fun CreateTaskScreen(
                 enabled = !uiState.isLoadingClients && !uiState.isSavingTask,
             ) {
                 Text(stringResource(R.string.add_client_inline))
+            }
+            when {
+                uiState.isLoadingConsultant -> CircularProgressIndicator()
+                uiState.selectedConsultantId == null -> {
+                    Text(
+                        text = stringResource(R.string.task_consultant_required),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    OutlinedButton(
+                        onClick = { onEvent(CreateTaskEvent.OpenConsultantSettings) },
+                        enabled = !uiState.isSavingTask,
+                    ) {
+                        Text(stringResource(R.string.open_consultant_settings))
+                    }
+                }
             }
             OutlinedTextField(
                 value = uiState.description,
@@ -246,6 +233,29 @@ fun CreateTaskScreen(
                 enabled = !uiState.isSavingTask,
                 onValueChange = { onEvent(CreateTaskEvent.EditMileage(it)) },
                 modifier = Modifier.testTag(CreateTaskScreenTestTags.MILEAGE),
+            )
+            OutlinedTextField(
+                value = uiState.notes,
+                onValueChange = { onEvent(CreateTaskEvent.EditNotes(it)) },
+                label = { Text(stringResource(R.string.notes)) },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .testTag(CreateTaskScreenTestTags.NOTES),
+                enabled = !uiState.isSavingTask,
+                minLines = 2,
+                maxLines = 6,
+                keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
+                isError = TaskMetadataValidationError.NOTES_TOO_LONG in uiState.metadataErrors,
+                supportingText = {
+                    TaskTextSupportingText(
+                        value = uiState.notes,
+                        maxCodePoints = MAX_TASK_NOTES_CODE_POINTS,
+                        tooLongError =
+                            TaskMetadataValidationError.NOTES_TOO_LONG in
+                                uiState.metadataErrors,
+                    )
+                },
             )
             uiState.message?.let { message ->
                 Text(

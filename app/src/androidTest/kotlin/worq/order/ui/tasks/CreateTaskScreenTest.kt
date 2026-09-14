@@ -3,7 +3,9 @@ package worq.order.ui.tasks
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -15,6 +17,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import worq.order.data.TaskMetadataValidationError
 import worq.order.ui.clients.ClientItemUi
 import worq.order.ui.theme.WorqOrderTheme
 import worq.order.model.BillingStatus
@@ -111,6 +114,9 @@ class CreateTaskScreenTest {
             .onNodeWithTag(CreateTaskScreenTestTags.MILEAGE)
             .performTextInput("12.5")
         composeRule
+            .onNodeWithTag(CreateTaskScreenTestTags.NOTES)
+            .performTextInput("follow up")
+        composeRule
             .onNodeWithTag(CreateTaskScreenTestTags.CREATE)
             .performScrollTo()
             .performClick()
@@ -121,10 +127,54 @@ class CreateTaskScreenTest {
                 CreateTaskEvent.EditHardwareSoftwarePurchases("laptop"),
             ),
         )
-        assertTrue(events.contains(CreateTaskEvent.SelectWorkType(worq.order.model.WorkType.IN_OFFICE)))
-        assertTrue(events.contains(CreateTaskEvent.SelectBillingStatus(BillingStatus.DO_NOT_BILL)))
+        assertTrue(
+            events.contains(CreateTaskEvent.SelectWorkType(worq.order.model.WorkType.IN_OFFICE)),
+        )
+        assertTrue(
+            events.contains(CreateTaskEvent.SelectBillingStatus(BillingStatus.DO_NOT_BILL)),
+        )
         assertTrue(events.contains(CreateTaskEvent.EditMileage("12.5")))
+        assertTrue(events.contains(CreateTaskEvent.EditNotes("follow up")))
         assertTrue(events.contains(CreateTaskEvent.CreateTask))
+    }
+
+    @Test
+    fun createHeaderStartsWithDateAndClientChoiceWithoutConsultantHeading() {
+        setContent(
+            state =
+                CreateTaskUiState(
+                    isLoadingClients = false,
+                    activeClients = listOf(ClientItemUi("client", "Client")),
+                    isLoadingConsultant = false,
+                    selectedConsultantId = "employee",
+                    selectedConsultantName = "Alex Rivera",
+                ),
+        )
+
+        composeRule.onNodeWithText("Task for", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Choose a client").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Consultant").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Client").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Consultant: Alex Rivera").assertCountEquals(0)
+    }
+
+    @Test
+    fun overlengthNotesShowFieldLevelErrorBelowTheEditableField() {
+        setContent(
+            state =
+                CreateTaskUiState(
+                    isLoadingClients = false,
+                    activeClients = listOf(ClientItemUi("client", "Client")),
+                    selectedClientId = "client",
+                    isLoadingConsultant = false,
+                    selectedConsultantId = "employee",
+                    notes = "x".repeat(1000),
+                    metadataErrors = setOf(TaskMetadataValidationError.NOTES_TOO_LONG),
+                ),
+        )
+
+        composeRule.onNodeWithTag(CreateTaskScreenTestTags.NOTES).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Character limit: 999").assertIsDisplayed()
     }
 
     @Test

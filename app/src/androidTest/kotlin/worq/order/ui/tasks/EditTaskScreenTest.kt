@@ -9,9 +9,11 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -45,6 +47,11 @@ class EditTaskScreenTest {
         composeRule.onNodeWithText("Short description").assertIsDisplayed()
         composeRule.onNodeWithText("Hardware / Software Purchases").assertIsDisplayed()
         composeRule
+            .onNodeWithTag(EditTaskScreenTestTags.NOTES)
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performTextInput("Follow up")
+        composeRule
             .onNodeWithText("Task Total: 02:00:00")
             .performScrollTo()
             .assertIsDisplayed()
@@ -69,6 +76,7 @@ class EditTaskScreenTest {
         composeRule.onNodeWithText("Edit interval").performScrollTo().performClick()
 
         assertTrue(events.contains(EditTaskEvent.OpenEditInterval("only")))
+        assertTrue(events.contains(EditTaskEvent.EditNotes("Follow up")))
     }
 
     @Test

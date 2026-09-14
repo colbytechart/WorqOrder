@@ -43,6 +43,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import worq.order.R
 import worq.order.data.MAX_TASK_DESCRIPTION_CODE_POINTS
+import worq.order.data.MAX_TASK_NOTES_CODE_POINTS
 import worq.order.data.MAX_TASK_PURCHASES_CODE_POINTS
 import worq.order.data.TaskMetadataValidationError
 import worq.order.domain.ManualIntervalValidationError
@@ -54,6 +55,7 @@ import worq.order.util.ClockTimeFormatter
 object EditTaskScreenTestTags {
     const val CONSULTANT = "edit_task_consultant"
     const val MILEAGE = "edit_task_mileage"
+    const val NOTES = "edit_task_notes"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -274,6 +276,28 @@ private fun EditTaskContent(
             enabled = !uiState.isRunning && !uiState.isSavingMetadata,
             onValueChange = { onEvent(EditTaskEvent.EditMileage(it)) },
             modifier = Modifier.testTag(EditTaskScreenTestTags.MILEAGE),
+        )
+        OutlinedTextField(
+            value = uiState.notes,
+            onValueChange = { onEvent(EditTaskEvent.EditNotes(it)) },
+            label = { Text(stringResource(R.string.notes)) },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .testTag(EditTaskScreenTestTags.NOTES),
+            enabled = !uiState.isRunning && !uiState.isSavingMetadata,
+            minLines = 2,
+            maxLines = 6,
+            keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
+            isError = TaskMetadataValidationError.NOTES_TOO_LONG in uiState.metadataErrors,
+            supportingText = {
+                TaskTextSupportingText(
+                    value = uiState.notes,
+                    maxCodePoints = MAX_TASK_NOTES_CODE_POINTS,
+                    tooLongError =
+                        TaskMetadataValidationError.NOTES_TOO_LONG in uiState.metadataErrors,
+                )
+            },
         )
         Button(
             onClick = { onEvent(EditTaskEvent.SaveMetadata) },

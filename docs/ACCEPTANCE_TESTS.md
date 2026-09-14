@@ -1161,6 +1161,10 @@ client validation still work. Cancel/Create stay visible in a pinned footer whil
 remain scrollable and reachable with the keyboard open, on a short landscape phone, and with large
 text/display scaling. TalkBack order and targets remain usable; Create cannot double-submit.
 
+Milestone 39 verifies the header cleanup, Notes field events and overlength error, blank Notes
+creation, and retained Consultant selection through ViewModel and Compose tests. The pinned footer
+and its short-screen/IME acceptance checks are reserved for Milestone 40.
+
 ### V4-EXPORT-01 One immutable 14-column dataset
 
 CSV, one-off XLSX, manual Google, and automatic Google expose the exact schema-5 first 13 headers

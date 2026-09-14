@@ -1261,6 +1261,10 @@ below Mileage. Keep the top header fixed and add a fixed bottom Cancel/Create fo
 of the scrollable form, with keyboard/inset/large-text access to every field. These are visual and
 form-input changes, not changes to client validation, timer semantics, or signing identity.
 
+Milestone 39 implements the heading cleanup and optional Notes on Create and Edit. The Consultant
+warning and Settings action still appear when assignment is missing, and task creation still
+requires a selected active Consultant. The pinned Cancel/Create footer is deferred to Milestone 40.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.

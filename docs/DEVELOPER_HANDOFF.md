@@ -7,13 +7,23 @@
 - Minimum SDK: 26
 - Target SDK: 36
 - Compile SDK: 36.1
-- Latest published release: `0.2.0` (`versionCode = 2`)
-- Next release under preparation: `0.3.0` (`versionCode = 3`, explicitly owner-approved)
+- Latest published release: `0.3.0` (`versionCode = 3`)
+- Prepared next release: `0.4.0`/versionCode `4`, explicitly approved by the owner; GitHub
+  publication and downloaded-asset verification remain owner actions
 - License: GPLv3
 - Distribution artifact: owner-signed APK attached to a GitHub Release
 
 Android application backup is disabled. Room is authoritative. CSV, XLSX, and Google Sheets are
 one-way exports.
+
+`0.4.0` adds the additive Room 5-to-6 Notes migration and shared schema-6 export projection. The
+Milestone 41 pre-publication signing, populated-update, device, and export gates passed by owner
+report and local generated evidence. The owner must still merge, tag, upload, and verify the
+downloaded public asset before treating it as published.
+
+The owner-only `0.4.0` branch-to-GitHub sequence and reviewed candidate checksum are in
+`RELEASE_CHECKLIST.md`, Sections 10–11. Historical `0.2.0`/`0.3.0` commands later in this handoff
+are not substitutes for that sequence.
 
 ## 2. Required Local Toolchain
 
@@ -146,9 +156,10 @@ Get-FileHash -Algorithm SHA256 -LiteralPath $apk
 Confirm exactly one signer and compare its SHA-1 to the registered release OAuth client. Publish
 the SHA-256 alongside the APK. Do not publish the keystore or passwords.
 
-## 8. Next Release Procedure
+## 8. Historical `0.3.0` Release Procedure
 
-Do not release `0.3.0` until every blocker in `MILESTONE_35_RELEASE_EVIDENCE.md` is resolved.
+The procedure below records the completed `0.3.0` release. Do not reuse its version, tag, artifact
+name, or branch names for `0.4.0`; its separate gate is recorded in Milestone 41.
 
 1. Confirm the source remains at the owner-approved `versionName = 0.3.0` and `versionCode = 3`.
 2. Confirm the working tree contains only intended tracked release changes and run the complete

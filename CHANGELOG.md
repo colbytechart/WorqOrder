@@ -4,7 +4,35 @@ All notable changes to WorqOrder are documented here.
 
 The project follows semantic versioning for public release identifiers.
 
-## [Unreleased] - `0.3.0`
+## [0.4.0] - pre-publication candidate reviewed 2026-09-15
+
+### Added
+
+- Optional, editable task Notes with a 999-character limit. Notes are blank for migrated and new
+  tasks and blank on repeated-Start copies.
+- The shared schema-6 projection: 14 visible columns across CSV, one-off XLSX, manual Google, and
+  automatic Google export, with Notes appended as column 14.
+
+### Changed
+
+- Room's additive 5-to-6 migration initializes historical Notes to blank while preserving the
+  existing task graph and active-timer authority.
+- Owned Google schema-5 tabs upgrade safely to schema 6 without clearing another device's rows or
+  hidden transport identities; ambiguous tabs fail closed.
+- Create Task now starts directly with the date and client selection; Consultant assignment remains
+  required but redundant presentation is removed.
+- Cancel and Create remain pinned in a bottom action bar while the form scrolls.
+- Edit Task omits the visible time-zone line and places Delete Task and Save Task Changes in a
+  fixed, equal-width footer. Both task-form footers match the selected theme's page background.
+
+### Release Status
+
+- The clean signed `0.4.0`/code 4 candidate, populated migration, Notes/schema-6 checks, live
+  automatic Google export, API-26/API-37 device checks, and non-tester Google access passed.
+  Public availability and release date depend on the owner's GitHub tag/upload; see the
+  [Releases page](../../releases) for the current published asset.
+
+## [0.3.0] - 2026-09-13
 
 ### Changed
 
@@ -21,8 +49,8 @@ The project follows semantic versioning for public release identifiers.
 
 ### Release Status
 
-- `0.3.0` has not been published. Its owner-approved identity is `versionCode = 3`; its signed
-  artifact, populated `0.2.0` upgrade, device matrix, and final audit remain release gates.
+- Publicly released as `versionCode = 3`. The owner verified the public APK checksum, installed
+  it on a physical device over existing data, and confirmed new task timing and intervals.
 
 ## [0.2.0] - 2026-08-09
 

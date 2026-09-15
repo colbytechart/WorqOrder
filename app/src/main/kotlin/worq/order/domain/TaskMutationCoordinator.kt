@@ -98,6 +98,7 @@ class TaskMutationCoordinator(
         workType: WorkType = WorkType.ON_SITE,
         billingStatus: BillingStatus = BillingStatus.BILLABLE,
         mileage: String? = null,
+        notes: String = "",
     ): CreateTaskOperationResult {
         zoneIdProvider.awaitZoneId()
         if (employeeId.isNullOrBlank()) {
@@ -112,6 +113,7 @@ class TaskMutationCoordinator(
                         workType = workType,
                         billingStatus = billingStatus,
                         mileage = mileage,
+                        notes = notes,
                     )
             ) {
                 is TaskMetadataValidationResult.Valid -> validation.metadata
@@ -131,6 +133,7 @@ class TaskMutationCoordinator(
                             workType = metadata.workType,
                             billingStatus = metadata.billingStatus,
                             mileage = metadata.mileage,
+                            notes = metadata.notes,
                             workDate = workDate,
                             zoneId = zoneIdProvider.zoneId(),
                         ),
@@ -163,6 +166,7 @@ class TaskMutationCoordinator(
         workType: WorkType = WorkType.UNSPECIFIED,
         billingStatus: BillingStatus? = null,
         mileage: String? = null,
+        notes: String,
     ): UpdateTaskOperationResult {
         val metadata =
             when (
@@ -173,6 +177,7 @@ class TaskMutationCoordinator(
                         workType = workType,
                         billingStatus = billingStatus,
                         mileage = mileage,
+                        notes = notes,
                     )
             ) {
                 is TaskMetadataValidationResult.Valid -> validation.metadata
@@ -190,6 +195,7 @@ class TaskMutationCoordinator(
                     workType = metadata.workType,
                     billingStatus = metadata.billingStatus,
                     mileage = metadata.mileage,
+                    notes = metadata.notes,
                 )
         ) {
             is UpdateTaskMetadataResult.Updated ->

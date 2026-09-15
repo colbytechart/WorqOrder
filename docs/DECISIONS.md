@@ -6,7 +6,8 @@ Status terms: **Accepted** is a fixed product/architecture decision; **Proposed*
 
 Version scope: decisions D-001 through D-080 preserve the accepted `0.1.0`/`0.2.0` history and
 are not current when a later decision explicitly supersedes them. Decisions D-081 and later define
-the current `0.3.0` development behavior; migration fixtures and historical wording remain for
+released `0.3.0` behavior. Decisions D-097 onward govern implemented `0.4.0` work and supersede
+older milestone scheduling where stated. Migration fixtures and historical wording remain for
 upgrade traceability and must not be interpreted as live production contracts.
 
 ### D-001 — Native stable Android stack
@@ -1214,6 +1215,67 @@ unidentifiable records; they return a compatibility conflict until the owner del
 preserves/renames the old tab. Local deletion does not delete a previously exported Google row.
 This is an accumulated one-way export, not cross-device Room synchronization. The source task ID
 is transport-only and is not a visible column or a change to the canonical CSV/XLSX schema.
+
+### D-097 — `0.3.0` is released; `0.4.0` has a separate compatibility-preserving roadmap
+
+The owner reports public `0.3.0` publication and a physical-device upgrade that retained existing
+data and worked for new task timing. Milestone 36 is now documentation-only `0.4.0` planning.
+Release-specific implementation occupies Milestones 37–41. The former post-`0.3.0` project
+environment teardown guide moves to Milestone 42 **after** public `0.4.0` publication; any real
+closeout work is separately authorized optional Milestone 43. Milestone E remains independent.
+
+### D-098 — Notes are optional, editable task data, but not repeated-Start copy data
+
+`0.4.0` adds task Notes with a 999-Unicode-code-point limit and a blank default. Blank Notes never
+block task creation. Existing records gain blank Notes through an additive, versioned Room 5-to-6
+migration; no existing data or active timer may be discarded. Edit Task can change Notes on that
+task. When Start on an already-timed task creates a new task, its Notes are blank even if the
+source has Notes. This is the sole exception to current repeated-Start user-metadata copying.
+
+### D-099 — Export schema 6 appends Notes without weakening Google row ownership
+
+Append `Notes` as the fourteenth visible header after the current schema-5 thirteen; retain their
+exact spelling, ordering, formatting, and one-row-per-task semantics. CSV, one-off XLSX, manual
+Google, and automatic Google use one immutable schema-6 projection. In Google, N becomes visible
+Notes, O stays reserved, and P retains the hidden stable task ID. Owned schema-5 tabs may upgrade
+in place only after verifying marker/previously reserved N and preserving all existing rows,
+other-device values, and task IDs. Unknown, unowned, or unsafe tabs fail closed. No Room mutation
+or destination-specific projection is permitted.
+
+Milestone 38A stages the compatibility planner without activating schema-6 export. The planner
+checks the old A:M header and reserved N:O values, including formula cells that render blank;
+requires an addressable schema metadata ID; and puts Notes visibility, local keyed updates or
+appends, and the schema-marker change in one batch. It never replaces or shrinks an existing
+tab. Milestone 38B activated the shared schema-6 projection, including Notes in the same
+immutable row consumed by all three destinations. The 38D review also rejects a marked legacy
+tab whose A:M header is missing. Local JVM, lint, instrumentation-compilation, and debug/release
+build gates passed; the final review also removes the parser's unsafe default for an absent
+Google sheet column count. The owner's connected emulator gate passed 111 tests without failures,
+errors, or skips.
+
+### D-100 — Create Task presentation changes do not remove Consultant assignment
+
+Remove the redundant Consultant/Client headings and selected-Consultant text above the client
+dropdown; keep the selected Consultant requirement and assignment behavior. Put optional Notes
+below Mileage. Keep the top header fixed and add a fixed bottom Cancel/Create footer independent
+of the scrollable form, with keyboard/inset/large-text access to every field. These are visual and
+form-input changes, not changes to client validation, timer semantics, or signing identity.
+
+Milestone 39 implements the heading cleanup and optional Notes on Create and Edit. The Consultant
+warning and Settings action still appear when assignment is missing, and task creation still
+requires a selected active Consultant. Milestone 40 implements the pinned Cancel/Create footer in
+the Scaffold bottom bar. The scrollable body consumes the Scaffold's header/footer padding, and
+the footer respects navigation and keyboard insets; each action keeps a 48 dp minimum height.
+No task data, save, or discard rule changed.
+
+### D-101 — Edit Task hides ZoneId and shares the fixed-footer visual language
+
+The task's stored geographical ZoneId remains required domain data but is no longer rendered on
+Edit Task. Delete Task and Save Task Changes move from the scrollable body into equal-width fixed
+footer actions, Delete on the left and Save on the right. Both Create and Edit action footers use
+the current theme's page background rather than Material's contrasting bottom-app-bar container.
+This is presentation-only: running/save guards, validation, confirmations, navigation, historical
+time interpretation, and Room persistence are unchanged.
 
 ## Deferred decisions
 

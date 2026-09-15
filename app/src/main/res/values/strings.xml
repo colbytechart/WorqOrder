@@ -98,7 +98,6 @@
     <string name="create_task">Create Task</string>
     <string name="edit_task">Edit Task</string>
     <string name="task_for_date">Task for %1$s</string>
-    <string name="task_time_zone">Time zone: %1$s</string>
     <string name="task_description">Short description</string>
     <string name="hardware_software_purchases">Hardware / Software Purchases</string>
     <string name="work_type">Work Type:</string>
@@ -115,6 +114,7 @@
     <string name="field_required">Required</string>
     <string name="character_limit_error">Character limit: %1$d</string>
     <string name="character_count">%1$d / %2$d</string>
+    <string name="notes">Notes</string>
     <string name="create">Create</string>
     <string name="discard">Discard</string>
     <string name="keep_editing">Keep editing</string>

@@ -1,8 +1,8 @@
 # WorqOrder User Guide
 
-Publication status: the latest published release is `0.2.0`. This guide also documents the
-current `0.3.0` development behavior, which remains subject to the final release gate and is not
-published yet.
+This guide covers the `0.4.0` source/release candidate. At the 2026-09-15 QA source freeze,
+`0.3.0` remained the latest public APK; check GitHub Releases for the live published version.
+Notes are available in `0.4.0` but not in older `0.3.0` installations.
 
 ## 1. What WorqOrder Stores
 
@@ -63,14 +63,19 @@ creating a task.** Directory changes keep historical task Consultant snapshots i
 6. Choose **Work Type**.
 7. Choose **Billing Status**: **Billable** (the default), **Do not bill**, or **Do not charge**.
 8. Optionally enter **Mileage**.
-9. Choose **Create**.
+9. In the `0.4.0` development build, optionally enter **Notes** (up to 999 characters).
+10. Choose **Create**.
 
-Both text fields allow up to 400 characters. The new task belongs to the date that was displayed
-when creation opened. A new task for today becomes selected automatically. A historical or future
-task can be created and edited, but cannot be timed live.
+Short description and Hardware / Software Purchases allow up to 400 characters. Notes are optional
+and allow up to 999 characters. The new task belongs to the date that was displayed when creation
+opened. A new task for today becomes selected automatically. A historical or future task can be
+created and edited, but cannot be timed live.
 
 If no active client exists, use the inline **Add client** action. Canceling task creation saves
 nothing. Tapping a task row selects it when no timer is running.
+
+In the `0.4.0` development build, **Cancel** and **Create** stay at the bottom of the Create Task
+screen while you scroll through the fields. They remain available when the keyboard is open.
 
 ## 4. Start and Stop Timing
 
@@ -80,7 +85,8 @@ nothing. Tapping a task row selects it when no timer is running.
 
 Each task has zero or one interval. Selecting another task is blocked until Stop. Starting a
 task that already has a completed interval creates and selects a new same-day task carrying the
-source task's metadata, then starts that new task. The source task and its interval remain intact.
+source task's metadata, then starts that new task. In the `0.4.0` development build, the new
+task's Notes start blank. The source task and its interval remain intact.
 
 Accumulated durations are displayed as `HH:MM:SS`. WorqOrder still records precise interval
 boundaries internally; fractional seconds are omitted from the interface to reduce visual clutter.
@@ -112,10 +118,11 @@ Open a task's overflow menu and choose **Edit**.
 The Edit Task screen allows you to:
 
 - change the active client;
-- change the short description or purchase notes;
+- change the short description or Hardware / Software Purchases;
+- in `0.4.0`, edit the optional Notes field;
 - change Work Type, Billing Status, or Mileage (migrated tasks may initially have blank Billing
   Status);
-- view the read-only work date, task ZoneId, and total duration;
+- view the read-only work date and total duration;
 - view interval Start Time and Stop Time in 12-hour `hh:mm AM/PM` form without seconds;
 - add a completed manual interval;
 - edit the start or stop of a completed interval;
@@ -127,9 +134,11 @@ another interval. A spring-forward time that does not exist is rejected. A repea
 time requires an explicit earlier/later occurrence choice. Running intervals and running tasks
 cannot be materially edited or deleted.
 
-**Save task changes** saves metadata and returns to Main. Back navigation with unsaved changes
-offers a discard choice. Deleting an interval or task requires confirmation. Deleting a daily task
-does not delete its client or same-series task copies on other dates.
+**Delete task** and **Save task changes** remain visible together in the fixed footer. Save persists
+metadata and returns to Main. Back navigation with unsaved changes offers a discard choice.
+Deleting an interval or task requires confirmation. Deleting a daily task does not delete its
+client or same-series task copies on other dates. The task's historical ZoneId remains stored and
+used internally even though Edit Task no longer displays it.
 
 ## 7. Appearance, Landscape Orientation, and Device Time Zone
 
@@ -211,8 +220,9 @@ completion.
 
 WorqOrder writes one `WorqOrder_YYYY-MM-DD` worksheet per date. Re-exporting updates this
 device's previously exported tasks and appends new tasks while preserving rows exported by
-another device. The 13 task columns remain visible; a hidden task-ID column enables matching.
-Deleting a task locally does not remove a row already exported to the shared sheet.
+another device. Version `0.3.0` shows 13 task columns; `0.4.0` shows 14, adding `Notes`. A hidden
+task-ID column enables matching. Deleting a task locally does
+not remove a row already exported to the shared sheet.
 
 If the workbook is entirely blank, WorqOrder may reuse its blank initial worksheet. If a
 same-named worksheet contains data but lacks WorqOrder's ownership marker, WorqOrder does not

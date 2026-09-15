@@ -428,58 +428,8 @@ public download, and post-release verification. Withhold release if any required
 unperformed. Provide final report and commit/PR/release text, then stop.
 ```
 
-## Milestone 36 — Safe project-environment teardown guide
+## Post-`0.3.0` closeout relocation
 
-### Task 36A — Luna: non-destructive inventory
-
-```text
-Begin WorqOrder Milestone 36, Task 36A, using Luna at Extra High reasoning. My current remaining
-weekly token budget is [INSERT PERCENTAGE]%. Apply the milestone-start protocol and estimate the
-whole milestone. This milestone writes instructions only. Never uninstall, delete, move, edit,
-disable, reset, or change machine/cloud/firmware state.
-
-First verify from owner-provided evidence that v0.3.0 is released and publicly checked. Then create
-a questionnaire and read-only command list to inventory: Android Studio installations/plugins/
-settings; every AVD/image/snapshot; Android SDK path/packages/licenses; JBR/JDK/Kotlin; all Gradle
-homes/wrappers/caches/daemons/environment variables; ADB/USB drivers; Windows Hypervisor Platform,
-Virtual Machine Platform, Hyper-V; BIOS virtualization and pre-project state if known; repository
-clones/worktrees/stashes/build outputs; VS Code project extensions; Git/GitHub settings; Google
-Cloud OAuth project/client; permanent release keystore/password backups; and anything installed
-only for WorqOrder.
-
-Do not inspect outside approved paths yourself. Do not assume an item is project-exclusive.
-Classify each item as preserve, shared/retain, project-only/removal candidate, or unknown/manual
-decision. Protect remote history/tags/releases/source, public APK/checksum, multiple offline
-keystore/password/recovery backups, desired app/export data, and OAuth records. Draft the inventory
-portion of PROJECT_TEARDOWN_GUIDE and stop for Terra Task 36B.
-```
-
-### Task 36B — Terra: staged Windows/Android cleanup guide
-
-```text
-Continue Milestone 36, Task 36B, using Terra at Extra High reasoning. Use only paths and inventory
-facts verified by the owner. Extend PROJECT_TEARDOWN_GUIDE with staged, reversible-first
-instructions: stop daemons/emulators; remove project AVDs/images using supported tools; remove
-verified project-only caches; optionally uninstall Android Studio/JDK/SDK only when not shared;
-clean verified environment/PATH entries; discuss Windows virtualization and BIOS restoration only
-as device-specific owner-confirmed choices; preserve/archive the repository until last; and verify
-each stage.
-
-Provide exact Windows GUI/PowerShell commands only for explicit verified targets. Never use broad
-recursive targets, unresolved variables, cross-shell deletion, or automated BIOS/system changes.
-Include warnings, backups, rollback/reinstallation, and post-step checks. Do not execute anything
-or change application/release/cloud state. Stop for Sol Task 36C.
-```
-
-### Task 36C — Sol: destructive-safety gate
-
-```text
-Complete Milestone 36, Task 36C, using Sol at Extra High reasoning. Audit every proposed teardown
-step for target precision, shared-tool dependencies, recoverability, signing-key continuity,
-credential/OAuth preservation, remote release durability, virtualization/firmware risk, and
-Windows command safety. Remove or rewrite ambiguous/destructive instructions. Require explicit
-owner confirmation before each irreversible action and make clear that the guide, not Codex,
-performs nothing. No application code, release tags, historical docs, cloud configuration, or
-machine state may change. Deliver the reviewed documentation-only report and optional commit/PR
-text, then stop.
-```
+The former Milestone 36 environment-teardown guide is not part of the `0.3.0` closeout or the new
+Milestone 36. It is rescheduled as post-`0.4.0` Milestone 42, followed only if separately
+authorized by optional Milestone 43. The current prompts are in `V0_4_MILESTONE_PROMPTS.md`.

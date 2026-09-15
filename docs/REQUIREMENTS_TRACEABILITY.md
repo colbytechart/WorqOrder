@@ -2,9 +2,9 @@
 
 ## 1. Scope and status
 
-This matrix retains the released `0.2.0` audit as historical evidence and adds the current
-`0.3.0` development traceability in Section 10. Rows explicitly marked historical are not live
-contracts; Section 10 and the current `0.3.0` specifications are authoritative. `Pass` means the implementation and test evidence exist. `Partial` means
+This matrix retains released `0.2.0` and `0.3.0` evidence in historical Sections 1–10 and
+describes implemented `0.4.0` work in Section 11. Rows explicitly marked historical are not live
+contracts. `Pass` means the implementation and test evidence exist. `Partial` means
 the implementation exists but final release-device, human, or external configuration evidence is
 still required. `N/A` identifies an explicitly optional or prohibited capability.
 
@@ -119,12 +119,12 @@ have owner-reported passes, while other current-release manual checks remain out
 | Running lock-screen surface | Room-backed notification coordinator, standard private/public chronometer notification, typed per-interval dismissal, Start/Stop/app/resume/date/boot reconciliation | coordinator authority/duration/dismissal/permission/clock tests; 208 JVM and 102 connected tests passed with zero failures/errors/skips | Owner passed permission/channel/private-public content, tap, swipe, Stop/new Start, background/lock, process/Recents, reboot, force-stop, and short resource checks | Pass through M28 |
 | `0.2.0` release readiness | existing direct-signing/release pipeline | clean 208-test JVM/build/lint gate, 102-test connected gate, and 180-coordinate OSV review pass | API-26/API-36.1, signed-update, production non-test-account Google, signer, checksum, install, and smoke gates pass | Pass; public-download checksum/install confirmation follows publication |
 
-## 10. Planned `0.3.0` traceability
+## 10. Released `0.3.0` traceability
 
-Milestone 35 release-evidence status, owner-run commands, and explicit blockers are tracked in
-`docs/MILESTONE_35_RELEASE_EVIDENCE.md`. Task 35A evidence assembly and Task 35B documentation
-polish are complete; Task 35C final audit and the listed owner gates remain. This inventory does
-not declare the current branch ready for release.
+Milestone 35 release evidence and owner-run checks are retained in
+`docs/MILESTONE_35_RELEASE_EVIDENCE.md`. The owner subsequently confirmed the public `0.3.0`
+artifact checksum, physical-device update over existing data, and new task timing. These rows are
+release-history evidence, not a claim that planned `0.4.0` behavior exists.
 
 | Requirement | Owning milestone/location | Required automated evidence | Manual gate | Planning status |
 | --- | --- | --- | --- | --- |
@@ -135,7 +135,61 @@ not declare the current branch ready for release.
 | Midnight closes exactly once with no continuation | M32; normalizer/recovery/notification | boundary/DST/missed-day/idempotence/concurrency/process/reboot | owner exercised foreground boundary closure; final external-close visible-date race is deterministic | Pass through M32 Sol gate |
 | Midnight close precedes captured-date automatic Google export | M32; automatic manager/worker | close-before-snapshot, delay/pending/idempotence/auth/failure | owner exercised captured-date automatic and pending-completion exports | Pass through M32 Sol gate |
 | Singular Interval UI | M33; Edit Task/ViewModels | empty/add/edit/delete/running/semantics/large-text | portrait/landscape inspection | Pass through M33 |
-| One 13-column schema-5 row per task in CSV/XLSX/Google | M33; shared ExportRowBuilder/adapters | exact headers/values/order/equivalence; owned legacy tabs now fail closed, not overwritten | owner reports post-fix Step 4 manual checks passed | Pass by owner report and current connected gate; public artifact still requires final verification |
+| One 13-column schema-5 row per task in CSV/XLSX/Google | M33; shared ExportRowBuilder/adapters | exact headers/values/order/equivalence; owned legacy tabs now fail closed, not overwritten | owner reports post-fix Step 4 manual checks and public APK install passed | Pass for released `0.3.0`; superseded only after schema 6 ships |
 | No stale current rollover/multi-interval contracts | M34; code/docs audit | reference/static checks plus full regression | documentation review | Pass through M34; live continuation API removed, migration/history evidence retained, and full owner-run gate passed |
-| Release-safe `0.2.0` upgrade and `0.3.0` artifact | M35; QA/release documents | full clean/API matrix/security/dependency gates | signed update, Google/export, checksum/install | Automated gates, populated update, post-fix manual checks, and current APK signer/package/checksum pass by owner report; public upload verification follows publication, with limited performance evidence accepted by owner |
-| Safe optional environment retirement instructions | M36; `PROJECT_TEARDOWN_GUIDE.md` | documentation/path/safety review only | owner inventory review | Approved, not started |
+| Release-safe `0.2.0` upgrade and `0.3.0` artifact | M35; QA/release documents | full clean/API matrix/security/dependency gates | signed update, Google/export, checksum/install | Owner reports public APK checksum and physical update passed; limited performance evidence was accepted |
+| Safe optional environment retirement instructions | Post-`0.4.0` M42 guide; separately authorized M43 actions | documentation/path/safety review only | owner inventory review | Deferred until after public `0.4.0` release |
+
+## 11. `0.4.0` traceability baseline and implementation evidence
+
+| Requirement | Owning milestone | Required automated evidence | Manual gate | Planning status |
+| --- | --- | --- | --- | --- |
+| Blank/default/editable Notes, max 999 Unicode code points, optional for Create | M37 data layer; M39 forms | repository validation, ViewModel and Compose field tests | create blank and filled Notes; edit/reopen | Planned |
+| Preserve all prior records and active timer through Room 5-to-6 | M37 | populated 1–5-to-6 migration, schema JSON, reopen, FK and active-pointer tests | signed `0.3.0` update with real data in M41 | Planned |
+| New repeated-Start task has blank Notes; source unchanged | M37 | atomic/concurrent Start and metadata-copy tests | repeated Start on task with Notes | Planned |
+| Four export paths share schema 6, exactly 14 columns | M38 | exact headers, snapshot, CSV/XLSX/Google parity, automatic date tests | inspect one representative row in each destination | Planned |
+| Existing owned Google schema-5 tabs retain all rows and task IDs | M38 | legacy tab, multi-device rows, keyed re-export, conflict/failure tests | manual re-export with another device's rows | Planned |
+| Create header simplified without removing Consultant assignment | M39 | Compose and ViewModel validation/semantics tests | Create Task visual check | Planned |
+| Cancel/Create pinned while form scrolls and remains accessible | M40 | portrait/landscape/IME/large-scale Compose tests | short phone and large-text inspection | Planned |
+| `0.4.0` release compatibility and public APK | M41 | full offline/connected/migration/security/build gates | signer/hash, API 26/current, populated and fresh installs | Planned |
+
+### Milestone 41A evidence override (2026-09-14)
+
+Milestones 37–40 are implemented on `milestone41` through the merged `v0.4.0-development`
+history. The following status notes supersede the provisional `Planned` labels above for the
+Luna audit. They record implementation and automated evidence only; manual release checks and the
+final release decision remain with Milestone 41B/41C, so no publication is claimed.
+
+| Requirement | Implementation and automated evidence | Manual/release status |
+|---|---|---|
+| Notes persistence, optional Create, editable 999-code-point validation | `TaskMetadataValidator`, Create/Edit ViewModels and screens; `TaskMetadataValidatorTest`, `CreateTaskViewModelTest`, `EditTaskViewModelTest`, `CreateTaskScreenTest`, and `EditTaskScreenTest` | Automated pass; M41 manual create/edit/reopen check pending |
+| Room 5-to-6 preservation | Additive migration and committed `app/schemas/6.json`; `Schema6MigrationCoreTest` populated upgrade/reopen/FK/active-pointer coverage | Automated pass; signed 0.3.0 populated update remains an M41C owner gate |
+| Repeated Start creates a blank-Notes copy without changing the source | `TimerCoordinator` atomic operation and concurrent-start coverage, including `repeatedStartCreatesSelectedSameDayCopyAndPreservesSourceTask` | Automated pass; manual Notes-copy check pending |
+| Shared schema 6 projection across CSV, one-off XLSX, manual Google, and automatic Google | Shared `ExportRowBuilder`; `ExportRowBuilderAndCsvSerializerTest`, `Schema6ExportEquivalenceTest`, Google planner/encoder, and automatic-export tests | Automated pass; representative destination inspection remains an M41C gate |
+| Schema-5 owned Google tab preservation | Legacy-upgrade planner and keyed merge; `GoogleSheetsLegacyUpgradePlannerTest` and Google planner/encoder regressions | Automated pass; cross-device manual re-export remains an M41C gate |
+| Simplified Create header and pinned Cancel/Create footer | `CreateTaskScreen` and `CreateTaskActionFooter`; full 117-test connected suite plus focused 11-test short-viewport/large-scale suite passed | Automated pass; short-phone and large-text visual checks pending |
+| 0.4.0 release compatibility and public APK | M41C still owns the clean offline lint/JVM/debug/release, connected, migration, security, dependency, and signing gates | Partial; no final artifact or release decision produced in Luna phase |
+
+### Milestone 41C evidence update (2026-09-15)
+
+The later evidence supersedes the pending-manual labels in the Milestone 41A snapshot above; the
+provisional planning table remains only as a requirement baseline. The owner reports a populated
+signed `0.3.0` to `0.4.0` install-over with preserved clients, tasks, settings, open timer, and
+blank migrated Notes. Owner manual Steps 6–9 passed for optional/editable Notes, blank Notes on
+repeated Start, Create/Edit pinned-footer presentation, owned schema-5 Google tab upgrade and
+re-export without duplicate rows, and the exact 14-column CSV/XLSX schema. The current complete
+connected suite passed 118/118 on API 26 and 118/118 on API 36 before the final bounded footer/
+icon polish. The final clean offline gate passed 250 JVM tests, both lint variants, and debug,
+test, and owner-signed release assembly. `apksigner` and `aapt2` verify the candidate's permanent
+signer, package, `0.4.0`/code 4, and minSdk 26. No public APK was claimed at this snapshot;
+subsequent live Google evidence follows. Release status remains **partial** until publication.
+
+The owner later reported a live `0.4.0` automatic Google export succeeded with all 14 visible
+columns and no duplicate row. The final bounded Edit footer/icon changes were followed by a
+complete API-26 connected rerun: generated XML records 119/119 passing tests, including the new
+pinned-footer placement/event test. The owner also reports API-37 Create/Notes/timer/orientation
+smoke and a 14-column Google export to the shared API-36 spreadsheet that appended rather than
+overwrote the first device's row. The owner explicitly confirmed the API-37 install was fresh
+from the exact signed candidate and its Google account was never on the OAuth tester list.
+Implementation and pre-publication verification pass; public asset identity remains a
+post-publication gate.

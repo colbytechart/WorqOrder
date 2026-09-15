@@ -82,6 +82,7 @@ class WorqOrderDatabaseTest {
         assertFalse(
             sqlite.indexIsUnique("daily_tasks", "index_daily_tasks_series_date_zone"),
         )
+        assertTrue(sqlite.tableColumns("daily_tasks").contains("notes"))
     }
 
     @Test
@@ -636,6 +637,7 @@ class WorqOrderDatabaseTest {
                     workType = worq.order.model.WorkType.IN_OFFICE,
                     billingStatus = worq.order.model.BillingStatus.DO_NOT_BILL,
                     mileage = "0012.500",
+                    notes = "  Installation details  ",
                 )
             assertTrue(updated is worq.order.data.UpdateTaskMetadataResult.Updated)
             val task = requireNotNull(database.taskDao().readTask("task-1"))
@@ -646,6 +648,7 @@ class WorqOrderDatabaseTest {
             assertEquals("IN_OFFICE", task.workType)
             assertEquals("DO_NOT_BILL", task.billingStatus)
             assertEquals("12.5", task.mileage)
+            assertEquals("Installation details", task.notes)
 
             database.employeeDao().archive("employee-1", TEST_NOW.toEpochMilli())
             assertEquals(
@@ -658,6 +661,7 @@ class WorqOrderDatabaseTest {
                     employeeId = "employee-1",
                     workType = worq.order.model.WorkType.ON_SITE,
                     mileage = "1",
+                    notes = task.notes,
                 ),
             )
             assertEquals(
@@ -782,6 +786,7 @@ class WorqOrderDatabaseTest {
                     employeeId = null,
                     workType = worq.order.model.WorkType.UNSPECIFIED,
                     mileage = null,
+                    notes = "",
                 ),
             )
             assertEquals(
@@ -949,7 +954,7 @@ class WorqOrderDatabaseTest {
     fun concurrentRepeatedStartsCreateExactlyOneSameDayTask() =
         runBlocking {
             insertClient(id = "client-1")
-            insertTask(id = "task-1", clientId = "client-1")
+            insertTask(id = "task-1", clientId = "client-1", notes = "Source notes")
             database.workIntervalDao().insertInterval(
                 intervalId = "completed-interval",
                 taskId = "task-1",
@@ -986,6 +991,8 @@ class WorqOrderDatabaseTest {
             assertTrue(created.startedTask.id != "task-1")
             assertEquals(TEST_DATE, created.startedTask.workDate)
             assertEquals(TEST_ZONE, created.startedTask.zoneId)
+            assertEquals("Source notes", database.taskDao().readTask("task-1")?.notes)
+            assertEquals("", created.startedTask.notes)
             assertEquals(
                 2,
                 database.taskDao().observeTasksForWorkDate(TEST_DATE.toEpochDay()).first().size,
@@ -1018,6 +1025,19 @@ class WorqOrderDatabaseTest {
                         canonicalName = "persistent client",
                     ),
                 )
+                fileDatabase.taskDao().insertDailyTask(
+                    DailyTaskEntity(
+                        id = "persistent-task",
+                        seriesId = "persistent-series",
+                        clientId = "persistent-client",
+                        description = "Persistent task",
+                        notes = "Persistent notes",
+                        workDateEpochDay = TEST_DATE.toEpochDay(),
+                        zoneId = TEST_ZONE.id,
+                        createdAtEpochMs = 1_000,
+                        updatedAtEpochMs = 1_000,
+                    ),
+                )
             } finally {
                 fileDatabase.close()
             }
@@ -1034,6 +1054,10 @@ class WorqOrderDatabaseTest {
                 assertEquals(
                     "Persistent Client",
                     fileDatabase.clientDao().readClient("persistent-client")?.name,
+                )
+                assertEquals(
+                    "Persistent notes",
+                    fileDatabase.taskDao().readTask("persistent-task")?.notes,
                 )
             } finally {
                 fileDatabase.close()
@@ -1070,6 +1094,11 @@ class WorqOrderDatabaseTest {
                 .open(VERSION_FIVE_SCHEMA_ASSET_PATH)
                 .bufferedReader()
                 .use { it.readText() }
+        val versionSix =
+            testContext.assets
+                .open(VERSION_SIX_SCHEMA_ASSET_PATH)
+                .bufferedReader()
+                .use { it.readText() }
 
         assertTrue(versionOne.contains("\"version\": 1"))
         assertTrue(versionTwo.contains("\"version\": 2"))
@@ -1085,10 +1114,13 @@ class WorqOrderDatabaseTest {
         assertTrue(versionFive.contains("\"tableName\": \"work_intervals\""))
         assertFalse(versionFive.contains("\"columnName\": \"ordinal\""))
         assertFalse(versionFive.contains("schema5-generated-by-room"))
+        assertTrue(versionSix.contains("\"version\": 6"))
+        assertTrue(versionSix.contains("\"columnName\": \"notes\""))
+        assertFalse(versionSix.contains("schema6-generated-by-room"))
     }
 
     @Test
-    fun migrationOneToFivePreservesPopulatedTaskAndActiveTimer() =
+    fun migrationOneToSixPreservesPopulatedTaskAndActiveTimer() =
         runBlocking {
             context.deleteDatabase(MIGRATION_TEST_DATABASE)
             createPopulatedVersionOneDatabase()
@@ -1104,6 +1136,7 @@ class WorqOrderDatabaseTest {
                         WorqOrderMigrations.MIGRATION_2_3,
                         WorqOrderMigrations.MIGRATION_3_4,
                         WorqOrderMigrations.MIGRATION_4_5,
+                        WorqOrderMigrations.MIGRATION_5_6,
                     )
                     .allowMainThreadQueries()
                     .build()
@@ -1116,6 +1149,7 @@ class WorqOrderDatabaseTest {
                 assertEquals("UNSPECIFIED", task.workType)
                 assertNull(task.billingStatus)
                 assertNull(task.mileage)
+                assertEquals("", task.notes)
                 val intervals =
                     migrated.workIntervalDao()
                         .readIntervalsForOverlapValidation("migration-task")
@@ -1142,7 +1176,7 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
-    fun migrationTwoToFivePreservesReleasedGraphAndAddsSafeDefaults() =
+    fun migrationTwoToSixPreservesReleasedGraphAndAddsSafeDefaults() =
         runBlocking {
             context.deleteDatabase(MIGRATION_TEST_DATABASE)
             createPopulatedVersionTwoDatabase()
@@ -1157,6 +1191,7 @@ class WorqOrderDatabaseTest {
                         WorqOrderMigrations.MIGRATION_2_3,
                         WorqOrderMigrations.MIGRATION_3_4,
                         WorqOrderMigrations.MIGRATION_4_5,
+                        WorqOrderMigrations.MIGRATION_5_6,
                     )
                     .allowMainThreadQueries()
                     .build()
@@ -1169,6 +1204,7 @@ class WorqOrderDatabaseTest {
                 assertEquals("UNSPECIFIED", task.workType)
                 assertNull(task.billingStatus)
                 assertNull(task.mileage)
+                assertEquals("", task.notes)
                 assertEquals(
                     listOf("migration-complete"),
                     migrated.workIntervalDao()
@@ -1310,6 +1346,7 @@ class WorqOrderDatabaseTest {
         workType: String = "UNSPECIFIED",
         billingStatus: String? = null,
         mileage: String? = null,
+        notes: String = "",
         workDateEpochDay: Long = TEST_DATE.toEpochDay(),
         zoneId: String = TEST_ZONE.id,
     ) {
@@ -1325,6 +1362,7 @@ class WorqOrderDatabaseTest {
                 workType = workType,
                 billingStatus = billingStatus,
                 mileage = mileage,
+                notes = notes,
                 workDateEpochDay = workDateEpochDay,
                 zoneId = zoneId,
                 createdAtEpochMs = 1_000,
@@ -1470,5 +1508,7 @@ class WorqOrderDatabaseTest {
             "worq.order.data.local.WorqOrderDatabase/4.json"
         const val VERSION_FIVE_SCHEMA_ASSET_PATH =
             "worq.order.data.local.WorqOrderDatabase/5.json"
+        const val VERSION_SIX_SCHEMA_ASSET_PATH =
+            "worq.order.data.local.WorqOrderDatabase/6.json"
     }
 }

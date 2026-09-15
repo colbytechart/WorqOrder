@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         WorkIntervalEntity::class,
         ActiveTimerEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class WorqOrderDatabase : RoomDatabase() {

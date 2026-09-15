@@ -67,6 +67,37 @@ class TaskMetadataValidatorTest {
     }
 
     @Test
+    fun allowsBlankNotesTrimsThemAndRejectsMoreThan999UnicodeCodePoints() {
+        val blank =
+            TaskMetadataValidator.validate(
+                description = "Task",
+                hardwareSoftwarePurchases = "",
+                notes = "  ",
+            ) as TaskMetadataValidationResult.Valid
+        assertEquals("", blank.metadata.notes)
+
+        val emoji = "\uD83D\uDEE0"
+        val atLimit =
+            TaskMetadataValidator.validate(
+                description = "Task",
+                hardwareSoftwarePurchases = "",
+                notes = "  ${emoji.repeat(MAX_TASK_NOTES_CODE_POINTS)}  ",
+            ) as TaskMetadataValidationResult.Valid
+        assertEquals(emoji.repeat(MAX_TASK_NOTES_CODE_POINTS), atLimit.metadata.notes)
+
+        val overLimit =
+            TaskMetadataValidator.validate(
+                description = "Task",
+                hardwareSoftwarePurchases = "",
+                notes = emoji.repeat(MAX_TASK_NOTES_CODE_POINTS + 1),
+            ) as TaskMetadataValidationResult.Invalid
+        assertEquals(
+            setOf(TaskMetadataValidationError.NOTES_TOO_LONG),
+            overLimit.errors,
+        )
+    }
+
+    @Test
     fun normalizesMileageAndRetainsWorkTypeAndBillingStatus() {
         val valid =
             TaskMetadataValidator.validate(

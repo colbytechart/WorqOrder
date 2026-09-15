@@ -212,3 +212,41 @@ Signature Scheme v2, certificate SHA-1
 `0.3.0`/code 3, min API 26, and target API 36. The current result is owner-reported rather than
 independently captured by this repository-only review. Public-asset checksum/signature comparison
 remains a post-publication gate.
+
+## 10. Milestone 41A (`0.4.0`) repository-only addendum
+
+The Luna audit on 2026-09-14 found no tracked keystore, private-key, local-properties, APK, or
+token file. A tracked-pattern scan found only documentation references to prohibited credential
+filenames; no credential values, OAuth secrets, service-account material, or access tokens are
+present in source or documentation. Milestones 37–40 do not broaden Google scopes, alter the
+permanent signing identity, or change the Android backup policy. Room remains authoritative and
+the app-sandbox/no-at-rest-encryption posture remains unchanged; app-private encryption and
+biometric/PIN access stay deferred to optional Milestone E.
+
+This is a static repository finding, not a substitute for Sol's final generated-output, signer,
+dependency, and release-artifact checks. No `0.4.0` release security decision is made here.
+
+## 11. Milestone 41C (`0.4.0`) local artifact/security gate
+
+The owner-approved `0.4.0`/code 4 candidate was built offline with the unchanged permanent
+release signing identity. SDK `apksigner` verifies one v2 signer with certificate SHA-1
+`57510ccb3001a7e70c4391c916a80a0cc603bb19`; `aapt2` verifies `worq.order`, minimum API
+26, target API 36, and the expected version/label. The candidate hash and exact offline/
+instrumentation evidence are recorded in `QA_REPORT.md`, Section 17.
+
+The local tracked-file and application-source scan found no real signing/credential file,
+service-account key, OAuth secret, manually stored access/refresh token literal, source logging
+call, broad Google scope, Firebase/Apache POI dependency, or destructive Room migration fallback.
+The only application-source Google file-data scope is `drive.file`. Source manifest permissions
+remain `INTERNET`, `POST_NOTIFICATIONS`, and `RECEIVE_BOOT_COMPLETED`; backup is false and the
+application-owned receivers are non-exported. The versioned `MIGRATION_5_6` is present and Room
+schema 6 is committed. No dependency-catalog change was found relative to `main`; the prior
+owner-approved OSV review is retained as dated evidence, and the no-build-cache mitigation is
+still configured. No new network advisory query was authorized or performed in this gate.
+
+This inspection found no new source/artifact release security blocker. It does not imply
+app-private at-rest encryption, end-to-end encryption of exported copies, a guaranteed Android
+notification/WorkManager execution time, or independent verification of Google's current
+distribution policy. The owner confirmed fresh-account eligibility on API 37 using the exact
+signed candidate and an account never on the tester list. Public downloaded-asset integrity
+remains a post-publication check.

@@ -121,6 +121,7 @@ class CreateTaskViewModelTest {
                 CreateTaskEvent.SelectBillingStatus(BillingStatus.DO_NOT_BILL),
             )
             fixture.viewModel.onEvent(CreateTaskEvent.EditMileage("012.500"))
+            fixture.viewModel.onEvent(CreateTaskEvent.EditNotes(" Notes for this task "))
             fixture.viewModel.onEvent(CreateTaskEvent.CreateTask)
             fixture.viewModel.onEvent(CreateTaskEvent.CreateTask)
             runCurrent()
@@ -136,11 +137,35 @@ class CreateTaskViewModelTest {
             assertEquals(WorkType.IN_OFFICE, tasks.single().task.workType)
             assertEquals(BillingStatus.DO_NOT_BILL, tasks.single().task.billingStatus)
             assertEquals("12.5", tasks.single().task.mileage)
+            assertEquals("Notes for this task", tasks.single().task.notes)
             assertEquals(
                 tasks.single().task.id,
                 fixture.selection.readSelection()?.taskId,
             )
             assertEquals(listOf(CreateTaskEffect.NavigateBack), effects)
+        }
+
+    @Test
+    fun blankNotesAreOptionalAndPersistAsBlank() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val repository =
+                FakeClientRepository(
+                    listOf(client("client-1", "Client")),
+                )
+            val fixture = taskFixture(repository)
+
+            fixture.viewModel.onEvent(CreateTaskEvent.SelectClient("client-1"))
+            fixture.viewModel.onEvent(CreateTaskEvent.EditDescription("Task without notes"))
+            fixture.viewModel.onEvent(CreateTaskEvent.CreateTask)
+            runCurrent()
+
+            val task = fixture.tasks.observeTasksForDate(WORK_DATE).first().single().task
+            assertEquals("", task.notes)
+            assertFalse(
+                fixture.viewModel.uiState.value.metadataErrors.contains(
+                    TaskMetadataValidationError.NOTES_TOO_LONG,
+                ),
+            )
         }
 
     @Test
@@ -190,6 +215,23 @@ class CreateTaskViewModelTest {
 
             assertTrue(
                 TaskMetadataValidationError.MILEAGE_TOO_PRECISE in
+                    fixture.viewModel.uiState.value.metadataErrors,
+            )
+            assertTrue(fixture.tasks.observeTasksForDate(WORK_DATE).first().isEmpty())
+        }
+
+    @Test
+    fun overlengthNotesShowFieldErrorWithoutCreatingTask() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture = taskFixture(FakeClientRepository(listOf(client("client-1", "Client"))))
+            fixture.viewModel.onEvent(CreateTaskEvent.SelectClient("client-1"))
+            fixture.viewModel.onEvent(CreateTaskEvent.EditDescription("Task"))
+            fixture.viewModel.onEvent(CreateTaskEvent.EditNotes("x".repeat(1000)))
+            fixture.viewModel.onEvent(CreateTaskEvent.CreateTask)
+            runCurrent()
+
+            assertTrue(
+                TaskMetadataValidationError.NOTES_TOO_LONG in
                     fixture.viewModel.uiState.value.metadataErrors,
             )
             assertTrue(fixture.tasks.observeTasksForDate(WORK_DATE).first().isEmpty())

@@ -3,9 +3,12 @@ package worq.order.ui.tasks
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,6 +18,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.BottomAppBarDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,6 +48,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import worq.order.R
 import worq.order.data.MAX_TASK_DESCRIPTION_CODE_POINTS
+import worq.order.data.MAX_TASK_NOTES_CODE_POINTS
 import worq.order.data.MAX_TASK_PURCHASES_CODE_POINTS
 import worq.order.data.TaskMetadataValidationError
 import worq.order.domain.ManualIntervalValidationError
@@ -53,7 +59,12 @@ import worq.order.util.ClockTimeFormatter
 
 object EditTaskScreenTestTags {
     const val CONSULTANT = "edit_task_consultant"
+    const val CONSULTANT_SELECTOR = "edit_task_consultant_selector"
     const val MILEAGE = "edit_task_mileage"
+    const val NOTES = "edit_task_notes"
+    const val FOOTER = "edit_task_footer"
+    const val DELETE = "edit_task_delete"
+    const val SAVE = "edit_task_save"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,6 +88,14 @@ fun EditTaskScreen(
                     }
                 },
             )
+        },
+        bottomBar = {
+            if (!uiState.isLoading && !uiState.hasLoadError && !uiState.taskMissing) {
+                EditTaskActionFooter(
+                    uiState = uiState,
+                    onEvent = onEvent,
+                )
+            }
         },
     ) { scaffoldPadding ->
         when {
@@ -145,12 +164,6 @@ private fun EditTaskContent(
                 style = MaterialTheme.typography.titleMedium,
             )
         }
-        uiState.zoneId?.let { zone ->
-            Text(
-                text = stringResource(R.string.task_time_zone, zone.id),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
         if (uiState.isRunning) {
             Text(
                 text = stringResource(R.string.running_task_edit_blocked),
@@ -201,6 +214,7 @@ private fun EditTaskContent(
                 onOpen = { onEvent(EditTaskEvent.OpenConsultantMenu) },
                 onDismiss = { onEvent(EditTaskEvent.DismissConsultantMenu) },
                 onSelect = { onEvent(EditTaskEvent.SelectConsultant(it)) },
+                modifier = Modifier.testTag(EditTaskScreenTestTags.CONSULTANT_SELECTOR),
             )
         }
         if (!selectedConsultantActive) {
@@ -275,17 +289,28 @@ private fun EditTaskContent(
             onValueChange = { onEvent(EditTaskEvent.EditMileage(it)) },
             modifier = Modifier.testTag(EditTaskScreenTestTags.MILEAGE),
         )
-        Button(
-            onClick = { onEvent(EditTaskEvent.SaveMetadata) },
-            enabled =
-                !uiState.isRunning &&
-                    !uiState.isSavingMetadata &&
-                    selectedClientActive &&
-                    selectedConsultantActive,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.save_task_changes))
-        }
+        OutlinedTextField(
+            value = uiState.notes,
+            onValueChange = { onEvent(EditTaskEvent.EditNotes(it)) },
+            label = { Text(stringResource(R.string.notes)) },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .testTag(EditTaskScreenTestTags.NOTES),
+            enabled = !uiState.isRunning && !uiState.isSavingMetadata,
+            minLines = 2,
+            maxLines = 6,
+            keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
+            isError = TaskMetadataValidationError.NOTES_TOO_LONG in uiState.metadataErrors,
+            supportingText = {
+                TaskTextSupportingText(
+                    value = uiState.notes,
+                    maxCodePoints = MAX_TASK_NOTES_CODE_POINTS,
+                    tooLongError =
+                        TaskMetadataValidationError.NOTES_TOO_LONG in uiState.metadataErrors,
+                )
+            },
+        )
         uiState.message?.let { message ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -354,16 +379,65 @@ private fun EditTaskContent(
                 },
             )
         }
-        OutlinedButton(
-            onClick = { onEvent(EditTaskEvent.RequestDeleteTask) },
-            enabled = !uiState.isRunning,
-            modifier = Modifier.fillMaxWidth(),
+    }
+}
+
+@Composable
+private fun EditTaskActionFooter(
+    uiState: EditTaskUiState,
+    onEvent: (EditTaskEvent) -> Unit,
+) {
+    val selectedClientActive =
+        uiState.activeClients.any { it.id == uiState.selectedClientId }
+    val selectedConsultantActive =
+        uiState.activeConsultants.any { it.id == uiState.selectedConsultantId }
+    BottomAppBar(
+        modifier = Modifier.imePadding(),
+        containerColor = MaterialTheme.colorScheme.background,
+        contentPadding =
+            PaddingValues(
+                horizontal = WorqOrderDimens.ScreenPadding,
+                vertical = WorqOrderDimens.BottomActionVerticalPadding,
+            ),
+        windowInsets = BottomAppBarDefaults.windowInsets,
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .testTag(EditTaskScreenTestTags.FOOTER),
+            horizontalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
         ) {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = null,
-            )
-            Text(stringResource(R.string.delete_task))
+            OutlinedButton(
+                onClick = { onEvent(EditTaskEvent.RequestDeleteTask) },
+                enabled = !uiState.isRunning && !uiState.isSavingMetadata,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = WorqOrderDimens.ActionButtonHeight)
+                        .testTag(EditTaskScreenTestTags.DELETE),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                )
+                Text(stringResource(R.string.delete_task))
+            }
+            Button(
+                onClick = { onEvent(EditTaskEvent.SaveMetadata) },
+                enabled =
+                    !uiState.isRunning &&
+                        !uiState.isSavingMetadata &&
+                        selectedClientActive &&
+                        selectedConsultantActive,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = WorqOrderDimens.ActionButtonHeight)
+                        .testTag(EditTaskScreenTestTags.SAVE),
+            ) {
+                Text(stringResource(R.string.save_task_changes))
+            }
         }
     }
 }

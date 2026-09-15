@@ -24,8 +24,9 @@ internal fun TaskConsultantSelector(
     onOpen: () -> Unit,
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Box(modifier = Modifier.fillMaxWidth()) {
+    Box(modifier = modifier.fillMaxWidth()) {
         OutlinedButton(
             onClick = onOpen,
             enabled = enabled && activeConsultants.isNotEmpty(),

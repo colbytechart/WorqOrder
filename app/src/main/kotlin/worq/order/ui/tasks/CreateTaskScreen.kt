@@ -3,15 +3,20 @@ package worq.order.ui.tasks
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.BottomAppBarDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,6 +40,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import worq.order.R
 import worq.order.data.MAX_TASK_DESCRIPTION_CODE_POINTS
+import worq.order.data.MAX_TASK_NOTES_CODE_POINTS
 import worq.order.data.MAX_TASK_PURCHASES_CODE_POINTS
 import worq.order.data.TaskMetadataValidationError
 import worq.order.ui.clients.ClientEditorDialog
@@ -46,6 +52,9 @@ object CreateTaskScreenTestTags {
     const val DESCRIPTION = "create_task_description"
     const val PURCHASES = "create_task_purchases"
     const val MILEAGE = "create_task_mileage"
+    const val NOTES = "create_task_notes"
+    const val FOOTER = "create_task_footer"
+    const val CANCEL = "create_task_cancel"
     const val CREATE = "create_task_confirm"
 }
 
@@ -73,6 +82,12 @@ fun CreateTaskScreen(
                 },
             )
         },
+        bottomBar = {
+            CreateTaskActionFooter(
+                uiState = uiState,
+                onEvent = onEvent,
+            )
+        },
     ) { scaffoldPadding ->
         Column(
             modifier =
@@ -92,37 +107,6 @@ fun CreateTaskScreen(
                             .ofLocalizedDate(FormatStyle.MEDIUM)
                             .format(uiState.workDate),
                     ),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = stringResource(R.string.consultant),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            when {
-                uiState.isLoadingConsultant -> CircularProgressIndicator()
-                uiState.selectedConsultantName != null ->
-                    Text(
-                        stringResource(
-                            R.string.selected_consultant,
-                            uiState.selectedConsultantName,
-                        ),
-                    )
-                else -> {
-                    Text(
-                        text = stringResource(R.string.task_consultant_required),
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    )
-                    OutlinedButton(
-                        onClick = { onEvent(CreateTaskEvent.OpenConsultantSettings) },
-                        enabled = !uiState.isSavingTask,
-                    ) {
-                        Text(stringResource(R.string.open_consultant_settings))
-                    }
-                }
-            }
-            Text(
-                text = stringResource(R.string.task_client),
                 style = MaterialTheme.typography.titleMedium,
             )
             when {
@@ -170,6 +154,22 @@ fun CreateTaskScreen(
                 enabled = !uiState.isLoadingClients && !uiState.isSavingTask,
             ) {
                 Text(stringResource(R.string.add_client_inline))
+            }
+            when {
+                uiState.isLoadingConsultant -> CircularProgressIndicator()
+                uiState.selectedConsultantId == null -> {
+                    Text(
+                        text = stringResource(R.string.task_consultant_required),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    OutlinedButton(
+                        onClick = { onEvent(CreateTaskEvent.OpenConsultantSettings) },
+                        enabled = !uiState.isSavingTask,
+                    ) {
+                        Text(stringResource(R.string.open_consultant_settings))
+                    }
+                }
             }
             OutlinedTextField(
                 value = uiState.description,
@@ -247,6 +247,29 @@ fun CreateTaskScreen(
                 onValueChange = { onEvent(CreateTaskEvent.EditMileage(it)) },
                 modifier = Modifier.testTag(CreateTaskScreenTestTags.MILEAGE),
             )
+            OutlinedTextField(
+                value = uiState.notes,
+                onValueChange = { onEvent(CreateTaskEvent.EditNotes(it)) },
+                label = { Text(stringResource(R.string.notes)) },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .testTag(CreateTaskScreenTestTags.NOTES),
+                enabled = !uiState.isSavingTask,
+                minLines = 2,
+                maxLines = 6,
+                keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
+                isError = TaskMetadataValidationError.NOTES_TOO_LONG in uiState.metadataErrors,
+                supportingText = {
+                    TaskTextSupportingText(
+                        value = uiState.notes,
+                        maxCodePoints = MAX_TASK_NOTES_CODE_POINTS,
+                        tooLongError =
+                            TaskMetadataValidationError.NOTES_TOO_LONG in
+                                uiState.metadataErrors,
+                    )
+                },
+            )
             uiState.message?.let { message ->
                 Text(
                     text = stringResource(message.stringResource()),
@@ -256,40 +279,6 @@ fun CreateTaskScreen(
                             liveRegion = LiveRegionMode.Assertive
                         },
                 )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement =
-                    Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
-            ) {
-                OutlinedButton(
-                    onClick = { onEvent(CreateTaskEvent.RequestClose) },
-                    enabled = !uiState.isSavingTask,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
-                Button(
-                    onClick = { onEvent(CreateTaskEvent.CreateTask) },
-                    enabled =
-                        !uiState.isSavingTask &&
-                            !uiState.isLoadingClients &&
-                            !uiState.isLoadingConsultant &&
-                            !uiState.hasClientLoadError &&
-                            !uiState.hasConsultantLoadError &&
-                            uiState.activeClients.isNotEmpty() &&
-                            uiState.selectedConsultantId != null,
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .testTag(CreateTaskScreenTestTags.CREATE),
-                ) {
-                    if (uiState.isSavingTask) {
-                        CircularProgressIndicator()
-                    } else {
-                        Text(stringResource(R.string.create))
-                    }
-                }
             }
         }
     }
@@ -325,6 +314,65 @@ fun CreateTaskScreen(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun CreateTaskActionFooter(
+    uiState: CreateTaskUiState,
+    onEvent: (CreateTaskEvent) -> Unit,
+) {
+    BottomAppBar(
+        modifier = Modifier.imePadding(),
+        containerColor = MaterialTheme.colorScheme.background,
+        contentPadding =
+            PaddingValues(
+                horizontal = WorqOrderDimens.ScreenPadding,
+                vertical = WorqOrderDimens.BottomActionVerticalPadding,
+            ),
+        windowInsets = BottomAppBarDefaults.windowInsets,
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .testTag(CreateTaskScreenTestTags.FOOTER),
+            horizontalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
+        ) {
+            OutlinedButton(
+                onClick = { onEvent(CreateTaskEvent.RequestClose) },
+                enabled = !uiState.isSavingTask,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = WorqOrderDimens.ActionButtonHeight)
+                        .testTag(CreateTaskScreenTestTags.CANCEL),
+            ) {
+                Text(stringResource(R.string.cancel))
+            }
+            Button(
+                onClick = { onEvent(CreateTaskEvent.CreateTask) },
+                enabled =
+                    !uiState.isSavingTask &&
+                        !uiState.isLoadingClients &&
+                        !uiState.isLoadingConsultant &&
+                        !uiState.hasClientLoadError &&
+                        !uiState.hasConsultantLoadError &&
+                        uiState.activeClients.isNotEmpty() &&
+                        uiState.selectedConsultantId != null,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = WorqOrderDimens.ActionButtonHeight)
+                        .testTag(CreateTaskScreenTestTags.CREATE),
+            ) {
+                if (uiState.isSavingTask) {
+                    CircularProgressIndicator()
+                } else {
+                    Text(stringResource(R.string.create))
+                }
+            }
+        }
     }
 }
 

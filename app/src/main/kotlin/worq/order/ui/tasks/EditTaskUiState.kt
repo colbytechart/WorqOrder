@@ -73,6 +73,7 @@ data class EditTaskUiState(
     val workType: WorkType = WorkType.UNSPECIFIED,
     val billingStatus: BillingStatus? = null,
     val mileage: String = "",
+    val notes: String = "",
     val metadataErrors: Set<TaskMetadataValidationError> = emptySet(),
     val totalDuration: String = "00:00:00",
     val billingMinutes: Long = 0,
@@ -137,6 +138,10 @@ sealed interface EditTaskEvent {
     ) : EditTaskEvent
 
     data class EditMileage(
+        val value: String,
+    ) : EditTaskEvent
+
+    data class EditNotes(
         val value: String,
     ) : EditTaskEvent
 

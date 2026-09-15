@@ -48,6 +48,7 @@ data class DailyTask(
     val workType: WorkType = WorkType.UNSPECIFIED,
     val billingStatus: BillingStatus? = null,
     val mileage: String? = null,
+    val notes: String = "",
     val workDate: LocalDate,
     val zoneId: ZoneId,
     val createdAt: Instant,

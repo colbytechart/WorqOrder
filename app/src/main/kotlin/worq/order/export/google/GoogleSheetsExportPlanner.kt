@@ -1,8 +1,21 @@
 package worq.order.export.google
 
-import worq.order.export.ExportRow
+import java.time.LocalDate
 import worq.order.export.ExportSchema
 import worq.order.export.ExportSnapshot
+
+/** A transport view of the already-selected canonical rows; no field selection occurs here. */
+internal data class GooglePlanningRow(
+    val values: List<String>,
+    val sourceTaskId: String?,
+)
+
+internal data class GooglePlanningSnapshot(
+    val schemaVersion: Int,
+    val workDate: LocalDate,
+    val headers: List<String>,
+    val rows: List<GooglePlanningRow>,
+)
 
 /** Plans a non-destructive merge. Other devices' rows are never inferred from the local snapshot. */
 internal object GoogleSheetsExportPlanner {
@@ -13,18 +26,48 @@ internal object GoogleSheetsExportPlanner {
 
     private const val IDENTITY_PREFIX = "worqorder.task.v1:"
     private const val IDENTITY_HEADER = "WORQORDER_TASK_ID"
-    private const val IDENTITY_COLUMN = 15 // P; N and O are reserved/hidden for older schemas.
+    private const val LEGACY_VISIBLE_COLUMNS = 13
+    private const val NOTES_COLUMN = 13 // N; previously reserved in schema 5.
+    private const val IDENTITY_COLUMN = 15 // P; O remains reserved/hidden.
     private const val PHYSICAL_COLUMNS = 16
 
     fun plan(
         spreadsheet: GoogleSpreadsheetStructure,
         snapshot: ExportSnapshot,
     ): GoogleSheetsPlanResult {
+        require(snapshot.schemaVersion == ExportSchema.VERSION) {
+            "Unsupported local export schema ${snapshot.schemaVersion}"
+        }
+        return planPrepared(
+            spreadsheet = spreadsheet,
+            snapshot =
+                GooglePlanningSnapshot(
+                    schemaVersion = snapshot.schemaVersion,
+                    workDate = snapshot.workDate,
+                    headers = ExportSchema.headers,
+                    rows = snapshot.rows.map { GooglePlanningRow(it.values, it.sourceTaskId) },
+                ),
+        )
+    }
+
+    /** Pure entry point for owned legacy-tab and current-schema planner fixtures. */
+    internal fun planPrepared(
+        spreadsheet: GoogleSpreadsheetStructure,
+        snapshot: GooglePlanningSnapshot,
+    ): GoogleSheetsPlanResult {
         require(spreadsheet.spreadsheetId.isNotBlank()) {
             "Spreadsheet ID must not be blank"
         }
-        require(snapshot.schemaVersion == ExportSchema.VERSION) {
+        require(snapshot.schemaVersion in 5..6) {
             "Unsupported local export schema ${snapshot.schemaVersion}"
+        }
+        val expectedVisibleColumns =
+            if (snapshot.schemaVersion == 6) LEGACY_VISIBLE_COLUMNS + 1 else LEGACY_VISIBLE_COLUMNS
+        require(snapshot.headers.size == expectedVisibleColumns) {
+            "Export header count does not match schema ${snapshot.schemaVersion}"
+        }
+        require(snapshot.rows.all { it.values.size == snapshot.headers.size }) {
+            "Export row count does not match its canonical headers"
         }
         val tabName = tabName(snapshot.workDate.toString())
         val identities = snapshot.rows.map { it.identityOrNull() }
@@ -32,9 +75,13 @@ internal object GoogleSheetsExportPlanner {
             return GoogleSheetsPlanResult.SchemaConflict(tabName)
         }
 
-        val existing = spreadsheet.sheets.singleOrNull { it.title == tabName }
+        val matchingSheets = spreadsheet.sheets.filter { it.title == tabName }
+        if (matchingSheets.size > 1) return GoogleSheetsPlanResult.SchemaConflict(tabName)
+        val existing = matchingSheets.singleOrNull()
         if (existing == null) {
-            val rows = listOf(physicalHeader()) + snapshot.rows.map { it.physicalRow() }
+            val rows =
+                listOf(physicalHeader(snapshot.headers)) +
+                    snapshot.rows.map { it.physicalRow(snapshot.headers.size) }
             val reusable = spreadsheet.sheets.firstOrNull()?.takeIf { spreadsheet.isCompletelyBlank }
             val sheetId = reusable?.sheetId ?: allocateSheetId(spreadsheet.sheets, tabName)
             return GoogleSheetsPlanResult.Ready(
@@ -47,11 +94,29 @@ internal object GoogleSheetsExportPlanner {
                             add(GoogleSheetsBatchRequest.RenameSheet(sheetId, tabName))
                             add(GoogleSheetsBatchRequest.ResizeSheet(sheetId, rows.size, PHYSICAL_COLUMNS))
                         }
-                        add(GoogleSheetsBatchRequest.CreateSheetMetadata(sheetId, APPLICATION_MARKER_KEY, APPLICATION_MARKER_VALUE))
-                        add(GoogleSheetsBatchRequest.CreateSheetMetadata(sheetId, SCHEMA_VERSION_KEY, snapshot.schemaVersion.toString()))
-                        add(GoogleSheetsBatchRequest.CreateSheetMetadata(sheetId, WORK_DATE_KEY, snapshot.workDate.toString()))
+                        add(
+                            GoogleSheetsBatchRequest.CreateSheetMetadata(
+                                sheetId,
+                                APPLICATION_MARKER_KEY,
+                                APPLICATION_MARKER_VALUE,
+                            ),
+                        )
+                        add(
+                            GoogleSheetsBatchRequest.CreateSheetMetadata(
+                                sheetId,
+                                SCHEMA_VERSION_KEY,
+                                snapshot.schemaVersion.toString(),
+                            ),
+                        )
+                        add(
+                            GoogleSheetsBatchRequest.CreateSheetMetadata(
+                                sheetId,
+                                WORK_DATE_KEY,
+                                snapshot.workDate.toString(),
+                            ),
+                        )
                         add(GoogleSheetsBatchRequest.ReplaceCells(sheetId, rows))
-                        add(GoogleSheetsBatchRequest.HideColumns(sheetId, ExportSchema.headers.size, PHYSICAL_COLUMNS))
+                        add(GoogleSheetsBatchRequest.HideColumns(sheetId, snapshot.headers.size, PHYSICAL_COLUMNS))
                     },
                 ),
             )
@@ -61,27 +126,48 @@ internal object GoogleSheetsExportPlanner {
         if (metadata.filter { it.key == APPLICATION_MARKER_KEY }.map { it.value } != listOf(APPLICATION_MARKER_VALUE)) {
             return GoogleSheetsPlanResult.TabNameConflict(tabName)
         }
-        if (
-            metadata.filter { it.key == SCHEMA_VERSION_KEY }.map { it.value } != listOf(snapshot.schemaVersion.toString()) ||
-            metadata.filter { it.key == WORK_DATE_KEY }.map { it.value } != listOf(snapshot.workDate.toString())
-        ) {
-            // Old schema tabs cannot safely be replaced: they may contain rows from another device.
+        val schemaMetadata = metadata.filter { it.key == SCHEMA_VERSION_KEY }.singleOrNull()
+            ?: return GoogleSheetsPlanResult.SchemaConflict(tabName)
+        if (metadata.filter { it.key == WORK_DATE_KEY }.map { it.value } != listOf(snapshot.workDate.toString())) {
             return GoogleSheetsPlanResult.SchemaConflict(tabName)
         }
-        if (existing.columnCount < ExportSchema.headers.size || existing.columnCount > PHYSICAL_COLUMNS) {
+        val legacyUpgrade = snapshot.schemaVersion == 6 && schemaMetadata.value == "5"
+        if (schemaMetadata.value != snapshot.schemaVersion.toString() && !legacyUpgrade) {
+            // Schemas 2-4, unknown/newer schemas, and a newer tab than this app fail closed.
+            return GoogleSheetsPlanResult.SchemaConflict(tabName)
+        }
+        if (legacyUpgrade && schemaMetadata.metadataId == null) {
+            return GoogleSheetsPlanResult.SchemaConflict(tabName)
+        }
+        val remoteVisibleColumns = if (legacyUpgrade) LEGACY_VISIBLE_COLUMNS else snapshot.headers.size
+        if (existing.columnCount < remoteVisibleColumns || existing.columnCount > PHYSICAL_COLUMNS) {
             return GoogleSheetsPlanResult.SchemaConflict(tabName)
         }
 
         val remoteRows = spreadsheet.sheetValues[existing.sheetId]
             ?: return GoogleSheetsPlanResult.SchemaConflict(tabName)
+        if (legacyUpgrade && remoteRows.isEmpty()) {
+            // A marked legacy tab without its original header cannot be verified as schema 5.
+            return GoogleSheetsPlanResult.SchemaConflict(tabName)
+        }
         if (remoteRows.isNotEmpty()) {
             val header = remoteRows.first()
-            if (header.take(ExportSchema.headers.size) != ExportSchema.headers ||
+            if (header.take(remoteVisibleColumns) != snapshot.headers.take(remoteVisibleColumns) ||
                 (header.size > IDENTITY_COLUMN && header[IDENTITY_COLUMN].isNotEmpty() &&
                     header[IDENTITY_COLUMN] != IDENTITY_HEADER)
             ) {
                 return GoogleSheetsPlanResult.SchemaConflict(tabName)
             }
+        }
+        // N/O were reserved in schema 5, and O remains reserved in schema 6. The gateway reads
+        // formulas rather than calculated display values so even a formula returning "" is seen.
+        if (remoteRows.any { row ->
+                (remoteVisibleColumns until IDENTITY_COLUMN).any { column ->
+                    row.getOrNull(column).orEmpty().isNotEmpty()
+                }
+            }
+        ) {
+            return GoogleSheetsPlanResult.SchemaConflict(tabName)
         }
 
         val keyedRows = mutableMapOf<String, Int>()
@@ -102,49 +188,128 @@ internal object GoogleSheetsExportPlanner {
         if (existing.columnCount < PHYSICAL_COLUMNS) {
             requests += GoogleSheetsBatchRequest.SetColumnCount(existing.sheetId, PHYSICAL_COLUMNS)
         }
-        requests += GoogleSheetsBatchRequest.HideColumns(existing.sheetId, ExportSchema.headers.size, PHYSICAL_COLUMNS)
+        if (legacyUpgrade) {
+            requests += GoogleSheetsBatchRequest.ShowColumns(existing.sheetId, NOTES_COLUMN, NOTES_COLUMN + 1)
+        }
+        requests += GoogleSheetsBatchRequest.HideColumns(existing.sheetId, snapshot.headers.size, PHYSICAL_COLUMNS)
         if (remoteRows.isEmpty()) {
-            requests += GoogleSheetsBatchRequest.WriteCellsAt(existing.sheetId, 0, 0, listOf(physicalHeader()))
-        } else if (remoteRows.first().getOrNull(IDENTITY_COLUMN) != IDENTITY_HEADER) {
-            requests += GoogleSheetsBatchRequest.WriteCellsAt(existing.sheetId, 0, IDENTITY_COLUMN, listOf(listOf(IDENTITY_HEADER)))
+            requests +=
+                GoogleSheetsBatchRequest.WriteCellsAt(
+                    existing.sheetId,
+                    0,
+                    0,
+                    listOf(physicalHeader(snapshot.headers)),
+                )
+        } else {
+            if (legacyUpgrade) {
+                requests +=
+                    GoogleSheetsBatchRequest.WriteCellsAt(
+                        existing.sheetId,
+                        0,
+                        NOTES_COLUMN,
+                        listOf(listOf(snapshot.headers[NOTES_COLUMN])),
+                    )
+            }
+            if (remoteRows.first().getOrNull(IDENTITY_COLUMN) != IDENTITY_HEADER) {
+                requests +=
+                    GoogleSheetsBatchRequest.WriteCellsAt(
+                        existing.sheetId,
+                        0,
+                        IDENTITY_COLUMN,
+                        listOf(listOf(IDENTITY_HEADER)),
+                    )
+            }
         }
 
+        val unkeyedLocalCounts = snapshot.rows
+            .filter { requireNotNull(it.identityOrNull()) !in keyedRows }
+            .groupingBy { it.values.take(remoteVisibleColumns) }
+            .eachCount()
         val appendRows = mutableListOf<List<String>>()
         for (source in snapshot.rows) {
             val identity = requireNotNull(source.identityOrNull())
             val existingIndex = keyedRows[identity]
             if (existingIndex != null) {
-                // Only this task's 13 visible cells may change; never replace the whole tab.
-                requests += GoogleSheetsBatchRequest.WriteCellsAt(existing.sheetId, existingIndex, 0, listOf(source.values))
+                // Only this task's canonical visible cells may change; never replace the tab.
+                requests +=
+                    GoogleSheetsBatchRequest.WriteCellsAt(
+                        existing.sheetId,
+                        existingIndex,
+                        0,
+                        listOf(source.values),
+                    )
                 continue
             }
-            // A pre-fix row has no ID. Adopt it only when its visible values match uniquely.
-            val matches = unkeyedRows.filter { (_, row) -> row.take(ExportSchema.headers.size) == source.values }
-            if (matches.size > 1) return GoogleSheetsPlanResult.SchemaConflict(tabName)
+            // A pre-identity row is adopted only on a unique match in both directions.
+            val comparableValues = source.values.take(remoteVisibleColumns)
+            val matches = unkeyedRows.filter { (_, row) -> row.take(remoteVisibleColumns) == comparableValues }
+            if (matches.size > 1 || (matches.isNotEmpty() && unkeyedLocalCounts[comparableValues] != 1)) {
+                return GoogleSheetsPlanResult.SchemaConflict(tabName)
+            }
             if (matches.size == 1) {
                 val match = matches.single()
                 unkeyedRows.remove(match)
-                requests += GoogleSheetsBatchRequest.WriteCellsAt(existing.sheetId, match.first, IDENTITY_COLUMN, listOf(listOf(identity)))
+                if (legacyUpgrade) {
+                    requests +=
+                        GoogleSheetsBatchRequest.WriteCellsAt(
+                            existing.sheetId,
+                            match.first,
+                            NOTES_COLUMN,
+                            listOf(listOf(source.values[NOTES_COLUMN])),
+                        )
+                }
+                requests +=
+                    GoogleSheetsBatchRequest.WriteCellsAt(
+                        existing.sheetId,
+                        match.first,
+                        IDENTITY_COLUMN,
+                        listOf(listOf(identity)),
+                    )
             } else {
-                appendRows += source.physicalRow()
+                appendRows += source.physicalRow(snapshot.headers.size)
             }
         }
         if (appendRows.isNotEmpty()) {
             requests += GoogleSheetsBatchRequest.AppendCells(existing.sheetId, appendRows)
+        }
+        if (legacyUpgrade) {
+            // The marker changes in the same batch as N, row updates, and appends. An ambiguous
+            // response is not success; retry then re-reads marker and cells before planning.
+            requests += GoogleSheetsBatchRequest.UpdateSheetMetadataValue(
+                metadataId = requireNotNull(schemaMetadata.metadataId),
+                value = snapshot.schemaVersion.toString(),
+            )
         }
         return GoogleSheetsPlanResult.Ready(GoogleSheetsBatchPlan(tabName, requests))
     }
 
     fun tabName(workDate: String): String = "WorqOrder_$workDate"
 
-    private fun ExportRow.identityOrNull(): String? =
+    fun confirmsOwnedSchema(
+        spreadsheet: GoogleSpreadsheetStructure,
+        snapshot: ExportSnapshot,
+    ): Boolean {
+        val sheet =
+            spreadsheet.sheets.singleOrNull { it.title == tabName(snapshot.workDate.toString()) }
+                ?: return false
+        val metadata = spreadsheet.developerMetadata.filter { it.sheetId == sheet.sheetId }
+        return sheet.columnCount >= ExportSchema.headers.size &&
+            metadata.filter { it.key == APPLICATION_MARKER_KEY }.map { it.value } ==
+            listOf(APPLICATION_MARKER_VALUE) &&
+            metadata.filter { it.key == SCHEMA_VERSION_KEY }.map { it.value } ==
+            listOf(snapshot.schemaVersion.toString()) &&
+            metadata.filter { it.key == WORK_DATE_KEY }.map { it.value } ==
+            listOf(snapshot.workDate.toString())
+    }
+
+    private fun GooglePlanningRow.identityOrNull(): String? =
         sourceTaskId?.takeIf { it.isNotBlank() }?.let { IDENTITY_PREFIX + it }
 
-    private fun ExportRow.physicalRow(): List<String> =
-        values + List(IDENTITY_COLUMN - ExportSchema.headers.size) { "" } + requireNotNull(identityOrNull())
+    private fun GooglePlanningRow.physicalRow(visibleColumns: Int): List<String> =
+        values + List(IDENTITY_COLUMN - visibleColumns) { "" } + requireNotNull(identityOrNull())
 
-    private fun physicalHeader(): List<String> =
-        ExportSchema.headers + List(IDENTITY_COLUMN - ExportSchema.headers.size) { "" } + IDENTITY_HEADER
+    private fun physicalHeader(headers: List<String>): List<String> =
+        headers + List(IDENTITY_COLUMN - headers.size) { "" } + IDENTITY_HEADER
 
     private fun allocateSheetId(sheets: List<GoogleSheetDescriptor>, tabName: String): Int {
         val used = sheets.mapTo(mutableSetOf()) { it.sheetId }

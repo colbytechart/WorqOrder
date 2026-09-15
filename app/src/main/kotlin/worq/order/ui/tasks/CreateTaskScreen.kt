@@ -324,6 +324,7 @@ private fun CreateTaskActionFooter(
 ) {
     BottomAppBar(
         modifier = Modifier.imePadding(),
+        containerColor = MaterialTheme.colorScheme.background,
         contentPadding =
             PaddingValues(
                 horizontal = WorqOrderDimens.ScreenPadding,

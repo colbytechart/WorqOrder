@@ -536,7 +536,11 @@ behavior.
 `0.3.0` does not otherwise redesign clients, Consultants, task metadata, Settings, landscape
 layout, notifications, authentication, destinations, backup policy, licensing, or distribution.
 
-## 16. Approved `0.4.0` product changes (planned; not implemented in Milestone 36)
+## 16. Approved `0.4.0` product changes (implemented release candidate)
+
+Milestones 37–40 implement the behavior below. At the 2026-09-15 QA source freeze, `0.3.0`
+remained the latest public APK; the Milestone 41 candidate passed its pre-publication gates.
+GitHub Releases, not this source snapshot, identifies the currently published APK.
 
 1. **Task Notes.** New tasks have an optional blank `Notes` field below Mileage on Create Task.
    Notes accept up to 999 Unicode characters and can be edited later in Edit Task. A
@@ -549,7 +553,8 @@ layout, notifications, authentication, destinations, backup policy, licensing, o
    active-client selection/validation remains in force.
 3. **Always-available Create actions.** Keep the existing fixed header. Put Cancel and Create in
    a fixed bottom footer, visually above and separate from the scrollable form. Insets, keyboard,
-   short landscape, large text, and accessibility must not hide form fields or actions.
+   short landscape, large text, and accessibility must not hide form fields or actions. The footer
+   uses the page background color in every theme.
 4. **One shared export change.** Canonical export schema 6 has the same first 13 visible columns
    and per-task row semantics as schema 5, followed by `Notes` as column 14. CSV, one-off XLSX,
    manual Google, and automatic Google use the same immutable dataset. Existing owned Google
@@ -557,7 +562,12 @@ layout, notifications, authentication, destinations, backup policy, licensing, o
    unowned, or unknown tabs fail closed. No export synchronizes back into Room.
 5. **Release continuity.** Preserve package `worq.order`, the permanent owner signer, prior data,
    disabled Android backup, direct no-cost GitHub distribution, GPLv3, the narrow Google scope,
-   and existing timer/date rules. VersionCode for `0.4.0` requires separate owner approval.
+   and existing timer/date rules. The owner explicitly approved `0.4.0`/versionCode `4` before
+   the release-candidate build identity was changed.
+6. **Compact Edit Task presentation.** Do not display the stored task ZoneId on Edit Task. Keep it
+   intact for date, interval, DST, and export correctness. Put Delete Task and Save Task Changes in
+   an equal-width fixed footer, Delete on the left and Save on the right, using the page background
+   color without changing confirmation, validation, or persistence behavior.
 
 Milestones 36–41 own planning, implementation, verification, and public-release handoff. Project
 environment teardown work moves to post-release Milestone 42; actual cleanup is only optional,

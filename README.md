@@ -6,16 +6,20 @@ CSV, XLSX, and Google Sheets are optional one-way exports.
 
 ## Development Status
 
-The latest published release is `0.3.0` (`versionCode = 3`). The owner verified its published APK
-checksum and installed it on a physical device over an existing installation with data retained.
-Version `0.4.0` is in documentation-only planning on `milestone36`; no `0.4.0` app behavior has
-been implemented yet. See the [v0.4.0 roadmap](docs/V0_4_MILESTONE_PROMPTS.md) and
+At the time this release-source commit was prepared, the latest published APK was `0.3.0`.
+The `0.4.0`/code 4 candidate passed its pre-publication migration, device, export, Google,
+signing, and local security gates; the owner still controls the integration merge, tag, upload,
+and downloaded-asset verification. Check the [Releases page](https://github.com/colbytechart/WorqOrder/releases) for the live
+published version rather than treating this source snapshot as a publication announcement.
+`0.4.0` adds optional task Notes, one shared 14-column export schema, safe owned Google-tab
+upgrades, cleaner Create/Edit forms, and fixed action footers. See the
+[v0.4.0 roadmap](docs/V0_4_MILESTONE_PROMPTS.md) and
 [v0.3.0 release evidence](docs/MILESTONE_35_RELEASE_EVIDENCE.md).
 
 ## Install WorqOrder From GitHub
 
 WorqOrder supports Android 8.0 (API 26) and newer. Install only APKs published by the repository
-owner on this repository's official [Releases page](../../releases).
+owner on this repository's official [Releases page](https://github.com/colbytechart/WorqOrder/releases).
 
 1. On the Android phone, open this repository's **Releases** page.
 2. Open the latest release and download the APK asset, such as
@@ -196,7 +200,8 @@ passwords. Then run:
 Never create a new signing key for an update. Losing the permanent key prevents existing users
 from installing future updates over the app. The `0.2.0` checklist and
 [Milestone 35 release evidence](docs/MILESTONE_35_RELEASE_EVIDENCE.md) are historical.
-`0.4.0` release gates will be documented under Milestone 41 before publication.
+`0.4.0` pre-publication gates are tracked under Milestone 41. Upload only the owner-signed APK
+whose final SHA-256 and signer have been checked, and compare the public download afterward.
 
 ## Troubleshooting
 

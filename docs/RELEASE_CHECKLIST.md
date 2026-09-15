@@ -2,11 +2,22 @@
 
 Status: historical `0.2.0` pre-publication record. Do not use its artifact identity, branch names,
 or version values for later releases. The completed `0.3.0` release gate is archived in
-`MILESTONE_35_RELEASE_EVIDENCE.md`; planned `0.4.0` release work belongs to Milestone 41.
+`MILESTONE_35_RELEASE_EVIDENCE.md`; the `0.4.0` pre-publication release gate belongs to Milestone 41.
 Release: `0.2.0` (`versionCode = 2`)
 Upgrade baseline: public `0.1.0` (`versionCode = 1`)
 Application ID: `worq.order`
 Distribution: owner-signed APK attached to a GitHub Release
+
+## `0.4.0` current handoff status
+
+At the 2026-09-15 QA source freeze, the `0.4.0` implementation was present on the
+`v0.4.0-development` branch but was not yet published. This file remains a historical `0.2.0`
+checklist and must not be reused as `0.4.0` release evidence. Before any `0.4.0` publication,
+Milestone 41C must verify the approved `0.4.0`/code 4 signed candidate,
+the complete non-destructive migration chain and schema-6 exports, current/API-26 device gates,
+live automatic Google behavior, and the last rebuilt artifact checksum, then provide final GitHub
+release instructions. Some gates are now recorded in Section 10 and `QA_REPORT.md`; no release
+is approved merely by this documentation update.
 
 ## 1. Permanent policies
 
@@ -253,3 +264,84 @@ review, accepted limitations, and the final artifact identity, size, signer, and
 After publishing, append confirmation that the downloaded public asset reproduces the recorded
 SHA-256, verifies with the same signer, installs, and launches. That post-publication check is not a
 reason to delay the reviewed commit, integration merge, tag, or GitHub Release.
+
+## 10. `0.4.0` Milestone 41 pre-publication release gate
+
+This addendum, not the historical `0.2.0` command/artifact examples above, governs `0.4.0`.
+The owner approved `versionName = 0.4.0` and `versionCode = 4`; package `worq.order`, the
+permanent signer, minimum API 26, disabled Android backup, `drive.file`, GPLv3, and direct
+no-cost GitHub distribution are unchanged.
+
+The latest clean offline gate and signed candidate are recorded in `QA_REPORT.md`, Section 17.
+The owner reports a populated signed `0.3.0` install-over and Notes, Create/Edit, legacy Google,
+CSV, and XLSX visual/runtime checks passed. The pre-publication evidence is:
+
+1. The owner reports a populated signed `0.3.0` update retained data and confirms a fresh API-37
+   installation of the exact signed `0.4.0` candidate. Neither check uninstalled or cleared the
+   owner's populated upgrade fixture. Recheck the *post-merge* APK if it is rebuilt.
+2. A complete post-footer/icon connected suite on a **disposable debug-test emulator**, not the
+   owner-signed populated release fixture. This gate passed 119/119 on API 26 after the final
+   bounded presentation change; the earlier current-API suite passed 118/118 before it.
+3. A live opt-in `0.4.0` automatic Google export occurred by owner report, with all 14 visible
+   columns and no duplicate row. WorkManager remains best-effort; report any pending
+   authorization/recovery state rather than assuming a guaranteed daily execution time.
+4. The owner explicitly confirms sign-in, connect, and 14-column export from the owner-signed
+   candidate with a real Google account never added as a tester. The owned schema-5 tab upgrade,
+   repeated export, and cross-device append also passed by owner report.
+5. The owner reports API-37 client/Consultant/task-Notes/timer/orientation smoke and 14-column
+   cross-device Google append passed from a fresh install of the exact signed candidate.
+   Short/large-scale layouts, notification privacy/recovery, and accepted unchanged
+   limitations are recorded in `QA_REPORT.md` and earlier release evidence.
+6. Recompute the artifact's size/SHA-256 after the **last** source build. Verify one permanent
+   signer and `worq.order`/`0.4.0`/code 4. After commit/merge/tag, never upload an APK whose bytes
+   differ from that reviewed artifact; compare the downloaded GitHub asset hash and signer.
+
+The source/candidate pre-publication gate is green; the final post-merge artifact hash and public
+download integrity are owner-controlled publication checks, not reasons to overstate an already
+published release. No commit, integration merge, tag, or GitHub Release is performed by Codex.
+
+## 11. Owner-only `0.4.0` GitHub integration and publication
+
+The reviewed, owner-signed candidate is
+`app/build/outputs/apk/release/app-release.apk`, 16,511,217 bytes, SHA-256
+`B944CA0C8244179DFDBB0E899584A2CC4BB1E9A5A93DA0B4F9700020589E14C4`. Its signer,
+package, version, migration, Notes/export behavior, fresh installation, and non-tester Google
+access passed the pre-publication gates in `QA_REPORT.md`. These exact bytes may be published
+**only if** the final `main` source tree is identical to the reviewed `milestone41` tree and the
+APK hash stays unchanged. Otherwise stop, review the differing source, rebuild, rehash, and
+repeat the relevant signed-install/export checks before publication. Never force-update a tag.
+
+1. On `milestone41`, review `git status --short`, `git diff --check`, and the full diff. Stage
+   only the intended tracked code/docs (`git add -u` after review), then inspect
+   `git diff --cached --check`, `git diff --cached --stat`, and `git status --short`.
+   Commit with `chore(release): prepare WorqOrder 0.4.0`, then push `milestone41`.
+2. On GitHub create a pull request with **base** `v0.4.0-development` and **compare**
+   `milestone41`. Review it and use **Create a merge commit**, not squash or force-push, so the
+   milestone branch remains an ancestor. Locally update `v0.4.0-development` with
+   `git pull --ff-only origin v0.4.0-development` and require
+   `git merge-base --is-ancestor milestone41 v0.4.0-development` to succeed.
+3. Create the final pull request with **base** `main` and **compare**
+   `v0.4.0-development`. Review and use **Create a merge commit**. Locally update `main` with
+   `git pull --ff-only origin main`; require
+   `git merge-base --is-ancestor v0.4.0-development main` and
+   `git diff --exit-code milestone41 main -- .` to succeed. If the source-tree check fails,
+   do not tag or upload the old APK.
+4. With local `main` clean, recompute the existing candidate's SHA-256, inspect `apksigner`
+   (one v2 signer, permanent SHA-1 `57510ccb3001a7e70c4391c916a80a0cc603bb19`) and
+   `aapt2` (`worq.order`, `0.4.0`/code 4, min API 26). Copy the unchanged APK to ignored
+   `WorqOrder-0.4.0.apk`; compare source and copied hashes. Do **not** rebuild after this
+   evidence unless willing to treat the new binary as a new candidate and repeat checks.
+5. Verify local and remote `v0.4.0` tags do not already exist. Annotate the exact `main`
+   commit (`git tag -a v0.4.0 -m "WorqOrder 0.4.0"`), verify its peeled commit is local
+   `main`, then `git push origin v0.4.0`. Never rewrite an existing release tag.
+6. On GitHub select the existing `v0.4.0` tag in **Releases → Draft a new release**, title
+   it **WorqOrder 0.4.0**, upload only the checked `WorqOrder-0.4.0.apk`, and paste the exact
+   SHA-256 into release notes. Summarize Notes/schema 6 and the non-destructive upgrade;
+   link the GPLv3 license and known limitations. Publish as a normal release, not a prerelease,
+   only after the artifact and source checks above are green. No Google Play action is involved.
+7. Download the public APK asset independently. Compare its SHA-256 to the published value,
+   verify its permanent signer/package/version, and install it **over** an existing signed
+   WorqOrder installation with `adb install -r` or through Android's normal package installer.
+   Confirm old data remains and the app launches. Record that post-publication result in QA/
+   handoff docs in a later reviewed documentation commit; never alter the published tag or APK
+   bytes to do so.

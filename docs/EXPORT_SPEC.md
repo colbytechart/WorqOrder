@@ -652,7 +652,7 @@ tabs retain their current fail-closed policy. Concurrent independent device writ
 documented race, not a reason to erase rows. Test automatic Google's captured-date path with the
 same projection and compatibility behavior as manual export.
 
-Milestone 38A stages the Google compatibility planner before schema 6 becomes active. On a
+Milestone 38A staged the Google compatibility planner before schema 6 became active. On a
 schema-5-to-6 transition it requires exactly one owned marker/schema/date tuple, a usable schema
 metadata ID, the old A:M header, and empty reserved N:O values. The gateway requests formula
 values so a formula that displays as blank is still detected. One batch unhides N, keeps O:P
@@ -663,7 +663,7 @@ After an upgrade batch, the gateway re-reads sheet ownership metadata and report
 if the exact date tab is confirmed at schema 6; an unconfirmed response is ambiguous, not success.
 Milestone 38B activates the shared schema-6 projection. The 38D review makes a marked schema-5
 tab with a missing A:M header a safe conflict. Local JVM, lint, instrumentation-compilation, and
-debug/release gates pass. An API response missing the sheet's physical column count no longer
-defaults to 13, so it cannot hide occupied reserved columns. The owner's connected emulator gate
-passed 111 tests without failures, errors, or skips. Live Google schema-5 tab upgrade
-against a real account remains a later integration check before the `0.4.0` release.
+debug/release gates passed. An API response missing the sheet's physical column count no longer
+defaults to 13, so it cannot hide occupied reserved columns. The later complete connected suite
+passed 117 tests without failures, errors, or skips. A live Google schema-5 tab upgrade against a
+real account remains a final `0.4.0` integration gate before release.

@@ -647,3 +647,87 @@ resource/accessibility limits and the still-unverified test-APK-retention conven
 After this gate, the owner reported that the public `0.3.0` APK matched the published checksum and
 installed on a physical device over existing data; new task timing and intervals passed. This
 does not constitute `0.4.0` implementation or test evidence.
+
+## 16. Milestone 41A (`0.4.0`) evidence snapshot
+
+Luna's repository audit was performed on 2026-09-14 at `milestone41`. `main` is an ancestor of
+`milestone41`; the branch contains the merged Milestones 37–40 and remains ahead of the released
+line. The following gates were completed during the preceding implementation phases and are
+referenced here as evidence, not rerun or newly claimed as a final release gate:
+
+- Offline debug/release lint, JVM tests, and debug/release assembly passed in 2m34s (107 actionable
+  tasks; 31 executed, 76 up-to-date). The JVM XML recorded 43 suites and 250 tests with zero
+  failures, errors, or skips.
+- The complete connected suite passed 117 tests with zero failures, errors, or skips. The focused
+  Create Task suite passed 11/11 after short-viewport, large-text/display-scale, IME, pinned-footer,
+  and Notes reachability coverage.
+- `Schema6MigrationCoreTest`, Notes validation/ViewModel tests, shared schema-6 export tests, and
+  Google legacy-tab planner/encoder tests are present in the repository and were included in the
+  successful JVM/connected evidence above.
+
+No physical-device visual check, new signed `0.4.0` artifact, fresh/populated upgrade exercise, or
+live Google release check was independently performed in Task 41A. Those checks remain explicit
+Milestone 41C gates. This section does not declare release readiness or publication.
+
+## 17. Milestone 41C (`0.4.0`) clean gate and owner migration exercise
+
+On 2026-09-15, after bounded Edit/Create footer polish and restoration of the Delete Task icon,
+the project-local offline `--no-build-cache clean :app:lintDebug :app:lintRelease
+:app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease`
+gate passed in 2m52s: 140 actionable tasks, 139 executed and one up-to-date. The generated JVM
+XML records 43 suites, 250 tests, zero failures, zero errors, and zero skips. Debug and release
+lint each report zero errors and 22 previously documented nonblocking warnings. Debug, test, and
+release APKs assembled. `git diff --check` passed; Git separately printed an informational
+line-ending conversion warning for `TaskConsultantSelector.kt`. No connected test, install,
+uninstall, or data-clearing command was run during this clean gate.
+
+Before the final visual polish, the current complete connected suite passed 118/118 on API 26 and
+118/118 on API 36. The Edit Task testability correction was included in those complete reruns.
+After the pinned-footer/icon polish and an added Delete-left/Save-right Compose assertion, the
+owner ran the full connected suite on a disposable API 26 emulator. Its generated XML records
+119 tests, zero failures, zero errors, and zero skips; Gradle reported `BUILD SUCCESSFUL in 1m29s`
+with 73 actionable tasks (4 executed, 69 up-to-date). No connected suite was run on the populated
+owner-signed API 36 migration fixture after the polish, so its retained app data was not exposed
+to debug-test installation or clearing.
+
+The clean owner-signed release candidate is `app/build/outputs/apk/release/app-release.apk`,
+16,511,217 bytes, SHA-256
+`B944CA0C8244179DFDBB0E899584A2CC4BB1E9A5A93DA0B4F9700020589E14C4`. Local SDK
+`apksigner` verifies one signer and APK Signature Scheme v2; certificate SHA-1 is
+`57510ccb3001a7e70c4391c916a80a0cc603bb19`, the permanent WorqOrder signer. `aapt2`
+reports `worq.order`, versionName `0.4.0`, versionCode `4`, minSdk 26, targetSdk 36, and launcher
+label `WorqOrder`. This is a candidate checksum, not a public-asset checksum: any later rebuild
+must be rehashed before upload.
+
+A focused project-local source/Git scan found no tracked real keystore, `local.properties`,
+private key, APK/AAB, or service-account file; no source `Log.*` call, Firebase/Apache POI
+dependency, destructive Room fallback, raw token/secret literal, or broader OAuth scope was
+found. The only requested source OAuth scope is `drive.file`. This is a local repository scan,
+not a new online vulnerability advisory check or a claim that plaintext exports are encrypted.
+
+The owner reported that the signed in-place `0.3.0` to `0.4.0` emulator upgrade preserved the
+populated clients, archived-client historical links, Consultant/selection, changed settings,
+tasks/intervals, and running timer; no duplicate task or interval was created. Stopping the
+recovered timer recorded its interval, and migrated tasks initially showed blank Notes. The
+owner then reported all remaining manual Steps 6–9 passed: optional blank Notes creation,
+populated Notes edit/reopen and length validation, blank Notes on repeated Start with source
+Notes intact, Create/Edit footer/layout inspection, in-place owned Google schema-5-to-6 date-tab
+upgrade and idempotent re-export, and exact shared 14-column CSV/XLSX output. These are owner-
+reported visual/runtime observations, not instrumentation results independently collected by
+the reviewer.
+
+The owner subsequently reported a successful live `0.4.0` automatic Google export and then
+explicitly confirmed all 14 visible columns were present with no duplicate row. On an API 37
+emulator, the owner reported client/Consultant creation, task Notes, Start/Stop, portrait, and
+landscape all passed. A manual 14-column Google export to the same spreadsheet used from API 36
+appended the API-37 task without replacing the API-36 row. These are owner-reported manual
+observations; the generated API-26 XML above is the separate automated result. The owner then
+explicitly confirmed API 37 was a fresh installation of the
+exact owner-signed candidate with SHA-256
+`B944CA0C8244179DFDBB0E899584A2CC4BB1E9A5A93DA0B4F9700020589E14C4`, and its Google
+account had never been added to the OAuth tester list. This validates the configured release
+signer and External/In Production audience for that tested account without owner intervention.
+The reviewed source/candidate is approved for the owner's integration merge and release handoff;
+public release is not complete until the owner tags/uploads and independently checks the
+downloaded asset. WorkManager's best-effort timing limitation remains; one successful device
+run does not guarantee exact execution time on every Android device.

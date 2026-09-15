@@ -2,8 +2,9 @@
 
 ## Release status
 
-The latest published build is `0.3.0`. The owner verified its public APK and physical-device
-upgrade. `0.4.0` is only planned; Notes and schema 6 are not implemented in the released build.
+At the 2026-09-15 QA source freeze, the latest published APK was `0.3.0`; check GitHub Releases
+for the live published version. The owner verified the `0.3.0` public APK/physical update and the
+`0.4.0` release candidate. Notes and export schema 6 belong to `0.4.0`, not to older APKs.
 
 ## Client CSV import limits
 
@@ -140,3 +141,22 @@ they are not partially imported.
   delete rows from a shared Google tab. Users must resolve older-tab conflicts deliberately.
 - One task can no longer aggregate separated work sessions. Resuming completed work creates a new
   task row with the same metadata and a zero-based timer by design.
+
+## `0.4.0` development and Milestone 41C
+
+Notes, schema 6 export projection, owned schema-5 Google compatibility, the simplified Create
+header, and the pinned Create/Cancel footer are implemented for `0.4.0`. They are absent from
+older `0.3.0` APKs; public availability depends on the owner's GitHub Release publication.
+
+The signed `0.4.0` candidate and clean offline gate exist. The owner reports a populated
+`0.3.0` install-over, retained running timer and history, Notes/Create/Edit checks, an owned
+schema-5 Google tab upgrade, and 14-column CSV/XLSX checks. The owner explicitly confirms a
+fresh API-37 installation of the exact signed candidate and non-tester Google access; the public
+asset still requires downloaded checksum/signature verification. The owner reports a live
+automatic Google export succeeded with 14 visible columns and no duplicates, and the post-polish
+API-26 connected
+suite passed 119/119. The owner reports API-37 task/timer/orientation smoke and a shared-sheet
+cross-device append. The populated API-36 signed fixture was intentionally not subjected to the
+debug connected suite. Optional app-private encryption and biometric/PIN or screenshot privacy
+controls remain outside every
+release scope in optional Milestone E.

@@ -916,6 +916,13 @@ failure tests; Sol performs the final no-data-loss and idempotency review. Appen
 Google task-ID transport. Existing owned date-tab rows and other-device rows must survive upgrade
 and re-export. Unknown, unowned, or unsafe tabs fail closed. Do not alter CSV/XLSX one-off behavior.
 
+**Implemented in the `0.4.0` development branch:** Room's additive 5-to-6 migration initializes
+historical Notes to blank, and the repeat-Start copy clears Notes only. Schema 6's immutable
+14-column projection is used by CSV, one-off XLSX, manual Google, and automatic Google. Owned
+schema-5 Google tabs receive the guarded compatibility transition; unowned, ambiguous, and unsafe
+tabs fail closed. The milestone gates recorded 240 JVM tests and 110 connected tests with no
+failures, errors, or skips; later full regression evidence is recorded under Milestones 39–41.
+
 ### Milestone 39 — Create/Edit Task Notes and Create header cleanup
 
 **Phases:** Terra adds Notes to Create/Edit Task with field-level 999-character validation, keeps
@@ -1075,7 +1082,7 @@ Milestone E is separately authorized and must pass this checklist before being a
 | Collaborative sheet changes race an export | Possible remote conflict | Marker, narrow reads, atomic batch, raw values, idempotent retry; never change Room |
 | XLSX writer is incompatible or unsafe | Malformed workbooks or formula execution | Focused internal Milestone 12 writer, literal cells, independent-parser/golden tests, Excel/LibreOffice checks, and no Apache POI |
 | One-off XLSX provider write fails after document creation | A partial external file may remain | Build and validate bytes before the picker, close output deterministically, attempt provider deletion on failure, report partial-output risk, and never change Room |
-| Per-date sheets exhaust Google grid allocation or become unwieldy | Export failure or poor spreadsheet usability | Keep released schema 5's 13 visible columns (planned schema 6 has 14), preserve reserved/hidden transport columns, append rows only as needed, monitor the official spreadsheet cell limit, and surface capacity errors without altering Room |
+| Per-date sheets exhaust Google grid allocation or become unwieldy | Export failure or poor spreadsheet usability | Keep `0.3.0` schema 5's 13 visible columns for historical compatibility and `0.4.0` schema 6's 14-column projection for new exports; preserve reserved/hidden transport columns, append rows only as needed, monitor the official spreadsheet cell limit, and surface capacity errors without altering Room |
 | Plaintext app-private database/preferences are extracted from a compromised or sufficiently privileged device | Sensitive client/task data is disclosed | Document that current production relies on Android's application sandbox and does not provide WorqOrder-managed at-rest encryption; retain stronger protection only as optional Milestone E |
 | Optional encryption key is lost or invalidated | Authoritative local data becomes unavailable if optional Milestone E is later implemented | Require versioned key hierarchy, documented recovery limits, non-destructive failure, interrupted-migration tests, and never silently reset Room |
 | Optional encryption degrades core performance | Slow startup, task lists, or timer mutations if optional Milestone E is later implemented | Record pre-encryption baselines and enforce focused startup/query/migration/memory benchmarks within that optional milestone |

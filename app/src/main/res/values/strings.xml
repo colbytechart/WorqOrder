@@ -98,7 +98,6 @@
     <string name="create_task">Create Task</string>
     <string name="edit_task">Edit Task</string>
     <string name="task_for_date">Task for %1$s</string>
-    <string name="task_time_zone">Time zone: %1$s</string>
     <string name="task_description">Short description</string>
     <string name="hardware_software_purchases">Hardware / Software Purchases</string>
     <string name="work_type">Work Type:</string>

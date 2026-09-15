@@ -3,7 +3,7 @@
 ## 1. Scope and status
 
 This matrix retains released `0.2.0` and `0.3.0` evidence in historical Sections 1–10 and
-describes planned `0.4.0` work in Section 11. Rows explicitly marked historical are not live
+describes implemented `0.4.0` work in Section 11. Rows explicitly marked historical are not live
 contracts. `Pass` means the implementation and test evidence exist. `Partial` means
 the implementation exists but final release-device, human, or external configuration evidence is
 still required. `N/A` identifies an explicitly optional or prohibited capability.
@@ -140,7 +140,7 @@ release-history evidence, not a claim that planned `0.4.0` behavior exists.
 | Release-safe `0.2.0` upgrade and `0.3.0` artifact | M35; QA/release documents | full clean/API matrix/security/dependency gates | signed update, Google/export, checksum/install | Owner reports public APK checksum and physical update passed; limited performance evidence was accepted |
 | Safe optional environment retirement instructions | Post-`0.4.0` M42 guide; separately authorized M43 actions | documentation/path/safety review only | owner inventory review | Deferred until after public `0.4.0` release |
 
-## 11. Planned `0.4.0` traceability — no implementation claimed yet
+## 11. `0.4.0` traceability baseline and implementation evidence
 
 | Requirement | Owning milestone | Required automated evidence | Manual gate | Planning status |
 | --- | --- | --- | --- | --- |
@@ -152,3 +152,44 @@ release-history evidence, not a claim that planned `0.4.0` behavior exists.
 | Create header simplified without removing Consultant assignment | M39 | Compose and ViewModel validation/semantics tests | Create Task visual check | Planned |
 | Cancel/Create pinned while form scrolls and remains accessible | M40 | portrait/landscape/IME/large-scale Compose tests | short phone and large-text inspection | Planned |
 | `0.4.0` release compatibility and public APK | M41 | full offline/connected/migration/security/build gates | signer/hash, API 26/current, populated and fresh installs | Planned |
+
+### Milestone 41A evidence override (2026-09-14)
+
+Milestones 37–40 are implemented on `milestone41` through the merged `v0.4.0-development`
+history. The following status notes supersede the provisional `Planned` labels above for the
+Luna audit. They record implementation and automated evidence only; manual release checks and the
+final release decision remain with Milestone 41B/41C, so no publication is claimed.
+
+| Requirement | Implementation and automated evidence | Manual/release status |
+|---|---|---|
+| Notes persistence, optional Create, editable 999-code-point validation | `TaskMetadataValidator`, Create/Edit ViewModels and screens; `TaskMetadataValidatorTest`, `CreateTaskViewModelTest`, `EditTaskViewModelTest`, `CreateTaskScreenTest`, and `EditTaskScreenTest` | Automated pass; M41 manual create/edit/reopen check pending |
+| Room 5-to-6 preservation | Additive migration and committed `app/schemas/6.json`; `Schema6MigrationCoreTest` populated upgrade/reopen/FK/active-pointer coverage | Automated pass; signed 0.3.0 populated update remains an M41C owner gate |
+| Repeated Start creates a blank-Notes copy without changing the source | `TimerCoordinator` atomic operation and concurrent-start coverage, including `repeatedStartCreatesSelectedSameDayCopyAndPreservesSourceTask` | Automated pass; manual Notes-copy check pending |
+| Shared schema 6 projection across CSV, one-off XLSX, manual Google, and automatic Google | Shared `ExportRowBuilder`; `ExportRowBuilderAndCsvSerializerTest`, `Schema6ExportEquivalenceTest`, Google planner/encoder, and automatic-export tests | Automated pass; representative destination inspection remains an M41C gate |
+| Schema-5 owned Google tab preservation | Legacy-upgrade planner and keyed merge; `GoogleSheetsLegacyUpgradePlannerTest` and Google planner/encoder regressions | Automated pass; cross-device manual re-export remains an M41C gate |
+| Simplified Create header and pinned Cancel/Create footer | `CreateTaskScreen` and `CreateTaskActionFooter`; full 117-test connected suite plus focused 11-test short-viewport/large-scale suite passed | Automated pass; short-phone and large-text visual checks pending |
+| 0.4.0 release compatibility and public APK | M41C still owns the clean offline lint/JVM/debug/release, connected, migration, security, dependency, and signing gates | Partial; no final artifact or release decision produced in Luna phase |
+
+### Milestone 41C evidence update (2026-09-15)
+
+The later evidence supersedes the pending-manual labels in the Milestone 41A snapshot above; the
+provisional planning table remains only as a requirement baseline. The owner reports a populated
+signed `0.3.0` to `0.4.0` install-over with preserved clients, tasks, settings, open timer, and
+blank migrated Notes. Owner manual Steps 6–9 passed for optional/editable Notes, blank Notes on
+repeated Start, Create/Edit pinned-footer presentation, owned schema-5 Google tab upgrade and
+re-export without duplicate rows, and the exact 14-column CSV/XLSX schema. The current complete
+connected suite passed 118/118 on API 26 and 118/118 on API 36 before the final bounded footer/
+icon polish. The final clean offline gate passed 250 JVM tests, both lint variants, and debug,
+test, and owner-signed release assembly. `apksigner` and `aapt2` verify the candidate's permanent
+signer, package, `0.4.0`/code 4, and minSdk 26. No public APK was claimed at this snapshot;
+subsequent live Google evidence follows. Release status remains **partial** until publication.
+
+The owner later reported a live `0.4.0` automatic Google export succeeded with all 14 visible
+columns and no duplicate row. The final bounded Edit footer/icon changes were followed by a
+complete API-26 connected rerun: generated XML records 119/119 passing tests, including the new
+pinned-footer placement/event test. The owner also reports API-37 Create/Notes/timer/orientation
+smoke and a 14-column Google export to the shared API-36 spreadsheet that appended rather than
+overwrote the first device's row. The owner explicitly confirmed the API-37 install was fresh
+from the exact signed candidate and its Google account was never on the OAuth tester list.
+Implementation and pre-publication verification pass; public asset identity remains a
+post-publication gate.

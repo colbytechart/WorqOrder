@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -46,11 +47,14 @@ class EditTaskScreenTest {
 
         composeRule.onNodeWithText("Short description").assertIsDisplayed()
         composeRule.onNodeWithText("Hardware / Software Purchases").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Time zone:", substring = true).assertCountEquals(0)
         composeRule
             .onNodeWithTag(EditTaskScreenTestTags.NOTES)
             .performScrollTo()
             .assertIsDisplayed()
             .performTextInput("Follow up")
+        Espresso.closeSoftKeyboard()
+        composeRule.waitForIdle()
         composeRule
             .onNodeWithText("Task Total: 02:00:00")
             .performScrollTo()
@@ -59,7 +63,11 @@ class EditTaskScreenTest {
             .onNodeWithText("Billing Minutes: 120")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithText("Alex Rivera").performScrollTo().assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(EditTaskScreenTestTags.CONSULTANT_SELECTOR)
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Alex Rivera").assertIsDisplayed()
         composeRule.onNodeWithText("On-Site").performScrollTo().assertIsDisplayed()
         composeRule
             .onNodeWithText("Do not charge")
@@ -73,10 +81,36 @@ class EditTaskScreenTest {
         composeRule.onAllNodesWithText("Stop Time: 10:00 AM").assertCountEquals(1)
         composeRule.onAllNodesWithText("Duration: 01:00:00").assertCountEquals(0)
         composeRule.onAllNodesWithText("Add interval").assertCountEquals(0)
+        composeRule.onNodeWithTag(EditTaskScreenTestTags.FOOTER).assertIsDisplayed()
+        composeRule.onNodeWithTag(EditTaskScreenTestTags.DELETE).assertIsEnabled()
+        composeRule.onNodeWithTag(EditTaskScreenTestTags.SAVE).assertIsEnabled()
         composeRule.onNodeWithText("Edit interval").performScrollTo().performClick()
 
         assertTrue(events.contains(EditTaskEvent.OpenEditInterval("only")))
         assertTrue(events.contains(EditTaskEvent.EditNotes("Follow up")))
+    }
+
+    @Test
+    fun pinnedEditFooterKeepsDeleteLeftOfSaveAndEmitsExistingEvents() {
+        val events = mutableListOf<EditTaskEvent>()
+        setContent(state = readyState(), onEvent = events::add)
+
+        composeRule.onNodeWithTag(EditTaskScreenTestTags.NOTES).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(EditTaskScreenTestTags.FOOTER).assertIsDisplayed()
+        val delete = composeRule.onNodeWithTag(EditTaskScreenTestTags.DELETE)
+        val save = composeRule.onNodeWithTag(EditTaskScreenTestTags.SAVE)
+        delete.assertIsDisplayed().assertIsEnabled()
+        save.assertIsDisplayed().assertIsEnabled()
+        assertTrue(
+            "Delete must remain to the left of Save",
+            delete.fetchSemanticsNode().boundsInRoot.right <=
+                save.fetchSemanticsNode().boundsInRoot.left,
+        )
+
+        delete.performClick()
+        save.performClick()
+        assertTrue(events.contains(EditTaskEvent.RequestDeleteTask))
+        assertTrue(events.contains(EditTaskEvent.SaveMetadata))
     }
 
     @Test
@@ -102,7 +136,9 @@ class EditTaskScreenTest {
                 )
         }
 
-        composeRule.onNodeWithText("Save task changes").assertIsNotEnabled()
+        composeRule.onNodeWithTag(EditTaskScreenTestTags.FOOTER).assertIsDisplayed()
+        composeRule.onNodeWithTag(EditTaskScreenTestTags.SAVE).assertIsNotEnabled()
+        composeRule.onNodeWithTag(EditTaskScreenTestTags.DELETE).assertIsNotEnabled()
         composeRule.onAllNodesWithText("Add interval").assertCountEquals(0)
         composeRule.onAllNodesWithText("Edit interval").assertCountEquals(0)
         composeRule.onAllNodesWithText("Delete interval").assertCountEquals(0)
@@ -122,8 +158,9 @@ class EditTaskScreenTest {
                 ),
         )
 
-        composeRule.onNodeWithText("Save task changes").assertIsNotEnabled()
-        composeRule.onNodeWithText("Delete task").assertIsNotEnabled()
+        composeRule.onNodeWithTag(EditTaskScreenTestTags.FOOTER).assertIsDisplayed()
+        composeRule.onNodeWithTag(EditTaskScreenTestTags.SAVE).assertIsNotEnabled()
+        composeRule.onNodeWithTag(EditTaskScreenTestTags.DELETE).assertIsNotEnabled()
         composeRule
             .onNodeWithText("Stop this task’s timer before editing or deleting it.")
             .performScrollTo()

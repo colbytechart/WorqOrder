@@ -3,7 +3,9 @@
 Version scope: sections that explicitly identify released `0.1.0`/`0.2.0` behavior preserve
 historical acceptance evidence. Section 15 is the released `0.3.0` acceptance set; its
 one-interval, no-rollover, exact-boundary, and schema-5 rules supersede earlier expectations.
-Section 16 describes planned `0.4.0` tests and is not evidence of implemented behavior.
+Section 16 records `0.4.0` acceptance requirements and implementation evidence. The final
+pre-publication execution results belong to `QA_REPORT.md`, Section 17; publication itself
+remains an owner-controlled GitHub action.
 
 ## 1. Test policy
 
@@ -1115,7 +1117,7 @@ suite passed all 105 tests. At the later Milestone 35 release gate, the owner al
 signed populated-install upgrade and confirmed retained data. This paragraph preserves the
 earlier Milestone 30 test counts rather than substituting the final release suite counts.
 
-## 16. `0.4.0` acceptance requirements and pending implementation evidence
+## 16. `0.4.0` acceptance requirements and implementation evidence
 
 ### V4-DB-00 Milestone 37 implementation evidence (Sol quality gate passed)
 
@@ -1130,8 +1132,8 @@ boundary, edit persistence, and blank Notes on repeated Start. The generated Roo
 only the new Notes column relative to schema 5; existing indexes and foreign keys are unchanged.
 The owner-run offline lint/JVM/debug/release gate passed with 240 JVM tests and zero failures.
 The owner-run connected suite passed 110 tests with zero failures, errors, or skips. Sol verified
-both test-result XML files and `git diff --check` returned success. This evidence covers Milestone
-37 persistence and domain behavior only; export and Compose presentation remain later milestones.
+both test-result XML files and `git diff --check` returned success. Later milestones added the
+schema-6 export and Compose presentation evidence below.
 
 ### V4-DB-01 Non-destructive task Notes upgrade
 
@@ -1171,6 +1173,14 @@ while a save is in flight, and that Cancel still emits the existing close event.
 repeat this check in portrait, short landscape, large font scale, large display scale, and with the
 keyboard open: every field must be reachable, the footer must remain above system/IME insets, and
 no footer control may obscure the field currently being edited.
+
+### V4-UI-02 Compact Edit Task and consistent action footers
+
+Edit Task does not render the task ZoneId, but the stored ZoneId and all date/DST behavior remain
+unchanged. Delete Task and Save Task Changes stay visible side by side in a pinned footer, with
+Delete on the left and Save on the right. Running and save-in-progress guards still disable the
+appropriate actions, Delete still requires confirmation, and both Create/Edit footers use the
+current theme's page background instead of a contrasting bottom-app-bar surface.
 
 The Sol connected gate passed 117 tests. A later focused Create suite passed 11 tests after adding
 a constrained 280 dp viewport with 1.5 font scale and 1.2 display-density scale; Notes accepted

@@ -443,8 +443,8 @@ the structural one-interval guard, same-series lineage rows, and populated versi
 
 ## 15. `0.4.0` Room schema 6 — task Notes
 
-This section describes schema-6 development on `milestone37`; the milestone's persistence and
-domain verification gate passed. Schema-6 export and Notes presentation are later milestones.
+This section describes implemented schema-6 development; the persistence and domain verification
+gate passed, and Milestones 38–40 also implemented schema-6 export and Notes presentation.
 `notes` is task-level optional text in `daily_tasks`, defaulting to the empty string for new and
 existing tasks. The explicit `MIGRATION_5_6` adds the field without rebuilding/deleting rows or
 changing IDs, Client/Consultant relationships, interval cardinality, the active-timer singleton,
@@ -459,14 +459,14 @@ all preexisting non-Notes copy rules remain unchanged. Historical schema-1-throu
 blank Notes and must remain editable. Export schema 6 appends Notes as a visible field but does
 not become the source of truth.
 
-### Milestone 37 implementation evidence (pending final quality gate)
+### Milestone 37 implementation evidence
 
 The current development branch implements the additive `MIGRATION_5_6` and version-6 Room entity.
 The migration is designed to preserve existing rows and relationships while assigning blank Notes
 to historical tasks. Core instrumentation coverage exercises populated task graphs, an open timer,
 foreign-key integrity, and close/reopen persistence. Notes are also carried through the typed
-repository and task mutation APIs with optional 999-code-point validation. Export schema 6 and
-the final Create/Edit presentation remain owned by later milestones. The exported `6.json` was
+repository and task mutation APIs with optional 999-code-point validation. Milestones 38–40 now
+provide schema-6 export and Create/Edit presentation. The exported `6.json` was
 checked against schema 5: Notes is the only added column, with a non-null empty-string default;
 indexes and foreign keys are unchanged. The owner-run offline JVM/lint/debug/release and connected
 gates passed for Milestone 37.

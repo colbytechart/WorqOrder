@@ -6,7 +6,7 @@ Status terms: **Accepted** is a fixed product/architecture decision; **Proposed*
 
 Version scope: decisions D-001 through D-080 preserve the accepted `0.1.0`/`0.2.0` history and
 are not current when a later decision explicitly supersedes them. Decisions D-081 and later define
-released `0.3.0` behavior. Decisions D-097 onward govern planned `0.4.0` work and supersede
+released `0.3.0` behavior. Decisions D-097 onward govern implemented `0.4.0` work and supersede
 older milestone scheduling where stated. Migration fixtures and historical wording remain for
 upgrade traceability and must not be interpreted as live production contracts.
 
@@ -1267,6 +1267,15 @@ requires a selected active Consultant. Milestone 40 implements the pinned Cancel
 the Scaffold bottom bar. The scrollable body consumes the Scaffold's header/footer padding, and
 the footer respects navigation and keyboard insets; each action keeps a 48 dp minimum height.
 No task data, save, or discard rule changed.
+
+### D-101 — Edit Task hides ZoneId and shares the fixed-footer visual language
+
+The task's stored geographical ZoneId remains required domain data but is no longer rendered on
+Edit Task. Delete Task and Save Task Changes move from the scrollable body into equal-width fixed
+footer actions, Delete on the left and Save on the right. Both Create and Edit action footers use
+the current theme's page background rather than Material's contrasting bottom-app-bar container.
+This is presentation-only: running/save guards, validation, confirmations, navigation, historical
+time interpretation, and Room persistence are unchanged.
 
 ## Deferred decisions
 

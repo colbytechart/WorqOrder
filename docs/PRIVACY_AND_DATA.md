@@ -1,8 +1,9 @@
 # Privacy and Data
 
-This document describes the released `0.3.0` data contract and retains `0.2.0` details for
-upgrade and historical-data transparency. Planned `0.4.0` Notes remain ordinary Room task data
-once implemented; they are not yet present in the published app. Any exported Notes will be
+This document describes the `0.4.0` source/release-candidate data contract, with released
+`0.3.0` and `0.2.0` details retained for upgrade transparency. At the 2026-09-15 QA source
+freeze, publication of the `0.4.0` APK was still owner-controlled; check GitHub Releases for
+the live published version. `0.4.0` Notes are ordinary Room task data. Exported Notes are
 readable plaintext in CSV/XLSX/Google Sheets under the existing export privacy policy.
 
 ## 1. Summary
@@ -22,7 +23,7 @@ The app stores the following in its app-private storage:
 - Consultant directory IDs/names/archive state, plus the current Consultant selection;
 - task IDs/series IDs, client and optional Consultant relationships, assignment-time Consultant
   snapshot, work date, stored geographical ZoneId, description, hardware/software-purchase text,
-  Work Type, nullable Billing Status, canonical Mileage, and timestamps;
+  Work Type, nullable Billing Status, canonical Mileage, optional Notes, and timestamps;
 - interval IDs, UTC start/stop timestamps, manual-edit flag, and timestamps. Databases migrated
   from v0.2 may contain legacy ordinal information only in their migration source; schema 5 does
   not persist an ordinal column and each task owns zero or one interval;
@@ -63,8 +64,8 @@ the document, persist its URI permission, or import tasks.
 CSV and XLSX documents are written only after the user chooses a destination through Android's
 document interface. Google Sheets exports go only to the connected spreadsheet.
 
-The released `0.2.0` destinations received the historical 15-field schema described below. Current
-`0.3.0` destinations receive the same immutable 13-field schema:
+The released `0.2.0` destinations received a historical 15-field schema. Version `0.3.0` uses
+the immutable 13-field schema, and `0.4.0` appends `Notes` as column 14 across every destination:
 
 1. Start date
 2. End date
@@ -79,6 +80,7 @@ The released `0.2.0` destinations received the historical 15-field schema descri
 11. Stop time
 12. Time spent
 13. Billing minutes
+14. Notes (`0.4.0` and later)
 
 These external documents are plaintext/readable copies. They are not end-to-end encrypted by
 WorqOrder. Anyone with access to the selected file location or spreadsheet may be able to read

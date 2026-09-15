@@ -589,22 +589,27 @@ and version 1/2-to-5 migration paths. The production `WorkInterval` presentation
 temporarily expose a derived `ordinal = 1` for legacy UI callers; schema 5 itself persists no
 ordinal column.
 
-## 18. Planned `0.4.0` Notes and export architecture
+## 18. Implemented `0.4.0` Notes and export architecture
 
-This is an implementation plan, not current app behavior. Room schema 6 adds a blank-default
+This describes the `0.4.0` release-candidate architecture. Room schema 6 adds a blank-default
 `daily_tasks.notes` field through a non-destructive 5-to-6 migration. Notes are optional, editable
 task text limited to 999 Unicode code points. The repository's atomic repeated-Start operation
 creates a new task with blank Notes even when source Notes are nonblank; all other copy/selection/
 timer invariants remain. Existing records initialize blank and retain every existing field.
 
-`ExportRowBuilder` will append Notes as the fourteenth visible value in one immutable schema-6
-projection. CSV, one-off XLSX, manual Google, and automatic Google will consume it without
+`ExportRowBuilder` appends Notes as the fourteenth visible value in one immutable schema-6
+projection. CSV, one-off XLSX, manual Google, and automatic Google consume it without
 independent field selection. Existing owned Google schema-5 tabs require a guarded in-place
 compatibility step: use formerly reserved N for Notes only when safe, leave O reserved and P as
 the hidden stable task ID, and preserve all rows and other-device data before keyed updates.
 
-Create/Edit Task will read/write the same task Notes field. Create Task will remove only redundant
+Create/Edit Task read/write the same task Notes field. Create Task removes only redundant
 Consultant/Client heading text and selected-Consultant display text; the Consultant assignment
-requirement persists. Its fixed top header and planned fixed bottom action bar bracket a
+requirement persists. Its fixed top header and fixed bottom action bar bracket a
 separately scrollable, keyboard-accessible form. These boundaries require no new account,
 storage permission, background timer service, or destination-specific data model.
+
+Edit Task retains `zoneId` in state and domain operations but omits it from the presentation. Its
+Delete/Save actions live in the Scaffold bottom bar rather than the scrollable body; Create and
+Edit both explicitly use the theme background for their fixed action footers. Moving these controls
+does not alter ViewModel events, validation, deletion confirmation, or Room writes.

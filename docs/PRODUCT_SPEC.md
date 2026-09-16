@@ -1,6 +1,6 @@
 # WorqOrder Product Specification
 
-Status: released `0.1.0`/`0.2.0`/`0.3.0` history; approved `0.4.0` planning follows
+Status: released through `0.4.0`; approved planning-only `0.5.0` changes are in Section 17
 Product: WorqOrder for Android  
 Minimum Android version: API 26  
 Authoritative data store: local Room database
@@ -536,11 +536,10 @@ behavior.
 `0.3.0` does not otherwise redesign clients, Consultants, task metadata, Settings, landscape
 layout, notifications, authentication, destinations, backup policy, licensing, or distribution.
 
-## 16. Approved `0.4.0` product changes (implemented release candidate)
+## 16. Approved `0.4.0` product changes (released)
 
-Milestones 37–40 implement the behavior below. At the 2026-09-15 QA source freeze, `0.3.0`
-remained the latest public APK; the Milestone 41 candidate passed its pre-publication gates.
-GitHub Releases, not this source snapshot, identifies the currently published APK.
+Milestones 37–40 implemented the behavior below. After the Milestone 41 gates, the owner published
+and physically verified `0.4.0`. GitHub Releases remains authoritative for downloadable artifacts.
 
 1. **Task Notes.** New tasks have an optional blank `Notes` field below Mileage on Create Task.
    Notes accept up to 999 Unicode characters and can be edited later in Edit Task. A
@@ -569,6 +568,62 @@ GitHub Releases, not this source snapshot, identifies the currently published AP
    an equal-width fixed footer, Delete on the left and Save on the right, using the page background
    color without changing confirmation, validation, or persistence behavior.
 
-Milestones 36–41 own planning, implementation, verification, and public-release handoff. Project
-environment teardown work moves to post-release Milestone 42; actual cleanup is only optional,
-separately authorized Milestone 43. Security Milestone E stays unscheduled outside release scope.
+Milestones 36–41 own planning, implementation, verification, and public-release handoff. The
+owner subsequently published and physically verified `0.4.0`. The former teardown Milestones 42
+and 43 are deferred and renumbered to post-`0.5.0` Milestones 48 and 49. Security Milestone E
+stays unscheduled outside release scope.
+
+## 17. Approved `0.5.0` reusable-Tag product changes (planned)
+
+This section is approved design, not implemented behavior until its assigned milestones pass.
+It adds reusable local text catalogs without adding export columns or changing Room authority.
+
+1. **Two independent catalogs.** Settings places **Tag Management** after Client Management and
+   Consultant Management. Its overview opens separate **Description Tags** and **Hardware /
+   Software Purchase Tags** pages. Each page supports alphabetical browsing, real-time case-
+   insensitive substring search with a clear action, Add, Edit, and confirmed true Delete.
+2. **Bounded Tag text.** A Tag contains at most 400 Unicode code points after surrounding and
+   repeated whitespace normalization. Blank input is rejected. Duplicate detection is category-
+   scoped and ignores case, surrounding/repeated whitespace, and one terminal period. The same
+   normalized text may exist once in each different category.
+3. **Safe CSV import.** Each category page imports a user-selected CSV through the Storage Access
+   Framework. Every nonblank cell—including a header-looking cell—is a Tag. Correct quoting,
+   Unicode, commas, and embedded line breaks are parsed. Existing and within-file duplicates are
+   skipped without overwriting entries. The resulting list remains alphabetical and reports added/
+   skipped counts. Malformed or overlength content, a file over 1 MiB, or more than 10,000 nonblank
+   cells fails atomically and changes nothing. No broad storage permission is requested.
+4. **Compact task selection.** Description and Hardware / Software Purchases retain normal manual
+   entry and gain clearly associated dismissible Tag chips plus an Add Tags action. A full-screen
+   picker supports browse, real-time filter, clear, multi-select in selection order, selected
+   count, Cancel/Apply, and inline creation. Filtered-out selections remain selected. An inline-
+   created Tag is persisted and selected even if the task form is later cancelled.
+5. **Snapshot history.** Saving a task copies selected Tag text and order into task-owned
+   snapshots. Catalog edits/deletions never rewrite old tasks or exports. An old task continues to
+   show saved chips; an edited source offers an explicit **Use Updated Version** replacement, while
+   a deleted source is removable but cannot be newly selected. Deletion removes the catalog entry
+   after confirmation; no Archived Tags area is added.
+6. **Expanded composed limits.** Manual Description and Hardware / Software Purchases expand from
+   400 to an exported composed maximum of 999 Unicode code points. Manual text, Tag snapshots,
+   generated punctuation, and joining spaces all count. Show **Exported text: N / 999**, prevent
+   an overlimit selection, surface later manual overage next to the field, and disable Create/Save
+   until valid. Description is valid when either manual text or at least one Description Tag is
+   nonblank. Purchases remains optional.
+7. **Export-only composition.** For Description and Expense, trim components, place manual text
+   first and snapshots in selection order, append a period to a component that lacks terminal
+   `.`, `?`, or `!`, and join components with one ASCII space. Generated punctuation is never
+   written back to manual text or snapshots. All destinations use this one canonical function.
+8. **Compact display/privacy.** A main task row shows the manual short Description when available;
+   otherwise it shows the first Description Tag and `+N tags` for additional snapshots. The
+   running notification continues to show Client plus manual Description, or Client alone when
+   manual text is blank; it never exposes Tag text.
+9. **Repeat and edit behavior.** Repeated Start copies ordered Tag snapshots because it already
+   copies Description and purchase metadata; Notes still starts blank. Editing task Tags changes
+   only that task. Task deletion cascades its snapshots but never deletes catalog entries.
+10. **Compatibility.** Add only an explicit non-destructive Room 6-to-7 migration. Existing tasks
+    retain exact manual fields and begin with no Tag snapshots. Canonical export schema 6 remains
+    exactly 14 visible columns; Tags compose existing Description and Expense values. Google tab
+    ownership/layout and CSV/XLSX lifecycle remain unchanged.
+
+Milestones 42–47 own planning through public-release verification. Deferred environment teardown
+and optional closeout are Milestones 48–49 and cannot start implicitly. See
+`V0_5_MILESTONE_PROMPTS.md` for model assignments and mandatory owner-run test handoffs.

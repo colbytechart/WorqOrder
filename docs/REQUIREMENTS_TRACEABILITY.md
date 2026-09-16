@@ -3,8 +3,9 @@
 ## 1. Scope and status
 
 This matrix retains released `0.2.0` and `0.3.0` evidence in historical Sections 1–10 and
-describes implemented `0.4.0` work in Section 11. Rows explicitly marked historical are not live
-contracts. `Pass` means the implementation and test evidence exist. `Partial` means
+describes implemented `0.4.0` work in Section 11. Section 12 is planned `0.5.0` traceability, not
+implementation evidence. Rows explicitly marked historical are not live contracts. `Pass` means
+the implementation and test evidence exist. `Partial` means
 the implementation exists but final release-device, human, or external configuration evidence is
 still required. `N/A` identifies an explicitly optional or prohibited capability.
 
@@ -138,7 +139,7 @@ release-history evidence, not a claim that planned `0.4.0` behavior exists.
 | One 13-column schema-5 row per task in CSV/XLSX/Google | M33; shared ExportRowBuilder/adapters | exact headers/values/order/equivalence; owned legacy tabs now fail closed, not overwritten | owner reports post-fix Step 4 manual checks and public APK install passed | Pass for released `0.3.0`; superseded only after schema 6 ships |
 | No stale current rollover/multi-interval contracts | M34; code/docs audit | reference/static checks plus full regression | documentation review | Pass through M34; live continuation API removed, migration/history evidence retained, and full owner-run gate passed |
 | Release-safe `0.2.0` upgrade and `0.3.0` artifact | M35; QA/release documents | full clean/API matrix/security/dependency gates | signed update, Google/export, checksum/install | Owner reports public APK checksum and physical update passed; limited performance evidence was accepted |
-| Safe optional environment retirement instructions | Post-`0.4.0` M42 guide; separately authorized M43 actions | documentation/path/safety review only | owner inventory review | Deferred until after public `0.4.0` release |
+| Safe optional environment retirement instructions | Post-`0.5.0` M48 guide; separately authorized M49 actions | documentation/path/safety review only | owner inventory review | Deferred until after public `0.5.0` release |
 
 ## 11. `0.4.0` traceability baseline and implementation evidence
 
@@ -191,5 +192,23 @@ pinned-footer placement/event test. The owner also reports API-37 Create/Notes/t
 smoke and a 14-column Google export to the shared API-36 spreadsheet that appended rather than
 overwrote the first device's row. The owner explicitly confirmed the API-37 install was fresh
 from the exact signed candidate and its Google account was never on the OAuth tester list.
-Implementation and pre-publication verification pass; public asset identity remains a
-post-publication gate.
+Implementation and pre-publication verification passed. The owner subsequently published
+`0.4.0`, downloaded the GitHub asset, verified its identity, installed it on a physical device,
+and reported expected behavior; the `0.4.0` release gate is complete.
+
+## 12. Planned `0.5.0` traceability baseline
+
+The following rows define future gates only. A planned row is not implementation or test evidence.
+
+| Requirement | Planned implementation | Automated evidence | Owner manual evidence | Status |
+|---|---|---|---|---|
+| Non-destructive Room 6-to-7 Tag migration | M43 catalog/snapshot entities and migration | fresh/populated 1–7 migration, FK/index/reopen tests | signed populated `0.4.0` install-over | Planned |
+| Tag CRUD/history/search | M43 repositories; M44 management UI | repository/ViewModel/Compose normalization, history, search tests | both category pages and delete confirmation | Planned |
+| Atomic bounded Tag CSV import | M44 SAF parser/import transaction | quotes/Unicode/duplicates/limits/failure rollback tests | valid, duplicate, malformed, oversize picker flows | Planned |
+| Create/Edit picker and chips | M45 reusable UI plus task coordination | picker/state/validation/history/accessibility tests | portrait/landscape/large-text/keyboard task flows | Planned |
+| 999 composed field validation | M43 pure composer; M45 form integration | exact Unicode boundary, punctuation/space, tag-only Description tests | counters, errors, blocked save, correction | Planned |
+| Historical and repeated-Start snapshots | M43 transactions; M45 presentation | source edit/delete, explicit update, copy/concurrency tests | reopen/edit/delete/restart timing flows | Planned |
+| Main fallback and notification privacy | M45 presentation/notification mapping | manual/Tag fallback and redaction tests | visible/running/locked inspection | Planned |
+| Unchanged schema-6 cross-destination export | M46 canonical projection integration | CSV/XLSX/manual+automatic Google equivalence and regression tests | same-task exports and cross-device Google append | Planned |
+| `0.5.0` release compatibility and public APK | M47 audit/handoff | owner-run lint/JVM/build/API26/current connected gates | populated upgrade, physical install, signer/hash/public download | Planned |
+| Safe environment retirement guidance/actions | M48 guide; optional M49 exact actions | documentation/path/safety review only | separate owner inventory/authorization | Deferred until after public `0.5.0` |

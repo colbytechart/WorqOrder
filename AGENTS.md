@@ -60,20 +60,41 @@
 - Canonical export schema 5 has exactly 13 visible columns and one row per task. All three export
   adapters must continue consuming the same immutable projection; do not retain an interval
   number or redundant interval-duration column.
-- `0.4.0` development begins with documentation-only Milestone 36. Later milestones may start only
-  on explicit owner instruction, with the owner's current weekly-token-budget percentage and the
-  matching milestone branch. Follow `docs/V0_4_MILESTONE_PROMPTS.md` for sequential Luna, Terra,
-  and Sol phases. Before implementation, estimate the whole milestone's percentage cost and state
-  the bounded phases. Do not perform work assigned to a different active model; at each model
-  transition stop and wait for the owner to confirm the requested model. Every implementation
-  milestone requires its designated Sol quality-review phase before completion.
-- Planned `0.4.0` Notes are optional task text with a 999-character limit, editable after creation.
+- Released `0.4.0` was planned and delivered through Milestones 36–41. Its historical prompts
+  remain in `docs/V0_4_MILESTONE_PROMPTS.md`; do not reuse them for later release work.
+- Released `0.4.0` Notes are optional task text with a 999-character limit, editable after creation.
   Existing tasks gain blank Notes through a non-destructive Room migration. Starting a completed
   task creates a new task with blank Notes even if its source has Notes; other approved metadata
   copying is unchanged.
-- Planned canonical export schema 6 has 14 visible columns, retaining schema-5 order and appending
+- Released canonical export schema 6 has 14 visible columns, retaining schema-5 order and appending
   `Notes` as column 14. CSV, one-off XLSX, manual Google, and automatic Google must share the same
   immutable projection. Preserve existing Google date-tab rows and transport identities during a
   reviewed schema-5-to-6 compatibility transition; never clear another device's rows.
-- Post-release project-environment teardown planning is deferred until after the public `0.4.0`
-  release. It is not part of Milestone 36 and never authorizes automatic deletion or uninstall.
+- `0.5.0` development begins with documentation-only Milestone 42. Later milestones may start only
+  on explicit owner instruction, with the owner's current weekly-token-budget percentage and the
+  matching milestone branch. Follow `docs/V0_5_MILESTONE_PROMPTS.md`. Every milestone is divided
+  into explicitly assigned Luna, Terra, and Sol subtasks. Stop after **every** subtask and wait for
+  the owner to confirm the next assigned model. Prefer Luna for bounded inventory, fixtures, and
+  mechanical tests; Terra for implementation; and Sol only for critical design, data-safety,
+  difficult defect resolution, and final quality decisions.
+- The owner alone runs all PowerShell/Gradle and Android emulator/device tests during `0.5.0`.
+  Agents must provide complete PowerShell commands that redeclare JBR/SDK/project-local paths and
+  `-Duser.home`, plus numbered manual test instructions. Do not run Gradle, ADB, emulator, or
+  device tests on the owner's behalf and never claim an owner-run result before it is reported.
+- Planned `0.5.0` reusable Tags are two category-scoped catalogs: Description Tags and Hardware /
+  Software Purchase Tags. Catalog edits/deletions never rewrite task snapshots. A task stores
+  ordered Tag text snapshots; repeated Start copies them because it copies Description and
+  purchase metadata. Inline-created Tags remain in the catalog if task creation is cancelled.
+- Description and Hardware / Software Purchases manual input plus their export-only composed Tag
+  text are limited to 999 Unicode code points. Individual Tags are limited to 400. Description
+  may be satisfied entirely by selected Description Tags. The canonical composer trims components,
+  adds a period when a component lacks `.`, `?`, or `!`, and joins manual text followed by ordered
+  snapshots with one space. It is the only source for Description/Expense export values.
+- `0.5.0` uses a non-destructive Room 6-to-7 migration for Tag catalogs and task snapshots.
+  Existing tasks retain their exact text and receive no snapshots. Canonical export schema 6 stays
+  at the same 14 visible columns and Google layout; Tags do not create export columns or a Google
+  schema transition.
+- The former post-`0.4.0` environment teardown Milestones 42 and 43 are renumbered to Milestones
+  48 and 49 and deferred until after the public `0.5.0` release. Milestone 48 is documentation-only;
+  Milestone 49 remains optional and requires exact, separate owner authorization. Neither permits
+  inferred deletion, uninstall, cloud changes, or other destructive action.

@@ -1,8 +1,8 @@
 # WorqOrder User Guide
 
-This guide covers the `0.4.0` source/release candidate. At the 2026-09-15 QA source freeze,
-`0.3.0` remained the latest public APK; check GitHub Releases for the live published version.
-Notes are available in `0.4.0` but not in older `0.3.0` installations.
+This guide covers released `0.4.0`; check GitHub Releases for the authoritative APK. Notes are
+available in `0.4.0` but not in older `0.3.0` installations. Planned `0.5.0` Tags are intentionally
+not presented as user functionality until their implementation and release gates pass.
 
 ## 1. What WorqOrder Stores
 
@@ -63,7 +63,7 @@ creating a task.** Directory changes keep historical task Consultant snapshots i
 6. Choose **Work Type**.
 7. Choose **Billing Status**: **Billable** (the default), **Do not bill**, or **Do not charge**.
 8. Optionally enter **Mileage**.
-9. In the `0.4.0` development build, optionally enter **Notes** (up to 999 characters).
+9. In `0.4.0` and later, optionally enter **Notes** (up to 999 characters).
 10. Choose **Create**.
 
 Short description and Hardware / Software Purchases allow up to 400 characters. Notes are optional
@@ -74,7 +74,7 @@ created and edited, but cannot be timed live.
 If no active client exists, use the inline **Add client** action. Canceling task creation saves
 nothing. Tapping a task row selects it when no timer is running.
 
-In the `0.4.0` development build, **Cancel** and **Create** stay at the bottom of the Create Task
+In `0.4.0` and later, **Cancel** and **Create** stay at the bottom of the Create Task
 screen while you scroll through the fields. They remain available when the keyboard is open.
 
 ## 4. Start and Stop Timing
@@ -85,7 +85,7 @@ screen while you scroll through the fields. They remain available when the keybo
 
 Each task has zero or one interval. Selecting another task is blocked until Stop. Starting a
 task that already has a completed interval creates and selects a new same-day task carrying the
-source task's metadata, then starts that new task. In the `0.4.0` development build, the new
+source task's metadata, then starts that new task. In `0.4.0` and later, the new
 task's Notes start blank. The source task and its interval remain intact.
 
 Accumulated durations are displayed as `HH:MM:SS`. WorqOrder still records precise interval

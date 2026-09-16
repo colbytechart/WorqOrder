@@ -4,7 +4,14 @@ All notable changes to WorqOrder are documented here.
 
 The project follows semantic versioning for public release identifiers.
 
-## [0.4.0] - pre-publication candidate reviewed 2026-09-15
+## [Unreleased]
+
+- Approved `0.5.0` planning covers reusable Description and Hardware / Software Purchase Tag
+  catalogs, immutable task snapshots, bounded CSV import, searchable task pickers, and centralized
+  composition into the unchanged 14-column export schema. No `0.5.0` application behavior is
+  implemented by the planning milestone.
+
+## [0.4.0] - 2026-09-15
 
 ### Added
 
@@ -28,9 +35,9 @@ The project follows semantic versioning for public release identifiers.
 ### Release Status
 
 - The clean signed `0.4.0`/code 4 candidate, populated migration, Notes/schema-6 checks, live
-  automatic Google export, API-26/API-37 device checks, and non-tester Google access passed.
-  Public availability and release date depend on the owner's GitHub tag/upload; see the
-  [Releases page](../../releases) for the current published asset.
+  automatic Google export, API-26/API-37 device checks, and non-tester Google access passed. The
+  owner published the GitHub release, downloaded its APK, installed it on a physical device, and
+  reported expected behavior.
 
 ## [0.3.0] - 2026-09-13
 

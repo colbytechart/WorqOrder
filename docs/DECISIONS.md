@@ -6,9 +6,10 @@ Status terms: **Accepted** is a fixed product/architecture decision; **Proposed*
 
 Version scope: decisions D-001 through D-080 preserve the accepted `0.1.0`/`0.2.0` history and
 are not current when a later decision explicitly supersedes them. Decisions D-081 and later define
-released `0.3.0` behavior. Decisions D-097 onward govern implemented `0.4.0` work and supersede
-older milestone scheduling where stated. Migration fixtures and historical wording remain for
-upgrade traceability and must not be interpreted as live production contracts.
+released `0.3.0` behavior. Decisions D-097–D-101 govern released `0.4.0`; D-102 onward records
+approved planning for `0.5.0` and supersedes older milestone scheduling where stated. Migration
+fixtures and historical wording remain for upgrade traceability and must not be interpreted as
+implemented future contracts.
 
 ### D-001 — Native stable Android stack
 
@@ -1221,8 +1222,9 @@ is transport-only and is not a visible column or a change to the canonical CSV/X
 The owner reports public `0.3.0` publication and a physical-device upgrade that retained existing
 data and worked for new task timing. Milestone 36 is now documentation-only `0.4.0` planning.
 Release-specific implementation occupies Milestones 37–41. The former post-`0.3.0` project
-environment teardown guide moves to Milestone 42 **after** public `0.4.0` publication; any real
-closeout work is separately authorized optional Milestone 43. Milestone E remains independent.
+environment teardown guide originally moved to Milestone 42 after public `0.4.0`, with real
+closeout as optional Milestone 43. D-104 later supersedes those numbers with post-`0.5.0`
+Milestones 48 and 49. Milestone E remains independent.
 
 ### D-098 — Notes are optional, editable task data, but not repeated-Start copy data
 
@@ -1276,6 +1278,50 @@ footer actions, Delete on the left and Save on the right. Both Create and Edit a
 the current theme's page background rather than Material's contrasting bottom-app-bar container.
 This is presentation-only: running/save guards, validation, confirmations, navigation, historical
 time interpretation, and Room persistence are unchanged.
+
+### D-102 — Reusable Tags use catalog rows plus immutable task snapshots
+
+`0.5.0` plans two category-scoped catalogs: Description and Hardware / Software Purchase Tags.
+Catalog text is not a live task reference. When a task is saved, copy selected text, category,
+source hint, and selection order into task-owned snapshots. Catalog Edit/Delete affects later
+selection only. Existing snapshots remain exportable and editable; an edited source can replace an
+old snapshot only through explicit **Use Updated Version**. Catalog deletion is confirmed and real,
+with no archive UI, but task deletion alone cascades its snapshots. Repeated Start copies snapshot
+content/order because Description and purchase metadata already copy; Notes still starts blank.
+
+Room schema 7 adds catalog/snapshot tables through explicit non-destructive `MIGRATION_6_7`.
+Existing schema-6 tasks retain exact manual text and begin with no snapshots. `sourceTagId` is not
+a destructive foreign-key parent: snapshot text remains authoritative after source deletion.
+Create/Edit task metadata and snapshot-set changes are transactional.
+
+### D-103 — Tag input expands existing fields without changing export schema 6
+
+Manual Description and Hardware / Software Purchases plus their selected snapshot text have a
+999-Unicode-code-point composed export limit; individual Tags have a 400-code-point limit.
+Description can be satisfied entirely by Tags. One pure composer places manual text first, then
+snapshots in selection order, adds a period when a component lacks `.`, `?`, or `!`, joins with one
+space, and returns structured length errors. Generated punctuation exists only in exported values.
+It never modifies manual text or snapshots.
+
+Tags do not add columns. Keep canonical export schema 6, its 14 exact visible headers, and current
+Google A:N/O/P layout and marker. Every destination receives the same composed Description and
+Expense from the immutable projection; adapters never query catalogs or compose independently.
+This preserves `0.4.0`/`0.5.0` Google tab compatibility and other-device keyed rows.
+
+### D-104 — Tag management is bounded, searchable, and safely importable
+
+Settings places Tag Management after Client and Consultant Management and opens one category page
+per catalog. Each provides live case-insensitive substring filtering with clear, alphabetical
+browsing, Add/Edit, confirmed Delete, and SAF CSV import. Every nonblank CSV cell is a Tag; no
+header is special. Existing/within-file duplicates skip without overwrite. Invalid/malformed or
+overlength data, files over 1 MiB, and more than 10,000 nonblank cells fail one atomic import.
+
+Create/Edit use associated dismissible chips and a full-screen multi-select picker with persistent
+selection under filtering, Cancel/Apply, and inline creation. Inline creation is an independent
+catalog action and survives task Cancel. Main rows show manual Description or first-Tag/`+N tags`
+fallback; notifications never expose Tag text. The former teardown Milestones 42/43 are renamed
+48/49 after public `0.5.0`. Every `0.5.0` subtask stops for an owner-confirmed Luna/Terra/Sol
+transition, and the owner alone executes supplied PowerShell and Android test commands.
 
 ## Deferred decisions
 

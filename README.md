@@ -6,15 +6,13 @@ CSV, XLSX, and Google Sheets are optional one-way exports.
 
 ## Development Status
 
-At the time this release-source commit was prepared, the latest published APK was `0.3.0`.
-The `0.4.0`/code 4 candidate passed its pre-publication migration, device, export, Google,
-signing, and local security gates; the owner still controls the integration merge, tag, upload,
-and downloaded-asset verification. Check the [Releases page](https://github.com/colbytechart/WorqOrder/releases) for the live
-published version rather than treating this source snapshot as a publication announcement.
-`0.4.0` adds optional task Notes, one shared 14-column export schema, safe owned Google-tab
-upgrades, cleaner Create/Edit forms, and fixed action footers. See the
-[v0.4.0 roadmap](docs/V0_4_MILESTONE_PROMPTS.md) and
-[v0.3.0 release evidence](docs/MILESTONE_35_RELEASE_EVIDENCE.md).
+The owner published and physically verified `0.4.0`/code 4. It adds optional task Notes, one
+shared 14-column export schema, safe owned Google-tab upgrades, cleaner Create/Edit forms, and
+fixed action footers. Check the
+[Releases page](https://github.com/colbytechart/WorqOrder/releases) for authoritative artifacts.
+Approved `0.5.0` reusable-Tag work is planning-only until its sequential milestones land; see the
+[v0.5.0 roadmap](docs/V0_5_MILESTONE_PROMPTS.md). The
+[v0.4.0 roadmap](docs/V0_4_MILESTONE_PROMPTS.md) is retained as historical delivery evidence.
 
 ## Install WorqOrder From GitHub
 
@@ -200,8 +198,9 @@ passwords. Then run:
 Never create a new signing key for an update. Losing the permanent key prevents existing users
 from installing future updates over the app. The `0.2.0` checklist and
 [Milestone 35 release evidence](docs/MILESTONE_35_RELEASE_EVIDENCE.md) are historical.
-`0.4.0` pre-publication gates are tracked under Milestone 41. Upload only the owner-signed APK
-whose final SHA-256 and signer have been checked, and compare the public download afterward.
+`0.4.0` pre-publication gates are tracked historically under Milestone 41. Future releases must
+likewise upload only an owner-signed APK whose final SHA-256 and signer have been checked and must
+compare the public download afterward.
 
 ## Troubleshooting
 

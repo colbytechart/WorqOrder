@@ -7,9 +7,9 @@
 - Minimum SDK: 26
 - Target SDK: 36
 - Compile SDK: 36.1
-- Latest published release: `0.3.0` (`versionCode = 3`)
-- Prepared next release: `0.4.0`/versionCode `4`, explicitly approved by the owner; GitHub
-  publication and downloaded-asset verification remain owner actions
+- Latest published release: `0.4.0` (`versionCode = 4`), owner-verified after public download and
+  physical-device installation
+- Approved next-release planning: `0.5.0`; release versionCode remains owner-controlled
 - License: GPLv3
 - Distribution artifact: owner-signed APK attached to a GitHub Release
 
@@ -17,9 +17,9 @@ Android application backup is disabled. Room is authoritative. CSV, XLSX, and Go
 one-way exports.
 
 `0.4.0` adds the additive Room 5-to-6 Notes migration and shared schema-6 export projection. The
-Milestone 41 pre-publication signing, populated-update, device, and export gates passed by owner
-report and local generated evidence. The owner must still merge, tag, upload, and verify the
-downloaded public asset before treating it as published.
+Milestone 41 signing, populated-update, device, export, merge, tag, public-download, and physical-
+device gates passed by owner report and generated evidence. `0.5.0` planning is documented in
+`V0_5_MILESTONE_PROMPTS.md`; it is not implemented by the planning milestone.
 
 The owner-only `0.4.0` branch-to-GitHub sequence and reviewed candidate checksum are in
 `RELEASE_CHECKLIST.md`, Sections 10–11. Historical `0.2.0`/`0.3.0` commands later in this handoff

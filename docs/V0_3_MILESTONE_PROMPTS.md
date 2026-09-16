@@ -431,5 +431,6 @@ unperformed. Provide final report and commit/PR/release text, then stop.
 ## Post-`0.3.0` closeout relocation
 
 The former Milestone 36 environment-teardown guide is not part of the `0.3.0` closeout or the new
-Milestone 36. It is rescheduled as post-`0.4.0` Milestone 42, followed only if separately
-authorized by optional Milestone 43. The current prompts are in `V0_4_MILESTONE_PROMPTS.md`.
+Milestone 36. Later planning moved it again to post-`0.5.0` Milestone 48, followed only if
+separately authorized by optional Milestone 49. The current prompts are in
+`V0_5_MILESTONE_PROMPTS.md`; do not execute an archived closeout number from this file.

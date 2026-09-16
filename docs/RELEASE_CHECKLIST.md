@@ -8,7 +8,7 @@ Upgrade baseline: public `0.1.0` (`versionCode = 1`)
 Application ID: `worq.order`
 Distribution: owner-signed APK attached to a GitHub Release
 
-## `0.4.0` current handoff status
+## `0.4.0` completed handoff status
 
 At the 2026-09-15 QA source freeze, the `0.4.0` implementation was present on the
 `v0.4.0-development` branch but was not yet published. This file remains a historical `0.2.0`
@@ -17,7 +17,9 @@ Milestone 41C must verify the approved `0.4.0`/code 4 signed candidate,
 the complete non-destructive migration chain and schema-6 exports, current/API-26 device gates,
 live automatic Google behavior, and the last rebuilt artifact checksum, then provide final GitHub
 release instructions. Some gates are now recorded in Section 10 and `QA_REPORT.md`; no release
-is approved merely by this documentation update.
+was approved merely by that documentation update. The owner later completed merge/tag/publication,
+downloaded-asset verification, and physical-device installation. `0.5.0` release work belongs to
+Milestone 47; the checklist below remains historical evidence rather than reusable version values.
 
 ## 1. Permanent policies
 

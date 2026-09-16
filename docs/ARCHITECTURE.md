@@ -1,9 +1,8 @@
 # WorqOrder Architecture
 
-Version authority: this document retains released `0.1.0`/`0.2.0` milestone descriptions for
-upgrade and historical traceability. References explicitly labeled `0.2.0` or a released milestone
-are historical; the current `0.3.0` behavior is authoritative in Section 17 and its linked
-specifications.
+Version authority: this document retains earlier release descriptions for upgrade and historical
+traceability. Released `0.4.0` schema-6 Notes/export behavior and `0.3.0` timer/cardinality rules
+are current. Section 19 is approved `0.5.0` planning, not implemented behavior.
 
 ## 1. Architectural goals
 
@@ -591,7 +590,7 @@ ordinal column.
 
 ## 18. Implemented `0.4.0` Notes and export architecture
 
-This describes the `0.4.0` release-candidate architecture. Room schema 6 adds a blank-default
+This describes the released `0.4.0` architecture. Room schema 6 adds a blank-default
 `daily_tasks.notes` field through a non-destructive 5-to-6 migration. Notes are optional, editable
 task text limited to 999 Unicode code points. The repository's atomic repeated-Start operation
 creates a new task with blank Notes even when source Notes are nonblank; all other copy/selection/
@@ -613,3 +612,40 @@ Edit Task retains `zoneId` in state and domain operations but omits it from the 
 Delete/Save actions live in the Scaffold bottom bar rather than the scrollable body; Create and
 Edit both explicitly use the theme background for their fixed action footers. Moving these controls
 does not alter ViewModel events, validation, deletion confirmation, or Room writes.
+
+## 19. Planned `0.5.0` reusable-Tag architecture
+
+This is an approved future boundary, not current implementation. Room schema 7 remains the source
+of truth for two Tag catalogs and task-owned ordered text snapshots. Catalog entities and task
+snapshots are deliberately separate: current catalog CRUD/search/import uses catalog rows, while
+task display, repeated Start, and export use saved snapshots. A catalog update or hard delete can
+therefore never rewrite historical tasks. `sourceTagId` is only a comparison hint for offering an
+explicit updated version; snapshot text is authoritative.
+
+The data layer exposes typed catalog/snapshot models, category-scoped observable lists, normalized
+duplicate/search operations, atomic CSV import, and transactional task metadata-plus-snapshot
+writes. CSV parsing runs off the main thread, observes 1 MiB/10,000-nonblank-cell limits, and
+produces a complete validated import plan before one Room transaction. Compose and ViewModels do
+not read preference/database keys or parse CSV directly.
+
+Create/Edit form state keeps manual field text separate from ordered selected-snapshot drafts.
+Reusable presentation renders associated chips and a full-screen picker, but all normalization,
+duplicate, selection-order, 400-code-point, composed 999-code-point, and required-Description
+decisions come from pure domain results. Inline Tag creation is a catalog transaction independent
+of eventual task Save/Cancel. Task Save applies manual metadata and both ordered snapshot sets in
+one repository transaction. Repeated Start copies saved snapshots inside its existing operation
+lock and Room transaction; it never resolves current catalog text.
+
+One pure `TaskExportTextComposer`-equivalent function accepts manual text and ordered snapshots,
+normalizes only the exported value, counts Unicode code points including separators/generated
+periods, and returns either composed text or a structured overlength result. The canonical export
+snapshot builder calls it for Description and Expense. CSV, XLSX, and Google adapters remain
+unaware of Tags. Export schema 6, 14-column headers, Google ownership marker/hidden identity,
+one-off CSV/XLSX behavior, automatic captured-date logic, and cross-device keyed rows are unchanged.
+
+The main task presentation observes ordered Description snapshots only to provide the approved
+fallback when manual Description is blank. The timer notification intentionally does not receive
+Tag text. Navigation preserves unsaved picker/form state through ViewModel/SavedStateHandle-level
+state rather than writing partial tasks. Manual dependency injection remains sufficient; no new
+framework, backend, account, service, broad storage permission, or foreground timer component is
+introduced.

@@ -2,8 +2,9 @@
 
 Version scope: schema and behavior descriptions explicitly labeled earlier releases preserve
 historical/migration compatibility. Released `0.4.0` Room schema 6 and the `0.3.0` no-rollover,
-zero-or-one-interval rules are current. Section 16 is approved planning for schema 7, not current
-production behavior.
+zero-or-one-interval rules remain release behavior. Section 16 describes the implemented
+`0.5.0`-development schema-7 foundation; its management, task-form, and export UI integrations
+remain assigned to later `0.5.0` milestones.
 
 ## 1. Storage conventions
 
@@ -472,12 +473,12 @@ checked against schema 5: Notes is the only added column, with a non-null empty-
 indexes and foreign keys are unchanged. The owner-run offline JVM/lint/debug/release and connected
 gates passed for Milestone 37.
 
-## 16. Planned `0.5.0` Room schema 7 — reusable Tag catalogs and task snapshots
+## 16. Implemented `0.5.0` Room schema 7 — reusable Tag catalogs and task snapshots
 
-This section is an approved migration contract, not implemented schema until Milestone 43 passes.
-`MIGRATION_6_7` adds tables and indexes only. It must not rebuild or rewrite `daily_tasks`, clients,
-Consultants, intervals, `active_timer`, or settings. All schema-1-through-6 upgrade paths must
-reach schema 7 without destructive fallback, and the exported `7.json` must be committed.
+Milestone 43 implements this approved migration contract. `MIGRATION_6_7` adds tables and indexes
+only; it does not rebuild or rewrite `daily_tasks`, clients, Consultants, intervals,
+`active_timer`, or settings. Supported schema-1-through-6 upgrade paths reach schema 7 without
+destructive fallback, and the exported `7.json` is part of the required commit.
 
 ### Catalog entity
 
@@ -542,3 +543,21 @@ adding required periods, and joining with spaces. Generated punctuation is not p
 Description is structurally usable when its composed value is nonblank; purchases may remain
 blank. Database constraints protect table shape and relationships, while user-facing length,
 duplicate, and required-field errors remain typed Kotlin results suitable for Compose.
+
+### Milestone 43 implementation evidence
+
+The data layer now includes two category-scoped Tag catalogs, ordered task-owned snapshots,
+category/normalized-text uniqueness, task cascade without a catalog-source foreign key, UTC
+snapshot creation timestamps, typed CRUD/search flows, transactional Create/Edit replacement,
+and repeated-Start copying with new snapshot IDs and timestamps. Repository and DAO guards reject
+invalid category/text/order data and duplicate non-null source Tag IDs within one task/category.
+The pure composer and validators count Unicode code points across manual text, ordered snapshots,
+joining spaces, and generated punctuation while leaving stored task text unchanged.
+
+Owner-run verification regenerated schema `7.json`, passed the offline JVM/lint/debug/release
+gate, and passed all 127 connected tests with zero failures. Migration coverage exercises fresh
+schema 7 plus populated supported schema-1-through-6 paths, empty migrated catalogs/snapshots,
+foreign keys, historical snapshot isolation, task cascade, transaction rollback, and active-timer
+repeated Start. An obsolete pre-final schema-7 emulator database was cleared during development;
+schema 7 has never been publicly released, so released user data follows the tested 1-through-6
+migration paths rather than an unsupported interim 7-to-7 shape.

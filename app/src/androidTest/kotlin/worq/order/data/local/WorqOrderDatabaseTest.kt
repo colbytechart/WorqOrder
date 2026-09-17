@@ -28,7 +28,11 @@ import org.junit.runner.RunWith
 import worq.order.data.ClientMutationResult
 import worq.order.data.CreateActiveIntervalResult
 import worq.order.data.EntityIdGenerator
+import worq.order.data.NewDailyTask
+import worq.order.data.TagMutationResult
 import worq.order.model.Client
+import worq.order.model.TagCategory
+import worq.order.model.TaskTagSnapshotDraft
 import worq.order.timer.UtcClock
 
 @RunWith(AndroidJUnit4::class)
@@ -83,6 +87,18 @@ class WorqOrderDatabaseTest {
             sqlite.indexIsUnique("daily_tasks", "index_daily_tasks_series_date_zone"),
         )
         assertTrue(sqlite.tableColumns("daily_tasks").contains("notes"))
+        assertTrue(tableNames.contains("tags"))
+        assertTrue(tableNames.contains("task_tag_snapshots"))
+        assertTrue(
+            sqlite.tableColumns("task_tag_snapshots").contains("created_at_epoch_ms"),
+        )
+        assertTrue(sqlite.indexIsUnique("tags", "index_tags_category_normalized_text"))
+        assertTrue(
+            sqlite.indexIsUnique(
+                "task_tag_snapshots",
+                "index_task_tag_snapshots_task_category_order",
+            ),
+        )
     }
 
     @Test
@@ -405,6 +421,381 @@ class WorqOrderDatabaseTest {
 
             assertEquals(0, database.workIntervalDao().countIntervalsForTask("task-1"))
             assertNotNull(database.clientDao().readClient("client-1"))
+        }
+
+    @Test
+    fun tagsAreCategoryScopedSortedSearchableAndNormalizedUnique() =
+        runBlocking {
+            val repository =
+                RoomTagRepository(
+                    tagDao = database.tagDao(),
+                    idGenerator =
+                        QueueIdGenerator(
+                            "description-tag",
+                            "description-alpha-tag",
+                            "purchase-tag",
+                        ),
+                    clock = FixedClock(TEST_NOW),
+                )
+
+            val description = repository.createTag(TagCategory.DESCRIPTION, "  Install\tmonitor. ")
+            val duplicate = repository.createTag(TagCategory.DESCRIPTION, "install monitor")
+            val descriptionAlpha = repository.createTag(TagCategory.DESCRIPTION, "Alpha")
+            val purchase =
+                repository.createTag(
+                    TagCategory.HARDWARE_SOFTWARE_PURCHASE,
+                    "Install monitor",
+                )
+
+            assertTrue(description is TagMutationResult.Created)
+            assertEquals(
+                TagMutationResult.DuplicateNormalizedText("description-tag"),
+                duplicate,
+            )
+            assertTrue(purchase is TagMutationResult.Created)
+            assertEquals(
+                listOf("Alpha", "Install monitor."),
+                database.tagDao().observeTagsForCategory(TagCategory.DESCRIPTION.name)
+                    .first()
+                    .map(TagEntity::text),
+            )
+            assertTrue(descriptionAlpha is TagMutationResult.Created)
+            assertEquals(
+                listOf("Install monitor."),
+                repository.observeTags(TagCategory.DESCRIPTION, "MONITOR").first().map { it.text },
+            )
+        }
+
+    @Test
+    fun catalogDeletionPreservesTaskSnapshotsAndTaskDeletionCascadesSnapshots() =
+        runBlocking {
+            insertClient(id = "client-1")
+            val tagRepository =
+                RoomTagRepository(
+                    tagDao = database.tagDao(),
+                    idGenerator = QueueIdGenerator("catalog-tag"),
+                    clock = FixedClock(TEST_NOW),
+                )
+            val tag =
+                (tagRepository.createTag(TagCategory.DESCRIPTION, "Inspect rack")
+                    as TagMutationResult.Created).tag
+            val taskRepository =
+                RoomTaskRepository(
+                    taskDao = database.taskDao(),
+                    workIntervalDao = database.workIntervalDao(),
+                    idGenerator = QueueIdGenerator("task-with-tag", "task-series", "snapshot-id"),
+                    clock = FixedClock(TEST_NOW),
+                )
+            val task =
+                (taskRepository.createDailyTask(
+                    NewDailyTask(
+                        clientId = "client-1",
+                        description = "",
+                        descriptionTagSnapshots =
+                            listOf(TaskTagSnapshotDraft("Inspect rack", tag.id)),
+                        workDate = TEST_DATE,
+                        zoneId = TEST_ZONE,
+                    ),
+                ) as worq.order.data.CreateDailyTaskResult.Created).task
+
+            val storedSnapshot =
+                requireNotNull(taskRepository.readTaskWithIntervals(task.id))
+                    .tagSnapshots
+                    .single()
+            assertEquals("Inspect rack", storedSnapshot.text)
+            assertEquals(TEST_NOW, storedSnapshot.createdAt)
+            assertEquals(TagMutationResult.Deleted, tagRepository.deleteTag(tag.id))
+            assertEquals(
+                listOf("Inspect rack"),
+                taskRepository.readTaskWithIntervals(task.id)?.tagSnapshots?.map { it.text },
+            )
+            assertEquals(1, database.taskDao().deleteTask(task.id))
+            assertEquals(
+                0L,
+                database.openHelper.writableDatabase.scalarLong(
+                    "SELECT COUNT(*) FROM task_tag_snapshots WHERE task_id = '${task.id}'",
+                ),
+            )
+        }
+
+    @Test
+    fun catalogEditPreservesHistoricalTaskSnapshotText() =
+        runBlocking {
+            insertClient(id = "client-1")
+            val tagRepository =
+                RoomTagRepository(
+                    tagDao = database.tagDao(),
+                    idGenerator = QueueIdGenerator("catalog-tag"),
+                    clock = FixedClock(TEST_NOW),
+                )
+            val tag =
+                (tagRepository.createTag(TagCategory.DESCRIPTION, "Original tag")
+                    as TagMutationResult.Created).tag
+            val taskRepository =
+                RoomTaskRepository(
+                    taskDao = database.taskDao(),
+                    workIntervalDao = database.workIntervalDao(),
+                    idGenerator = QueueIdGenerator("tagged-task", "tagged-series", "tagged-snapshot"),
+                    clock = FixedClock(TEST_NOW),
+                )
+            val task =
+                (taskRepository.createDailyTask(
+                    NewDailyTask(
+                        clientId = "client-1",
+                        description = "Original description",
+                        descriptionTagSnapshots =
+                            listOf(TaskTagSnapshotDraft("Original tag", tag.id)),
+                        workDate = TEST_DATE,
+                        zoneId = TEST_ZONE,
+                    ),
+                ) as worq.order.data.CreateDailyTaskResult.Created).task
+
+            assertTrue(
+                tagRepository.updateTag(tag.id, "Renamed catalog tag") is
+                    TagMutationResult.Updated,
+            )
+            val taskAfterCatalogEdit =
+                requireNotNull(taskRepository.readTaskWithIntervals(task.id))
+            assertEquals("Original description", taskAfterCatalogEdit.taskWithClient.task.description)
+            assertEquals(listOf("Original tag"), taskAfterCatalogEdit.tagSnapshots.map { it.text })
+            assertEquals("Renamed catalog tag", tagRepository.readTag(tag.id)?.text)
+        }
+
+    @Test
+    fun invalidSnapshotEditRollsBackTaskMetadataAndSnapshotsTogether() =
+        runBlocking {
+            insertClient(id = "client-1")
+            val taskRepository =
+                RoomTaskRepository(
+                    taskDao = database.taskDao(),
+                    workIntervalDao = database.workIntervalDao(),
+                    idGenerator = QueueIdGenerator("edit-task", "edit-series", "edit-snapshot"),
+                    clock = FixedClock(TEST_NOW),
+                )
+            val task =
+                (taskRepository.createDailyTask(
+                    NewDailyTask(
+                        clientId = "client-1",
+                        description = "Before edit",
+                        descriptionTagSnapshots = listOf(TaskTagSnapshotDraft("Keep this")),
+                        workDate = TEST_DATE,
+                        zoneId = TEST_ZONE,
+                    ),
+                ) as worq.order.data.CreateDailyTaskResult.Created).task
+            val invalidSnapshots =
+                listOf(
+                    TaskTagSnapshotEntity(
+                        id = "invalid-edit-snapshot-1",
+                        taskId = task.id,
+                        category = TagCategory.DESCRIPTION.name,
+                        textSnapshot = "First",
+                        selectionOrder = 0,
+                        createdAtEpochMs = TEST_NOW.toEpochMilli(),
+                    ),
+                    TaskTagSnapshotEntity(
+                        id = "invalid-edit-snapshot-2",
+                        taskId = task.id,
+                        category = TagCategory.DESCRIPTION.name,
+                        textSnapshot = "Second",
+                        selectionOrder = 0,
+                        createdAtEpochMs = TEST_NOW.toEpochMilli(),
+                    ),
+                )
+
+            expectIllegalArgumentFailure {
+                database.taskDao().updateStoppedTaskMetadata(
+                    taskId = task.id,
+                    clientId = "client-1",
+                    description = "Changed description",
+                    hardwareSoftwarePurchases = "",
+                    employeeId = null,
+                    workType = "UNSPECIFIED",
+                    billingStatus = null,
+                    mileage = null,
+                    notes = "",
+                    updatedAtEpochMs = 2_000,
+                    snapshots = invalidSnapshots,
+                )
+            }
+            val afterFailure = requireNotNull(taskRepository.readTaskWithIntervals(task.id))
+            assertEquals("Before edit", afterFailure.taskWithClient.task.description)
+            assertEquals(listOf("Keep this"), afterFailure.tagSnapshots.map { it.text })
+        }
+
+    @Test
+    fun repeatedStartCopiesOrderedSnapshotsWithNewIdsAndLeavesSourceUntouched() =
+        runBlocking {
+            insertClient(id = "client-1")
+            val taskRepository =
+                RoomTaskRepository(
+                    taskDao = database.taskDao(),
+                    workIntervalDao = database.workIntervalDao(),
+                    idGenerator =
+                        QueueIdGenerator(
+                            "source-task",
+                            "source-series",
+                            "source-description-snapshot",
+                            "source-purchase-snapshot",
+                            "source-interval",
+                        ),
+                    clock = FixedClock(TEST_NOW),
+                )
+            val source =
+                (taskRepository.createDailyTask(
+                    NewDailyTask(
+                        clientId = "client-1",
+                        description = "",
+                        hardwareSoftwarePurchases = "",
+                        descriptionTagSnapshots =
+                            listOf(TaskTagSnapshotDraft("First", "description-source")),
+                        hardwareSoftwarePurchaseTagSnapshots =
+                            listOf(TaskTagSnapshotDraft("Second", "purchase-source")),
+                        workDate = TEST_DATE,
+                        zoneId = TEST_ZONE,
+                    ),
+                ) as worq.order.data.CreateDailyTaskResult.Created).task
+            taskRepository.insertCompletedInterval(
+                taskId = source.id,
+                start = TEST_NOW.minusSeconds(30),
+                stop = TEST_NOW,
+                wasManuallyEdited = false,
+            )
+            val activeRepository =
+                RoomActiveTimerRepository(
+                    activeTimerDao = database.activeTimerDao(),
+                    idGenerator =
+                        QueueIdGenerator(
+                            "new-interval",
+                            "repeated-task",
+                            "repeated-description-snapshot",
+                            "repeated-purchase-snapshot",
+                        ),
+                    clock = FixedClock(TEST_NOW.plusSeconds(1)),
+                )
+
+            val result =
+                activeRepository.createActiveInterval(
+                    taskId = source.id,
+                    boundaryZoneId = TEST_ZONE,
+                    start = TEST_NOW.plusSeconds(1),
+                ) as worq.order.data.CreateActiveIntervalResult.Created
+            val repeated = requireNotNull(taskRepository.readTaskWithIntervals(result.startedTask.id))
+            val original = requireNotNull(taskRepository.readTaskWithIntervals(source.id))
+            assertEquals(listOf("First", "Second"), repeated.tagSnapshots.map { it.text })
+            assertEquals(
+                listOf("description-source", "purchase-source"),
+                repeated.tagSnapshots.map { it.sourceTagId },
+            )
+            assertEquals(2, repeated.tagSnapshots.map { it.id }.distinct().size)
+            assertEquals(listOf("First", "Second"), original.tagSnapshots.map { it.text })
+            assertEquals(
+                listOf(TEST_NOW.plusSeconds(1), TEST_NOW.plusSeconds(1)),
+                repeated.tagSnapshots.map { it.createdAt },
+            )
+            assertEquals(
+                listOf(TEST_NOW, TEST_NOW),
+                original.tagSnapshots.map { it.createdAt },
+            )
+            assertTrue(
+                repeated.tagSnapshots.map { it.id }.none { id ->
+                    original.tagSnapshots.any { it.id == id }
+                },
+            )
+            assertEquals(
+                repeated.taskWithClient.task.id,
+                database.activeTimerDao().readActiveTimer()?.taskId,
+            )
+            assertEquals("", repeated.taskWithClient.task.notes)
+        }
+
+    @Test
+    fun invalidSnapshotBatchRollsBackTaskAndSnapshotsTogether() =
+        runBlocking {
+            insertClient(id = "client-1")
+            val task =
+                DailyTaskEntity(
+                    id = "atomic-tag-task",
+                    seriesId = "atomic-tag-series",
+                    clientId = "client-1",
+                    description = "Task",
+                    workDateEpochDay = TEST_DATE.toEpochDay(),
+                    zoneId = TEST_ZONE.id,
+                    createdAtEpochMs = 1_000,
+                    updatedAtEpochMs = 1_000,
+                )
+            val invalidSnapshots =
+                listOf(
+                    TaskTagSnapshotEntity(
+                        id = "atomic-snapshot-1",
+                        taskId = task.id,
+                        category = TagCategory.DESCRIPTION.name,
+                        textSnapshot = "First",
+                        selectionOrder = 0,
+                        createdAtEpochMs = 1_000,
+                    ),
+                    TaskTagSnapshotEntity(
+                        id = "atomic-snapshot-2",
+                        taskId = task.id,
+                        category = TagCategory.DESCRIPTION.name,
+                        textSnapshot = "Second",
+                        selectionOrder = 0,
+                        createdAtEpochMs = 1_000,
+                    ),
+                )
+
+            expectIllegalArgumentFailure {
+                database.taskDao().insertDailyTaskWithSnapshots(task, invalidSnapshots)
+            }
+            assertNull(database.taskDao().readTask(task.id))
+            assertEquals(
+                0L,
+                database.openHelper.writableDatabase.scalarLong(
+                    "SELECT COUNT(*) FROM task_tag_snapshots WHERE task_id = '${task.id}'",
+                ),
+            )
+        }
+
+    @Test
+    fun duplicateSourceTagWithinCategoryIsRejectedWithoutWritingTask() =
+        runBlocking {
+            insertClient(id = "client-1")
+            val task =
+                DailyTaskEntity(
+                    id = "duplicate-source-task",
+                    seriesId = "duplicate-source-series",
+                    clientId = "client-1",
+                    description = "Task",
+                    workDateEpochDay = TEST_DATE.toEpochDay(),
+                    zoneId = TEST_ZONE.id,
+                    createdAtEpochMs = 1_000,
+                    updatedAtEpochMs = 1_000,
+                )
+            val duplicateSourceSnapshots =
+                listOf(
+                    TaskTagSnapshotEntity(
+                        id = "duplicate-source-snapshot-1",
+                        taskId = task.id,
+                        category = TagCategory.DESCRIPTION.name,
+                        textSnapshot = "First",
+                        sourceTagId = "same-source-tag",
+                        selectionOrder = 0,
+                        createdAtEpochMs = 1_000,
+                    ),
+                    TaskTagSnapshotEntity(
+                        id = "duplicate-source-snapshot-2",
+                        taskId = task.id,
+                        category = TagCategory.DESCRIPTION.name,
+                        textSnapshot = "Second",
+                        sourceTagId = "same-source-tag",
+                        selectionOrder = 1,
+                        createdAtEpochMs = 1_000,
+                    ),
+                )
+
+            expectIllegalArgumentFailure {
+                database.taskDao().insertDailyTaskWithSnapshots(task, duplicateSourceSnapshots)
+            }
+            assertNull(database.taskDao().readTask(task.id))
         }
 
     @Test
@@ -1120,7 +1511,7 @@ class WorqOrderDatabaseTest {
     }
 
     @Test
-    fun migrationOneToSixPreservesPopulatedTaskAndActiveTimer() =
+    fun migrationOneToSevenPreservesPopulatedTaskAndActiveTimer() =
         runBlocking {
             context.deleteDatabase(MIGRATION_TEST_DATABASE)
             createPopulatedVersionOneDatabase()
@@ -1137,11 +1528,16 @@ class WorqOrderDatabaseTest {
                         WorqOrderMigrations.MIGRATION_3_4,
                         WorqOrderMigrations.MIGRATION_4_5,
                         WorqOrderMigrations.MIGRATION_5_6,
+                        WorqOrderMigrations.MIGRATION_6_7,
                     )
                     .allowMainThreadQueries()
                     .build()
             try {
                 val task = requireNotNull(migrated.taskDao().readTask("migration-task"))
+                val sqlite = migrated.openHelper.writableDatabase
+                assertEquals(7, sqlite.version)
+                assertEquals(0L, sqlite.scalarLong("SELECT COUNT(*) FROM tags"))
+                assertEquals(0L, sqlite.scalarLong("SELECT COUNT(*) FROM task_tag_snapshots"))
                 assertEquals("Existing description", task.description)
                 assertEquals("", task.hardwareSoftwarePurchases)
                 assertNull(task.employeeId)
@@ -1176,7 +1572,7 @@ class WorqOrderDatabaseTest {
         }
 
     @Test
-    fun migrationTwoToSixPreservesReleasedGraphAndAddsSafeDefaults() =
+    fun migrationTwoToSevenPreservesReleasedGraphAndAddsSafeDefaults() =
         runBlocking {
             context.deleteDatabase(MIGRATION_TEST_DATABASE)
             createPopulatedVersionTwoDatabase()
@@ -1192,11 +1588,16 @@ class WorqOrderDatabaseTest {
                         WorqOrderMigrations.MIGRATION_3_4,
                         WorqOrderMigrations.MIGRATION_4_5,
                         WorqOrderMigrations.MIGRATION_5_6,
+                        WorqOrderMigrations.MIGRATION_6_7,
                     )
                     .allowMainThreadQueries()
                     .build()
             try {
                 val task = requireNotNull(migrated.taskDao().readTask("migration-task"))
+                val sqlite = migrated.openHelper.writableDatabase
+                assertEquals(7, sqlite.version)
+                assertEquals(0L, sqlite.scalarLong("SELECT COUNT(*) FROM tags"))
+                assertEquals(0L, sqlite.scalarLong("SELECT COUNT(*) FROM task_tag_snapshots"))
                 assertEquals("Existing description", task.description)
                 assertEquals("", task.hardwareSoftwarePurchases)
                 assertNull(task.employeeId)
@@ -1429,6 +1830,15 @@ class WorqOrderDatabaseTest {
         throw AssertionError("Expected SQLiteConstraintException")
     }
 
+    private suspend fun expectIllegalArgumentFailure(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (_: IllegalArgumentException) {
+            return
+        }
+        throw AssertionError("Expected IllegalArgumentException")
+    }
+
     private suspend fun expectPersistenceInvariant(block: suspend () -> Unit) {
         try {
             block()
@@ -1446,6 +1856,17 @@ class WorqOrderDatabaseTest {
                     add(cursor.getString(nameColumn))
                 }
             }
+        }
+
+    private fun androidx.sqlite.db.SupportSQLiteDatabase.scalarLong(
+        sql: String,
+        bindArgs: Array<out Any?> = emptyArray(),
+    ): Long =
+        query(sql, bindArgs).use { cursor ->
+            if (!cursor.moveToFirst()) {
+                throw AssertionError("Expected a scalar query result")
+            }
+            cursor.getLong(0)
         }
 
     private fun androidx.sqlite.db.SupportSQLiteDatabase.indexIsUnique(
@@ -1489,6 +1910,8 @@ class WorqOrderDatabaseTest {
                 "clients",
                 "employees",
                 "daily_tasks",
+                "tags",
+                "task_tag_snapshots",
                 "work_intervals",
                 "active_timer",
                 "room_master_table",

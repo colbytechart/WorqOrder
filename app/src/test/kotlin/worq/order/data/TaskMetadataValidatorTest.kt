@@ -60,8 +60,10 @@ class TaskMetadataValidatorTest {
 
         assertTrue(
             TaskMetadataValidator.validate(
-                description = emoji.repeat(MAX_TASK_DESCRIPTION_CODE_POINTS),
-                hardwareSoftwarePurchases = emoji.repeat(MAX_TASK_PURCHASES_CODE_POINTS),
+                // The export-only composer adds one terminal period, so leave one code point
+                // available for that generated punctuation while testing the Unicode boundary.
+                description = emoji.repeat(MAX_TASK_DESCRIPTION_CODE_POINTS - 1),
+                hardwareSoftwarePurchases = emoji.repeat(MAX_TASK_PURCHASES_CODE_POINTS - 1),
             ) is TaskMetadataValidationResult.Valid,
         )
     }

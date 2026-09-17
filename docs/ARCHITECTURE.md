@@ -613,20 +613,21 @@ Delete/Save actions live in the Scaffold bottom bar rather than the scrollable b
 Edit both explicitly use the theme background for their fixed action footers. Moving these controls
 does not alter ViewModel events, validation, deletion confirmation, or Room writes.
 
-## 19. Planned `0.5.0` reusable-Tag architecture
+## 19. `0.5.0` reusable-Tag architecture
 
-This is an approved future boundary, not current implementation. Room schema 7 remains the source
-of truth for two Tag catalogs and task-owned ordered text snapshots. Catalog entities and task
-snapshots are deliberately separate: current catalog CRUD/search/import uses catalog rows, while
-task display, repeated Start, and export use saved snapshots. A catalog update or hard delete can
-therefore never rewrite historical tasks. `sourceTagId` is only a comparison hint for offering an
-explicit updated version; snapshot text is authoritative.
+Milestone 43 implements the persistence/domain foundation; management, picker, and export
+integration remain assigned to Milestones 44-46. Room schema 7 is the source of truth for two Tag
+catalogs and task-owned ordered text snapshots. Catalog entities and task snapshots are
+deliberately separate: catalog operations use catalog rows, while repeated Start and later task
+display/export integration use saved snapshots. A catalog update or hard delete therefore never
+rewrites historical tasks. `sourceTagId` is only a comparison hint for offering an explicit
+updated version; snapshot text is authoritative.
 
-The data layer exposes typed catalog/snapshot models, category-scoped observable lists, normalized
-duplicate/search operations, atomic CSV import, and transactional task metadata-plus-snapshot
-writes. CSV parsing runs off the main thread, observes 1 MiB/10,000-nonblank-cell limits, and
-produces a complete validated import plan before one Room transaction. Compose and ViewModels do
-not read preference/database keys or parse CSV directly.
+The implemented data layer exposes typed catalog/snapshot models, category-scoped observable
+lists, normalized duplicate/search operations, pure text composition/length rules, and
+transactional task metadata-plus-snapshot writes. Milestone 44 will add atomic CSV import off the
+main thread with 1 MiB/10,000-nonblank-cell limits and a complete validated plan before one Room
+transaction. Compose and ViewModels will not read database keys or parse CSV directly.
 
 Create/Edit form state keeps manual field text separate from ordered selected-snapshot drafts.
 Reusable presentation renders associated chips and a full-screen picker, but all normalization,

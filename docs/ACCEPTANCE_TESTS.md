@@ -1216,8 +1216,10 @@ teardown planning is not a prerequisite for app release and performs no cleanup.
 
 ## 17. Planned `0.5.0` reusable-Tag acceptance requirements
 
-These are future acceptance requirements, not implementation evidence. The owner manually runs
-all supplied PowerShell/Gradle and Android emulator/device gates and reports results.
+These are the complete `0.5.0` acceptance requirements. The schema/domain foundation in V5-DB-01
+and its supporting rule tests is implemented; later UI/import/export requirements remain assigned
+to Milestones 44-47. The owner manually runs all supplied PowerShell/Gradle and Android
+emulator/device gates and reports results.
 
 ### V5-DB-01 Additive schema-7 migration
 
@@ -1225,6 +1227,12 @@ A fresh database and every populated supported schema-1-through-6 path reach Roo
 and snapshot constraints intact. Existing clients, Consultants, tasks, manual Description/Expense,
 Notes, intervals, timers, IDs, dates, zones, and settings remain unchanged; old tasks have no Tag
 snapshots. Close/reopen and foreign-key checks pass. No destructive fallback exists.
+
+Milestone 43 evidence: the owner-run offline JVM/lint/debug/release gate passed, and the regenerated
+schema-7 build passed 127 connected tests with zero failures. Tests cover fresh schema 7,
+populated supported schema-1-through-6 upgrades, empty migrated Tag tables, relationship and
+active-timer preservation, transaction rollback, catalog-history isolation, task cascade, and
+repeated-Start snapshot copying.
 
 ### V5-TAG-01 Catalog validation and history
 

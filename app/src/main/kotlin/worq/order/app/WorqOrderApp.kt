@@ -236,6 +236,7 @@ fun WorqOrderApp(
                             application.container.consultantSelectionCoordinator,
                         taskMutationCoordinator =
                             application.container.taskMutationCoordinator,
+                        tagRepository = application.container.tagRepository,
                         workDate = workDate,
                     )
                 }
@@ -281,6 +282,7 @@ fun WorqOrderApp(
                             application.container.activeTimerRepository,
                         taskMutationCoordinator =
                             application.container.taskMutationCoordinator,
+                        tagRepository = application.container.tagRepository,
                     )
                 }
             val viewModel: EditTaskViewModel = viewModel(factory = factory)

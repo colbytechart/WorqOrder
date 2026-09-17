@@ -14,7 +14,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
-import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -53,7 +52,6 @@ class EditTaskScreenTest {
             .performScrollTo()
             .assertIsDisplayed()
             .performTextInput("Follow up")
-        Espresso.closeSoftKeyboard()
         composeRule.waitForIdle()
         composeRule
             .onNodeWithText("Task Total: 02:00:00")

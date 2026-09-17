@@ -1355,7 +1355,10 @@ class MainViewModel(
                 MainTaskItemUi(
                     id = item.task.id,
                     clientName = item.clientName,
-                    description = item.task.description,
+                    description =
+                        item.task.description
+                            .takeIf(String::isNotBlank)
+                            ?: item.descriptionTagTexts.firstOrNull().orEmpty(),
                     totalDuration = formatDuration(total.nonNegative()),
                     isClientArchived = !item.clientIsActive,
                     isSelected = isSelected,

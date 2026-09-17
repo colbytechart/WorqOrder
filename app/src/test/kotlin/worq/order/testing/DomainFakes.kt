@@ -33,6 +33,10 @@ import worq.order.data.ThemeMode
 import worq.order.data.TimeZoneMode
 import worq.order.data.TimeZoneSettingResult
 import worq.order.data.TaskRepository
+import worq.order.data.TagMutationResult
+import worq.order.data.TagRepository
+import worq.order.data.TagTextNormalizer
+import worq.order.data.TagTextValidationResult
 import worq.order.data.UpdateTaskMetadataResult
 import worq.order.export.csv.DocumentOutputDestination
 import worq.order.export.csv.DocumentWriteResult
@@ -46,6 +50,7 @@ import worq.order.model.TaskListItem
 import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.TagCategory
+import worq.order.model.Tag
 import worq.order.model.TaskTagSnapshot
 import worq.order.model.TaskTagSnapshotDraft
 import worq.order.model.WorkInterval
@@ -370,6 +375,87 @@ class FakeSelectedTaskRepository(
     }
 }
 
+class FakeTagRepository(
+    initial: List<Tag> = emptyList(),
+) : TagRepository {
+    val tags = MutableStateFlow(initial)
+    private var nextId = initial.size
+
+    override fun observeTags(
+        category: TagCategory,
+        searchQuery: String,
+    ): Flow<List<Tag>> =
+        tags.map { values ->
+            val query = TagTextNormalizer.collapseWhitespace(searchQuery).lowercase(Locale.ROOT)
+            values
+                .filter { it.category == category }
+                .filter { tag -> query.isEmpty() || tag.text.lowercase(Locale.ROOT).contains(query) }
+                .sortedWith(
+                    compareBy<Tag> { it.text.lowercase(Locale.ROOT) }
+                        .thenBy(Tag::text)
+                        .thenBy(Tag::id),
+                )
+        }
+
+    override suspend fun readTag(tagId: String): Tag? =
+        tags.value.firstOrNull { it.id == tagId }
+
+    override suspend fun createTag(
+        category: TagCategory,
+        text: String,
+    ): TagMutationResult {
+        val normalized = TagTextNormalizer.validate(text)
+        if (normalized is TagTextValidationResult.Invalid) {
+            return TagMutationResult.InvalidText(normalized.error)
+        }
+        val value = normalized as TagTextValidationResult.Valid
+        tags.value.firstOrNull {
+            it.category == category && it.normalizedText == value.text.normalizedText
+        }?.let { existing ->
+            return TagMutationResult.DuplicateNormalizedText(existing.id)
+        }
+        val tag =
+            Tag(
+                id = "tag-${++nextId}",
+                category = category,
+                text = value.text.displayText,
+                normalizedText = value.text.normalizedText,
+                createdAt = Instant.EPOCH,
+                updatedAt = Instant.EPOCH,
+            )
+        tags.value = tags.value + tag
+        return TagMutationResult.Created(tag)
+    }
+
+    override suspend fun updateTag(
+        tagId: String,
+        text: String,
+    ): TagMutationResult {
+        val current = readTag(tagId) ?: return TagMutationResult.NotFound
+        val normalized = TagTextNormalizer.validate(text)
+        if (normalized is TagTextValidationResult.Invalid) {
+            return TagMutationResult.InvalidText(normalized.error)
+        }
+        val value = normalized as TagTextValidationResult.Valid
+        tags.value.firstOrNull {
+            it.id != tagId &&
+                it.category == current.category &&
+                it.normalizedText == value.text.normalizedText
+        }?.let { existing ->
+            return TagMutationResult.DuplicateNormalizedText(existing.id)
+        }
+        val changed = current.copy(text = value.text.displayText, normalizedText = value.text.normalizedText)
+        tags.value = tags.value.map { if (it.id == tagId) changed else it }
+        return TagMutationResult.Updated(changed)
+    }
+
+    override suspend fun deleteTag(tagId: String): TagMutationResult {
+        if (tags.value.none { it.id == tagId }) return TagMutationResult.NotFound
+        tags.value = tags.value.filterNot { it.id == tagId }
+        return TagMutationResult.Deleted
+    }
+}
+
 class FakeTaskRepository : TaskRepository {
     private val mutex = Mutex()
     private val taskState = MutableStateFlow<Map<String, DailyTask>>(emptyMap())
@@ -395,6 +481,12 @@ class FakeTaskRepository : TaskRepository {
                             Duration.ofMillis(
                                 completedDurationMillis(task.id),
                             ),
+                        descriptionTagTexts =
+                            tagSnapshots[task.id]
+                                .orEmpty()
+                                .orderedTagSnapshots()
+                                .filter { it.category == TagCategory.DESCRIPTION }
+                                .map(TaskTagSnapshot::text),
                     )
                 }
         }

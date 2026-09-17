@@ -122,6 +122,8 @@ data class TaskListItem(
     val clientName: String,
     val clientIsActive: Boolean,
     val completedDuration: Duration,
+    /** Ordered Description-Tag snapshots for the main-list manual-text fallback only. */
+    val descriptionTagTexts: List<String> = emptyList(),
 )
 
 data class TaskWithIntervals(

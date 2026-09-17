@@ -64,9 +64,17 @@ fun CreateTaskScreen(
     uiState: CreateTaskUiState,
     onEvent: (CreateTaskEvent) -> Unit,
 ) {
-    BackHandler { onEvent(CreateTaskEvent.RequestClose) }
+    val tagPicker = uiState.tagPicker
+    BackHandler {
+        if (tagPicker != null) {
+            onEvent(CreateTaskEvent.DismissTagPicker)
+        } else {
+            onEvent(CreateTaskEvent.RequestClose)
+        }
+    }
 
-    Scaffold(
+    if (tagPicker == null) {
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.create_task)) },
@@ -189,9 +197,8 @@ fun CreateTaskScreen(
                         TaskMetadataValidationError.DESCRIPTION_TOO_LONG in
                         uiState.metadataErrors,
                 supportingText = {
-                    TaskTextSupportingText(
-                        value = uiState.description,
-                        maxCodePoints = MAX_TASK_DESCRIPTION_CODE_POINTS,
+                    TaskComposedTextSupportingText(
+                        text = composedTaskText(uiState.description, uiState.descriptionTagSelections),
                         blankError =
                             TaskMetadataValidationError.DESCRIPTION_REQUIRED in
                                 uiState.metadataErrors,
@@ -199,6 +206,17 @@ fun CreateTaskScreen(
                             TaskMetadataValidationError.DESCRIPTION_TOO_LONG in
                                 uiState.metadataErrors,
                     )
+                },
+            )
+            TaskTagControls(
+                field = TaskTagField.DESCRIPTION,
+                selections = uiState.descriptionTagSelections,
+                catalog = uiState.descriptionCatalogTags,
+                enabled = !uiState.isSavingTask,
+                onOpenPicker = { onEvent(CreateTaskEvent.OpenTagPicker(TaskTagField.DESCRIPTION)) },
+                onRemove = { onEvent(CreateTaskEvent.RemoveAppliedTag(TaskTagField.DESCRIPTION, it)) },
+                onUseUpdatedVersion = {
+                    onEvent(CreateTaskEvent.UseUpdatedTagVersion(TaskTagField.DESCRIPTION, it))
                 },
             )
             OutlinedTextField(
@@ -221,12 +239,42 @@ fun CreateTaskScreen(
                     TaskMetadataValidationError.PURCHASES_TOO_LONG in
                         uiState.metadataErrors,
                 supportingText = {
-                    TaskTextSupportingText(
-                        value = uiState.hardwareSoftwarePurchases,
-                        maxCodePoints = MAX_TASK_PURCHASES_CODE_POINTS,
+                    TaskComposedTextSupportingText(
+                        text =
+                            composedTaskText(
+                                uiState.hardwareSoftwarePurchases,
+                                uiState.purchaseTagSelections,
+                            ),
                         tooLongError =
                             TaskMetadataValidationError.PURCHASES_TOO_LONG in
                                 uiState.metadataErrors,
+                    )
+                },
+            )
+            TaskTagControls(
+                field = TaskTagField.HARDWARE_SOFTWARE_PURCHASES,
+                selections = uiState.purchaseTagSelections,
+                catalog = uiState.purchaseCatalogTags,
+                enabled = !uiState.isSavingTask,
+                onOpenPicker = {
+                    onEvent(
+                        CreateTaskEvent.OpenTagPicker(TaskTagField.HARDWARE_SOFTWARE_PURCHASES),
+                    )
+                },
+                onRemove = {
+                    onEvent(
+                        CreateTaskEvent.RemoveAppliedTag(
+                            TaskTagField.HARDWARE_SOFTWARE_PURCHASES,
+                            it,
+                        ),
+                    )
+                },
+                onUseUpdatedVersion = {
+                    onEvent(
+                        CreateTaskEvent.UseUpdatedTagVersion(
+                            TaskTagField.HARDWARE_SOFTWARE_PURCHASES,
+                            it,
+                        ),
                     )
                 },
             )
@@ -281,8 +329,33 @@ fun CreateTaskScreen(
                 )
             }
         }
+        }
+    } else {
+        TaskTagPickerOverlay(
+            picker = tagPicker,
+            catalog =
+                if (tagPicker.field == TaskTagField.DESCRIPTION) {
+                    uiState.descriptionCatalogTags
+                } else {
+                    uiState.purchaseCatalogTags
+                },
+            onSearchChanged = { onEvent(CreateTaskEvent.EditTagSearch(it)) },
+            onClearSearch = { onEvent(CreateTaskEvent.ClearTagSearch) },
+            onToggle = { onEvent(CreateTaskEvent.ToggleTagPickerItem(it)) },
+            onCancel = { onEvent(CreateTaskEvent.DismissTagPicker) },
+            onApply = { onEvent(CreateTaskEvent.ApplyTagPicker) },
+            onCreateInline = { onEvent(CreateTaskEvent.OpenInlineTagCreate) },
+        )
     }
 
+    uiState.tagInlineEditor?.let { editor ->
+        TaskTagInlineEditorDialog(
+            editor = editor,
+            onTextChanged = { onEvent(CreateTaskEvent.EditInlineTagText(it)) },
+            onConfirm = { onEvent(CreateTaskEvent.ConfirmInlineTagCreate) },
+            onDismiss = { onEvent(CreateTaskEvent.DismissInlineTagCreate) },
+        )
+    }
     uiState.addClientEditor?.let { editor ->
         ClientEditorDialog(
             editor = editor,
@@ -385,4 +458,5 @@ private fun CreateTaskMessage.stringResource(): Int =
         CreateTaskMessage.CLIENT_ARCHIVED -> R.string.task_client_archived_during_edit
         CreateTaskMessage.CONSULTANT_REQUIRED -> R.string.task_consultant_required
         CreateTaskMessage.CONSULTANT_ARCHIVED -> R.string.consultant_archived_during_selection
+        CreateTaskMessage.TAG_DATA_UNAVAILABLE -> R.string.tag_picker_data_unavailable
     }

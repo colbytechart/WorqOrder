@@ -70,6 +70,12 @@ data class EditTaskUiState(
     val isConsultantMenuExpanded: Boolean = false,
     val description: String = "",
     val hardwareSoftwarePurchases: String = "",
+    val descriptionTagSelections: List<TaskTagSelectionUi> = emptyList(),
+    val purchaseTagSelections: List<TaskTagSelectionUi> = emptyList(),
+    val descriptionCatalogTags: List<TaskTagCatalogItemUi> = emptyList(),
+    val purchaseCatalogTags: List<TaskTagCatalogItemUi> = emptyList(),
+    val tagPicker: TaskTagPickerUiState? = null,
+    val tagInlineEditor: TaskTagInlineEditorUiState? = null,
     val workType: WorkType = WorkType.UNSPECIFIED,
     val billingStatus: BillingStatus? = null,
     val mileage: String = "",
@@ -127,6 +133,44 @@ sealed interface EditTaskEvent {
 
     data class EditHardwareSoftwarePurchases(
         val value: String,
+    ) : EditTaskEvent
+
+    data class OpenTagPicker(
+        val field: TaskTagField,
+    ) : EditTaskEvent
+
+    data object DismissTagPicker : EditTaskEvent
+
+    data class EditTagSearch(
+        val query: String,
+    ) : EditTaskEvent
+
+    data object ClearTagSearch : EditTaskEvent
+
+    data class ToggleTagPickerItem(
+        val itemId: String,
+    ) : EditTaskEvent
+
+    data object ApplyTagPicker : EditTaskEvent
+
+    data object OpenInlineTagCreate : EditTaskEvent
+
+    data class EditInlineTagText(
+        val value: String,
+    ) : EditTaskEvent
+
+    data object ConfirmInlineTagCreate : EditTaskEvent
+
+    data object DismissInlineTagCreate : EditTaskEvent
+
+    data class RemoveAppliedTag(
+        val field: TaskTagField,
+        val selectionId: String,
+    ) : EditTaskEvent
+
+    data class UseUpdatedTagVersion(
+        val field: TaskTagField,
+        val selectionId: String,
     ) : EditTaskEvent
 
     data class SelectWorkType(

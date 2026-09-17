@@ -23,6 +23,8 @@ import worq.order.data.ActiveTimerRepository
 import worq.order.data.ClientRepository
 import worq.order.data.EmployeeRepository
 import worq.order.data.MileageNormalizer
+import worq.order.data.TagMutationResult
+import worq.order.data.TagRepository
 import worq.order.data.TaskMetadataValidationResult
 import worq.order.data.TaskMetadataValidator
 import worq.order.data.TaskRepository
@@ -34,6 +36,9 @@ import worq.order.domain.TaskMutationCoordinator
 import worq.order.domain.UpdateTaskOperationResult
 import worq.order.model.Client
 import worq.order.model.Employee
+import worq.order.model.Tag
+import worq.order.model.TagCategory
+import worq.order.model.TaskTagSnapshot
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.timer.DurationMath
@@ -48,6 +53,7 @@ class EditTaskViewModel(
     private val employeeRepository: EmployeeRepository,
     private val activeTimerRepository: ActiveTimerRepository,
     private val taskMutationCoordinator: TaskMutationCoordinator,
+    private val tagRepository: TagRepository,
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(EditTaskUiState(taskId = taskId))
     val uiState: StateFlow<EditTaskUiState> = mutableUiState
@@ -115,7 +121,7 @@ class EditTaskViewModel(
                         metadataErrors = emptySet(),
                         hasUnsavedMetadataChanges = true,
                         message = null,
-                    )
+                    ).withProjectedTagErrors()
                 }
             is EditTaskEvent.EditHardwareSoftwarePurchases ->
                 mutableUiState.update {
@@ -124,8 +130,40 @@ class EditTaskViewModel(
                         metadataErrors = emptySet(),
                         hasUnsavedMetadataChanges = true,
                         message = null,
+                    ).withProjectedTagErrors()
+                }
+            is EditTaskEvent.OpenTagPicker -> openTagPicker(event.field)
+            EditTaskEvent.DismissTagPicker ->
+                mutableUiState.update {
+                    if (it.tagInlineEditor?.isSaving == true) it else it.copy(tagPicker = null, tagInlineEditor = null)
+                }
+            is EditTaskEvent.EditTagSearch ->
+                mutableUiState.update { state ->
+                    state.copy(
+                        tagPicker =
+                            state.tagPicker?.copy(searchQuery = event.query, error = null),
                     )
                 }
+            EditTaskEvent.ClearTagSearch ->
+                mutableUiState.update { state ->
+                    state.copy(tagPicker = state.tagPicker?.copy(searchQuery = "", error = null))
+                }
+            is EditTaskEvent.ToggleTagPickerItem -> toggleTagPickerItem(event.itemId)
+            EditTaskEvent.ApplyTagPicker -> applyTagPicker()
+            EditTaskEvent.OpenInlineTagCreate -> openInlineTagCreate()
+            is EditTaskEvent.EditInlineTagText ->
+                mutableUiState.update { state ->
+                    state.copy(
+                        tagInlineEditor =
+                            state.tagInlineEditor?.copy(text = event.value, error = null),
+                    )
+                }
+            EditTaskEvent.ConfirmInlineTagCreate -> confirmInlineTagCreate()
+            EditTaskEvent.DismissInlineTagCreate ->
+                mutableUiState.update { it.copy(tagInlineEditor = null) }
+            is EditTaskEvent.RemoveAppliedTag -> removeAppliedTag(event.field, event.selectionId)
+            is EditTaskEvent.UseUpdatedTagVersion ->
+                useUpdatedTagVersion(event.field, event.selectionId)
             is EditTaskEvent.SelectWorkType ->
                 mutableUiState.update {
                     it.copy(
@@ -216,7 +254,7 @@ class EditTaskViewModel(
 
     private fun observeData() {
         observationJob?.cancel()
-        observationJob =
+        val observedTaskData =
             combine(
                 taskRepository.observeTaskWithIntervals(taskId),
                 clientRepository.observeActiveClients(),
@@ -228,6 +266,20 @@ class EditTaskViewModel(
                     clients = clients,
                     employees = employees,
                     isRunning = activeTimer?.taskId == taskId,
+                )
+            }
+        val tagCatalogs =
+            combine(
+                tagRepository.observeTags(TagCategory.DESCRIPTION),
+                tagRepository.observeTags(TagCategory.HARDWARE_SOFTWARE_PURCHASE),
+            ) { descriptionTags, purchaseTags ->
+                descriptionTags to purchaseTags
+            }
+        observationJob =
+            combine(observedTaskData, tagCatalogs) { observed, (descriptionTags, purchaseTags) ->
+                observed.copy(
+                    descriptionTags = descriptionTags,
+                    purchaseTags = purchaseTags,
                 )
             }.onStart {
                 mutableUiState.update {
@@ -241,6 +293,8 @@ class EditTaskViewModel(
                 val clients = observed.clients
                 val consultants = observed.employees.map(Employee::toConsultantItem)
                 val isRunning = observed.isRunning
+                val descriptionCatalogTags = observed.descriptionTags.map(Tag::toTaskTagCatalogItem)
+                val purchaseCatalogTags = observed.purchaseTags.map(Tag::toTaskTagCatalogItem)
                 latestDetail = detail
                 val clientItems = clients.map(Client::toClientItem)
                 if (detail == null) {
@@ -250,6 +304,8 @@ class EditTaskViewModel(
                             taskMissing = true,
                             activeClients = clientItems,
                             activeConsultants = consultants,
+                            descriptionCatalogTags = descriptionCatalogTags,
+                            purchaseCatalogTags = purchaseCatalogTags,
                             isRunning = isRunning,
                         )
                     }
@@ -273,6 +329,8 @@ class EditTaskViewModel(
                         originalConsultantName = task.employeeNameSnapshot,
                         activeClients = clientItems,
                         activeConsultants = consultants,
+                        descriptionCatalogTags = descriptionCatalogTags,
+                        purchaseCatalogTags = purchaseCatalogTags,
                         selectedClientId =
                             if (refreshMetadata) {
                                 task.clientId
@@ -286,6 +344,20 @@ class EditTaskViewModel(
                                 task.hardwareSoftwarePurchases
                             } else {
                                 state.hardwareSoftwarePurchases
+                            },
+                        descriptionTagSelections =
+                            if (refreshMetadata) {
+                                detail.tagSnapshots.toSelections(TaskTagField.DESCRIPTION)
+                            } else {
+                                state.descriptionTagSelections
+                            },
+                        purchaseTagSelections =
+                            if (refreshMetadata) {
+                                detail.tagSnapshots.toSelections(
+                                    TaskTagField.HARDWARE_SOFTWARE_PURCHASES,
+                                )
+                            } else {
+                                state.purchaseTagSelections
                             },
                         selectedConsultantId =
                             if (refreshMetadata) {
@@ -338,6 +410,8 @@ class EditTaskViewModel(
                 billingStatus = state.billingStatus,
                 mileage = state.mileage,
                 notes = state.notes,
+                descriptionTagSnapshots = state.descriptionTagSelections.toSnapshotDrafts(),
+                hardwareSoftwarePurchaseTagSnapshots = state.purchaseTagSelections.toSnapshotDrafts(),
             )
         val errors =
             (validation as? TaskMetadataValidationResult.Invalid)
@@ -376,6 +450,9 @@ class EditTaskViewModel(
                         billingStatus = state.billingStatus,
                         mileage = state.mileage,
                         notes = state.notes,
+                        descriptionTagSnapshots = state.descriptionTagSelections.toSnapshotDrafts(),
+                        hardwareSoftwarePurchaseTagSnapshots =
+                            state.purchaseTagSelections.toSnapshotDrafts(),
                     )
                 }.getOrElse {
                     mutableUiState.update {
@@ -437,6 +514,199 @@ class EditTaskViewModel(
                         )
                     }
             }
+        }
+    }
+
+    private fun openTagPicker(field: TaskTagField) {
+        val state = mutableUiState.value
+        if (state.isRunning || state.isSavingMetadata) return
+        mutableUiState.update {
+            it.copy(
+                tagPicker =
+                    TaskTagPickerUiState(
+                        field = field,
+                        draftSelections = it.selectionsFor(field),
+                    ),
+                tagInlineEditor = null,
+                message = null,
+            )
+        }
+    }
+
+    private fun toggleTagPickerItem(itemId: String) {
+        mutableUiState.update { state ->
+            val picker = state.tagPicker ?: return@update state
+            val existing =
+                picker.draftSelections.firstOrNull { selection ->
+                    selection.id == itemId || selection.sourceTagId == itemId
+                }
+            val updatedSelections =
+                if (existing != null) {
+                    picker.draftSelections.filterNot { it.id == existing.id }
+                } else {
+                    state.catalogFor(picker.field)
+                        .firstOrNull { catalogTag -> catalogTag.id == itemId }
+                        ?.let { catalogTag ->
+                            picker.draftSelections + newTaskTagSelection(catalogTag)
+                        }
+                        ?: picker.draftSelections
+                }
+            state.copy(tagPicker = picker.copy(draftSelections = updatedSelections, error = null))
+        }
+    }
+
+    private fun applyTagPicker() {
+        mutableUiState.update { state ->
+            val picker = state.tagPicker ?: return@update state
+            val originalSelections = state.selectionsFor(picker.field)
+            val candidate =
+                state
+                    .withSelections(picker.field, picker.draftSelections)
+                    .withProjectedTagErrors()
+            if (candidate.hasProjectedTextLimitError(picker.field)) {
+                state.copy(
+                    tagPicker = picker.copy(error = TaskTagPickerError.COMPOSED_TEXT_TOO_LONG),
+                )
+            } else {
+                candidate.copy(
+                    tagPicker = null,
+                    tagInlineEditor = null,
+                    hasUnsavedMetadataChanges =
+                        state.hasUnsavedMetadataChanges ||
+                            picker.draftSelections != originalSelections,
+                    message = null,
+                )
+            }
+        }
+    }
+
+    private fun openInlineTagCreate() {
+        val picker = mutableUiState.value.tagPicker ?: return
+        mutableUiState.update {
+            it.copy(tagInlineEditor = TaskTagInlineEditorUiState(field = picker.field))
+        }
+    }
+
+    private fun confirmInlineTagCreate() {
+        val editor = mutableUiState.value.tagInlineEditor ?: return
+        if (editor.isSaving) return
+        viewModelScope.launch {
+            mutableUiState.update {
+                it.copy(tagInlineEditor = editor.copy(isSaving = true, error = null))
+            }
+            val result =
+                runCatching { tagRepository.createTag(editor.field.category(), editor.text) }
+                    .getOrElse {
+                        mutableUiState.update {
+                            it.copy(
+                                tagInlineEditor =
+                                    editor.copy(error = TaskTagInlineEditorError.DATA_UNAVAILABLE),
+                            )
+                        }
+                        return@launch
+                    }
+            when (result) {
+                is TagMutationResult.Created -> selectInlineCreatedTag(editor.field, result.tag)
+                is TagMutationResult.DuplicateNormalizedText -> {
+                    val existing =
+                        runCatching { tagRepository.readTag(result.conflictingTagId) }.getOrNull()
+                    if (existing == null) {
+                        mutableUiState.update {
+                            it.copy(
+                                tagInlineEditor =
+                                    editor.copy(error = TaskTagInlineEditorError.DATA_UNAVAILABLE),
+                            )
+                        }
+                    } else {
+                        selectInlineCreatedTag(editor.field, existing)
+                    }
+                }
+                is TagMutationResult.InvalidText ->
+                    mutableUiState.update {
+                        it.copy(
+                            tagInlineEditor =
+                                editor.copy(
+                                    error =
+                                        when (result.reason) {
+                                            worq.order.data.TagTextValidationError.BLANK ->
+                                                TaskTagInlineEditorError.BLANK
+                                            worq.order.data.TagTextValidationError.TOO_LONG ->
+                                                TaskTagInlineEditorError.TOO_LONG
+                                        },
+                                ),
+                        )
+                    }
+                TagMutationResult.NotFound,
+                TagMutationResult.Deleted,
+                is TagMutationResult.Updated,
+                ->
+                    mutableUiState.update {
+                        it.copy(
+                            tagInlineEditor =
+                                editor.copy(error = TaskTagInlineEditorError.DATA_UNAVAILABLE),
+                        )
+                    }
+            }
+        }
+    }
+
+    private fun selectInlineCreatedTag(
+        field: TaskTagField,
+        tag: Tag,
+    ) {
+        mutableUiState.update { state ->
+            val picker = state.tagPicker?.takeIf { it.field == field } ?: return@update state
+            val catalogTag = tag.toTaskTagCatalogItem()
+            val updatedSelections =
+                if (picker.draftSelections.any { it.sourceTagId == tag.id }) {
+                    picker.draftSelections
+                } else {
+                    picker.draftSelections + newTaskTagSelection(catalogTag)
+                }
+            state
+                .withCatalog(field, state.catalogFor(field).upsert(catalogTag))
+                .copy(
+                    tagPicker = picker.copy(draftSelections = updatedSelections, searchQuery = "", error = null),
+                    tagInlineEditor = null,
+                )
+        }
+    }
+
+    private fun removeAppliedTag(
+        field: TaskTagField,
+        selectionId: String,
+    ) {
+        val state = mutableUiState.value
+        if (state.isRunning || state.isSavingMetadata) return
+        mutableUiState.update {
+            it
+                .withSelections(field, it.selectionsFor(field).filterNot { selection -> selection.id == selectionId })
+                .withProjectedTagErrors()
+                .copy(hasUnsavedMetadataChanges = true, message = null)
+        }
+    }
+
+    private fun useUpdatedTagVersion(
+        field: TaskTagField,
+        selectionId: String,
+    ) {
+        val state = mutableUiState.value
+        if (state.isRunning || state.isSavingMetadata) return
+        mutableUiState.update { current ->
+            val replacement =
+                current.selectionsFor(field).map { selection ->
+                    if (selection.id == selectionId) {
+                        selection.updatedCatalogText(current.catalogFor(field))
+                            ?.let { latest -> selection.copy(text = latest) }
+                            ?: selection
+                    } else {
+                        selection
+                    }
+                }
+            current
+                .withSelections(field, replacement)
+                .withProjectedTagErrors()
+                .copy(hasUnsavedMetadataChanges = true, message = null)
         }
     }
 
@@ -735,6 +1005,7 @@ class EditTaskViewModel(
         private val employeeRepository: EmployeeRepository,
         private val activeTimerRepository: ActiveTimerRepository,
         private val taskMutationCoordinator: TaskMutationCoordinator,
+        private val tagRepository: TagRepository,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -746,6 +1017,7 @@ class EditTaskViewModel(
                 employeeRepository = employeeRepository,
                 activeTimerRepository = activeTimerRepository,
                 taskMutationCoordinator = taskMutationCoordinator,
+                tagRepository = tagRepository,
             ) as T
         }
     }
@@ -762,7 +1034,79 @@ private data class ObservedEditTaskData(
     val clients: List<Client>,
     val employees: List<Employee>,
     val isRunning: Boolean,
+    val descriptionTags: List<Tag> = emptyList(),
+    val purchaseTags: List<Tag> = emptyList(),
 )
+
+private fun List<TaskTagSnapshot>.toSelections(
+    field: TaskTagField,
+): List<TaskTagSelectionUi> =
+    filter { snapshot -> snapshot.category == field.category() }
+        .sortedBy(TaskTagSnapshot::selectionOrder)
+        .map { snapshot ->
+            TaskTagSelectionUi(
+                id = "snapshot:${snapshot.id}",
+                text = snapshot.text,
+                sourceTagId = snapshot.sourceTagId,
+            )
+        }
+
+private fun EditTaskUiState.selectionsFor(field: TaskTagField): List<TaskTagSelectionUi> =
+    when (field) {
+        TaskTagField.DESCRIPTION -> descriptionTagSelections
+        TaskTagField.HARDWARE_SOFTWARE_PURCHASES -> purchaseTagSelections
+    }
+
+private fun EditTaskUiState.catalogFor(field: TaskTagField): List<TaskTagCatalogItemUi> =
+    when (field) {
+        TaskTagField.DESCRIPTION -> descriptionCatalogTags
+        TaskTagField.HARDWARE_SOFTWARE_PURCHASES -> purchaseCatalogTags
+    }
+
+private fun EditTaskUiState.withSelections(
+    field: TaskTagField,
+    selections: List<TaskTagSelectionUi>,
+): EditTaskUiState =
+    when (field) {
+        TaskTagField.DESCRIPTION -> copy(descriptionTagSelections = selections)
+        TaskTagField.HARDWARE_SOFTWARE_PURCHASES -> copy(purchaseTagSelections = selections)
+    }
+
+private fun EditTaskUiState.withCatalog(
+    field: TaskTagField,
+    catalog: List<TaskTagCatalogItemUi>,
+): EditTaskUiState =
+    when (field) {
+        TaskTagField.DESCRIPTION -> copy(descriptionCatalogTags = catalog)
+        TaskTagField.HARDWARE_SOFTWARE_PURCHASES -> copy(purchaseCatalogTags = catalog)
+    }
+
+private fun EditTaskUiState.withProjectedTagErrors(): EditTaskUiState {
+    val retainedErrors =
+        metadataErrors -
+            setOf(
+                worq.order.data.TaskMetadataValidationError.DESCRIPTION_TOO_LONG,
+                worq.order.data.TaskMetadataValidationError.PURCHASES_TOO_LONG,
+            )
+    return copy(
+        metadataErrors =
+            retainedErrors +
+                projectedTagTextErrors(
+                    description = description,
+                    descriptionSelections = descriptionTagSelections,
+                    purchases = hardwareSoftwarePurchases,
+                    purchaseSelections = purchaseTagSelections,
+                ),
+    )
+}
+
+private fun EditTaskUiState.hasProjectedTextLimitError(field: TaskTagField): Boolean =
+    when (field) {
+        TaskTagField.DESCRIPTION ->
+            worq.order.data.TaskMetadataValidationError.DESCRIPTION_TOO_LONG in metadataErrors
+        TaskTagField.HARDWARE_SOFTWARE_PURCHASES ->
+            worq.order.data.TaskMetadataValidationError.PURCHASES_TOO_LONG in metadataErrors
+    }
 
 private fun TaskWithIntervals.completedDuration(): Duration =
     intervals

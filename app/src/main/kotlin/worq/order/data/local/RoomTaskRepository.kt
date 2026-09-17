@@ -4,6 +4,8 @@ import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import worq.order.data.CreateDailyTaskResult
 import worq.order.data.DeleteTaskResult
@@ -35,8 +37,27 @@ class RoomTaskRepository(
     private val clock: UtcClock,
 ) : TaskRepository {
     override fun observeTasksForDate(workDate: LocalDate): Flow<List<TaskListItem>> =
-        taskDao.observeTasksForWorkDate(workDate.toEpochDay()).map { tasks ->
-            tasks.map(TaskListItemEntity::toModel)
+        taskDao.observeTasksForWorkDate(workDate.toEpochDay()).flatMapLatest { tasks ->
+            if (tasks.isEmpty()) {
+                flowOf(emptyList())
+            } else {
+                combine(
+                    tasks.map { task ->
+                        taskDao.observeTaskTagSnapshots(task.task.id).map { snapshots ->
+                            snapshots
+                                .filter { it.category == TagCategory.DESCRIPTION.name }
+                                .sortedWith(
+                                    compareBy(TaskTagSnapshotEntity::selectionOrder)
+                                        .thenBy(TaskTagSnapshotEntity::id),
+                                ).map(TaskTagSnapshotEntity::textSnapshot)
+                        }
+                    },
+                ) { tagTexts ->
+                    tasks.mapIndexed { index, task ->
+                        task.toModel().copy(descriptionTagTexts = tagTexts[index])
+                    }
+                }
+            }
         }
 
     override fun observeTask(taskId: String): Flow<DailyTask?> =

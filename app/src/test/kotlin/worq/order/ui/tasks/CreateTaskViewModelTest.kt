@@ -26,6 +26,7 @@ import worq.order.testing.FakeTaskRepository
 import worq.order.testing.FakeUtcClock
 import worq.order.testing.FakeZoneIdProvider
 import worq.order.testing.FakeEmployeeRepository
+import worq.order.testing.FakeTagRepository
 import worq.order.testing.FakeSettingsRepository
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
@@ -307,6 +308,7 @@ class CreateTaskViewModelTest {
                 settingsRepository = settings,
                 consultantSelectionCoordinator = consultantSelectionCoordinator,
                 taskMutationCoordinator = coordinator,
+                tagRepository = FakeTagRepository(),
                 workDate = WORK_DATE,
             )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {

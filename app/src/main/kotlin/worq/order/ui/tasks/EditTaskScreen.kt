@@ -73,9 +73,17 @@ fun EditTaskScreen(
     uiState: EditTaskUiState,
     onEvent: (EditTaskEvent) -> Unit,
 ) {
-    BackHandler { onEvent(EditTaskEvent.RequestClose) }
+    val tagPicker = uiState.tagPicker
+    BackHandler {
+        if (tagPicker != null) {
+            onEvent(EditTaskEvent.DismissTagPicker)
+        } else {
+            onEvent(EditTaskEvent.RequestClose)
+        }
+    }
 
-    Scaffold(
+    if (tagPicker == null) {
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.edit_task)) },
@@ -129,8 +137,33 @@ fun EditTaskScreen(
                     modifier = Modifier.padding(scaffoldPadding),
                 )
         }
+        }
+    } else {
+        TaskTagPickerOverlay(
+            picker = tagPicker,
+            catalog =
+                if (tagPicker.field == TaskTagField.DESCRIPTION) {
+                    uiState.descriptionCatalogTags
+                } else {
+                    uiState.purchaseCatalogTags
+                },
+            onSearchChanged = { onEvent(EditTaskEvent.EditTagSearch(it)) },
+            onClearSearch = { onEvent(EditTaskEvent.ClearTagSearch) },
+            onToggle = { onEvent(EditTaskEvent.ToggleTagPickerItem(it)) },
+            onCancel = { onEvent(EditTaskEvent.DismissTagPicker) },
+            onApply = { onEvent(EditTaskEvent.ApplyTagPicker) },
+            onCreateInline = { onEvent(EditTaskEvent.OpenInlineTagCreate) },
+        )
     }
 
+    uiState.tagInlineEditor?.let { editor ->
+        TaskTagInlineEditorDialog(
+            editor = editor,
+            onTextChanged = { onEvent(EditTaskEvent.EditInlineTagText(it)) },
+            onConfirm = { onEvent(EditTaskEvent.ConfirmInlineTagCreate) },
+            onDismiss = { onEvent(EditTaskEvent.DismissInlineTagCreate) },
+        )
+    }
     EditTaskDialogs(uiState = uiState, onEvent = onEvent)
 }
 
@@ -237,9 +270,8 @@ private fun EditTaskContent(
                 TaskMetadataValidationError.DESCRIPTION_REQUIRED in uiState.metadataErrors ||
                     TaskMetadataValidationError.DESCRIPTION_TOO_LONG in uiState.metadataErrors,
             supportingText = {
-                TaskTextSupportingText(
-                    value = uiState.description,
-                    maxCodePoints = MAX_TASK_DESCRIPTION_CODE_POINTS,
+                TaskComposedTextSupportingText(
+                    text = composedTaskText(uiState.description, uiState.descriptionTagSelections),
                     blankError =
                         TaskMetadataValidationError.DESCRIPTION_REQUIRED in
                             uiState.metadataErrors,
@@ -247,6 +279,17 @@ private fun EditTaskContent(
                         TaskMetadataValidationError.DESCRIPTION_TOO_LONG in
                             uiState.metadataErrors,
                 )
+            },
+        )
+        TaskTagControls(
+            field = TaskTagField.DESCRIPTION,
+            selections = uiState.descriptionTagSelections,
+            catalog = uiState.descriptionCatalogTags,
+            enabled = !uiState.isRunning && !uiState.isSavingMetadata,
+            onOpenPicker = { onEvent(EditTaskEvent.OpenTagPicker(TaskTagField.DESCRIPTION)) },
+            onRemove = { onEvent(EditTaskEvent.RemoveAppliedTag(TaskTagField.DESCRIPTION, it)) },
+            onUseUpdatedVersion = {
+                onEvent(EditTaskEvent.UseUpdatedTagVersion(TaskTagField.DESCRIPTION, it))
             },
         )
         OutlinedTextField(
@@ -263,12 +306,40 @@ private fun EditTaskContent(
             isError =
                 TaskMetadataValidationError.PURCHASES_TOO_LONG in uiState.metadataErrors,
             supportingText = {
-                TaskTextSupportingText(
-                    value = uiState.hardwareSoftwarePurchases,
-                    maxCodePoints = MAX_TASK_PURCHASES_CODE_POINTS,
+                TaskComposedTextSupportingText(
+                    text =
+                        composedTaskText(
+                            uiState.hardwareSoftwarePurchases,
+                            uiState.purchaseTagSelections,
+                        ),
                     tooLongError =
                         TaskMetadataValidationError.PURCHASES_TOO_LONG in
                             uiState.metadataErrors,
+                )
+            },
+        )
+        TaskTagControls(
+            field = TaskTagField.HARDWARE_SOFTWARE_PURCHASES,
+            selections = uiState.purchaseTagSelections,
+            catalog = uiState.purchaseCatalogTags,
+            enabled = !uiState.isRunning && !uiState.isSavingMetadata,
+            onOpenPicker = {
+                onEvent(EditTaskEvent.OpenTagPicker(TaskTagField.HARDWARE_SOFTWARE_PURCHASES))
+            },
+            onRemove = {
+                onEvent(
+                    EditTaskEvent.RemoveAppliedTag(
+                        TaskTagField.HARDWARE_SOFTWARE_PURCHASES,
+                        it,
+                    ),
+                )
+            },
+            onUseUpdatedVersion = {
+                onEvent(
+                    EditTaskEvent.UseUpdatedTagVersion(
+                        TaskTagField.HARDWARE_SOFTWARE_PURCHASES,
+                        it,
+                    ),
                 )
             },
         )

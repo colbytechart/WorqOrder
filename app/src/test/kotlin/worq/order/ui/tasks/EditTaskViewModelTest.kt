@@ -27,12 +27,15 @@ import worq.order.testing.FakeClientRepository.Companion.client
 import worq.order.testing.FakeEmployeeRepository
 import worq.order.testing.FakeSelectedTaskRepository
 import worq.order.testing.FakeTaskRepository
+import worq.order.testing.FakeTagRepository
 import worq.order.testing.FakeUtcClock
 import worq.order.testing.FakeZoneIdProvider
 import worq.order.testing.MainDispatcherRule
 import worq.order.timer.CurrentDateProvider
 import worq.order.model.Employee
 import worq.order.model.BillingStatus
+import worq.order.model.Tag
+import worq.order.model.TagCategory
 import worq.order.model.WorkType
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -142,6 +145,44 @@ class EditTaskViewModelTest {
         }
 
     @Test
+    fun rejectedOverlengthTagDraftDoesNotMutateEditedTaskState() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val tagRepository =
+                FakeTagRepository(
+                    listOf(
+                        Tag(
+                            id = "tag-1",
+                            category = TagCategory.DESCRIPTION,
+                            text = "y".repeat(400),
+                            normalizedText = "y".repeat(400),
+                            createdAt = Instant.EPOCH,
+                            updatedAt = Instant.EPOCH,
+                        ),
+                    ),
+                )
+            val fixture =
+                fixture(
+                    description = "x".repeat(598),
+                    tagRepository = tagRepository,
+                )
+
+            fixture.viewModel.onEvent(EditTaskEvent.OpenTagPicker(TaskTagField.DESCRIPTION))
+            fixture.viewModel.onEvent(EditTaskEvent.ToggleTagPickerItem("tag-1"))
+            fixture.viewModel.onEvent(EditTaskEvent.ApplyTagPicker)
+
+            assertEquals(
+                TaskTagPickerError.COMPOSED_TEXT_TOO_LONG,
+                fixture.viewModel.uiState.value.tagPicker?.error,
+            )
+            assertTrue(fixture.viewModel.uiState.value.descriptionTagSelections.isEmpty())
+            assertFalse(fixture.viewModel.uiState.value.hasUnsavedMetadataChanges)
+
+            fixture.viewModel.onEvent(EditTaskEvent.DismissTagPicker)
+            assertTrue(fixture.viewModel.uiState.value.descriptionTagSelections.isEmpty())
+            assertFalse(fixture.viewModel.uiState.value.hasUnsavedMetadataChanges)
+        }
+
+    @Test
     fun runningTaskLocksMetadataIntervalsAndDeletion() =
         runTest(mainDispatcherRule.dispatcher) {
             val fixture = fixture()
@@ -154,6 +195,7 @@ class EditTaskViewModelTest {
 
             assertTrue(fixture.viewModel.uiState.value.isRunning)
             fixture.viewModel.onEvent(EditTaskEvent.EditDescription("Blocked"))
+            fixture.viewModel.onEvent(EditTaskEvent.OpenTagPicker(TaskTagField.DESCRIPTION))
             fixture.viewModel.onEvent(EditTaskEvent.SaveMetadata)
             fixture.viewModel.onEvent(EditTaskEvent.OpenAddInterval)
             fixture.viewModel.onEvent(EditTaskEvent.RequestDeleteTask)
@@ -165,6 +207,7 @@ class EditTaskViewModelTest {
                 fixture.viewModel.uiState.value.message,
             )
             assertTrue(fixture.tasks.readTaskWithClient(fixture.taskId) != null)
+            assertNull(fixture.viewModel.uiState.value.tagPicker)
             assertNull(fixture.viewModel.uiState.value.intervalEditor)
         }
 
@@ -188,6 +231,8 @@ class EditTaskViewModelTest {
 
     private suspend fun TestScope.fixture(
         selectTask: Boolean = false,
+        description: String = "Task",
+        tagRepository: FakeTagRepository = FakeTagRepository(),
     ): Fixture {
         val tasks = FakeTaskRepository()
         val active = FakeActiveTimerRepository(tasks)
@@ -214,7 +259,7 @@ class EditTaskViewModelTest {
             tasks.insertDailyTask(
                 NewDailyTask(
                     clientId = "client-1",
-                    description = "Task",
+                    description = description,
                     hardwareSoftwarePurchases = "Laptop",
                     employeeId = "employee-1",
                     employeeNameSnapshot = "Alex Rivera",
@@ -250,6 +295,7 @@ class EditTaskViewModelTest {
                 employeeRepository = employees,
                 activeTimerRepository = active,
                 taskMutationCoordinator = mutationCoordinator,
+                tagRepository = tagRepository,
             )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.uiState.collect()

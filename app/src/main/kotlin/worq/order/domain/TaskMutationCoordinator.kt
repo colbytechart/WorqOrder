@@ -15,6 +15,7 @@ import worq.order.model.DailyTask
 import worq.order.model.WorkInterval
 import worq.order.model.WorkType
 import worq.order.model.BillingStatus
+import worq.order.model.TaskTagSnapshotDraft
 import worq.order.timer.CurrentDateProvider
 import worq.order.timer.EffectiveZoneIdProvider
 
@@ -99,6 +100,8 @@ class TaskMutationCoordinator(
         billingStatus: BillingStatus = BillingStatus.BILLABLE,
         mileage: String? = null,
         notes: String = "",
+        descriptionTagSnapshots: List<TaskTagSnapshotDraft> = emptyList(),
+        hardwareSoftwarePurchaseTagSnapshots: List<TaskTagSnapshotDraft> = emptyList(),
     ): CreateTaskOperationResult {
         zoneIdProvider.awaitZoneId()
         if (employeeId.isNullOrBlank()) {
@@ -114,6 +117,9 @@ class TaskMutationCoordinator(
                         billingStatus = billingStatus,
                         mileage = mileage,
                         notes = notes,
+                        descriptionTagSnapshots = descriptionTagSnapshots,
+                        hardwareSoftwarePurchaseTagSnapshots =
+                            hardwareSoftwarePurchaseTagSnapshots,
                     )
             ) {
                 is TaskMetadataValidationResult.Valid -> validation.metadata
@@ -134,6 +140,9 @@ class TaskMutationCoordinator(
                             billingStatus = metadata.billingStatus,
                             mileage = metadata.mileage,
                             notes = metadata.notes,
+                            descriptionTagSnapshots = descriptionTagSnapshots,
+                            hardwareSoftwarePurchaseTagSnapshots =
+                                hardwareSoftwarePurchaseTagSnapshots,
                             workDate = workDate,
                             zoneId = zoneIdProvider.zoneId(),
                         ),
@@ -167,6 +176,8 @@ class TaskMutationCoordinator(
         billingStatus: BillingStatus? = null,
         mileage: String? = null,
         notes: String,
+        descriptionTagSnapshots: List<TaskTagSnapshotDraft>? = null,
+        hardwareSoftwarePurchaseTagSnapshots: List<TaskTagSnapshotDraft>? = null,
     ): UpdateTaskOperationResult {
         val metadata =
             when (
@@ -178,6 +189,9 @@ class TaskMutationCoordinator(
                         billingStatus = billingStatus,
                         mileage = mileage,
                         notes = notes,
+                        descriptionTagSnapshots = descriptionTagSnapshots.orEmpty(),
+                        hardwareSoftwarePurchaseTagSnapshots =
+                            hardwareSoftwarePurchaseTagSnapshots.orEmpty(),
                     )
             ) {
                 is TaskMetadataValidationResult.Valid -> validation.metadata
@@ -196,6 +210,9 @@ class TaskMutationCoordinator(
                     billingStatus = metadata.billingStatus,
                     mileage = metadata.mileage,
                     notes = metadata.notes,
+                    descriptionTagSnapshots = descriptionTagSnapshots,
+                    hardwareSoftwarePurchaseTagSnapshots =
+                        hardwareSoftwarePurchaseTagSnapshots,
                 )
         ) {
             is UpdateTaskMetadataResult.Updated ->

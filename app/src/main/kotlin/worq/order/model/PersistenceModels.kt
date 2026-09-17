@@ -37,6 +37,44 @@ enum class BillingStatus {
     DO_NOT_CHARGE,
 }
 
+/**
+ * The two independent reusable-Tag catalogs. Values are persisted by name so historical task
+ * snapshots retain their meaning even after catalog records are edited or removed.
+ */
+enum class TagCategory {
+    DESCRIPTION,
+    HARDWARE_SOFTWARE_PURCHASE,
+}
+
+data class Tag(
+    val id: String,
+    val category: TagCategory,
+    val text: String,
+    val normalizedText: String,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+)
+
+/**
+ * Immutable task-owned text captured when a Tag is applied. [sourceTagId] is intentionally not a
+ * foreign key: a catalog Tag may later be permanently deleted without rewriting history.
+ */
+data class TaskTagSnapshot(
+    val id: String,
+    val taskId: String,
+    val category: TagCategory,
+    val text: String,
+    val sourceTagId: String?,
+    val selectionOrder: Int,
+    val createdAt: Instant,
+)
+
+/** Input used when a Create or Edit operation stores task-owned Tag text. */
+data class TaskTagSnapshotDraft(
+    val text: String,
+    val sourceTagId: String? = null,
+)
+
 data class DailyTask(
     val id: String,
     val seriesId: String,
@@ -89,6 +127,7 @@ data class TaskListItem(
 data class TaskWithIntervals(
     val taskWithClient: TaskWithClient,
     val intervals: List<WorkInterval>,
+    val tagSnapshots: List<TaskTagSnapshot> = emptyList(),
 )
 
 data class ActiveTimerSnapshot(

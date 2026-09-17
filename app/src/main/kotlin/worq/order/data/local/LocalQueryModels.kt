@@ -45,6 +45,7 @@ data class TaskListItemEntity(
 data class TaskWithOrderedIntervalsEntity(
     val taskWithClient: TaskWithClientEntity,
     val intervals: List<WorkIntervalEntity>,
+    val tagSnapshots: List<TaskTagSnapshotEntity> = emptyList(),
 )
 
 data class ActiveTimerTransactionEntity(

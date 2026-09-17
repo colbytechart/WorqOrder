@@ -6,6 +6,9 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
+import worq.order.data.TagTextNormalizer
+import worq.order.data.TagTextValidationResult
+import worq.order.model.TagCategory
 
 @Dao
 abstract class TaskDao {
@@ -102,6 +105,48 @@ abstract class TaskDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract suspend fun insertDailyTask(task: DailyTaskEntity)
 
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    protected abstract suspend fun insertTaskTagSnapshots(
+        snapshots: List<TaskTagSnapshotEntity>,
+    )
+
+    @Query(
+        """
+        SELECT *
+        FROM task_tag_snapshots
+        WHERE task_id = :taskId
+        ORDER BY category ASC, selection_order ASC, id ASC
+        """,
+    )
+    abstract fun observeTaskTagSnapshots(taskId: String): Flow<List<TaskTagSnapshotEntity>>
+
+    @Query(
+        """
+        SELECT *
+        FROM task_tag_snapshots
+        WHERE task_id = :taskId
+        ORDER BY category ASC, selection_order ASC, id ASC
+        """,
+    )
+    protected abstract suspend fun readTaskTagSnapshots(
+        taskId: String,
+    ): List<TaskTagSnapshotEntity>
+
+    @Query("DELETE FROM task_tag_snapshots WHERE task_id = :taskId")
+    protected abstract suspend fun deleteTaskTagSnapshots(taskId: String): Int
+
+    @Transaction
+    open suspend fun insertDailyTaskWithSnapshots(
+        task: DailyTaskEntity,
+        snapshots: List<TaskTagSnapshotEntity>,
+    ) {
+        assertSnapshotsBelongTo(task.id, snapshots)
+        insertDailyTask(task)
+        if (snapshots.isNotEmpty()) {
+            insertTaskTagSnapshots(snapshots)
+        }
+    }
+
     @Query(
         """
         SELECT is_active
@@ -134,7 +179,9 @@ abstract class TaskDao {
     @Transaction
     open suspend fun insertDailyTaskIfReferencesActive(
         task: DailyTaskEntity,
+        snapshots: List<TaskTagSnapshotEntity> = emptyList(),
     ): TaskCreationEntityResult {
+        assertSnapshotsBelongTo(task.id, snapshots)
         if (readClientActive(task.clientId) != true) {
             return TaskCreationEntityResult(TaskCreationWriteStatus.CLIENT_UNAVAILABLE)
         }
@@ -152,6 +199,9 @@ abstract class TaskDao {
                 task.copy(employeeNameSnapshot = employeeName)
             }
         insertDailyTask(assignedTask)
+        if (snapshots.isNotEmpty()) {
+            insertTaskTagSnapshots(snapshots)
+        }
         return TaskCreationEntityResult(
             status = TaskCreationWriteStatus.CREATED,
             task = assignedTask,
@@ -200,6 +250,7 @@ abstract class TaskDao {
         mileage: String?,
         notes: String,
         updatedAtEpochMs: Long,
+        snapshots: List<TaskTagSnapshotEntity>? = null,
     ): TaskMetadataWriteEntityResult {
         val currentTask = readTask(taskId)
         if (currentTask == null) {
@@ -240,6 +291,13 @@ abstract class TaskDao {
             ) != 1
         ) {
             return TaskMetadataWriteEntityResult(TaskMetadataWriteStatus.TASK_NOT_FOUND)
+        }
+        if (snapshots != null) {
+            assertSnapshotsBelongTo(taskId, snapshots)
+            deleteTaskTagSnapshots(taskId)
+            if (snapshots.isNotEmpty()) {
+                insertTaskTagSnapshots(snapshots)
+            }
         }
         return TaskMetadataWriteEntityResult(
             status = TaskMetadataWriteStatus.UPDATED,
@@ -285,6 +343,7 @@ abstract class TaskDao {
         return TaskWithOrderedIntervalsEntity(
             taskWithClient = taskWithClient,
             intervals = readOrderedIntervals(taskId),
+            tagSnapshots = readTaskTagSnapshots(taskId),
         )
     }
 
@@ -296,6 +355,43 @@ abstract class TaskDao {
             TaskWithOrderedIntervalsEntity(
                 taskWithClient = taskWithClient,
                 intervals = readOrderedIntervals(taskWithClient.task.id),
+                tagSnapshots = readTaskTagSnapshots(taskWithClient.task.id),
             )
         }
+
+    private fun assertSnapshotsBelongTo(
+        taskId: String,
+        snapshots: List<TaskTagSnapshotEntity>,
+    ) {
+        require(snapshots.all { snapshot ->
+            val normalizedText = TagTextNormalizer.validate(snapshot.textSnapshot)
+            snapshot.taskId == taskId &&
+                snapshot.category in TAG_CATEGORY_VALUES &&
+                normalizedText is TagTextValidationResult.Valid &&
+                normalizedText.text.displayText == snapshot.textSnapshot &&
+                (
+                    snapshot.sourceTagId == null ||
+                        (
+                            snapshot.sourceTagId.isNotBlank() &&
+                                snapshot.sourceTagId == snapshot.sourceTagId.trim()
+                        )
+                ) &&
+                snapshot.selectionOrder >= 0
+        }) { "Task Tag snapshots must be valid and belong to their task" }
+
+        snapshots.groupBy(TaskTagSnapshotEntity::category).forEach { (category, categoryRows) ->
+            val orders = categoryRows.map(TaskTagSnapshotEntity::selectionOrder).sorted()
+            require(orders == orders.indices.toList()) {
+                "$category Tag snapshot order must be contiguous and zero-based"
+            }
+            val sourceTagIds = categoryRows.mapNotNull(TaskTagSnapshotEntity::sourceTagId)
+            require(sourceTagIds.size == sourceTagIds.distinct().size) {
+                "A task cannot select the same source Tag twice in $category"
+            }
+        }
+    }
+
+    private companion object {
+        val TAG_CATEGORY_VALUES = TagCategory.entries.map(TagCategory::name).toSet()
+    }
 }

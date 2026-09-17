@@ -43,11 +43,15 @@ class Schema5MigrationCoreTest {
                     ).addMigrations(
                         WorqOrderMigrations.MIGRATION_4_5,
                         WorqOrderMigrations.MIGRATION_5_6,
+                        WorqOrderMigrations.MIGRATION_6_7,
                     )
                     .allowMainThreadQueries()
                     .build()
             try {
                 val sqlite = migrated.openHelper.writableDatabase
+                assertEquals(7, sqlite.version)
+                assertEquals(0L, sqlite.scalarLong("SELECT COUNT(*) FROM tags"))
+                assertEquals(0L, sqlite.scalarLong("SELECT COUNT(*) FROM task_tag_snapshots"))
                 val secondTaskId =
                     WorqOrderMigrations.deriveMigratedTaskId("source-task", "interval-2")
                 val activeTaskId =

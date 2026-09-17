@@ -65,6 +65,23 @@ abstract class ActiveTimerDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     protected abstract suspend fun insertTaskInternal(task: DailyTaskEntity)
 
+    @Query(
+        """
+        SELECT *
+        FROM task_tag_snapshots
+        WHERE task_id = :taskId
+        ORDER BY category ASC, selection_order ASC, id ASC
+        """,
+    )
+    protected abstract suspend fun readTaskTagSnapshotsInternal(
+        taskId: String,
+    ): List<TaskTagSnapshotEntity>
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    protected abstract suspend fun insertTaskTagSnapshotsInternal(
+        snapshots: List<TaskTagSnapshotEntity>,
+    )
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     protected abstract suspend fun insertActiveTimerInternal(activeTimer: ActiveTimerEntity)
 
@@ -120,6 +137,7 @@ abstract class ActiveTimerDao {
         startEpochMs: Long,
         createdAtEpochMs: Long,
         repeatedTaskId: String = intervalId,
+        repeatedTaskTagSnapshotIdGenerator: (() -> String)? = null,
     ): StartTimerTransactionEntity {
         require(intervalId.isNotBlank()) { "intervalId must not be blank" }
         require(repeatedTaskId.isNotBlank()) { "repeatedTaskId must not be blank" }
@@ -156,8 +174,24 @@ abstract class ActiveTimerDao {
                             notes = "",
                             createdAtEpochMs = createdAtEpochMs,
                             updatedAtEpochMs = createdAtEpochMs,
-                        )
+                    )
                     insertTaskInternal(copy)
+                    val sourceSnapshots = readTaskTagSnapshotsInternal(sourceTask.id)
+                    if (sourceSnapshots.isNotEmpty()) {
+                        val snapshotIdGenerator =
+                            requireNotNull(repeatedTaskTagSnapshotIdGenerator) {
+                                "A repeated task with Tag snapshots requires snapshot IDs"
+                            }
+                        insertTaskTagSnapshotsInternal(
+                            sourceSnapshots.map { snapshot ->
+                                snapshot.copy(
+                                    id = snapshotIdGenerator(),
+                                    taskId = copy.id,
+                                    createdAtEpochMs = createdAtEpochMs,
+                                )
+                            },
+                        )
+                    }
                     repeatedTaskCreated = true
                     copy
                 }

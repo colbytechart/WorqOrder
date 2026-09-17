@@ -42,6 +42,7 @@ class RoomActiveTimerRepository(
                     boundaryZoneId = boundaryZoneId.id,
                     startEpochMs = start.toEpochMilli(),
                     createdAtEpochMs = clock.now().toEpochMilli(),
+                    repeatedTaskTagSnapshotIdGenerator = idGenerator::newId,
                 )
             CreateActiveIntervalResult.Created(
                 snapshot =

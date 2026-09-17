@@ -45,6 +45,9 @@ import worq.order.model.Employee
 import worq.order.model.TaskListItem
 import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
+import worq.order.model.TagCategory
+import worq.order.model.TaskTagSnapshot
+import worq.order.model.TaskTagSnapshotDraft
 import worq.order.model.WorkInterval
 import worq.order.model.WorkType
 import worq.order.model.BillingStatus
@@ -372,9 +375,11 @@ class FakeTaskRepository : TaskRepository {
     private val taskState = MutableStateFlow<Map<String, DailyTask>>(emptyMap())
     private val intervalRevision = MutableStateFlow(0L)
     private val intervals = mutableMapOf<String, MutableList<WorkInterval>>()
+    private val tagSnapshots = mutableMapOf<String, MutableList<TaskTagSnapshot>>()
     private val runningTaskIds = mutableSetOf<String>()
     private var taskId = 0
     private var intervalId = 0
+    private var tagSnapshotId = 0
 
     override fun observeTasksForDate(workDate: LocalDate): Flow<List<TaskListItem>> =
         combine(taskState, intervalRevision) { tasks, _ ->
@@ -410,6 +415,7 @@ class FakeTaskRepository : TaskRepository {
                         intervals[taskId]
                             .orEmpty()
                             .sortedWith(compareBy(WorkInterval::start, WorkInterval::id)),
+                    tagSnapshots = tagSnapshots[taskId].orEmpty().orderedTagSnapshots(),
                 )
             }
         }
@@ -424,6 +430,7 @@ class FakeTaskRepository : TaskRepository {
             TaskWithIntervals(
                 taskWithClient = it,
                 intervals = intervals[taskId].orEmpty().sortedBy(WorkInterval::start),
+                tagSnapshots = tagSnapshots[taskId].orEmpty().orderedTagSnapshots(),
             )
         }
 
@@ -447,6 +454,7 @@ class FakeTaskRepository : TaskRepository {
                                 compareBy<WorkInterval> { it.start }
                                     .thenBy { it.id },
                             ),
+                    tagSnapshots = tagSnapshots[task.id].orEmpty().orderedTagSnapshots(),
                 )
             }
 
@@ -473,6 +481,13 @@ class FakeTaskRepository : TaskRepository {
                     updatedAt = now,
                 )
             taskState.value = taskState.value + (task.id to task)
+            tagSnapshots[task.id] =
+                snapshotsFor(
+                    taskId = task.id,
+                    description = newTask.descriptionTagSnapshots,
+                    purchases = newTask.hardwareSoftwarePurchaseTagSnapshots,
+                    createdAt = task.createdAt,
+                ).toMutableList()
             task
         }
 
@@ -489,6 +504,8 @@ class FakeTaskRepository : TaskRepository {
         billingStatus: BillingStatus?,
         mileage: String?,
         notes: String,
+        descriptionTagSnapshots: List<TaskTagSnapshotDraft>?,
+        hardwareSoftwarePurchaseTagSnapshots: List<TaskTagSnapshotDraft>?,
     ): UpdateTaskMetadataResult =
         mutex.withLock {
             val current =
@@ -519,6 +536,19 @@ class FakeTaskRepository : TaskRepository {
                                 notes = notes.trim(),
                             )
                     )
+            if (descriptionTagSnapshots != null || hardwareSoftwarePurchaseTagSnapshots != null) {
+                require(
+                    descriptionTagSnapshots != null &&
+                        hardwareSoftwarePurchaseTagSnapshots != null,
+                ) { "Both Tag snapshot categories must be supplied together" }
+                tagSnapshots[taskId] =
+                    snapshotsFor(
+                        taskId = taskId,
+                        description = descriptionTagSnapshots,
+                        purchases = hardwareSoftwarePurchaseTagSnapshots,
+                        createdAt = current.updatedAt,
+                    ).toMutableList()
+            }
             UpdateTaskMetadataResult.Updated(requireNotNull(taskState.value[taskId]))
         }
 
@@ -530,6 +560,7 @@ class FakeTaskRepository : TaskRepository {
             val existed = taskState.value.containsKey(taskId)
             taskState.value = taskState.value - taskId
             intervals.remove(taskId)
+            tagSnapshots.remove(taskId)
             if (existed) {
                 DeleteTaskResult.Deleted
             } else {
@@ -599,6 +630,17 @@ class FakeTaskRepository : TaskRepository {
                     updatedAt = timestamp,
                 )
             taskState.value = taskState.value + (copy.id to copy)
+            tagSnapshots[copy.id] =
+                tagSnapshots[sourceTaskId]
+                    .orEmpty()
+                    .orderedTagSnapshots()
+                    .map { snapshot ->
+                        snapshot.copy(
+                            id = "tag-snapshot-${++tagSnapshotId}",
+                            taskId = copy.id,
+                            createdAt = timestamp,
+                        )
+                    }.toMutableList()
             copy
         }
 
@@ -673,6 +715,41 @@ class FakeTaskRepository : TaskRepository {
             taskState.value = taskState.value + (task.id to task)
         }
     }
+
+    private fun snapshotsFor(
+        taskId: String,
+        description: List<TaskTagSnapshotDraft>,
+        purchases: List<TaskTagSnapshotDraft>,
+        createdAt: Instant,
+    ): List<TaskTagSnapshot> =
+        description.mapIndexed { order, draft ->
+            TaskTagSnapshot(
+                id = "tag-snapshot-${++tagSnapshotId}",
+                taskId = taskId,
+                category = TagCategory.DESCRIPTION,
+                text = draft.text.trim(),
+                sourceTagId = draft.sourceTagId,
+                selectionOrder = order,
+                createdAt = createdAt,
+            )
+        } + purchases.mapIndexed { order, draft ->
+            TaskTagSnapshot(
+                id = "tag-snapshot-${++tagSnapshotId}",
+                taskId = taskId,
+                category = TagCategory.HARDWARE_SOFTWARE_PURCHASE,
+                text = draft.text.trim(),
+                sourceTagId = draft.sourceTagId,
+                selectionOrder = order,
+                createdAt = createdAt,
+            )
+        }
+
+    private fun List<TaskTagSnapshot>.orderedTagSnapshots(): List<TaskTagSnapshot> =
+        sortedWith(
+            compareBy<TaskTagSnapshot> { it.category.name }
+                .thenBy(TaskTagSnapshot::selectionOrder)
+                .thenBy(TaskTagSnapshot::id),
+        )
 
     suspend fun addInterval(interval: WorkInterval) {
         mutex.withLock {

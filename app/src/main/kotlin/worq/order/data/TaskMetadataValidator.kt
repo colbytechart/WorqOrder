@@ -2,15 +2,18 @@ package worq.order.data
 
 import worq.order.model.WorkType
 import worq.order.model.BillingStatus
+import worq.order.model.TaskTagSnapshotDraft
 
-const val MAX_TASK_DESCRIPTION_CODE_POINTS = 400
-const val MAX_TASK_PURCHASES_CODE_POINTS = 400
+const val MAX_TASK_DESCRIPTION_CODE_POINTS = MAX_COMPOSED_TASK_TEXT_CODE_POINTS
+const val MAX_TASK_PURCHASES_CODE_POINTS = MAX_COMPOSED_TASK_TEXT_CODE_POINTS
 const val MAX_TASK_NOTES_CODE_POINTS = 999
 
 enum class TaskMetadataValidationError {
     DESCRIPTION_REQUIRED,
     DESCRIPTION_TOO_LONG,
     PURCHASES_TOO_LONG,
+    DESCRIPTION_TAG_INVALID,
+    PURCHASES_TAG_INVALID,
     NOTES_TOO_LONG,
     MILEAGE_MALFORMED,
     MILEAGE_TOO_LARGE,
@@ -44,22 +47,48 @@ object TaskMetadataValidator {
         billingStatus: BillingStatus? = null,
         mileage: String? = null,
         notes: String = "",
+        descriptionTagSnapshots: List<TaskTagSnapshotDraft> = emptyList(),
+        hardwareSoftwarePurchaseTagSnapshots: List<TaskTagSnapshotDraft> = emptyList(),
     ): TaskMetadataValidationResult {
         val normalizedDescription = description.trim()
         val normalizedPurchases = hardwareSoftwarePurchases.trim()
         val normalizedNotes = notes.trim()
         val errors = linkedSetOf<TaskMetadataValidationError>()
+        val normalizedDescriptionTags =
+            descriptionTagSnapshots.mapNotNull { draft ->
+                (TagTextNormalizer.validate(draft.text) as? TagTextValidationResult.Valid)?.text
+            }
+        val normalizedPurchaseTags =
+            hardwareSoftwarePurchaseTagSnapshots.mapNotNull { draft ->
+                (TagTextNormalizer.validate(draft.text) as? TagTextValidationResult.Valid)?.text
+            }
+        if (normalizedDescriptionTags.size != descriptionTagSnapshots.size) {
+            errors += TaskMetadataValidationError.DESCRIPTION_TAG_INVALID
+        }
+        if (normalizedPurchaseTags.size != hardwareSoftwarePurchaseTagSnapshots.size) {
+            errors += TaskMetadataValidationError.PURCHASES_TAG_INVALID
+        }
+        val composedDescription =
+            TaskTextComposer.compose(
+                normalizedDescription,
+                normalizedDescriptionTags.map(NormalizedTagText::displayText),
+            )
+        val composedPurchases =
+            TaskTextComposer.compose(
+                normalizedPurchases,
+                normalizedPurchaseTags.map(NormalizedTagText::displayText),
+            )
 
-        if (normalizedDescription.isEmpty()) {
+        if (composedDescription.isEmpty()) {
             errors += TaskMetadataValidationError.DESCRIPTION_REQUIRED
         } else if (
-            normalizedDescription.codePointCount(0, normalizedDescription.length) >
+            TaskTextComposer.codePointCount(composedDescription) >
             MAX_TASK_DESCRIPTION_CODE_POINTS
         ) {
             errors += TaskMetadataValidationError.DESCRIPTION_TOO_LONG
         }
         if (
-            normalizedPurchases.codePointCount(0, normalizedPurchases.length) >
+            TaskTextComposer.codePointCount(composedPurchases) >
             MAX_TASK_PURCHASES_CODE_POINTS
         ) {
             errors += TaskMetadataValidationError.PURCHASES_TOO_LONG

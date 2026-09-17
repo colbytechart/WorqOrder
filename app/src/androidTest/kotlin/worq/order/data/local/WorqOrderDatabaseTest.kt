@@ -30,6 +30,7 @@ import worq.order.data.CreateActiveIntervalResult
 import worq.order.data.EntityIdGenerator
 import worq.order.data.NewDailyTask
 import worq.order.data.TagMutationResult
+import worq.order.data.TagImportCandidate
 import worq.order.model.Client
 import worq.order.model.TagCategory
 import worq.order.model.TaskTagSnapshotDraft
@@ -463,6 +464,91 @@ class WorqOrderDatabaseTest {
             assertEquals(
                 listOf("Install monitor."),
                 repository.observeTags(TagCategory.DESCRIPTION, "MONITOR").first().map { it.text },
+            )
+        }
+
+    @Test
+    fun tagImportSkipsExistingAndFileDuplicatesAndKeepsCategoriesIndependent() =
+        runBlocking {
+            val repository =
+                RoomTagImportRepository(
+                    tagDao = database.tagDao(),
+                    idGenerator =
+                        QueueIdGenerator(
+                            "tag-zulu",
+                            "skipped-existing",
+                            "skipped-file-duplicate",
+                            "tag-purchase",
+                        ),
+                    clock = FixedClock(TEST_NOW),
+                )
+            val existing =
+                RoomTagRepository(
+                    tagDao = database.tagDao(),
+                    idGenerator = QueueIdGenerator("existing"),
+                    clock = FixedClock(TEST_NOW),
+                ).createTag(TagCategory.DESCRIPTION, "Existing")
+            assertTrue(existing is TagMutationResult.Created)
+
+            val result =
+                repository.applyImport(
+                    category = TagCategory.DESCRIPTION,
+                    candidates =
+                        listOf(
+                            TagImportCandidate("Zulu", "zulu"),
+                            TagImportCandidate("Existing", "existing"),
+                            TagImportCandidate("existing.", "existing"),
+                        ),
+                )
+
+            assertEquals(1, result.addedCount)
+            assertEquals(2, result.skippedExistingCount)
+            assertEquals(
+                listOf("Existing", "Zulu"),
+                database.tagDao().observeTagsForCategory(TagCategory.DESCRIPTION.name)
+                    .first()
+                    .map(TagEntity::text),
+            )
+
+            val purchaseResult =
+                repository.applyImport(
+                    category = TagCategory.HARDWARE_SOFTWARE_PURCHASE,
+                    candidates = listOf(TagImportCandidate("Existing", "existing")),
+                )
+            assertEquals(1, purchaseResult.addedCount)
+            assertEquals(
+                listOf("Existing"),
+                database.tagDao().observeTagsForCategory(TagCategory.HARDWARE_SOFTWARE_PURCHASE.name)
+                    .first()
+                    .map(TagEntity::text),
+            )
+        }
+
+    @Test
+    fun failedTagImportRollsBackEarlierRowsInTheSameTransaction() =
+        runBlocking {
+            val repository =
+                RoomTagImportRepository(
+                    tagDao = database.tagDao(),
+                    idGenerator = QueueIdGenerator("same-id", "same-id"),
+                    clock = FixedClock(TEST_NOW),
+                )
+
+            expectConstraintFailure {
+                repository.applyImport(
+                    category = TagCategory.DESCRIPTION,
+                    candidates =
+                        listOf(
+                            TagImportCandidate("First", "first"),
+                            TagImportCandidate("Second", "second"),
+                        ),
+                )
+            }
+            assertEquals(
+                0,
+                database.tagDao().observeTagsForCategory(TagCategory.DESCRIPTION.name)
+                    .first()
+                    .size,
             )
         }
 

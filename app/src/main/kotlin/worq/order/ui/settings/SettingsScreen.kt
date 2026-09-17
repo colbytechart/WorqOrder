@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Label
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -69,6 +70,7 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onOpenClientManagement: () -> Unit,
     onOpenConsultantManagement: () -> Unit,
+    onOpenTagManagement: () -> Unit = {},
     consultantUiState: ConsultantSettingsUiState = ConsultantSettingsUiState(),
     onConsultantEvent: (ConsultantSettingsEvent) -> Unit = {},
     showGoogleSetupRequired: Boolean = false,
@@ -92,7 +94,7 @@ fun SettingsScreen(
                 ExportDestination.GOOGLE_SHEETS &&
             (showGoogleSetupRequired || googleScrollRequestId > 0)
         ) {
-            val googleSectionIndex = if (uiState.message == null) 5 else 6
+            val googleSectionIndex = if (uiState.message == null) 6 else 7
             listState.animateScrollToItem(googleSectionIndex)
             googleScrollRequestId = 0
         }
@@ -213,6 +215,29 @@ fun SettingsScreen(
                     },
                     supportingContent = {
                         Text(stringResource(R.string.consultant_management_summary))
+                    },
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                        )
+                    },
+                )
+            }
+            item {
+                ListItem(
+                    modifier = Modifier.clickable(onClick = onOpenTagManagement),
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Default.Label,
+                            contentDescription = null,
+                        )
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.tag_management))
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.tag_management_summary))
                     },
                     trailingContent = {
                         Icon(

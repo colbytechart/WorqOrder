@@ -16,6 +16,7 @@ import worq.order.data.SelectedTaskRepository
 import worq.order.data.SettingsRepository
 import worq.order.data.TaskRepository
 import worq.order.data.TagRepository
+import worq.order.data.TagImportRepository
 import worq.order.data.UuidEntityIdGenerator
 import worq.order.data.document.AndroidClientCsvDocumentSource
 import worq.order.data.local.RoomActiveTimerRepository
@@ -24,6 +25,7 @@ import worq.order.data.local.RoomClientRepository
 import worq.order.data.local.RoomEmployeeRepository
 import worq.order.data.local.RoomTaskRepository
 import worq.order.data.local.RoomTagRepository
+import worq.order.data.local.RoomTagImportRepository
 import worq.order.data.local.WorqOrderDatabase
 import worq.order.data.preferences.PreferencesGoogleConnectionRepository
 import worq.order.data.preferences.PreferencesRunningTimerNotificationPreferences
@@ -35,6 +37,7 @@ import worq.order.domain.ClientCsvParser
 import worq.order.domain.ConsultantSelectionCoordinator
 import worq.order.domain.SelectionCoordinator
 import worq.order.domain.TaskMutationCoordinator
+import worq.order.domain.TagCsvImportCoordinator
 import worq.order.export.CsvExportCoordinator
 import worq.order.export.ExportSnapshotCoordinator
 import worq.order.export.XlsxExportCoordinator
@@ -76,6 +79,7 @@ interface ApplicationContainer {
     val employeeRepository: EmployeeRepository
     val taskRepository: TaskRepository
     val tagRepository: TagRepository
+    val tagCsvImportCoordinator: TagCsvImportCoordinator
     val activeTimerRepository: ActiveTimerRepository
     val selectedTaskRepository: SelectedTaskRepository
     val settingsRepository: SettingsRepository
@@ -164,6 +168,21 @@ internal class DefaultApplicationContainer(
             tagDao = database.tagDao(),
             idGenerator = UuidEntityIdGenerator,
             clock = SystemUtcClock,
+        )
+    }
+
+    private val tagImportRepository: TagImportRepository by lazy {
+        RoomTagImportRepository(
+            tagDao = database.tagDao(),
+            idGenerator = UuidEntityIdGenerator,
+            clock = SystemUtcClock,
+        )
+    }
+
+    override val tagCsvImportCoordinator: TagCsvImportCoordinator by lazy {
+        TagCsvImportCoordinator(
+            documentSource = AndroidClientCsvDocumentSource(applicationContext.contentResolver),
+            repository = tagImportRepository,
         )
     }
 

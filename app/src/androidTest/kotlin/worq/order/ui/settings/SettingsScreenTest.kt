@@ -59,6 +59,7 @@ class SettingsScreenTest {
         val events = mutableListOf<SettingsEvent>()
         var openedClients = false
         var openedConsultants = false
+        var openedTags = false
         setContent(
             state =
                 SettingsUiState(
@@ -67,6 +68,7 @@ class SettingsScreenTest {
             onEvent = events::add,
             onOpenClientManagement = { openedClients = true },
             onOpenConsultantManagement = { openedConsultants = true },
+            onOpenTagManagement = { openedTags = true },
             consultantState = ConsultantSettingsUiState(isLoading = false),
         )
 
@@ -85,6 +87,7 @@ class SettingsScreenTest {
         assertTrue(clientBounds.top < consultantBounds.top)
         composeRule.onNodeWithText("Client Management").performClick()
         composeRule.onNodeWithText("Consultant Management").performClick()
+        composeRule.onNodeWithText("Tag Management").performClick()
         composeRule.onNodeWithText("Choose a Consultant").assertIsDisplayed()
         composeRule
             .onNodeWithText("Add and select a Consultant before creating a task.")
@@ -99,7 +102,7 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Light").performClick()
         composeRule
             .onNode(hasScrollAction())
-            .performScrollToNode(hasText("Landscape Orientation"))
+            .performScrollToNode(hasText("Left-handed"))
         composeRule.onNodeWithText("Right-handed").assertIsSelected()
         composeRule.onNodeWithText("Left-handed").performClick()
         composeRule
@@ -120,6 +123,7 @@ class SettingsScreenTest {
         )
         assertTrue(openedClients)
         assertTrue(openedConsultants)
+        assertTrue(openedTags)
     }
 
     @Test
@@ -413,6 +417,7 @@ class SettingsScreenTest {
         onEvent: (SettingsEvent) -> Unit = {},
         onOpenClientManagement: () -> Unit = {},
         onOpenConsultantManagement: () -> Unit = {},
+        onOpenTagManagement: () -> Unit = {},
         consultantState: ConsultantSettingsUiState = ConsultantSettingsUiState(),
         showGoogleSetupRequired: Boolean = false,
     ) {
@@ -424,6 +429,7 @@ class SettingsScreenTest {
                     onNavigateBack = {},
                     onOpenClientManagement = onOpenClientManagement,
                     onOpenConsultantManagement = onOpenConsultantManagement,
+                    onOpenTagManagement = onOpenTagManagement,
                     consultantUiState = consultantState,
                     showGoogleSetupRequired = showGoogleSetupRequired,
                 )

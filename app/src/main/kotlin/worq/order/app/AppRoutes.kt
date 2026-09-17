@@ -12,6 +12,9 @@ object AppRoutes {
     const val SETTINGS_GOOGLE_SETUP = "settings/google-setup"
     const val CLIENT_MANAGEMENT = "settings/clients"
     const val CONSULTANT_MANAGEMENT = "settings/consultants"
+    const val TAG_MANAGEMENT = "settings/tags"
+    const val TAG_CATEGORY_ARGUMENT = "category"
+    const val TAG_CATEGORY = "settings/tags/{$TAG_CATEGORY_ARGUMENT}"
 
     val destinationPatterns =
         listOf(
@@ -22,6 +25,8 @@ object AppRoutes {
             SETTINGS_GOOGLE_SETUP,
             CLIENT_MANAGEMENT,
             CONSULTANT_MANAGEMENT,
+            TAG_MANAGEMENT,
+            TAG_CATEGORY,
         )
 
     fun editTask(taskId: String): String {
@@ -32,4 +37,10 @@ object AppRoutes {
 
     fun createTask(workDate: LocalDate): String =
         "task/create/${workDate.toEpochDay()}"
+
+    fun tagCategory(categoryName: String): String {
+        require(categoryName.isNotBlank()) { "categoryName must not be blank" }
+        require('/' !in categoryName) { "categoryName must not contain a route separator" }
+        return "settings/tags/$categoryName"
+    }
 }

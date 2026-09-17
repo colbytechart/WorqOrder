@@ -36,7 +36,12 @@ sealed interface ClientCsvParseResult {
     ) : ClientCsvParseResult
 }
 
-class ClientCsvParser {
+class ClientCsvParser(
+    private val maxRecords: Int? = ClientCsvImportLimits.MAX_RECORDS,
+    private val maxCells: Int = ClientCsvImportLimits.MAX_CELLS,
+    private val maxRawCellUtf16Units: Int = ClientCsvImportLimits.MAX_RAW_CELL_UTF16_UNITS,
+    private val retainBlankCells: Boolean = true,
+) {
     fun parse(bytes: ByteArray): ClientCsvParseResult {
         if (bytes.size > ClientCsvImportLimits.MAX_BYTES) {
             return ClientCsvParseResult.TooLarge
@@ -61,7 +66,7 @@ class ClientCsvParser {
                 return ClientCsvParseResult.MalformedCsv(recordNumber, columnNumber)
             }
             field.append(character)
-            return if (field.length > ClientCsvImportLimits.MAX_RAW_CELL_UTF16_UNITS) {
+            return if (field.length > maxRawCellUtf16Units) {
                 ClientCsvParseResult.CellTooLarge(recordNumber, columnNumber)
             } else {
                 null
@@ -69,14 +74,17 @@ class ClientCsvParser {
         }
 
         fun finishField(): ClientCsvParseResult? {
-            cells +=
-                ParsedClientCsvCell(
-                    value = field.toString(),
-                    recordNumber = recordNumber,
-                    columnNumber = columnNumber,
-                )
-            if (cells.size > ClientCsvImportLimits.MAX_CELLS) {
-                return ClientCsvParseResult.TooManyCells
+            val value = field.toString()
+            if (retainBlankCells || value.isNotBlank()) {
+                cells +=
+                    ParsedClientCsvCell(
+                        value = value,
+                        recordNumber = recordNumber,
+                        columnNumber = columnNumber,
+                    )
+                if (cells.size > maxCells) {
+                    return ClientCsvParseResult.TooManyCells
+                }
             }
             field.clear()
             atFieldStart = true
@@ -86,7 +94,7 @@ class ClientCsvParser {
 
         fun finishRecord(): ClientCsvParseResult? {
             recordCount += 1
-            if (recordCount > ClientCsvImportLimits.MAX_RECORDS) {
+            if (maxRecords != null && recordCount > maxRecords) {
                 return ClientCsvParseResult.TooManyRecords
             }
             recordNumber += 1

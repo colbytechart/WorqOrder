@@ -80,7 +80,7 @@ object TaskTextComposer {
         buildList {
             add(manualText)
             tagTexts.forEach(::add)
-        }.map(TagTextNormalizer::collapseWhitespace)
+        }.map(String::trim)
             .filter(String::isNotEmpty)
             .joinToString(" ") { component ->
                 if (component.last() in TERMINAL_PUNCTUATION) component else "$component."

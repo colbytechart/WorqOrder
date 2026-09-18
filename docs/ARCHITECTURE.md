@@ -615,19 +615,19 @@ does not alter ViewModel events, validation, deletion confirmation, or Room writ
 
 ## 19. `0.5.0` reusable-Tag architecture
 
-Milestone 43 implements the persistence/domain foundation; management, picker, and export
-integration remain assigned to Milestones 44-46. Room schema 7 is the source of truth for two Tag
-catalogs and task-owned ordered text snapshots. Catalog entities and task snapshots are
+Milestones 43-45 implement the persistence/domain foundation, catalog management, and task-form
+picker integration. Milestone 46 integrates the saved task snapshots into the shared export
+projection. Room schema 7 is the source of truth for two Tag catalogs and task-owned ordered text
+snapshots. Catalog entities and task snapshots are
 deliberately separate: catalog operations use catalog rows, while repeated Start and later task
 display/export integration use saved snapshots. A catalog update or hard delete therefore never
 rewrites historical tasks. `sourceTagId` is only a comparison hint for offering an explicit
 updated version; snapshot text is authoritative.
 
 The implemented data layer exposes typed catalog/snapshot models, category-scoped observable
-lists, normalized duplicate/search operations, pure text composition/length rules, and
-transactional task metadata-plus-snapshot writes. Milestone 44 will add atomic CSV import off the
-main thread with 1 MiB/10,000-nonblank-cell limits and a complete validated plan before one Room
-transaction. Compose and ViewModels will not read database keys or parse CSV directly.
+lists, normalized duplicate/search operations, pure text composition/length rules, transactional
+task metadata-plus-snapshot writes, and atomic CSV import off the main thread with 1 MiB/10,000-
+nonblank-cell limits. Compose and ViewModels do not read database keys or parse CSV directly.
 
 Create/Edit form state keeps manual field text separate from ordered selected-snapshot drafts.
 Reusable presentation renders associated chips and a full-screen picker, but all normalization,
@@ -637,12 +637,13 @@ of eventual task Save/Cancel. Task Save applies manual metadata and both ordered
 one repository transaction. Repeated Start copies saved snapshots inside its existing operation
 lock and Room transaction; it never resolves current catalog text.
 
-One pure `TaskExportTextComposer`-equivalent function accepts manual text and ordered snapshots,
-normalizes only the exported value, counts Unicode code points including separators/generated
-periods, and returns either composed text or a structured overlength result. The canonical export
-snapshot builder calls it for Description and Expense. CSV, XLSX, and Google adapters remain
-unaware of Tags. Export schema 6, 14-column headers, Google ownership marker/hidden identity,
-one-off CSV/XLSX behavior, automatic captured-date logic, and cross-device keyed rows are unchanged.
+One pure `TaskTextComposer` accepts manual text and ordered snapshots, normalizes only the
+exported value, counts Unicode code points including separators/generated periods, and produces
+the canonical Description and Expense values. The immutable export snapshot builder invokes it for
+both fields and fails closed if persisted content exceeds the supported limit. CSV, XLSX, and Google
+adapters remain unaware of Tags. Export schema 6, 14-column headers, Google ownership
+marker/hidden identity, one-off CSV/XLSX behavior, automatic captured-date logic, and cross-device
+keyed rows are unchanged.
 
 The main task presentation observes ordered Description snapshots only to provide the approved
 fallback when manual Description is blank. The timer notification intentionally does not receive

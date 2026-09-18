@@ -6,8 +6,12 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import worq.order.data.MAX_COMPOSED_TASK_TEXT_CODE_POINTS
+import worq.order.data.TaskTextComposer
 import worq.order.domain.BillingMinutes
 import worq.order.model.BillingStatus
+import worq.order.model.TagCategory
+import worq.order.model.TaskTagSnapshot
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.model.WorkType
@@ -109,6 +113,16 @@ class ExportRowBuilder {
         val client = taskWithClient.client
         val stop = interval?.stop
         val exportDate = ExportValueFormatter.date(task.workDate)
+        val description =
+            composeTaskExportText(
+                manualText = task.description,
+                category = TagCategory.DESCRIPTION,
+            )
+        val expense =
+            composeTaskExportText(
+                manualText = task.hardwareSoftwarePurchases,
+                category = TagCategory.HARDWARE_SOFTWARE_PURCHASE,
+            )
         return ExportRow(
             sourceTaskId = task.id,
             values =
@@ -117,8 +131,8 @@ class ExportRowBuilder {
                     exportDate,
                     task.employeeNameSnapshot,
                     client.name,
-                    task.description,
-                    task.hardwareSoftwarePurchases,
+                    description,
+                    expense,
                     ExportValueFormatter.workType(task.workType),
                     ExportValueFormatter.billingStatus(task.billingStatus),
                     task.mileage.orEmpty(),
@@ -133,6 +147,33 @@ class ExportRowBuilder {
                     task.notes,
                 ),
         )
+    }
+
+    /**
+     * The snapshot, rather than the mutable Tag catalog, is authoritative for export text.
+     * Every destination receives the composed value already embedded in [ExportRow].
+     */
+    private fun TaskWithIntervals.composeTaskExportText(
+        manualText: String,
+        category: TagCategory,
+    ): String {
+        val composed =
+            TaskTextComposer.compose(
+                manualText = manualText,
+                tagTexts =
+                    tagSnapshots
+                        .asSequence()
+                        .filter { it.category == category }
+                        .sortedWith(
+                            compareBy<TaskTagSnapshot> { it.selectionOrder }
+                                .thenBy { it.id },
+                        ).map(TaskTagSnapshot::text)
+                        .toList(),
+            )
+        require(TaskTextComposer.codePointCount(composed) <= MAX_COMPOSED_TASK_TEXT_CODE_POINTS) {
+            "Saved task text exceeds the supported export limit"
+        }
+        return composed
     }
 }
 

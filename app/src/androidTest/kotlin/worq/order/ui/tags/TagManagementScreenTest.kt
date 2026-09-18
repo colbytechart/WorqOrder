@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -170,6 +172,35 @@ class TagManagementScreenTest {
                 useUnmergedTree = true,
             )
             .fetchSemanticsNode()
+    }
+
+    @Test
+    fun editorShowsLiveCodePointCountAndBlocksOverlengthSave() {
+        var editorText by mutableStateOf("x".repeat(400))
+        setContent {
+            TagCategoryManagementScreen(
+                uiState =
+                    TagCategoryManagementUiState(
+                        category = TagCategory.DESCRIPTION,
+                        isLoading = false,
+                        editor =
+                            TagEditorUiState(
+                                mode = TagEditorMode.ADD,
+                                text = editorText,
+                            ),
+                    ),
+                onEvent = {},
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.onNodeWithText("400 / 400").assertIsDisplayed()
+        composeRule.onNodeWithText("Save").assertIsEnabled()
+
+        editorText = "x".repeat(401)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Character limit: 401 / 400").assertIsDisplayed()
+        composeRule.onNodeWithText("Save").assertIsNotEnabled()
     }
 
     @Test

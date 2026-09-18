@@ -20,8 +20,12 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import worq.order.data.ActiveTimerRepository
+import worq.order.data.ClientMutationResult
+import worq.order.data.ClientNameValidationResult
+import worq.order.data.ClientNameNormalizer
 import worq.order.data.ClientRepository
 import worq.order.data.EmployeeRepository
+import worq.order.data.MAX_TAG_CODE_POINTS
 import worq.order.data.MileageNormalizer
 import worq.order.data.TagMutationResult
 import worq.order.data.TagRepository
@@ -43,6 +47,11 @@ import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.timer.DurationMath
 import worq.order.ui.clients.ClientItemUi
+import worq.order.ui.clients.ArchivedClientRestoreOffer
+import worq.order.ui.clients.ClientEditorMode
+import worq.order.ui.clients.ClientEditorUiState
+import worq.order.ui.clients.ClientNameFieldError
+import worq.order.ui.clients.toFieldError
 import worq.order.ui.employees.ConsultantItemUi
 import worq.order.util.ClockTimeFormatter
 
@@ -89,6 +98,34 @@ class EditTaskViewModel(
                         )
                     }
                 }
+            EditTaskEvent.OpenAddClient ->
+                mutableUiState.update { state ->
+                    if (state.isRunning) {
+                        state.copy(message = EditTaskMessage.RUNNING_TASK)
+                    } else {
+                        state.copy(
+                            isClientMenuExpanded = false,
+                            addClientEditor = ClientEditorUiState(mode = ClientEditorMode.ADD),
+                            message = null,
+                        )
+                    }
+                }
+            is EditTaskEvent.EditNewClientName ->
+                mutableUiState.update { state ->
+                    state.copy(
+                        addClientEditor =
+                            state.addClientEditor?.copy(
+                                name = event.name,
+                                fieldError = null,
+                            ),
+                    )
+                }
+            EditTaskEvent.ConfirmAddClient -> confirmAddClient()
+            EditTaskEvent.DismissAddClient ->
+                mutableUiState.update { it.copy(addClientEditor = null) }
+            EditTaskEvent.ConfirmRestoreOffer -> confirmRestoreOffer()
+            EditTaskEvent.DismissRestoreOffer ->
+                mutableUiState.update { it.copy(restoreOffer = null) }
             EditTaskEvent.OpenConsultantMenu ->
                 mutableUiState.update {
                     it.copy(
@@ -149,6 +186,8 @@ class EditTaskViewModel(
                     state.copy(tagPicker = state.tagPicker?.copy(searchQuery = "", error = null))
                 }
             is EditTaskEvent.ToggleTagPickerItem -> toggleTagPickerItem(event.itemId)
+            EditTaskEvent.SelectAllVisibleTagPickerItems -> selectAllVisibleTagPickerItems()
+            EditTaskEvent.DeselectAllVisibleTagPickerItems -> deselectAllVisibleTagPickerItems()
             EditTaskEvent.ApplyTagPicker -> applyTagPicker()
             EditTaskEvent.OpenInlineTagCreate -> openInlineTagCreate()
             is EditTaskEvent.EditInlineTagText ->
@@ -200,7 +239,7 @@ class EditTaskViewModel(
                         metadataErrors = emptySet(),
                         hasUnsavedMetadataChanges = true,
                         message = null,
-                    )
+                    ).withProjectedTagErrors()
                 }
             EditTaskEvent.SaveMetadata -> saveMetadata()
             EditTaskEvent.RequestClose -> requestClose()
@@ -249,6 +288,138 @@ class EditTaskViewModel(
                 mutableUiState.update { it.copy(showTaskDeleteConfirmation = false) }
             EditTaskEvent.DismissMessage ->
                 mutableUiState.update { it.copy(message = null) }
+        }
+    }
+
+    private fun confirmAddClient() {
+        val editor = mutableUiState.value.addClientEditor ?: return
+        if (editor.isSaving || mutableUiState.value.isRunning) return
+        when (val validation = ClientNameNormalizer.validate(editor.name)) {
+            is ClientNameValidationResult.Invalid -> {
+                mutableUiState.update {
+                    it.copy(
+                        addClientEditor =
+                            editor.copy(fieldError = validation.error.toFieldError()),
+                    )
+                }
+                return
+            }
+            is ClientNameValidationResult.Valid -> Unit
+        }
+
+        viewModelScope.launch {
+            mutableUiState.update {
+                it.copy(addClientEditor = editor.copy(isSaving = true))
+            }
+            val result =
+                runCatching { clientRepository.addClient(editor.name) }
+                    .getOrElse {
+                        mutableUiState.update {
+                            it.copy(
+                                addClientEditor = editor.copy(isSaving = false),
+                                message = EditTaskMessage.DATA_UNAVAILABLE,
+                            )
+                        }
+                        return@launch
+                    }
+            when (result) {
+                is ClientMutationResult.Success ->
+                    mutableUiState.update {
+                        it.copy(
+                            selectedClientId = result.client.id,
+                            addClientEditor = null,
+                            hasUnsavedMetadataChanges = true,
+                            message = null,
+                        )
+                    }
+                is ClientMutationResult.MatchingArchivedClient ->
+                    mutableUiState.update {
+                        it.copy(
+                            addClientEditor = null,
+                            restoreOffer =
+                                ArchivedClientRestoreOffer(
+                                    clientId = result.client.id,
+                                    clientName = result.client.name,
+                                ),
+                        )
+                    }
+                is ClientMutationResult.InvalidName ->
+                    mutableUiState.update {
+                        it.copy(
+                            addClientEditor =
+                                editor.copy(
+                                    fieldError = result.reason.toFieldError(),
+                                    isSaving = false,
+                                ),
+                        )
+                    }
+                is ClientMutationResult.DuplicateActiveName ->
+                    mutableUiState.update {
+                        it.copy(
+                            addClientEditor =
+                                editor.copy(
+                                    fieldError = ClientNameFieldError.DUPLICATE_ACTIVE,
+                                    isSaving = false,
+                                ),
+                        )
+                    }
+                ClientMutationResult.NotFound ->
+                    mutableUiState.update {
+                        it.copy(
+                            addClientEditor = null,
+                            message = EditTaskMessage.CLIENT_NOT_FOUND,
+                        )
+                    }
+            }
+        }
+    }
+
+    private fun confirmRestoreOffer() {
+        val offer = mutableUiState.value.restoreOffer ?: return
+        if (offer.isRestoring || mutableUiState.value.isRunning) return
+        viewModelScope.launch {
+            mutableUiState.update {
+                it.copy(restoreOffer = offer.copy(isRestoring = true))
+            }
+            val result =
+                runCatching { clientRepository.restoreClient(offer.clientId) }
+                    .getOrElse {
+                        mutableUiState.update {
+                            it.copy(
+                                restoreOffer = null,
+                                message = EditTaskMessage.DATA_UNAVAILABLE,
+                            )
+                        }
+                        return@launch
+                    }
+            mutableUiState.update { state ->
+                when (result) {
+                    is ClientMutationResult.Success ->
+                        state.copy(
+                            selectedClientId = result.client.id,
+                            restoreOffer = null,
+                            hasUnsavedMetadataChanges = true,
+                            message = null,
+                        )
+                    is ClientMutationResult.DuplicateActiveName ->
+                        state.copy(
+                            restoreOffer = null,
+                            message = EditTaskMessage.RESTORE_NAME_CONFLICT,
+                        )
+                    ClientMutationResult.NotFound ->
+                        state.copy(
+                            restoreOffer = null,
+                            message = EditTaskMessage.CLIENT_NOT_FOUND,
+                        )
+                    is ClientMutationResult.InvalidName,
+                    is ClientMutationResult.MatchingArchivedClient,
+                    ->
+                        state.copy(
+                            restoreOffer = null,
+                            message = EditTaskMessage.DATA_UNAVAILABLE,
+                        )
+                }
+            }
         }
     }
 
@@ -555,6 +726,44 @@ class EditTaskViewModel(
         }
     }
 
+    private fun selectAllVisibleTagPickerItems() {
+        mutableUiState.update { state ->
+            val picker = state.tagPicker ?: return@update state
+            val updatedSelections =
+                selectAllVisiblePickerItems(picker, state.catalogFor(picker.field))
+            val candidate =
+                state
+                    .withSelections(picker.field, updatedSelections)
+                    .withProjectedTagErrors()
+            if (candidate.hasProjectedTextLimitError(picker.field)) {
+                state.copy(
+                    tagPicker = picker.copy(error = TaskTagPickerError.COMPOSED_TEXT_TOO_LONG),
+                )
+            } else {
+                state.copy(
+                    tagPicker = picker.copy(draftSelections = updatedSelections, error = null),
+                )
+            }
+        }
+    }
+
+    private fun deselectAllVisibleTagPickerItems() {
+        mutableUiState.update { state ->
+            val picker = state.tagPicker ?: return@update state
+            state.copy(
+                tagPicker =
+                    picker.copy(
+                        draftSelections =
+                            deselectAllVisiblePickerItems(
+                                picker,
+                                state.catalogFor(picker.field),
+                            ),
+                        error = null,
+                    ),
+            )
+        }
+    }
+
     private fun applyTagPicker() {
         mutableUiState.update { state ->
             val picker = state.tagPicker ?: return@update state
@@ -590,6 +799,12 @@ class EditTaskViewModel(
     private fun confirmInlineTagCreate() {
         val editor = mutableUiState.value.tagInlineEditor ?: return
         if (editor.isSaving) return
+        if (editor.text.codePointCount(0, editor.text.length) > MAX_TAG_CODE_POINTS) {
+            mutableUiState.update {
+                it.copy(tagInlineEditor = editor.copy(error = TaskTagInlineEditorError.TOO_LONG))
+            }
+            return
+        }
         viewModelScope.launch {
             mutableUiState.update {
                 it.copy(tagInlineEditor = editor.copy(isSaving = true, error = null))
@@ -1087,6 +1302,7 @@ private fun EditTaskUiState.withProjectedTagErrors(): EditTaskUiState {
             setOf(
                 worq.order.data.TaskMetadataValidationError.DESCRIPTION_TOO_LONG,
                 worq.order.data.TaskMetadataValidationError.PURCHASES_TOO_LONG,
+                worq.order.data.TaskMetadataValidationError.NOTES_TOO_LONG,
             )
     return copy(
         metadataErrors =
@@ -1096,6 +1312,7 @@ private fun EditTaskUiState.withProjectedTagErrors(): EditTaskUiState {
                     descriptionSelections = descriptionTagSelections,
                     purchases = hardwareSoftwarePurchases,
                     purchaseSelections = purchaseTagSelections,
+                    notes = notes,
                 ),
     )
 }

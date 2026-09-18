@@ -19,7 +19,7 @@ live automatic Google behavior, and the last rebuilt artifact checksum, then pro
 release instructions. Some gates are now recorded in Section 10 and `QA_REPORT.md`; no release
 was approved merely by that documentation update. The owner later completed merge/tag/publication,
 downloaded-asset verification, and physical-device installation. `0.5.0` release work belongs to
-Milestone 47; the checklist below remains historical evidence rather than reusable version values.
+Milestone 48; the checklist below remains historical evidence rather than reusable version values.
 
 ## 1. Permanent policies
 

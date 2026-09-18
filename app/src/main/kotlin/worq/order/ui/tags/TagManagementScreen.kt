@@ -462,9 +462,8 @@ private fun TagEditorDialog(
     onDismiss: () -> Unit,
 ) {
     val fieldError = editor.fieldError
-    val supportingText =
-        fieldError?.let { stringResource(it.messageResource()) }
-            ?: stringResource(R.string.tag_text_limit)
+    val validationMessage = fieldError?.let { stringResource(it.messageResource()) }
+    val isOverLimit = editor.text.isTagTextOverLimit()
     AlertDialog(
         onDismissRequest = { if (!editor.isSaving) onDismiss() },
         title = {
@@ -486,25 +485,20 @@ private fun TagEditorDialog(
                 label = { Text(stringResource(R.string.tag_text)) },
                 keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
                 supportingText = {
-                    Text(
-                        text = supportingText,
-                        modifier =
-                            if (fieldError != null) {
-                                Modifier.semantics {
-                                    error(supportingText)
-                                    liveRegion = LiveRegionMode.Assertive
-                                }
-                            } else {
-                                Modifier
-                            },
+                    TagTextSupportingText(
+                        value = editor.text,
+                        validationMessage = validationMessage,
                     )
                 },
-                isError = editor.fieldError != null,
+                isError = isOverLimit || editor.fieldError != null,
                 minLines = 2,
             )
         },
         confirmButton = {
-            TextButton(onClick = onConfirm, enabled = !editor.isSaving) {
+            TextButton(
+                onClick = onConfirm,
+                enabled = !editor.isSaving && !isOverLimit,
+            ) {
                 if (editor.isSaving) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(WorqOrderDimens.InlineProgressSize),

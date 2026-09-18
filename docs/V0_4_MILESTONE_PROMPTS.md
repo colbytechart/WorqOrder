@@ -3,7 +3,7 @@
 ## Status and operating protocol
 
 The owner has publicly released `0.4.0`; Milestones 36–41 below are historical delivery prompts.
-The former Milestones 42–43 have been renumbered and deferred to post-`0.5.0` Milestones 48–49.
+The former Milestones 42–43 have been renumbered and deferred to post-`0.5.0` Milestones 49–50.
 Their authoritative prompts now live in `V0_5_MILESTONE_PROMPTS.md`. Do not start cleanup from
 this archived file. Optional security Milestone E remains unscheduled and outside every release.
 
@@ -242,8 +242,8 @@ Stop after the owner confirms public install and retained data.
 
 The owner superseded these numbers before either closeout milestone began. Their scope is now:
 
-- Milestone 48: post-public-`0.5.0` documentation-only environment teardown guide.
-- Milestone 49: separately authorized optional owner-directed closeout.
+- Milestone 49: post-public-`0.5.0` documentation-only environment teardown guide.
+- Milestone 50: separately authorized optional owner-directed closeout.
 
 Use only `V0_5_MILESTONE_PROMPTS.md`. Finishing or publishing an app release never authorizes a
 deletion, uninstall, cloud change, firmware/system change, or other cleanup action.

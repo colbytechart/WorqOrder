@@ -187,16 +187,22 @@ internal fun TaskTextSupportingText(
     value: String,
     maxCodePoints: Int,
     blankError: Boolean = false,
-    tooLongError: Boolean = false,
 ) {
+    val currentCodePoints = value.codePointCount(0, value.length)
+    val tooLongError = currentCodePoints > maxCodePoints
     val message =
         when {
             blankError -> stringResource(R.string.field_required)
-            tooLongError -> stringResource(R.string.character_limit_error, maxCodePoints)
+            tooLongError ->
+                stringResource(
+                    R.string.character_limit_error,
+                    currentCodePoints,
+                    maxCodePoints,
+                )
             else ->
                 stringResource(
                     R.string.character_count,
-                    value.codePointCount(0, value.length),
+                    currentCodePoints,
                     maxCodePoints,
                 )
         }

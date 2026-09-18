@@ -1224,7 +1224,7 @@ data and worked for new task timing. Milestone 36 is now documentation-only `0.4
 Release-specific implementation occupies Milestones 37–41. The former post-`0.3.0` project
 environment teardown guide originally moved to Milestone 42 after public `0.4.0`, with real
 closeout as optional Milestone 43. D-104 later supersedes those numbers with post-`0.5.0`
-Milestones 48 and 49. Milestone E remains independent.
+Milestones 49 and 50. Milestone E remains independent.
 
 ### D-098 — Notes are optional, editable task data, but not repeated-Start copy data
 
@@ -1318,12 +1318,44 @@ browsing, Add/Edit, confirmed Delete, and SAF CSV import. Every nonblank CSV cel
 header is special. Existing/within-file duplicates skip without overwrite. Invalid/malformed or
 overlength data, files over 1 MiB, and more than 10,000 nonblank cells fail one atomic import.
 
-Create/Edit use associated dismissible chips and a full-screen multi-select picker with persistent
-selection under filtering, Cancel/Apply, and inline creation. Inline creation is an independent
+Create/Edit place one unlabeled, non-wrapping Tag row directly below each supported text field.
+The button reads **Add tags** when empty and **Edit tags** when populated. One selection shows one
+ellipsized picker-opening chip; multiple selections show one picker-opening `+N tags selected`
+chip. No chip has a direct removal action. The full-screen multi-select picker provides persistent
+selection under filtering, Cancel/Apply, removal, and inline creation. Description, Hardware /
+Software Purchases, and Notes show only **N / 999** while valid, then immediately show a red
+**Character limit: N / 999** live error when over limit. Inline creation is an independent
 catalog action and survives task Cancel. Main rows show manual Description or first-Tag/`+N tags`
 fallback; notifications never expose Tag text. The former teardown Milestones 42/43 are renamed
-48/49 after public `0.5.0`. Every `0.5.0` subtask stops for an owner-confirmed Luna/Terra/Sol
+49/50 after public `0.5.0`. Every `0.5.0` subtask stops for an owner-confirmed Luna/Terra/Sol
 transition, and the owner alone executes supplied PowerShell and Android test commands.
+
+### D-105 — Milestone 47 standardizes task-form feedback and compact Tag summaries
+
+Create and Edit use the same live task-text feedback: `N / 999` while valid and red
+`Character limit: N / 999` immediately while over limit. The task form uses the exact GUI label
+**Hardware / software purchases** and adds deliberate space before Work Type. Each field's Tag
+control is one non-wrapping row. Its Add/Edit button is followed by no chip, one intrinsic-width
+selected lighter outlined pill, or one intrinsic-width `+N tags selected` pill. A long single-Tag
+pill is bounded by the remaining row width and ellipsizes. Both pills open the picker and have no
+direct removal affordance; removal remains available inside the picker. These presentation rules
+do not change stored snapshots, validation limits, canonical composition, or export schema 6.
+Create/Edit footers contain only their two actions. Missing/unavailable Client and Consultant
+feedback moves directly below the relevant selector or recovery button as small, assertively
+announced field-style error text; only that button and error use the error color, while dropdown
+entries keep normal styling. Other page messages remain in the scrollable body. Settings and inline
+Tag add/edit dialogs replace the static 400-character hint with live `N / 400` feedback, red
+`Character limit: N / 400` above the limit, and disabled confirmation until corrected. The full-screen picker keeps
+**Select All** and **Deselect All** with its non-scrolling controls. Bulk actions target only the
+currently visible filtered result set and preserve hidden selections; empty search targets the
+whole category. A bulk addition that would violate the composed 999-code-point limit is rejected
+atomically with the existing picker error rather than partially selecting Tags.
+
+If Edit Task's assigned client is archived/unavailable, it exposes Create Task's existing inline
+**Add client** editor and archived-match restore confirmation. Client directory mutation is
+immediate and independent; the resulting task assignment is marked unsaved and changes the task
+only after Save Task Changes. Cancelling the edit therefore preserves the added/restored client but
+leaves the task's historical client ID unchanged. Running-task guards remain authoritative.
 
 ## Deferred decisions
 

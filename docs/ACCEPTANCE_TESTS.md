@@ -1211,14 +1211,14 @@ and manual exports obey the same policy. CSV/XLSX remain one-off.
 
 Before publication, the owner-approved versionCode, permanent signer SHA-1, `worq.order` package,
 disabled backup, GPLv3, exact Google scope, APK hash, populated `0.3.0` upgrade, API-26/current
-automated suites, and physical-device task/edit/export smoke tests must pass. Milestone 48
+automated suites, and physical-device task/edit/export smoke tests must pass. Milestone 49
 teardown planning is not a prerequisite for app release and performs no cleanup.
 
 ## 17. Planned `0.5.0` reusable-Tag acceptance requirements
 
 These are the complete `0.5.0` acceptance requirements. The schema/domain foundation in V5-DB-01
 and its supporting rule tests is implemented; later UI/import/export requirements remain assigned
-to Milestones 44-47. The owner manually runs all supplied PowerShell/Gradle and Android
+to Milestones 44-48. The owner manually runs all supplied PowerShell/Gradle and Android
 emulator/device gates and reports results.
 
 ### V5-DB-01 Additive schema-7 migration
@@ -1258,17 +1258,43 @@ No non-CSV/broad-storage path or partial import is permitted.
 
 ### V5-TASK-01 Picker, chips, and inline creation
 
-Description and purchase fields show clearly associated dismissible chips and open the correct
-full-screen picker. Multi-select, live search, clear, selection order, Cancel/Apply, overflow, and
-chip removal work without losing unsaved manual fields. Inline creation validates/persists a Tag,
+Description and purchase fields show an unlabeled, non-wrapping row directly below the correct
+field. Zero selections show **Add tags** and no chip. One selection shows **Edit tags** plus one
+ellipsized chip. Multiple selections show **Edit tags** plus one `+N tags selected` chip. Each
+informational chip uses the lighter selected color, outline, pill shape, and intrinsic label width;
+a long Tag uses only the remaining row width and ellipsizes. Both button and chip open the correct
+full-screen picker; no chip has a close action. Multi-select,
+live search, clear, selection order, Cancel/Apply, and picker-based removal work without losing
+unsaved manual fields. **Select All** and **Deselect All** remain in the fixed picker controls while
+the result list scrolls. Each affects only the current filtered results and leaves hidden selections
+unchanged; with an empty search it affects the whole category. If Select All would exceed the
+composed 999-code-point limit, no partial draft change occurs and the existing limit error appears.
+Inline creation validates/persists a Tag,
 selects it, and survives later task cancellation. Existing normalized text selects the existing
-Tag rather than creating a duplicate.
+Tag rather than creating a duplicate. Create and Edit use the exact label **Hardware / software
+purchases** and preserve deliberate section spacing between its Tag row and **Work Type**.
+
+Create/Edit fixed footers contain only their respective two action buttons. A missing or unavailable
+Client/Consultant renders one small error directly below its selector or recovery button; only that
+button's outline/content and the error use the error color, while dropdown entries retain normal
+styling. Other page messages remain in the scrollable body. Settings and inline Tag add/edit dialogs
+show **N / 400** live, show red **Character limit: N / 400** above 400 Unicode code points, and
+disable Save or Create and Select until the text returns to 400 or fewer.
+
+When Edit Task's assigned client is archived/unavailable, **Add client** is visible and opens the
+same validated editor used by Create Task. A unique client is created and selected; an archived
+normalized match offers restoration and selects it after confirmation. The selected assignment is
+not persisted until Save Task Changes, but the independent client-directory add/restore remains if
+the task edit is cancelled. Running-task guards continue to block the recovery action.
 
 ### V5-TASK-02 Composed validation
 
-Manual text, ordered snapshot text, joining spaces, and generated periods produce the displayed
-**Exported text: N / 999** count. Exactly 999 Unicode code points save; 1000 cannot. An overlimit
-Tag selection is blocked with a field explanation; later manual overage disables Create/Save until
+Manual text, ordered snapshot text, joining spaces, and generated periods produce the Description
+and purchase counters. Description, purchases, and Notes display only **N / 999** at or below the
+limit. On the keystroke that produces 1000, the affected field immediately becomes an error and
+shows red **Character limit: 1000 / 999** without requiring Create/Save. Exactly 999 Unicode code
+points save; 1000 cannot. An overlimit Tag selection is blocked with a field
+explanation; later manual overage disables Create/Save until
 corrected. A Tag-only Description satisfies required validation. Blank manual-and-Tag Description
 does not. Purchases may remain blank.
 
@@ -1310,4 +1336,4 @@ Before publication, owner-run formatting/lint/JVM/debug/release, complete API-26
 suites, populated signed `0.4.0` update, fresh install, CRUD/import/picker/manual task flows, all
 three manual exports plus automatic Google, accessibility/lifecycle/performance/security checks,
 permanent signer/package/version/hash, and public-download install-over checks must pass. Version
-identity requires explicit owner approval. Milestones 48–49 are not release prerequisites.
+identity requires explicit owner approval. Milestones 49–50 are not release prerequisites.

@@ -228,6 +228,19 @@ class CreateTaskViewModelTest {
             fixture.viewModel.onEvent(CreateTaskEvent.SelectClient("client-1"))
             fixture.viewModel.onEvent(CreateTaskEvent.EditDescription("Task"))
             fixture.viewModel.onEvent(CreateTaskEvent.EditNotes("x".repeat(1000)))
+
+            assertTrue(
+                TaskMetadataValidationError.NOTES_TOO_LONG in
+                    fixture.viewModel.uiState.value.metadataErrors,
+            )
+
+            fixture.viewModel.onEvent(CreateTaskEvent.EditNotes("x".repeat(999)))
+            assertFalse(
+                TaskMetadataValidationError.NOTES_TOO_LONG in
+                    fixture.viewModel.uiState.value.metadataErrors,
+            )
+
+            fixture.viewModel.onEvent(CreateTaskEvent.EditNotes("x".repeat(1000)))
             fixture.viewModel.onEvent(CreateTaskEvent.CreateTask)
             runCurrent()
 
@@ -260,6 +273,27 @@ class CreateTaskViewModelTest {
             )
             assertTrue(fixture.tasks.observeTasksForDate(WORK_DATE).first().isEmpty())
             assertEquals(listOf(CreateTaskEffect.NavigateToSettings), effects)
+        }
+
+    @Test
+    fun overlengthInlineTagIsRejectedBeforeRepositoryMutation() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val fixture =
+                taskFixture(
+                    FakeClientRepository(listOf(client("client-1", "Client"))),
+                )
+
+            fixture.viewModel.onEvent(CreateTaskEvent.OpenTagPicker(TaskTagField.DESCRIPTION))
+            fixture.viewModel.onEvent(CreateTaskEvent.OpenInlineTagCreate)
+            fixture.viewModel.onEvent(CreateTaskEvent.EditInlineTagText("x".repeat(401)))
+            fixture.viewModel.onEvent(CreateTaskEvent.ConfirmInlineTagCreate)
+
+            assertEquals(
+                TaskTagInlineEditorError.TOO_LONG,
+                fixture.viewModel.uiState.value.tagInlineEditor?.error,
+            )
+            assertTrue(fixture.viewModel.uiState.value.descriptionCatalogTags.isEmpty())
+            assertTrue(fixture.viewModel.uiState.value.descriptionTagSelections.isEmpty())
         }
 
     private fun TestScope.viewModelAndCollect(

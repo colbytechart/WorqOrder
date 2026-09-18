@@ -757,3 +757,24 @@ and never reads the mutable Tag catalog. Google remains schema 6 with visible A:
 hidden identity P, ownership checks, keyed updates, and other-device row preservation. No schema-7
 Google marker, fifteenth visible column, destination-specific Tag logic, or Room write was added.
 No release-blocking Milestone 46 defect remains in the reported evidence.
+
+## 19. Milestone 47 (`0.5.0`) task-form polish evidence
+
+On 2026-09-18, the owner reported that all supplied Milestone 47 compilation, JVM, lint,
+debug/release build, connected-instrumentation, and manual visual/behavior checks passed after the
+final Edit Task inline Add Client recovery. Exact suite counts were not supplied for this final
+rerun, so this section records only the owner's pass report and does not invent per-suite totals.
+
+Verified behavior includes shared live Description, Hardware / software purchases, and Notes
+`N / 999` counters; immediate red over-limit feedback; compact non-wrapping Add/Edit Tag controls;
+picker-opening informational pills; action-only Create/Edit footers; selector-local Client and
+Consultant errors; live 400-code-point Settings and inline Tag-editor counters; filter-scoped
+Select All/Deselect All; and the archived/unavailable Edit Task client recovery flow. The recovery
+uses the canonical inline client validation and archived-match restore confirmation, selects the
+result as an unsaved task change, and remains blocked while the task timer is running.
+
+Static closeout review confirmed branch `milestone47` descends from `v0.5.0-development`, found no
+merge-conflict markers or diff whitespace errors, and reported only the existing informational
+CRLF/LF conversion warning for `TaskFormComponents.kt`. No Room schema, export schema, timer rule,
+task snapshot, or historical client relationship changed in Milestone 47. This closes Milestone
+47 only; Milestone 48 release-audit work remains unstarted and requires explicit owner direction.

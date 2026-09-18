@@ -6,6 +6,8 @@ import java.time.ZoneId
 import worq.order.data.TaskMetadataValidationError
 import worq.order.domain.ManualIntervalValidationError
 import worq.order.domain.OverlapOffsetChoice
+import worq.order.ui.clients.ArchivedClientRestoreOffer
+import worq.order.ui.clients.ClientEditorUiState
 import worq.order.ui.clients.ClientItemUi
 import worq.order.model.WorkType
 import worq.order.model.BillingStatus
@@ -44,6 +46,8 @@ data class IntervalEditorUiState(
 enum class EditTaskMessage {
     DATA_UNAVAILABLE,
     TASK_NOT_FOUND,
+    CLIENT_NOT_FOUND,
+    RESTORE_NAME_CONFLICT,
     CLIENT_UNAVAILABLE,
     CONSULTANT_UNAVAILABLE,
     RUNNING_TASK,
@@ -64,6 +68,8 @@ data class EditTaskUiState(
     val activeClients: List<ClientItemUi> = emptyList(),
     val selectedClientId: String? = null,
     val isClientMenuExpanded: Boolean = false,
+    val addClientEditor: ClientEditorUiState? = null,
+    val restoreOffer: ArchivedClientRestoreOffer? = null,
     val originalConsultantName: String = "",
     val activeConsultants: List<ConsultantItemUi> = emptyList(),
     val selectedConsultantId: String? = null,
@@ -119,6 +125,20 @@ sealed interface EditTaskEvent {
         val clientId: String,
     ) : EditTaskEvent
 
+    data object OpenAddClient : EditTaskEvent
+
+    data class EditNewClientName(
+        val name: String,
+    ) : EditTaskEvent
+
+    data object ConfirmAddClient : EditTaskEvent
+
+    data object DismissAddClient : EditTaskEvent
+
+    data object ConfirmRestoreOffer : EditTaskEvent
+
+    data object DismissRestoreOffer : EditTaskEvent
+
     data object OpenConsultantMenu : EditTaskEvent
 
     data object DismissConsultantMenu : EditTaskEvent
@@ -150,6 +170,10 @@ sealed interface EditTaskEvent {
     data class ToggleTagPickerItem(
         val itemId: String,
     ) : EditTaskEvent
+
+    data object SelectAllVisibleTagPickerItems : EditTaskEvent
+
+    data object DeselectAllVisibleTagPickerItems : EditTaskEvent
 
     data object ApplyTagPicker : EditTaskEvent
 

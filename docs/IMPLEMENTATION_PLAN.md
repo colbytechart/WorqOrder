@@ -966,16 +966,17 @@ supplies final `0.4.0` versionCode approval, signs with the permanent key, merge
 publishes, and verifies the public APK; no release-readiness claim precedes these gates.
 
 The owner subsequently published and physically verified `0.4.0`. Its former post-release
-Milestones 42 and 43 are superseded by `0.5.0` Milestones 48 and 49 below; do not execute the old
+Milestones 42 and 43 are superseded by `0.5.0` Milestones 49 and 50 below; do not execute the old
 numbering or treat publication as cleanup permission.
 
 ## 21B. WorqOrder `0.5.0` reusable-Tag roadmap
 
 The integration topology is `main` → `v0.5.0-development` → sequential milestone branches
-42–47. Milestone 42 documents the approved design only. Milestones 43–46 implement Room/domain,
+42–48. Milestone 42 documents the approved design only. Milestones 43–46 implement Room/domain,
 Settings management and import, task selection UX, and shared export composition. Milestone 47
-owns the complete audit and public-release handoff. The former teardown/closeout work is moved to
-Milestones 48–49 after public `0.5.0` and still requires separate instructions.
+owns final Create/Edit task-form consistency and Milestone 48 owns the complete audit and public-
+release handoff. The former teardown/closeout work is moved to Milestones 49–50 after public
+`0.5.0` and still requires separate instructions.
 
 Use the copy/paste prompts and mandatory model pauses in `docs/V0_5_MILESTONE_PROMPTS.md`. The
 owner supplies current weekly-token budget and active model at each milestone start. Luna handles
@@ -1009,9 +1010,12 @@ over-10,000-cell input imports nothing. Request no broad storage permission.
 
 ### Milestone 45 — Create/Edit Tag selection and task behavior
 
-Add field-associated dismissible chips, an accessible full-screen real-time searchable multi-
-select picker, clear/Cancel/Apply, inline persistent creation, historical saved versions, and
-explicit updated-version replacement. Enforce composed **Exported text: N / 999** validation,
+Add field-associated, non-wrapping Add/Edit controls with one intrinsic-width, lighter outlined
+pill-style picker-opening Tag/count summary and no direct chip removal, plus an accessible full-
+screen real-time searchable multi-select picker,
+clear/Cancel/Apply, inline persistent creation, historical saved versions, and explicit updated-
+version replacement. Enforce live valid **N / 999** and red over-limit **Character limit: N / 999**
+validation for Description, Hardware / Software Purchases, and Notes,
 allow Tags to satisfy required Description, preserve snapshot order, copy snapshots on repeated
 Start, use the approved main-row manual/fallback display, and keep notification Tag text private.
 
@@ -1023,7 +1027,32 @@ schema 6, all 14 visible headers, Google hidden identity/layout, cross-device ro
 and Stop-before-export policies, and no Room mutation. No destination may independently inspect
 or format Tags.
 
-### Milestone 47 — Full `0.5.0` audit and public-release handoff
+### Milestone 47 — Create/Edit task-form polish and consistency
+
+Apply the owner-approved final task-form refinements without changing persistence or export data.
+Unify Description, Hardware / software purchases, and Notes live counters at 999 code points;
+render compact one-line Add/Edit Tag controls with intrinsic-width selected InputChip-style pills;
+open the picker from either control; keep removal inside the picker; and add consistent spacing
+before Work Type. Keep each fixed footer limited to its two actions. Render missing/unavailable
+Client and Consultant validation as small field-style text directly below the relevant selector or
+recovery button, with only that button's outline/content and the error text using the error color;
+other page messages remain in scrollable content. Replace every Tag editor's static limit hint with
+a live `N / 400` counter, switching to red `Character limit: N / 400` and disabling confirmation
+while over limit. When Edit Task's assigned client is archived/unavailable, expose the same inline
+**Add client** editor and archived-match restore flow used by Create Task; selecting the result is
+an unsaved task edit, while the client directory mutation remains if task editing is cancelled.
+Add non-scrolling **Select All** and **Deselect All** picker actions;
+they affect only the current search results, preserve hidden selections, and reject an over-limit
+bulk addition atomically. Complete focused automated and owner-run visual tests, audit the diff,
+provide commit messages, and stop before the release audit.
+
+**Completed on the `milestone47` branch:** the owner reported the complete supplied compilation,
+JVM, lint, debug/release build, connected-instrumentation, and manual visual/behavior gates passed
+after the final Edit Task inline Add Client recovery. Static diff review found no conflict markers
+or whitespace errors; Git only reports the existing informational CRLF/LF conversion warning for
+`TaskFormComponents.kt`. Milestone 48 remains unstarted and requires a separate owner instruction.
+
+### Milestone 48 — Full `0.5.0` audit and public-release handoff
 
 Trace every requirement, reconcile user/privacy/security/release documentation, run owner-
 executed clean lint/JVM/debug/release and API-26/current connected gates, prove every supported
@@ -1031,16 +1060,16 @@ Room path to schema 7 and populated `0.4.0` upgrade, exercise imports and every 
 security/accessibility/lifecycle/performance, obtain explicit release identity approval, and
 verify the signed public APK. Codex does not merge, tag, upload, or publish for the owner.
 
-### Milestone 48 — Post-`0.5.0` safe teardown guide (documentation only)
+### Milestone 49 — Post-`0.5.0` safe teardown guide (documentation only)
 
 Only after the public `0.5.0` release and a separate explicit start: Luna inventories verified
 project-specific versus shared tools, Terra drafts staged reversible owner-executed Windows/
 Android cleanup and rollback instructions, and Sol audits target precision, release/signing/OAuth
 preservation, and recoverability. No deletion, uninstall, cloud, firmware, or system change occurs.
 
-### Milestone 49 — Optional owner-directed closeout
+### Milestone 50 — Optional owner-directed closeout
 
-This is a separate opt-in execution gate after Milestone 48. The owner must name exact targets and
+This is a separate opt-in execution gate after Milestone 49. The owner must name exact targets and
 authorize each material action. Preserve source, remote history/releases, permanent signing key
 and backups, OAuth setup, and desired user/export data unless separately decided. Never infer
 cleanup authority from finishing `0.5.0` or from the existence of a guide.

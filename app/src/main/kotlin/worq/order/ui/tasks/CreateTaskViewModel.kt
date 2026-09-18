@@ -21,6 +21,7 @@ import worq.order.data.ClientNameValidationResult
 import worq.order.data.ClientNameNormalizer
 import worq.order.data.ClientRepository
 import worq.order.data.EmployeeRepository
+import worq.order.data.MAX_TAG_CODE_POINTS
 import worq.order.data.MileageNormalizer
 import worq.order.data.SettingsRepository
 import worq.order.data.TagMutationResult
@@ -117,6 +118,8 @@ class CreateTaskViewModel(
                     )
                 }
             is CreateTaskEvent.ToggleTagPickerItem -> toggleTagPickerItem(event.itemId)
+            CreateTaskEvent.SelectAllVisibleTagPickerItems -> selectAllVisibleTagPickerItems()
+            CreateTaskEvent.DeselectAllVisibleTagPickerItems -> deselectAllVisibleTagPickerItems()
             CreateTaskEvent.ApplyTagPicker -> applyTagPicker()
             CreateTaskEvent.OpenInlineTagCreate -> openInlineTagCreate()
             is CreateTaskEvent.EditInlineTagText ->
@@ -171,7 +174,7 @@ class CreateTaskViewModel(
                         metadataErrors = emptySet(),
                         hasUnsavedTaskChanges = true,
                         message = null,
-                    )
+                    ).withProjectedTagErrors()
                 }
             CreateTaskEvent.CreateTask -> createTask()
             CreateTaskEvent.RequestClose -> requestClose()
@@ -366,6 +369,44 @@ class CreateTaskViewModel(
         }
     }
 
+    private fun selectAllVisibleTagPickerItems() {
+        mutableUiState.update { state ->
+            val picker = state.tagPicker ?: return@update state
+            val updatedSelections =
+                selectAllVisiblePickerItems(picker, state.catalogFor(picker.field))
+            val candidate =
+                state
+                    .withSelections(picker.field, updatedSelections)
+                    .withProjectedTagErrors()
+            if (candidate.hasProjectedTextLimitError(picker.field)) {
+                state.copy(
+                    tagPicker = picker.copy(error = TaskTagPickerError.COMPOSED_TEXT_TOO_LONG),
+                )
+            } else {
+                state.copy(
+                    tagPicker = picker.copy(draftSelections = updatedSelections, error = null),
+                )
+            }
+        }
+    }
+
+    private fun deselectAllVisibleTagPickerItems() {
+        mutableUiState.update { state ->
+            val picker = state.tagPicker ?: return@update state
+            state.copy(
+                tagPicker =
+                    picker.copy(
+                        draftSelections =
+                            deselectAllVisiblePickerItems(
+                                picker,
+                                state.catalogFor(picker.field),
+                            ),
+                        error = null,
+                    ),
+            )
+        }
+    }
+
     private fun applyTagPicker() {
         mutableUiState.update { state ->
             val picker = state.tagPicker ?: return@update state
@@ -401,6 +442,12 @@ class CreateTaskViewModel(
     private fun confirmInlineTagCreate() {
         val editor = mutableUiState.value.tagInlineEditor ?: return
         if (editor.isSaving) return
+        if (editor.text.codePointCount(0, editor.text.length) > MAX_TAG_CODE_POINTS) {
+            mutableUiState.update {
+                it.copy(tagInlineEditor = editor.copy(error = TaskTagInlineEditorError.TOO_LONG))
+            }
+            return
+        }
         viewModelScope.launch {
             mutableUiState.update {
                 it.copy(tagInlineEditor = editor.copy(isSaving = true, error = null))
@@ -868,6 +915,7 @@ private fun CreateTaskUiState.withProjectedTagErrors(): CreateTaskUiState {
             setOf(
                 worq.order.data.TaskMetadataValidationError.DESCRIPTION_TOO_LONG,
                 worq.order.data.TaskMetadataValidationError.PURCHASES_TOO_LONG,
+                worq.order.data.TaskMetadataValidationError.NOTES_TOO_LONG,
             )
     return copy(
         metadataErrors =
@@ -877,6 +925,7 @@ private fun CreateTaskUiState.withProjectedTagErrors(): CreateTaskUiState {
                     descriptionSelections = descriptionTagSelections,
                     purchases = hardwareSoftwarePurchases,
                     purchaseSelections = purchaseTagSelections,
+                    notes = notes,
                 ),
     )
 }

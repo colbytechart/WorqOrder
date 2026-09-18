@@ -1,6 +1,9 @@
 package worq.order.ui.tasks
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -37,19 +40,27 @@ class TaskTagFormScreenTest {
                             descriptionTagSelections =
                                 listOf(TaskTagSelectionUi("tag-1", "Install monitor", "tag-1")),
                             descriptionCatalogTags =
-                                listOf(TaskTagCatalogItemUi("tag-1", "Install monitor")),
+                                listOf(
+                                    TaskTagCatalogItemUi("tag-1", "Install monitor"),
+                                    TaskTagCatalogItemUi("tag-2", "Configure network"),
+                                ),
                         ),
                     onEvent = events::add,
                 )
             }
         }
 
-        composeRule.onNodeWithText("Description Tags").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Remove tag Install monitor").assertIsDisplayed()
-        composeRule.onAllNodesWithText("Add tags")[0].performClick()
+        composeRule.onAllNodesWithText("Description Tags").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Hardware / Software Purchase Tags").assertCountEquals(0)
+        composeRule.onNodeWithText("Add tags").assertIsDisplayed()
+        composeRule.onNodeWithText("Edit tags").assertIsDisplayed()
+        composeRule
+            .onNodeWithContentDescription("Edit selected tag Install monitor")
+            .assertIsDisplayed()
+            .performClick()
 
         assertTrue(
-            events.contains(CreateTaskEvent.OpenTagPicker(TaskTagField.DESCRIPTION)),
+            events == listOf(CreateTaskEvent.OpenTagPicker(TaskTagField.DESCRIPTION)),
         )
     }
 
@@ -80,7 +91,10 @@ class TaskTagFormScreenTest {
                                         ),
                                 ),
                             descriptionCatalogTags =
-                                listOf(TaskTagCatalogItemUi("tag-1", "Install monitor")),
+                                listOf(
+                                    TaskTagCatalogItemUi("tag-1", "Install monitor"),
+                                    TaskTagCatalogItemUi("tag-2", "Configure network"),
+                                ),
                         ),
                     onEvent = events::add,
                 )
@@ -90,7 +104,44 @@ class TaskTagFormScreenTest {
         composeRule
             .onNodeWithContentDescription("Install monitor")
             .assertIsSelected()
+        composeRule.onNodeWithText("Select All").performClick()
+        composeRule.onNodeWithText("Deselect All").performClick()
         composeRule.onNodeWithText("Cancel").performClick()
+        assertTrue(events.contains(EditTaskEvent.SelectAllVisibleTagPickerItems))
+        assertTrue(events.contains(EditTaskEvent.DeselectAllVisibleTagPickerItems))
         assertTrue(events.contains(EditTaskEvent.DismissTagPicker))
+    }
+
+    @Test
+    fun inlineTagEditorShowsLiveCodePointCountAndBlocksOverlengthConfirmation() {
+        val editor =
+            androidx.compose.runtime.mutableStateOf(
+                TaskTagInlineEditorUiState(field = TaskTagField.DESCRIPTION),
+            )
+        composeRule.setContent {
+            WorqOrderTheme(darkTheme = true) {
+                TaskTagInlineEditorDialog(
+                    editor = editor.value,
+                    onTextChanged = { editor.value = editor.value.copy(text = it) },
+                    onConfirm = {},
+                    onDismiss = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("0 / 400").assertIsDisplayed()
+        composeRule.onNodeWithText("Create and Select").assertIsEnabled()
+
+        composeRule.runOnIdle {
+            editor.value = editor.value.copy(text = "x".repeat(401))
+        }
+        composeRule.onNodeWithText("Character limit: 401 / 400").assertIsDisplayed()
+        composeRule.onNodeWithText("Create and Select").assertIsNotEnabled()
+
+        composeRule.runOnIdle {
+            editor.value = editor.value.copy(text = "x".repeat(400))
+        }
+        composeRule.onNodeWithText("400 / 400").assertIsDisplayed()
+        composeRule.onNodeWithText("Create and Select").assertIsEnabled()
     }
 }

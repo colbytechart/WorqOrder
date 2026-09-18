@@ -89,6 +89,10 @@ sealed interface CreateTaskEvent {
         val itemId: String,
     ) : CreateTaskEvent
 
+    data object SelectAllVisibleTagPickerItems : CreateTaskEvent
+
+    data object DeselectAllVisibleTagPickerItems : CreateTaskEvent
+
     data object ApplyTagPicker : CreateTaskEvent
 
     data object OpenInlineTagCreate : CreateTaskEvent

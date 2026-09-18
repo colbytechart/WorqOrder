@@ -56,6 +56,33 @@ class TaskTagUiStateTest {
     }
 
     @Test
+    fun bulkPickerActionsAffectOnlyVisibleRowsAndPreserveSelectionOrder() {
+        val selections = listOf(TaskTagSelectionUi("selected", "Install monitor", "one"))
+        val catalog =
+            listOf(
+                TaskTagCatalogItemUi("one", "Install monitor"),
+                TaskTagCatalogItemUi("two", "Configure network"),
+                TaskTagCatalogItemUi("three", "Document work"),
+            )
+        val filteredPicker =
+            TaskTagPickerUiState(
+                field = TaskTagField.DESCRIPTION,
+                searchQuery = "network",
+                draftSelections = selections,
+            )
+
+        val selected = selectAllVisiblePickerItems(filteredPicker, catalog)
+        assertEquals(listOf("Install monitor", "Configure network"), selected.map { it.text })
+
+        val deselected =
+            deselectAllVisiblePickerItems(
+                filteredPicker.copy(draftSelections = selected),
+                catalog,
+            )
+        assertEquals(listOf("Install monitor"), deselected.map { it.text })
+    }
+
+    @Test
     fun projectedComposedTextUsesCodePointsAndFlagsOnlyTheAffectedField() {
         val errors =
             projectedTagTextErrors(

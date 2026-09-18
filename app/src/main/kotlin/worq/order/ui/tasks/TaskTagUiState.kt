@@ -2,6 +2,7 @@ package worq.order.ui.tasks
 
 import java.util.Locale
 import worq.order.data.MAX_COMPOSED_TASK_TEXT_CODE_POINTS
+import worq.order.data.MAX_TASK_NOTES_CODE_POINTS
 import worq.order.data.TaskMetadataValidationError
 import worq.order.data.TaskTextComposer
 import worq.order.model.Tag
@@ -118,6 +119,36 @@ internal fun pickerItemsFor(
     }
 }
 
+/** Selects every currently visible catalog row while preserving hidden selections and order. */
+internal fun selectAllVisiblePickerItems(
+    picker: TaskTagPickerUiState,
+    catalog: List<TaskTagCatalogItemUi>,
+): List<TaskTagSelectionUi> {
+    val visibleUnselectedSourceIds =
+        pickerItemsFor(picker.draftSelections, catalog, picker.searchQuery)
+            .filterNot(TagPickerItemUi::isSelected)
+            .map(TagPickerItemUi::id)
+            .toSet()
+    val additions =
+        catalog
+            .filter { item -> item.id in visibleUnselectedSourceIds }
+            .map(::newTaskTagSelection)
+    return picker.draftSelections + additions
+}
+
+/** Deselects currently visible rows without changing selections hidden by the active search. */
+internal fun deselectAllVisiblePickerItems(
+    picker: TaskTagPickerUiState,
+    catalog: List<TaskTagCatalogItemUi>,
+): List<TaskTagSelectionUi> {
+    val visibleSelectionIds =
+        pickerItemsFor(picker.draftSelections, catalog, picker.searchQuery)
+            .filter(TagPickerItemUi::isSelected)
+            .map(TagPickerItemUi::id)
+            .toSet()
+    return picker.draftSelections.filterNot { selection -> selection.id in visibleSelectionIds }
+}
+
 internal fun composedTaskText(
     manualText: String,
     selections: List<TaskTagSelectionUi>,
@@ -160,6 +191,7 @@ internal fun projectedTagTextErrors(
     descriptionSelections: List<TaskTagSelectionUi>,
     purchases: String,
     purchaseSelections: List<TaskTagSelectionUi>,
+    notes: String = "",
 ): Set<TaskMetadataValidationError> =
     buildSet {
         if (
@@ -173,6 +205,9 @@ internal fun projectedTagTextErrors(
                 MAX_COMPOSED_TASK_TEXT_CODE_POINTS
         ) {
             add(TaskMetadataValidationError.PURCHASES_TOO_LONG)
+        }
+        if (notes.codePointCount() > MAX_TASK_NOTES_CODE_POINTS) {
+            add(TaskMetadataValidationError.NOTES_TOO_LONG)
         }
     }
 

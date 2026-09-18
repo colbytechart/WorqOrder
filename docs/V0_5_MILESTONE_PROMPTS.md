@@ -3,8 +3,8 @@
 ## Status and operating protocol
 
 The owner has publicly released `0.4.0`. Milestone 42 prepares the approved `0.5.0` Tag feature
-documentation only. Milestones 43–47 implement, integrate, verify, and release it. The former
-post-`0.4.0` teardown Milestones 42 and 43 are renumbered to 48 and 49 and moved after public
+documentation only. Milestones 43–48 implement, integrate, verify, and release it. The former
+post-`0.4.0` teardown Milestones 42 and 43 are renumbered to 49 and 50 and moved after public
 `0.5.0`; they are not part of the Tag implementation. Optional security Milestone E remains
 unscheduled and outside every release until separately assigned.
 
@@ -34,7 +34,7 @@ No prompt grants internet or external-filesystem access. Preserve application ID
 the permanent signer, Room authority, disabled Android backup, GPLv3, no-cost direct GitHub
 distribution, Google `drive.file`, one-off CSV/XLSX, the single connected Google spreadsheet,
 and every current timer/date/one-interval rule. Do not change release versionName/versionCode
-without explicit owner approval during Milestone 47.
+without explicit owner approval during Milestone 48.
 
 ## Approved `0.5.0` product contract
 
@@ -54,8 +54,13 @@ without explicit owner approval during Milestone 47.
   nonblank cells fails the entire import atomically. Use the Storage Access Framework and request
   no broad storage permission.
 - Create/Edit retain their manual Description and Hardware / Software Purchases fields. Each gains
-  a compact labeled Tag area with dismissible, truncated-but-accessible chips and an Add Tags
-  action. The full-screen picker supports real-time filtering, a clear-search action, browsing,
+  an unlabeled, single-row Tag control directly below its field. With no selection the button reads
+  **Add tags**. With selections it reads **Edit tags** and is followed by either one truncated,
+  accessible Tag chip or one `+N tags selected` count chip. Both use the lighter selected-chip
+  color, outline, and pill shape. Each chip is only as wide as its label unless a long single Tag
+  consumes the remaining row width and ellipsizes. The row never wraps, the chips open the
+  picker, and removal occurs only inside the picker. The full-screen picker supports real-time
+  filtering, a clear-search action, browsing,
   multi-select in selection order, selected count, Cancel/Apply, and inline Tag creation.
   Filtering never deselects hidden choices. A Tag created inline persists in the reusable catalog
   even if the task is later cancelled and is immediately selected unless validation prevents it.
@@ -66,9 +71,11 @@ without explicit owner approval during Milestone 47.
   replacement. A deleted source remains removable from the task but cannot be newly selected.
 - Description and Hardware / Software Purchases expand from 400 to a maximum composed export value
   of 999 Unicode code points. Manual text, one joining space between components, Tag snapshot text,
-  and generated periods all count. The UI labels the counter **Exported text: N / 999**. It blocks
-  selecting a Tag that would exceed the limit, shows field-level validation if later manual edits
-  exceed it, and disables Create/Save until valid. Description is satisfied by nonblank manual text
+  and generated periods all count. Description, Hardware / software purchases, and Notes normally
+  show only **N / 999**. As soon as a value exceeds the limit, its live counter turns red and reads
+  **Character limit: N / 999**; it does not wait for Create/Save. It blocks selecting a Tag that would exceed
+  the limit, shows field-level validation if later manual edits exceed it, and disables Create/Save
+  until valid. Description is satisfied by nonblank manual text
   or at least one Description Tag; purchases remain optional.
 - Export composition is pure and centralized: trim blank/outer component whitespace, place manual
   text first, then Tag snapshots in selection order, append `.` to each nonblank component that
@@ -107,7 +114,7 @@ Room schemas, Gradle, resources, release identity, or tests. Record conflicts an
 Continue Milestone 42, Task 42B, with Terra. Update only planning/specification documents to record
 the approved Tag catalogs, snapshot semantics, 999/400 limits, search/picker/management/import UX,
 Room 6-to-7 migration, unchanged export schema 6, centralized composition, tests, and Milestones
-43–49. Renumber the former teardown 42/43 to 48/49. Create V0_5_MILESTONE_PROMPTS.md with exact
+43–50. Renumber the former teardown 42/43 to 49/50. Create V0_5_MILESTONE_PROMPTS.md with exact
 model handoffs and owner-run test policy. Do not implement or run tests. Stop for Sol.
 ```
 
@@ -218,8 +225,9 @@ start task integration.
 ```text
 Begin Milestone 45, Task 45A, with Luna. My remaining weekly token budget is [PERCENT]%. Estimate
 the milestone and verify ancestry. Implement bounded reusable Compose presentation for field-
-associated dismissible chips and the full-screen searchable multi-select picker: clear search,
-selected count, Cancel/Apply, stable keys/order, two-row compact overflow, full accessibility text,
+associated, single-row Add/Edit controls and picker-opening summary chips, plus the full-screen
+searchable multi-select picker: clear search, selected count, Cancel/Apply, stable keys/order,
+one selected Tag or one total-count summary, full accessibility text,
 and inline-create callbacks. Do not own persistence or duplicate domain rules in composables.
 Add presentation tests and stop for Terra.
 ```
@@ -230,7 +238,7 @@ Add presentation tests and stop for Terra.
 Continue Milestone 45 with Terra. Integrate Description and Hardware / Software Purchase Tags into
 Create/Edit ViewModels and screens. Preserve unsaved form state across picker navigation. Inline
 creation persists independently and selects the new/existing normalized Tag. Enforce projected
-Exported text N/999 counts, tag-only Description validity, selection order, duplicate prevention,
+live N / 999 and over-limit Character limit: N / 999 counts, tag-only Description validity, selection order, duplicate prevention,
 and overlimit errors. Preserve old snapshots; support explicit Use Updated Version; deleted sources
 remain removable only. Save metadata/snapshots atomically. Apply repeated-Start copying, main-row
 manual-description/fallback display, and notification manual-description-only rules. Stop for Luna.
@@ -240,7 +248,7 @@ manual-description/fallback display, and notification manual-description-only ru
 
 ```text
 Continue Milestone 45 with Luna. Add ViewModel/Compose/integration tests for tag-only Description,
-manual-plus-tags limits, search filtering without deselection, clear, selection order, chip removal,
+manual-plus-tags limits, search filtering without deselection, clear, selection order, picker-based removal,
 Cancel/Apply, inline create then task cancel, historical edited/deleted sources, explicit update,
 atomic save failure, task reopen, repeated Start copy, main fallback, notification privacy, running-
 task guards, rotation/recreation, landscape, keyboard, large text, and TalkBack semantics. Provide
@@ -298,40 +306,76 @@ and unchanged schema 6. Fix only high-risk defects and evaluate owner-run result
 on data loss, overwrite, duplicate, or schema drift; then stop.
 ```
 
-## Milestone 47 — Full `0.5.0` audit and public-release handoff
+## Milestone 47 — Create/Edit task-form polish and consistency
 
-### Task 47A — Luna: traceability and manual checklist
+This is an owner-approved, focused Sol milestone created from the final Create/Edit usability
+adjustments discovered after Milestone 46. It changes presentation and validation feedback only;
+Room records, Tag snapshots, canonical export composition, and export schema 6 remain unchanged.
+
+### Task 47A — Sol: focused implementation and closeout
 
 ```text
-Begin Milestone 47, Task 47A, with Luna. My remaining weekly token budget is [PERCENT]%. Estimate
+Complete Milestone 47 with Sol. Verify the milestone branch and preserve all existing task/Tag
+behavior. Remove redundant field Tag headings. Give Description, Hardware / software purchases,
+and Notes one shared live counter rule: N / 999 while valid and red Character limit: N / 999
+immediately while over limit, with Create/Save disabled until corrected. Use one non-wrapping Tag
+control row: Add tags when empty, Edit tags when populated, one selected lighter outlined pill for
+one Tag, or one intrinsic-width +N tags selected pill for multiple Tags. Both pills open the picker;
+neither removes directly. Bound a long single-Tag pill to the remaining row width and ellipsize it.
+Use consistent spacing before Work Type and the exact GUI label Hardware / software purchases.
+Keep the Create/Edit fixed footers limited to their respective two actions. Show missing or
+unavailable Client/Consultant errors as small field-style text directly below the relevant selector
+or recovery button, coloring only that button and the error; leave other page messages in the
+scrollable body. Give Settings and inline Tag add/edit dialogs live `N / 400` counters, red
+`Character limit: N / 400` over-limit feedback, and disabled confirmation while over limit. In each task Tag
+picker, keep Select All and Deselect All with the non-scrolling controls. If Edit Task's assigned
+client is archived/unavailable, offer the same inline Add client and archived-match restore flow as
+Create Task; make the resulting assignment an unsaved edit without coupling client-directory
+creation/restoration to task Save or Cancel. Apply bulk Tag actions only to the
+visible filtered results, preserve hidden selections, and reject an over-limit Select All without
+partially changing the draft.
+Update focused tests and specifications, provide complete owner-run PowerShell and manual visual
+checks, audit the final diff, and provide short and long commit messages. Do not start Milestone 48.
+```
+
+**Status:** completed on `milestone47` with owner-reported passing compilation, JVM, lint,
+debug/release build, connected-instrumentation, and manual verification. Milestone 48 has not
+started.
+
+## Milestone 48 — Full `0.5.0` audit and public-release handoff
+
+### Task 48A — Luna: traceability and manual checklist
+
+```text
+Begin Milestone 48, Task 48A, with Luna. My remaining weekly token budget is [PERCENT]%. Estimate
 the milestone, verify ancestry, and map every approved Tag/migration/import/UI/export requirement
 to implementation, automated tests, and owner manual checks. Reconcile QA, security, privacy,
 known limitations, user guide, README, changelog, and release checklist without claiming unrun
 tests or publication. Stop for Terra.
 ```
 
-### Task 47B — Terra: bounded release documentation and polish
+### Task 48B — Terra: bounded release documentation and polish
 
 ```text
-Continue Milestone 47 with Terra. Fix only confirmed bounded defects, finalize user/developer/release
+Continue Milestone 48 with Terra. Fix only confirmed bounded defects, finalize user/developer/release
 documentation, and ensure public instructions accurately describe Tag management/import/pickers,
 limits, historical snapshots, exports, and migration. Do not change identity, signer, dependencies,
 OAuth scope, backup, or architecture. Stop for Luna.
 ```
 
-### Task 47C — Luna: owner-run gate orchestration
+### Task 48C — Luna: owner-run gate orchestration
 
 ```text
-Continue Milestone 47 with Luna. Provide complete project-local PowerShell commands for clean
+Continue Milestone 48 with Luna. Provide complete project-local PowerShell commands for clean
 format/lint/JVM/debug/release and API-26/current connected suites, plus migration, populated
 0.4.0-to-0.5.0 install-over, CSV/XLSX/Google/manual/automatic export, accessibility, lifecycle,
 and device smoke checklists. Collect and record only results the owner reports. Stop for Sol.
 ```
 
-### Task 47D — Sol: minimal final release decision
+### Task 48D — Sol: minimal final release decision
 
 ```text
-Complete Milestone 47 with Sol. Obtain explicit owner approval before changing versionName or
+Complete Milestone 48 with Sol. Obtain explicit owner approval before changing versionName or
 versionCode. Audit Room 1-through-7 upgrades, Tag/task invariants, all exports, security/dependencies,
 signer/package, permissions, accessibility, lifecycle/performance, owner-run test evidence, and
 the final signed artifact hash. Fix only release blockers. Withhold readiness while any required
@@ -339,65 +383,65 @@ gate is failing or unverified. Provide exact GitHub merge/tag/upload/download-ve
 never commit, merge, tag, publish, or run tests for the owner. Stop after public install is verified.
 ```
 
-## Milestone 48 — Post-`0.5.0` environment teardown guide only
+## Milestone 49 — Post-`0.5.0` environment teardown guide only
 
 This is the former Milestone 42. Start only after the owner verifies the public `0.5.0` release
 and separately instructs it. It performs documentation and inventory only—never removal.
 
-### Task 48A — Luna: non-destructive inventory
+### Task 49A — Luna: non-destructive inventory
 
 ```text
-Begin post-release Milestone 48 with Luna only after explicit owner instruction. Ask for verified
+Begin post-release Milestone 49 with Luna only after explicit owner instruction. Ask for verified
 project-specific paths and inventory Android Studio, SDK/JBR, AVDs, Gradle, ADB, drivers,
 virtualization, repository clones, OAuth, releases, and signing backups using read-only commands
 within approved paths. Classify preserve, shared/retain, project-only candidate, or unknown. Never
 delete or change machine/cloud state. Stop for Terra.
 ```
 
-### Task 48B — Terra: staged reversible guide
+### Task 49B — Terra: staged reversible guide
 
 ```text
-Continue Milestone 48 with Terra. Draft exact owner-executed cleanup instructions only for verified
+Continue Milestone 49 with Terra. Draft exact owner-executed cleanup instructions only for verified
 project-exclusive targets, including backups, rollback, and checks. Do not use broad recursive
 paths or change firmware/system, OAuth, signing, Git history, public releases, or user data. Do not
 execute the guide. Stop for Sol.
 ```
 
-### Task 48C — Sol: destructive-safety review
+### Task 49C — Sol: destructive-safety review
 
 ```text
-Complete Milestone 48 with Sol. Audit every instruction for exact targets, shared-tool risk,
+Complete Milestone 49 with Sol. Audit every instruction for exact targets, shared-tool risk,
 recoverability, signer/password backups, OAuth, public artifacts, and firmware safety. Require a
 new explicit owner decision for every actual removal. Publish only a safe guide and stop.
 ```
 
-## Milestone 49 — Optional owner-directed closeout
+## Milestone 50 — Optional owner-directed closeout
 
 This is the former Milestone 43. It is not automatic and may never begin from a generic request to
-finish the release or project. The owner must first review Milestone 48, name exact targets, and
+finish the release or project. The owner must first review Milestone 49, name exact targets, and
 separately authorize each material action. Unknown/shared targets remain untouched.
 
-### Task 49A — Luna: target and backup verification
+### Task 50A — Luna: target and backup verification
 
 ```text
-Begin optional Milestone 49 with Luna only after exact owner authorization. Verify every target's
+Begin optional Milestone 50 with Luna only after exact owner authorization. Verify every target's
 resolved path, project exclusivity, backup/recovery status, and explicit approval. Do not remove
 anything. Stop on unknown/shared/out-of-scope targets and hand the verified list to Terra.
 ```
 
-### Task 49B — Terra: approved reversible actions only
+### Task 50B — Terra: approved reversible actions only
 
 ```text
-Continue Milestone 49 with Terra. Perform only separately authorized, exact, recoverable project-
+Continue Milestone 50 with Terra. Perform only separately authorized, exact, recoverable project-
 only steps from the reviewed guide and verify each result. Never touch signing backups, remote
 history/releases, desired app/export data, shared toolchains, cloud configuration, or firmware
 without new specific approval. Stop before any irreversible step for Sol.
 ```
 
-### Task 49C — Sol: irreversible-action and continuity gate
+### Task 50C — Sol: irreversible-action and continuity gate
 
 ```text
-Complete optional Milestone 49 with Sol. Review each proposed irreversible action's exact target,
+Complete optional Milestone 50 with Sol. Review each proposed irreversible action's exact target,
 backup, rollback limits, shared impact, and owner authorization before it occurs. Withhold unsafe
 steps. After authorized work, verify source, public releases, signer/key backups, and desired OAuth
 configuration remain available. Report every material removal and recovery status; never infer

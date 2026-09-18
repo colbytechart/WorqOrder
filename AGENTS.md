@@ -94,7 +94,14 @@
   Existing tasks retain their exact text and receive no snapshots. Canonical export schema 6 stays
   at the same 14 visible columns and Google layout; Tags do not create export columns or a Google
   schema transition.
+- `0.5.0` Milestone 47 is the owner-approved Create/Edit task-form polish milestone: unified live
+  character counters, compact picker-opening Tag summaries, consistent task-field labeling and
+  spacing, no direct chip removal, selector-local assignment errors, live 400-code-point Tag-editor
+  counters, filtered bulk Tag-picker selection controls, and Edit Task inline Add Client recovery
+  when its assigned client is no longer active. Create/Edit footers contain only their two actions;
+  non-field page messages remain in the scrollable content. The full audit/public-
+  release handoff is Milestone 48.
 - The former post-`0.4.0` environment teardown Milestones 42 and 43 are renumbered to Milestones
-  48 and 49 and deferred until after the public `0.5.0` release. Milestone 48 is documentation-only;
-  Milestone 49 remains optional and requires exact, separate owner authorization. Neither permits
+  49 and 50 and deferred until after the public `0.5.0` release. Milestone 49 is documentation-only;
+  Milestone 50 remains optional and requires exact, separate owner authorization. Neither permits
   inferred deletion, uninstall, cloud changes, or other destructive action.

@@ -107,6 +107,13 @@ class CreateTaskScreenTest {
             .onNodeWithTag(CreateTaskScreenTestTags.DESCRIPTION)
             .performTextInput("task")
         composeRule
+            .onNodeWithText("Hardware / software purchases")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule
+            .onAllNodesWithText("Hardware / Software Purchases")
+            .assertCountEquals(0)
+        composeRule
             .onNodeWithTag(CreateTaskScreenTestTags.PURCHASES)
             .performTextInput("laptop")
         composeRule
@@ -165,6 +172,8 @@ class CreateTaskScreenTest {
         composeRule.onAllNodesWithText("Consultant").assertCountEquals(0)
         composeRule.onAllNodesWithText("Client").assertCountEquals(0)
         composeRule.onAllNodesWithText("Consultant: Alex Rivera").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Exported text", substring = true).assertCountEquals(0)
+        composeRule.onAllNodesWithText("0 / 999").assertCountEquals(3)
     }
 
     @Test
@@ -183,7 +192,30 @@ class CreateTaskScreenTest {
         )
 
         composeRule.onNodeWithTag(CreateTaskScreenTestTags.NOTES).performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Character limit: 999").assertIsDisplayed()
+        composeRule.onNodeWithText("Character limit: 1000 / 999").assertIsDisplayed()
+        composeRule.onNodeWithTag(CreateTaskScreenTestTags.CREATE).assertIsNotEnabled()
+    }
+
+    @Test
+    fun overlengthDescriptionKeepsItsLiveCharacterCount() {
+        setContent(
+            state =
+                CreateTaskUiState(
+                    isLoadingClients = false,
+                    activeClients = listOf(ClientItemUi("client", "Client")),
+                    selectedClientId = "client",
+                    isLoadingConsultant = false,
+                    selectedConsultantId = "employee",
+                    description = "x".repeat(999) + ".",
+                    metadataErrors = setOf(TaskMetadataValidationError.DESCRIPTION_TOO_LONG),
+                ),
+        )
+
+        composeRule
+            .onNodeWithText("Character limit: 1000 / 999")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(CreateTaskScreenTestTags.CREATE).assertIsNotEnabled()
     }
 
     @Test
@@ -212,6 +244,54 @@ class CreateTaskScreenTest {
             .onNodeWithTag(CreateTaskScreenTestTags.CREATE)
             .assertHasClickAction()
             .assertIsEnabled()
+    }
+
+    @Test
+    fun missingClientErrorAppearsDirectlyBelowTheSelector() {
+        setContent(
+            state =
+                CreateTaskUiState(
+                    isLoadingClients = false,
+                    activeClients = listOf(ClientItemUi("client", "Client")),
+                    isLoadingConsultant = false,
+                    selectedConsultantId = "employee",
+                    message = CreateTaskMessage.CLIENT_REQUIRED,
+                ),
+        )
+
+        val selector = composeRule.onNodeWithText("Choose a client").assertIsDisplayed()
+        val error =
+            composeRule
+                .onNodeWithText("A task must have an active client.")
+                .assertIsDisplayed()
+        assertTrue(
+            selector.fetchSemanticsNode().boundsInRoot.bottom <=
+                error.fetchSemanticsNode().boundsInRoot.top,
+        )
+        composeRule.onAllNodesWithText("A task must have an active client.").assertCountEquals(1)
+        composeRule.onNodeWithTag(CreateTaskScreenTestTags.FOOTER).assertIsDisplayed()
+    }
+
+    @Test
+    fun nonAssignmentPageErrorRemainsInTheScrollableForm() {
+        setContent(
+            state =
+                CreateTaskUiState(
+                    isLoadingClients = false,
+                    activeClients = listOf(ClientItemUi("client", "Client")),
+                    selectedClientId = "client",
+                    isLoadingConsultant = false,
+                    selectedConsultantId = "employee",
+                    message = CreateTaskMessage.DATA_UNAVAILABLE,
+                ),
+        )
+
+        composeRule
+            .onNodeWithText("Local data is temporarily unavailable. Try again.")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(CreateTaskScreenTestTags.FOOTER).assertIsDisplayed()
+        composeRule.onNodeWithTag(CreateTaskScreenTestTags.CREATE).assertIsDisplayed()
     }
 
     @Test

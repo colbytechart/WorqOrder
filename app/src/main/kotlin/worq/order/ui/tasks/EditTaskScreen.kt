@@ -54,6 +54,8 @@ import worq.order.data.TaskMetadataValidationError
 import worq.order.domain.ManualIntervalValidationError
 import worq.order.domain.OverlapOffsetChoice
 import worq.order.ui.WorqOrderTextInputDefaults
+import worq.order.ui.clients.ClientEditorDialog
+import worq.order.ui.clients.RestoreArchivedClientDialog
 import worq.order.ui.theme.WorqOrderDimens
 import worq.order.util.ClockTimeFormatter
 
@@ -150,6 +152,8 @@ fun EditTaskScreen(
             onSearchChanged = { onEvent(EditTaskEvent.EditTagSearch(it)) },
             onClearSearch = { onEvent(EditTaskEvent.ClearTagSearch) },
             onToggle = { onEvent(EditTaskEvent.ToggleTagPickerItem(it)) },
+            onSelectAll = { onEvent(EditTaskEvent.SelectAllVisibleTagPickerItems) },
+            onDeselectAll = { onEvent(EditTaskEvent.DeselectAllVisibleTagPickerItems) },
             onCancel = { onEvent(EditTaskEvent.DismissTagPicker) },
             onApply = { onEvent(EditTaskEvent.ApplyTagPicker) },
             onCreateInline = { onEvent(EditTaskEvent.OpenInlineTagCreate) },
@@ -162,6 +166,21 @@ fun EditTaskScreen(
             onTextChanged = { onEvent(EditTaskEvent.EditInlineTagText(it)) },
             onConfirm = { onEvent(EditTaskEvent.ConfirmInlineTagCreate) },
             onDismiss = { onEvent(EditTaskEvent.DismissInlineTagCreate) },
+        )
+    }
+    uiState.addClientEditor?.let { editor ->
+        ClientEditorDialog(
+            editor = editor,
+            onNameChanged = { onEvent(EditTaskEvent.EditNewClientName(it)) },
+            onConfirm = { onEvent(EditTaskEvent.ConfirmAddClient) },
+            onDismiss = { onEvent(EditTaskEvent.DismissAddClient) },
+        )
+    }
+    uiState.restoreOffer?.let { offer ->
+        RestoreArchivedClientDialog(
+            offer = offer,
+            onConfirm = { onEvent(EditTaskEvent.ConfirmRestoreOffer) },
+            onDismiss = { onEvent(EditTaskEvent.DismissRestoreOffer) },
         )
     }
     EditTaskDialogs(uiState = uiState, onEvent = onEvent)
@@ -177,6 +196,24 @@ private fun EditTaskContent(
         uiState.activeClients.any { it.id == uiState.selectedClientId }
     val selectedConsultantActive =
         uiState.activeConsultants.any { it.id == uiState.selectedConsultantId }
+    val liveTextErrors = uiState.liveTextErrors()
+    val clientSelectorError =
+        when {
+            uiState.message == EditTaskMessage.CLIENT_NOT_FOUND ->
+                stringResource(R.string.client_not_found)
+            !selectedClientActive || uiState.message == EditTaskMessage.CLIENT_UNAVAILABLE ->
+                stringResource(R.string.task_client_archived_during_edit)
+            else -> null
+        }
+    val consultantSelectorError =
+        if (
+            !selectedConsultantActive ||
+                uiState.message == EditTaskMessage.CONSULTANT_UNAVAILABLE
+        ) {
+            stringResource(R.string.task_consultant_unavailable)
+        } else {
+            null
+        }
     Column(
         modifier =
             modifier
@@ -197,7 +234,7 @@ private fun EditTaskContent(
                 style = MaterialTheme.typography.titleMedium,
             )
         }
-        if (uiState.isRunning) {
+        if (uiState.isRunning && uiState.message != EditTaskMessage.RUNNING_TASK) {
             Text(
                 text = stringResource(R.string.running_task_edit_blocked),
                 color = MaterialTheme.colorScheme.error,
@@ -215,19 +252,22 @@ private fun EditTaskContent(
         } else {
             TaskClientSelector(
                 activeClients = uiState.activeClients,
-                selectedClientName = uiState.selectedClientName,
+                selectedClientName = uiState.selectedClientName.takeIf { selectedClientActive },
                 expanded = uiState.isClientMenuExpanded,
                 enabled = !uiState.isRunning && !uiState.isSavingMetadata,
                 onOpen = { onEvent(EditTaskEvent.OpenClientMenu) },
                 onDismiss = { onEvent(EditTaskEvent.DismissClientMenu) },
                 onSelect = { onEvent(EditTaskEvent.SelectClient(it)) },
+                errorMessage = clientSelectorError,
             )
         }
         if (!selectedClientActive) {
-            Text(
-                text = stringResource(R.string.task_client_archived_during_edit),
-                color = MaterialTheme.colorScheme.error,
-            )
+            TextButton(
+                onClick = { onEvent(EditTaskEvent.OpenAddClient) },
+                enabled = !uiState.isRunning && !uiState.isSavingMetadata,
+            ) {
+                Text(stringResource(R.string.add_client_inline))
+            }
         }
         Text(
             text = stringResource(R.string.consultant),
@@ -241,20 +281,15 @@ private fun EditTaskContent(
         } else {
             TaskConsultantSelector(
                 activeConsultants = uiState.activeConsultants,
-                selectedConsultantName = uiState.selectedConsultantName,
+                selectedConsultantName =
+                    uiState.selectedConsultantName.takeIf { selectedConsultantActive },
                 expanded = uiState.isConsultantMenuExpanded,
                 enabled = !uiState.isRunning && !uiState.isSavingMetadata,
                 onOpen = { onEvent(EditTaskEvent.OpenConsultantMenu) },
                 onDismiss = { onEvent(EditTaskEvent.DismissConsultantMenu) },
                 onSelect = { onEvent(EditTaskEvent.SelectConsultant(it)) },
                 modifier = Modifier.testTag(EditTaskScreenTestTags.CONSULTANT_SELECTOR),
-            )
-        }
-        if (!selectedConsultantActive) {
-            Text(
-                text = stringResource(R.string.task_consultant_unavailable),
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.testTag(EditTaskScreenTestTags.CONSULTANT),
+                errorMessage = consultantSelectorError,
             )
         }
         OutlinedTextField(
@@ -268,26 +303,22 @@ private fun EditTaskContent(
             keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
             isError =
                 TaskMetadataValidationError.DESCRIPTION_REQUIRED in uiState.metadataErrors ||
-                    TaskMetadataValidationError.DESCRIPTION_TOO_LONG in uiState.metadataErrors,
+                    TaskMetadataValidationError.DESCRIPTION_TOO_LONG in liveTextErrors,
             supportingText = {
-                TaskComposedTextSupportingText(
-                    text = composedTaskText(uiState.description, uiState.descriptionTagSelections),
+                TaskTextSupportingText(
+                    value = composedTaskText(uiState.description, uiState.descriptionTagSelections),
+                    maxCodePoints = MAX_TASK_DESCRIPTION_CODE_POINTS,
                     blankError =
                         TaskMetadataValidationError.DESCRIPTION_REQUIRED in
-                            uiState.metadataErrors,
-                    tooLongError =
-                        TaskMetadataValidationError.DESCRIPTION_TOO_LONG in
                             uiState.metadataErrors,
                 )
             },
         )
         TaskTagControls(
-            field = TaskTagField.DESCRIPTION,
             selections = uiState.descriptionTagSelections,
             catalog = uiState.descriptionCatalogTags,
             enabled = !uiState.isRunning && !uiState.isSavingMetadata,
             onOpenPicker = { onEvent(EditTaskEvent.OpenTagPicker(TaskTagField.DESCRIPTION)) },
-            onRemove = { onEvent(EditTaskEvent.RemoveAppliedTag(TaskTagField.DESCRIPTION, it)) },
             onUseUpdatedVersion = {
                 onEvent(EditTaskEvent.UseUpdatedTagVersion(TaskTagField.DESCRIPTION, it))
             },
@@ -304,35 +335,25 @@ private fun EditTaskContent(
             maxLines = 6,
             keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
             isError =
-                TaskMetadataValidationError.PURCHASES_TOO_LONG in uiState.metadataErrors,
+                TaskMetadataValidationError.PURCHASES_TOO_LONG in liveTextErrors,
             supportingText = {
-                TaskComposedTextSupportingText(
-                    text =
+                TaskTextSupportingText(
+                    value =
                         composedTaskText(
                             uiState.hardwareSoftwarePurchases,
                             uiState.purchaseTagSelections,
                         ),
-                    tooLongError =
-                        TaskMetadataValidationError.PURCHASES_TOO_LONG in
-                            uiState.metadataErrors,
+                    maxCodePoints = MAX_TASK_PURCHASES_CODE_POINTS,
                 )
             },
         )
         TaskTagControls(
-            field = TaskTagField.HARDWARE_SOFTWARE_PURCHASES,
             selections = uiState.purchaseTagSelections,
             catalog = uiState.purchaseCatalogTags,
             enabled = !uiState.isRunning && !uiState.isSavingMetadata,
+            modifier = Modifier.padding(bottom = WorqOrderDimens.SectionSpacing),
             onOpenPicker = {
                 onEvent(EditTaskEvent.OpenTagPicker(TaskTagField.HARDWARE_SOFTWARE_PURCHASES))
-            },
-            onRemove = {
-                onEvent(
-                    EditTaskEvent.RemoveAppliedTag(
-                        TaskTagField.HARDWARE_SOFTWARE_PURCHASES,
-                        it,
-                    ),
-                )
             },
             onUseUpdatedVersion = {
                 onEvent(
@@ -372,17 +393,15 @@ private fun EditTaskContent(
             minLines = 2,
             maxLines = 6,
             keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
-            isError = TaskMetadataValidationError.NOTES_TOO_LONG in uiState.metadataErrors,
+            isError = TaskMetadataValidationError.NOTES_TOO_LONG in liveTextErrors,
             supportingText = {
                 TaskTextSupportingText(
                     value = uiState.notes,
                     maxCodePoints = MAX_TASK_NOTES_CODE_POINTS,
-                    tooLongError =
-                        TaskMetadataValidationError.NOTES_TOO_LONG in uiState.metadataErrors,
                 )
             },
         )
-        uiState.message?.let { message ->
+        uiState.message?.takeUnless(EditTaskMessage::isSelectorError)?.let { message ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -392,9 +411,7 @@ private fun EditTaskContent(
                     modifier =
                         Modifier
                             .weight(1f)
-                            .semantics {
-                                liveRegion = LiveRegionMode.Assertive
-                            },
+                            .semantics { liveRegion = LiveRegionMode.Assertive },
                     color = MaterialTheme.colorScheme.error,
                 )
                 TextButton(onClick = { onEvent(EditTaskEvent.DismissMessage) }) {
@@ -500,7 +517,8 @@ private fun EditTaskActionFooter(
                     !uiState.isRunning &&
                         !uiState.isSavingMetadata &&
                         selectedClientActive &&
-                        selectedConsultantActive,
+                        selectedConsultantActive &&
+                        uiState.liveTextErrors().isEmpty(),
                 modifier =
                     Modifier
                         .weight(1f)
@@ -512,6 +530,15 @@ private fun EditTaskActionFooter(
         }
     }
 }
+
+private fun EditTaskUiState.liveTextErrors(): Set<TaskMetadataValidationError> =
+    projectedTagTextErrors(
+        description = description,
+        descriptionSelections = descriptionTagSelections,
+        purchases = hardwareSoftwarePurchases,
+        purchaseSelections = purchaseTagSelections,
+        notes = notes,
+    )
 
 @Composable
 private fun IntervalCard(
@@ -844,6 +871,8 @@ private fun EditTaskMessage.stringResource(): Int =
     when (this) {
         EditTaskMessage.DATA_UNAVAILABLE -> R.string.data_unavailable
         EditTaskMessage.TASK_NOT_FOUND -> R.string.task_no_longer_exists
+        EditTaskMessage.CLIENT_NOT_FOUND -> R.string.client_not_found
+        EditTaskMessage.RESTORE_NAME_CONFLICT -> R.string.restore_client_conflict
         EditTaskMessage.CLIENT_UNAVAILABLE -> R.string.task_client_archived_during_edit
         EditTaskMessage.CONSULTANT_UNAVAILABLE -> R.string.task_consultant_unavailable
         EditTaskMessage.RUNNING_TASK -> R.string.running_task_edit_blocked
@@ -852,6 +881,11 @@ private fun EditTaskMessage.stringResource(): Int =
         EditTaskMessage.RUNNING_INTERVAL -> R.string.running_interval_edit_blocked
         EditTaskMessage.INTERVAL_CHANGED -> R.string.interval_changed_retry
     }
+
+private fun EditTaskMessage.isSelectorError(): Boolean =
+    this == EditTaskMessage.CLIENT_NOT_FOUND ||
+        this == EditTaskMessage.CLIENT_UNAVAILABLE ||
+        this == EditTaskMessage.CONSULTANT_UNAVAILABLE
 
 private fun ManualIntervalValidationError.stringResource(): Int =
     when (this) {

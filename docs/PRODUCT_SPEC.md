@@ -570,7 +570,7 @@ and physically verified `0.4.0`. GitHub Releases remains authoritative for downl
 
 Milestones 36–41 own planning, implementation, verification, and public-release handoff. The
 owner subsequently published and physically verified `0.4.0`. The former teardown Milestones 42
-and 43 are deferred and renumbered to post-`0.5.0` Milestones 48 and 49. Security Milestone E
+and 43 are deferred and renumbered to post-`0.5.0` Milestones 49 and 50. Security Milestone E
 stays unscheduled outside release scope.
 
 ## 17. Approved `0.5.0` reusable-Tag product changes (planned)
@@ -593,10 +593,19 @@ It adds reusable local text catalogs without adding export columns or changing R
    skipped counts. Malformed or overlength content, a file over 1 MiB, or more than 10,000 nonblank
    cells fails atomically and changes nothing. No broad storage permission is requested.
 4. **Compact task selection.** Description and Hardware / Software Purchases retain normal manual
-   entry and gain clearly associated dismissible Tag chips plus an Add Tags action. A full-screen
+   entry and gain one unlabeled, non-wrapping row directly below each field. With no selections,
+   its button reads **Add tags** and has no chip. With selections, the button reads **Edit tags**
+   and is followed by either the one selected Tag in an ellipsized chip or a single `+N tags
+   selected` chip for multiple selections. These informational chips use the lighter selected
+   color, outline, pill shape, and intrinsic label width. Only a long single Tag expands into the
+   remaining width before ellipsizing. Both button and chip open the picker; chips have no
+   direct close action. A full-screen
    picker supports browse, real-time filter, clear, multi-select in selection order, selected
    count, Cancel/Apply, and inline creation. Filtered-out selections remain selected. An inline-
-   created Tag is persisted and selected even if the task form is later cancelled.
+   created Tag is persisted and selected even if the task form is later cancelled. Non-scrolling
+   **Select All** and **Deselect All** actions affect only rows visible under the current search;
+   hidden selections remain unchanged. An over-limit Select All changes nothing and explains the
+   limit through the existing picker error.
 5. **Snapshot history.** Saving a task copies selected Tag text and order into task-owned
    snapshots. Catalog edits/deletions never rewrite old tasks or exports. An old task continues to
    show saved chips; an edited source offers an explicit **Use Updated Version** replacement, while
@@ -604,8 +613,11 @@ It adds reusable local text catalogs without adding export columns or changing R
    after confirmation; no Archived Tags area is added.
 6. **Expanded composed limits.** Manual Description and Hardware / Software Purchases expand from
    400 to an exported composed maximum of 999 Unicode code points. Manual text, Tag snapshots,
-   generated punctuation, and joining spaces all count. Show **Exported text: N / 999**, prevent
-   an overlimit selection, surface later manual overage next to the field, and disable Create/Save
+   generated punctuation, and joining spaces all count. Description, Hardware / Software
+   purchases, and Notes show **N / 999** through the limit. Above the limit, show the live red
+   **Character limit: N / 999** state. Never prefix the normal counter with `Exported text:`.
+   Prevent an overlimit selection, surface later manual overage next
+   to the field, and disable Create/Save
    until valid. Description is valid when either manual text or at least one Description Tag is
    nonblank. Purchases remains optional.
 7. **Export-only composition.** For Description and Expense, trim components, place manual text
@@ -623,7 +635,19 @@ It adds reusable local text catalogs without adding export columns or changing R
     retain exact manual fields and begin with no Tag snapshots. Canonical export schema 6 remains
     exactly 14 visible columns; Tags compose existing Description and Expense values. Google tab
     ownership/layout and CSV/XLSX lifecycle remain unchanged.
+11. **Local assignment feedback and action-only footers.** Create/Edit footers contain only their
+    respective two actions. A missing/unavailable Client or Consultant error appears as small text
+    directly below its selector or recovery button; that button's outline/content and the error use
+    the error color without recoloring menu entries. Other page messages remain in the scrollable
+    body. Every Settings and inline Tag add/edit dialog shows live **N / 400** feedback, changes to
+    red **Character limit: N / 400** above the limit, and disables confirmation until corrected.
+12. **Edit client recovery.** If an Edit Task form's assigned client is archived or otherwise no
+    longer active, show **Add client** beside the existing client recovery feedback. It opens the
+    same validated inline editor and archived-match restore confirmation as Create Task. The new or
+    restored client is selected as an unsaved task edit; adding/restoring the directory entry is an
+    immediate independent action and is not undone by cancelling the task edit.
 
-Milestones 42–47 own planning through public-release verification. Deferred environment teardown
-and optional closeout are Milestones 48–49 and cannot start implicitly. See
+Milestones 42–48 own planning through public-release verification. Milestone 47 owns the final
+Create/Edit presentation consistency pass; Milestone 48 owns the release audit. Deferred
+environment teardown and optional closeout are Milestones 49–50 and cannot start implicitly. See
 `V0_5_MILESTONE_PROMPTS.md` for model assignments and mandatory owner-run test handoffs.

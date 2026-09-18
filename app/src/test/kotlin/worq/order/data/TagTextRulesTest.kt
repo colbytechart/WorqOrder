@@ -49,6 +49,13 @@ class TagTextRulesTest {
             "Tag-only description.",
             TaskTextComposer.compose("", listOf("Tag-only description")),
         )
+        assertEquals(
+            "Line 1\r\nLine 2. Saved tag.",
+            TaskTextComposer.compose(
+                manualText = "  Line 1\r\nLine 2  ",
+                tagTexts = listOf("Saved tag"),
+            ),
+        )
     }
 
     @Test

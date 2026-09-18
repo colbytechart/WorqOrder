@@ -731,3 +731,29 @@ The reviewed source/candidate is approved for the owner's integration merge and 
 public release is not complete until the owner tags/uploads and independently checks the
 downloaded asset. WorkManager's best-effort timing limitation remains; one successful device
 run does not guarantee exact execution time on every Android device.
+
+## 18. Milestone 46 (`0.5.0`) shared export-composition evidence
+
+On 2026-09-18, the owner reported that the focused Milestone 46 JVM suite and complete connected
+instrumentation suite passed after the shared Description/Expense composer was integrated into the
+canonical export projection. The focused coverage includes manual-only, Tag-only, mixed ordered
+snapshots, punctuation, surrounding whitespace, embedded CR/LF, Unicode, exact/over-limit Unicode
+code-point counts, historical tasks without snapshots, CSV quoting, XLSX output, Google schema-6
+planning, legacy compatibility, and exact cross-destination row equivalence.
+
+The owner also reported that manual checks 1-8 and 10 passed: CSV/XLSX/Google retained the same 14
+visible columns and composed values; repeated keyed Google export did not duplicate rows; remote
+rows were preserved; catalog edits/deletes did not rewrite saved task snapshots; and automatic
+Google export used the same composed projection without local task mutation. Manual check 9 for
+formula-looking input was intentionally skipped by the owner. Its transport mechanics remain
+covered by the passing XLSX literal-inline-string and Google `stringValue` encoder tests. CSV
+continues the documented schema-6 policy of preserving exact user text with RFC-style quoting; it
+does not promise to suppress a spreadsheet application's formula interpretation.
+
+Sol's repository audit confirmed that CSV, one-off XLSX, manual Google, and automatic Google all
+receive the same `ExportSnapshotCoordinator` projection. Room reads tasks, intervals, and task-owned
+Tag snapshots in one transaction; the export builder orders snapshots by persisted selection order
+and never reads the mutable Tag catalog. Google remains schema 6 with visible A:N, reserved O,
+hidden identity P, ownership checks, keyed updates, and other-device row preservation. No schema-7
+Google marker, fifteenth visible column, destination-specific Tag logic, or Room write was added.
+No release-blocking Milestone 46 defect remains in the reported evidence.

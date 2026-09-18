@@ -1299,14 +1299,16 @@ Create/Edit task metadata and snapshot-set changes are transactional.
 Manual Description and Hardware / Software Purchases plus their selected snapshot text have a
 999-Unicode-code-point composed export limit; individual Tags have a 400-code-point limit.
 Description can be satisfied entirely by Tags. One pure composer places manual text first, then
-snapshots in selection order, adds a period when a component lacks `.`, `?`, or `!`, joins with one
-space, and returns structured length errors. Generated punctuation exists only in exported values.
-It never modifies manual text or snapshots.
+snapshots in selection order, adds a period when a component lacks `.`, `?`, or `!`, and joins with
+one space. Shared validation counts that same composed result and returns structured length errors.
+Generated punctuation exists only in exported values. The composer never modifies manual text or
+snapshots.
 
 Tags do not add columns. Keep canonical export schema 6, its 14 exact visible headers, and current
-Google A:N/O/P layout and marker. Every destination receives the same composed Description and
-Expense from the immutable projection; adapters never query catalogs or compose independently.
-This preserves `0.4.0`/`0.5.0` Google tab compatibility and other-device keyed rows.
+Google A:N/O/P layout and marker. Milestone 46 integrates the single pure composer into the
+immutable projection, so every destination receives the same composed Description and Expense;
+adapters never query catalogs or compose independently. This preserves `0.4.0`/`0.5.0` Google tab
+compatibility and other-device keyed rows.
 
 ### D-104 — Tag management is bounded, searchable, and safely importable
 

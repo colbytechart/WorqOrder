@@ -12,6 +12,8 @@ import worq.order.export.csv.CsvSerializer
 import worq.order.model.Client
 import worq.order.model.BillingStatus
 import worq.order.model.DailyTask
+import worq.order.model.TagCategory
+import worq.order.model.TaskTagSnapshot
 import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
@@ -123,7 +125,7 @@ class ExportRowBuilderAndCsvSerializerTest {
         assertEquals(3, first.rows.size)
         assertEquals(listOf("zero", "one", "later"), first.rows.map { it.sourceTaskId })
         assertEquals(
-            listOf("Zero", "One", "Later"),
+            listOf("Zero.", "One.", "Later."),
             first.rows.map { it["Description"] },
         )
         assertEquals(
@@ -162,8 +164,8 @@ class ExportRowBuilderAndCsvSerializerTest {
             )
 
         assertTrue(csv.contains("\"Acme, International\""))
-        assertTrue(csv.contains("\"Line 1\r\n\"\"quoted\"\", café 😀 東京\""))
-        assertTrue(csv.contains("\"Suite,\nPro\""))
+        assertTrue(csv.contains("\"Line 1\r\n\"\"quoted\"\", café 😀 東京.\""))
+        assertTrue(csv.contains("\"Suite,\nPro.\""))
         assertTrue(csv.contains("\"Follow up:\r\n\"\"Call\"\" R\u00e9sum\u00e9 \uD83D\uDE80\""))
         assertEquals(
             csv,
@@ -217,9 +219,9 @@ class ExportRowBuilderAndCsvSerializerTest {
                 exportedAt = Instant.parse("2026-11-02T06:00:00Z"),
                 tasks = listOf(longTask, repeatedHourTask),
             )
-        val longRow = snapshot.rows.first { it["Description"] == "Long" }
+        val longRow = snapshot.rows.first { it["Description"] == "Long." }
         val repeatedHourRow =
-            snapshot.rows.first { it["Description"] == "Repeated" }
+            snapshot.rows.first { it["Description"] == "Repeated." }
 
         assertEquals("25:00:00", longRow["Time spent"])
         assertEquals("1500", longRow["Billing minutes"])
@@ -286,6 +288,64 @@ class ExportRowBuilderAndCsvSerializerTest {
         assertEquals(ExportSchema.headers, serializer.serialize(snapshot).lineSequence().first().split(','))
     }
 
+    @Test
+    fun canonicalRowsComposeManualTextWithOrderedTaskSnapshotsForDescriptionAndExpense() {
+        val fixture = Schema6TagExportFixtures.cases.single { it.name == "mixed selection order" }
+        val detail =
+            detail(
+                taskId = "tagged",
+                description = fixture.manualDescription,
+                purchases = fixture.manualExpense,
+                tagSnapshots = fixtureSnapshots(fixture),
+            )
+
+        val row = builder.build(WORK_DATE, EXPORTED_AT, listOf(detail)).rows.single()
+
+        assertEquals(fixture.expectedDescription, row["Description"])
+        assertEquals(fixture.expectedExpense, row["Expense"])
+    }
+
+    @Test
+    fun historicalTaskWithoutSnapshotsComposesOnlyItsManualText() {
+        val fixture =
+            Schema6TagExportFixtures.cases.single { it.name == "historical task without snapshots" }
+        val detail =
+            detail(
+                taskId = "historical",
+                description = fixture.manualDescription,
+                purchases = fixture.manualExpense,
+            )
+
+        val row = builder.build(WORK_DATE, EXPORTED_AT, listOf(detail)).rows.single()
+
+        assertEquals(fixture.expectedDescription, row["Description"])
+        assertEquals(fixture.expectedExpense, row["Expense"])
+    }
+
+    @Test
+    fun builderFailsClosedForCorruptPersistedTextBeyondTheComposedLimit() {
+        val detail =
+            detail(
+                taskId = "over-limit",
+                description = "m".repeat(990),
+                tagSnapshots =
+                    listOf(
+                        tagSnapshot(
+                            id = "over-limit-description",
+                            taskId = "over-limit",
+                            category = TagCategory.DESCRIPTION,
+                            text = "t".repeat(7),
+                            selectionOrder = 0,
+                        ),
+                    ),
+            )
+
+        val failure = runCatching { builder.build(WORK_DATE, EXPORTED_AT, listOf(detail)) }.exceptionOrNull()
+
+        assertTrue(failure is IllegalArgumentException)
+        assertEquals("Saved task text exceeds the supported export limit", failure?.message)
+    }
+
     private operator fun ExportRow.get(column: String): String =
         values[ExportSchema.headers.indexOf(column)]
 
@@ -303,6 +363,7 @@ class ExportRowBuilderAndCsvSerializerTest {
         mileage: String? = null,
         createdAt: Instant = Instant.parse("2026-07-24T10:00:00Z"),
         intervals: List<WorkInterval> = emptyList(),
+        tagSnapshots: List<TaskTagSnapshot> = emptyList(),
     ): TaskWithIntervals {
         val client =
             Client(
@@ -334,8 +395,46 @@ class ExportRowBuilderAndCsvSerializerTest {
         return TaskWithIntervals(
             taskWithClient = TaskWithClient(task, client),
             intervals = intervals,
+            tagSnapshots = tagSnapshots,
         )
     }
+
+    /** Intentionally shuffled to prove export uses each snapshot's persisted selection order. */
+    private fun fixtureSnapshots(fixture: Schema6TagExportFixture): List<TaskTagSnapshot> =
+        (
+            fixture.descriptionTags.mapIndexed { index, text ->
+                tagSnapshot(
+                    id = "description-$index",
+                    category = TagCategory.DESCRIPTION,
+                    text = text,
+                    selectionOrder = index,
+                )
+            } + fixture.expenseTags.mapIndexed { index, text ->
+                tagSnapshot(
+                    id = "expense-$index",
+                    category = TagCategory.HARDWARE_SOFTWARE_PURCHASE,
+                    text = text,
+                    selectionOrder = index,
+                )
+            }
+        ).reversed()
+
+    private fun tagSnapshot(
+        id: String,
+        taskId: String = "tagged",
+        category: TagCategory,
+        text: String,
+        selectionOrder: Int,
+    ): TaskTagSnapshot =
+        TaskTagSnapshot(
+            id = id,
+            taskId = taskId,
+            category = category,
+            text = text,
+            sourceTagId = "source-$id",
+            selectionOrder = selectionOrder,
+            createdAt = EXPORTED_AT,
+        )
 
     private fun interval(
         id: String,

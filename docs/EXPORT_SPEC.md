@@ -1,7 +1,8 @@
 # Export Specification
 
-Released `0.4.0` uses canonical schema 6 with 14 visible columns. Section 15 is approved `0.5.0`
-composition planning and does not change the schema or describe implemented behavior yet.
+Released `0.4.0` uses canonical schema 6 with 14 visible columns. `0.5.0` retains that schema;
+Section 15 records the implemented shared Tag-composition behavior without changing its visible
+columns or Google layout.
 
 ## 1. Principles
 
@@ -671,7 +672,7 @@ defaults to 13, so it cannot hide occupied reserved columns. The later complete 
 passed 117 tests without failures, errors, or skips. A live Google schema-5 tab upgrade against a
 real account remains a final `0.4.0` integration gate before release.
 
-## 15. Planned `0.5.0` Tag composition — schema 6 remains unchanged
+## 15. Implemented `0.5.0` Tag composition — schema 6 remains unchanged
 
 Reusable Tags do **not** add visible or hidden export columns, change header spelling/order, or
 advance the canonical export schema marker. CSV, one-off XLSX, manual Google, and automatic Google

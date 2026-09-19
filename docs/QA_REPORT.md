@@ -844,6 +844,14 @@ The owner then verified the official public `0.4.0` APK baseline with SHA-256
 certificate, populated that installation, and installed the unchanged `0.5.0` candidate over it.
 The upgrade, retained data, migration, launch, task/Tag/timer smoke, force-stop/reopen, and version
 display checks passed. A separate disposable-emulator fresh installation and its persistence smoke
-also passed. This completes the pre-publication signed-artifact gate. Integration merge, tag,
-GitHub publication, independent download/checksum/signature verification, and physical-device
-installation of the downloaded public asset remain unperformed and must not be inferred.
+also passed. This completed the pre-publication signed-artifact gate. At that stage, integration
+merge, tag, GitHub publication, independent download/checksum/signature verification, and
+physical-device installation of the downloaded public asset remained unperformed.
+
+The owner subsequently merged `milestone48` into `v0.5.0-development` and that integration branch
+into `main`. The annotated `v0.5.0` tag was corrected before push so its peeled commit matched
+`main`. The unchanged APK was published on GitHub, independently downloaded, and reverified; its
+SHA-256, permanent signer, package, and version matched the candidate evidence above. The owner
+installed the downloaded release on a physical device and reported all release smoke checks passed.
+WorqOrder `0.5.0` is therefore publicly released and Milestone 48 is complete. No Milestone 49 or
+50 work was started.

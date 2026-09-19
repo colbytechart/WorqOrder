@@ -74,18 +74,15 @@
   `Notes` as column 14. CSV, one-off XLSX, manual Google, and automatic Google must share the same
   immutable projection. Preserve existing Google date-tab rows and transport identities during a
   reviewed schema-5-to-6 compatibility transition; never clear another device's rows.
-- `0.5.0` development begins with documentation-only Milestone 42. Later milestones may start only
-  on explicit owner instruction, with the owner's current weekly-token-budget percentage and the
-  matching milestone branch. Follow `docs/V0_5_MILESTONE_PROMPTS.md`. Every milestone is divided
-  into explicitly assigned Luna, Terra, and Sol subtasks. Stop after **every** subtask and wait for
-  the owner to confirm the next assigned model. Prefer Luna for bounded inventory, fixtures, and
-  mechanical tests; Terra for implementation; and Sol only for critical design, data-safety,
-  difficult defect resolution, and final quality decisions.
-- The owner alone runs all PowerShell/Gradle and Android emulator/device tests during `0.5.0`.
+- Released `0.5.0` was delivered through Milestones 42–48. Its prompts and model assignments remain
+  historical evidence in `docs/V0_5_MILESTONE_PROMPTS.md`; do not reopen those milestones or infer
+  later work without explicit owner instruction.
+- The owner alone runs all PowerShell/Gradle and Android emulator/device tests unless explicitly
+  changing that rule.
   Agents must provide complete PowerShell commands that redeclare JBR/SDK/project-local paths and
   `-Duser.home`, plus numbered manual test instructions. Do not run Gradle, ADB, emulator, or
   device tests on the owner's behalf and never claim an owner-run result before it is reported.
-- Planned `0.5.0` reusable Tags are two category-scoped catalogs: Description Tags and Hardware /
+- Released `0.5.0` reusable Tags are two category-scoped catalogs: Description Tags and Hardware /
   Software Purchase Tags. Catalog edits/deletions never rewrite task snapshots. A task stores
   ordered Tag text snapshots; repeated Start copies them because it copies Description and
   purchase metadata. Inline-created Tags remain in the catalog if task creation is cancelled.
@@ -98,13 +95,13 @@
   Existing tasks retain their exact text and receive no snapshots. Canonical export schema 6 stays
   at the same 14 visible columns and Google layout; Tags do not create export columns or a Google
   schema transition.
-- `0.5.0` Milestone 47 is the owner-approved Create/Edit task-form polish milestone: unified live
+- `0.5.0` Milestone 47 delivered the owner-approved Create/Edit task-form polish: unified live
   character counters, compact picker-opening Tag summaries, consistent task-field labeling and
   spacing, no direct chip removal, selector-local assignment errors, live 400-code-point Tag-editor
   counters, filtered bulk Tag-picker selection controls, and Edit Task inline Add Client recovery
   when its assigned client is no longer active. Create/Edit footers contain only their two actions;
   non-field page messages remain in the scrollable content. The full audit/public-
-  release handoff is Milestone 48.
+  release handoff was completed in Milestone 48.
 - The former post-`0.4.0` environment teardown Milestones 42 and 43 are renumbered to Milestones
   49 and 50 and deferred until after the public `0.5.0` release. Milestone 49 is documentation-only;
   Milestone 50 remains optional and requires exact, separate owner authorization. Neither permits

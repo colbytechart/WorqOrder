@@ -2,8 +2,8 @@
 
 Version authority: this document retains earlier release descriptions for upgrade and historical
 traceability. Released `0.4.0` schema-6 Notes/export behavior and `0.3.0` timer/cardinality rules
-are current. Section 19 records the implemented-but-unreleased `0.5.0` Tag architecture; the
-Milestone 48 release audit still gates public distribution.
+are current. Section 19 records the released `0.5.0` Tag architecture; the Milestone 48 release
+audit and public-distribution verification are complete.
 
 ## 1. Architectural goals
 

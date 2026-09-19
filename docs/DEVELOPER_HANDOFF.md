@@ -7,9 +7,8 @@
 - Minimum SDK: 26
 - Target SDK: 36
 - Compile SDK: 36.1
-- Latest published release: `0.4.0` (`versionCode = 4`), owner-verified after public download and
+- Latest published release: `0.5.0` (`versionCode = 5`), owner-verified after public download and
   physical-device installation
-- Approved release candidate: `0.5.0` (`versionCode = 5`); not yet published
 - License: GPLv3
 - Distribution artifact: owner-signed APK attached to a GitHub Release
 
@@ -20,10 +19,9 @@ one-way exports.
 Milestone 41 signing, populated-update, device, export, merge, tag, public-download, and physical-
 device gates passed by owner report and generated evidence. `0.5.0` implementation is present
 through Milestone 47 on the development branch and is documented in
-`V0_5_MILESTONE_PROMPTS.md`. The owner approved `0.5.0`/code 5 during Milestone 48; it is not yet a
-public release. The exact signed candidate, signer/package/version/hash, populated signed `0.4.0`
-install-over, and fresh-install gates pass; merge/tag/publication and downloaded-public-asset
-verification remain pending.
+`V0_5_MILESTONE_PROMPTS.md`. The owner released `0.5.0`/code 5 after the exact signed candidate,
+signer/package/version/hash, populated signed `0.4.0` install-over, fresh-install, merge/tag,
+downloaded-public-asset, and physical-device gates passed.
 
 The owner-only `0.4.0` branch-to-GitHub sequence and reviewed candidate checksum are in
 `RELEASE_CHECKLIST.md`, Sections 10–11. Historical `0.2.0`/`0.3.0` commands later in this handoff

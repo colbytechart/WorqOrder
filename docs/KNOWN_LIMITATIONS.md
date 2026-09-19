@@ -168,11 +168,11 @@ debug connected suite. Optional app-private encryption and biometric/PIN or scre
 controls remain outside every
 release scope in optional Milestone E.
 
-## Implemented but unreleased `0.5.0` Tag limitations
+## Released `0.5.0` Tag limitations
 
-Tag catalogs, task snapshots, picker composition, and local CSV import are implemented through
-Milestone 47. The Milestone 48 release audit and owner-run release gates remain pending. Import is
-local CSV only, every nonblank cell is data, and the 1 MiB/10,000-nonblank-cell bounds are
+Tag catalogs, task snapshots, picker composition, and local CSV import were released after the
+Milestone 48 audit and owner-run release gates passed. Import is local CSV only, every nonblank
+cell is data, and the 1 MiB/10,000-nonblank-cell bounds are
 intentional. Tags are not labels, categories, remote synchronization, or new export columns.
 Catalog deletion does not erase text already saved in task snapshots. Generated punctuation is an
 export-only projection and does not alter the user's stored manual text.

@@ -2,11 +2,10 @@
 
 ## Status and operating protocol
 
-The owner has publicly released `0.3.0`. Milestone 36 prepares `0.4.0` documentation only;
-Milestones 37–41 implement, verify, and release it. Milestones 42–43 are **after** the public
-`0.4.0` release; 42 writes a non-destructive teardown guide, while 43 requires new, exact owner
-authorization for any real closeout action. Optional security Milestone E remains unscheduled and
-outside this release.
+The owner has publicly released `0.4.0`; Milestones 36–41 below are historical delivery prompts.
+The former Milestones 42–43 have been renumbered and deferred to post-`0.5.0` Milestones 49–50.
+Their authoritative prompts now live in `V0_5_MILESTONE_PROMPTS.md`. Do not start cleanup from
+this archived file. Optional security Milestone E remains unscheduled and outside every release.
 
 Before starting **each later milestone**, the owner gives an explicit start instruction, active
 model, and current remaining weekly-token-budget percentage. The first phase estimates the entire
@@ -239,67 +238,12 @@ merge/tag/upload/public-download instructions; do not commit, merge, tag, or pub
 Stop after the owner confirms public install and retained data.
 ```
 
-## Milestone 42 — Post-release environment teardown guide only
+## Former Milestones 42–43 — deferred and renumbered
 
-Start only after the owner verifies the public `0.4.0` release and separately says to begin.
+The owner superseded these numbers before either closeout milestone began. Their scope is now:
 
-### Task 42A — Luna: non-destructive inventory
+- Milestone 49: post-public-`0.5.0` documentation-only environment teardown guide.
+- Milestone 50: separately authorized optional owner-directed closeout.
 
-```text
-Begin post-release Milestone 42 with Luna. Ask the owner for verified project-specific paths and
-inventory Android Studio, SDK/JBR, AVDs, Gradle, ADB, drivers, virtualization, repository clones,
-OAuth, releases, and signing backups using read-only commands within approved paths. Classify
-each item as preserve, shared/retain, project-only candidate, or unknown. Never delete or change
-machine/cloud state. Stop for Terra.
-```
-
-### Task 42B — Terra: staged reversible guide
-
-```text
-Continue Milestone 42 with Terra. Draft exact owner-executed Windows/Android cleanup instructions
-only for verified project-exclusive targets. Include backups, rollback and checks; do not use
-broad recursive paths or change BIOS/system, OAuth, signing, Git history, or release assets.
-Do not execute the guide. Stop for Sol.
-```
-
-### Task 42C — Sol: destructive-safety review
-
-```text
-Complete Milestone 42 with Sol. Audit every instruction for target precision, shared-tool risk,
-recoverability, signer/password backups, OAuth, public artifacts, and firmware safety. Require
-separate explicit owner decisions for actual removal. Publish only a safe guide, not actions.
-```
-
-## Milestone 43 — Optional owner-directed closeout
-
-Milestone 43 is **not automatic** and may never begin from a generic request to finish the
-project. After reviewing Milestone 42, the owner must name exact targets and separately authorize
-each material action. Unknown or shared targets remain untouched.
-
-### Task 43A — Luna: target and backup verification
-
-```text
-Begin optional Milestone 43 with Luna only after the owner names exact targets. Verify each
-target's resolved path, project exclusivity, backup/recovery status, and explicit owner approval.
-Do not remove anything. Stop if any target is unknown/shared or outside approved access, and hand
-the verified target list to Terra.
-```
-
-### Task 43B — Terra: approved reversible steps only
-
-```text
-Continue optional Milestone 43 with Terra. Perform only separately authorized, exact, recoverable
-project-only steps from the reviewed guide; verify each result. Never touch signing backups,
-remote releases/history, desired app/export data, shared toolchains, cloud configuration, or
-firmware without a new specific approval. Stop before any irreversible step for Sol review.
-```
-
-### Task 43C — Sol: irreversible-action and continuity gate
-
-```text
-Complete optional Milestone 43 with Sol. Review any proposed irreversible action's exact target,
-backup, rollback limits, shared-tool impact, and owner authorization before it occurs. Withhold
-unsafe steps. Check afterward that source, public releases, signer/key backups, and desired OAuth
-configuration remain available. Report every material removal and recovery status; do not infer
-permission for another target.
-```
+Use only `V0_5_MILESTONE_PROMPTS.md`. Finishing or publishing an app release never authorizes a
+deletion, uninstall, cloud change, firmware/system change, or other cleanup action.

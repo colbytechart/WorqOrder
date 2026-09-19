@@ -16,6 +16,7 @@ enum class CreateTaskMessage {
     CLIENT_ARCHIVED,
     CONSULTANT_REQUIRED,
     CONSULTANT_ARCHIVED,
+    TAG_DATA_UNAVAILABLE,
 }
 
 data class CreateTaskUiState(
@@ -30,6 +31,12 @@ data class CreateTaskUiState(
     val selectedConsultantName: String? = null,
     val description: String = "",
     val hardwareSoftwarePurchases: String = "",
+    val descriptionTagSelections: List<TaskTagSelectionUi> = emptyList(),
+    val purchaseTagSelections: List<TaskTagSelectionUi> = emptyList(),
+    val descriptionCatalogTags: List<TaskTagCatalogItemUi> = emptyList(),
+    val purchaseCatalogTags: List<TaskTagCatalogItemUi> = emptyList(),
+    val tagPicker: TaskTagPickerUiState? = null,
+    val tagInlineEditor: TaskTagInlineEditorUiState? = null,
     val workType: WorkType = WorkType.ON_SITE,
     val billingStatus: BillingStatus = BillingStatus.BILLABLE,
     val mileage: String = "",
@@ -64,6 +71,48 @@ sealed interface CreateTaskEvent {
 
     data class EditHardwareSoftwarePurchases(
         val value: String,
+    ) : CreateTaskEvent
+
+    data class OpenTagPicker(
+        val field: TaskTagField,
+    ) : CreateTaskEvent
+
+    data object DismissTagPicker : CreateTaskEvent
+
+    data class EditTagSearch(
+        val query: String,
+    ) : CreateTaskEvent
+
+    data object ClearTagSearch : CreateTaskEvent
+
+    data class ToggleTagPickerItem(
+        val itemId: String,
+    ) : CreateTaskEvent
+
+    data object SelectAllVisibleTagPickerItems : CreateTaskEvent
+
+    data object DeselectAllVisibleTagPickerItems : CreateTaskEvent
+
+    data object ApplyTagPicker : CreateTaskEvent
+
+    data object OpenInlineTagCreate : CreateTaskEvent
+
+    data class EditInlineTagText(
+        val value: String,
+    ) : CreateTaskEvent
+
+    data object ConfirmInlineTagCreate : CreateTaskEvent
+
+    data object DismissInlineTagCreate : CreateTaskEvent
+
+    data class RemoveAppliedTag(
+        val field: TaskTagField,
+        val selectionId: String,
+    ) : CreateTaskEvent
+
+    data class UseUpdatedTagVersion(
+        val field: TaskTagField,
+        val selectionId: String,
     ) : CreateTaskEvent
 
     data class SelectWorkType(

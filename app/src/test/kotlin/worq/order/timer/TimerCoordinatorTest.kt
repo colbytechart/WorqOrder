@@ -18,6 +18,8 @@ import worq.order.data.ManualIntervalPersistenceResult
 import worq.order.data.NewDailyTask
 import worq.order.data.SelectedTaskState
 import worq.order.model.DailyTask
+import worq.order.model.TagCategory
+import worq.order.model.TaskTagSnapshotDraft
 import worq.order.testing.FakeActiveTimerRepository
 import worq.order.testing.FakeMonotonicTimeSource
 import worq.order.testing.FakeSelectedTaskRepository
@@ -101,6 +103,13 @@ class TimerCoordinatorTest {
                     TODAY,
                     seriesId = "series-1",
                     notes = "Source notes",
+                    descriptionTagSnapshots =
+                        listOf(
+                            TaskTagSnapshotDraft("Install monitor", "description-source"),
+                            TaskTagSnapshotDraft("Verify cabling", "description-source-2"),
+                        ),
+                    hardwareSoftwarePurchaseTagSnapshots =
+                        listOf(TaskTagSnapshotDraft("HDMI cable", "purchase-source")),
                 )
             val task2 = fixture.addTask(TODAY, seriesId = "series-2")
 
@@ -137,6 +146,21 @@ class TimerCoordinatorTest {
             assertEquals(task1.zoneId, repeatedTask.zoneId)
             assertEquals("Source notes", task1.notes)
             assertEquals("", repeatedTask.notes)
+            val repeatedSnapshots =
+                requireNotNull(fixture.tasks.readTaskWithIntervals(repeatedTaskId))
+                    .tagSnapshots
+            assertEquals(
+                listOf("Install monitor", "Verify cabling"),
+                repeatedSnapshots
+                    .filter { it.category == TagCategory.DESCRIPTION }
+                    .map { it.text },
+            )
+            assertEquals(
+                listOf("HDMI cable"),
+                repeatedSnapshots
+                    .filter { it.category == TagCategory.HARDWARE_SOFTWARE_PURCHASE }
+                    .map { it.text },
+            )
             fixture.advance(Duration.ofHours(1))
             assertTrue(fixture.coordinator().stop() is StopTimerResult.Stopped)
 
@@ -484,12 +508,17 @@ class TimerCoordinatorTest {
             zoneId: ZoneId = NEW_YORK,
             seriesId: String = "series-1",
             notes: String = "",
+            descriptionTagSnapshots: List<TaskTagSnapshotDraft> = emptyList(),
+            hardwareSoftwarePurchaseTagSnapshots: List<TaskTagSnapshotDraft> = emptyList(),
         ): DailyTask =
             tasks.insertDailyTask(
                 NewDailyTask(
                     clientId = "client-1",
                     description = "Task $seriesId",
                     notes = notes,
+                    descriptionTagSnapshots = descriptionTagSnapshots,
+                    hardwareSoftwarePurchaseTagSnapshots =
+                        hardwareSoftwarePurchaseTagSnapshots,
                     workDate = date,
                     zoneId = zoneId,
                     seriesId = seriesId,

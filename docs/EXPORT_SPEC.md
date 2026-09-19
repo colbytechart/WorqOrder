@@ -1,5 +1,9 @@
 # Export Specification
 
+Released `0.4.0` uses canonical schema 6 with 14 visible columns. `0.5.0` retains that schema;
+Section 15 records the implemented shared Tag-composition behavior without changing its visible
+columns or Google layout.
+
 ## 1. Principles
 
 - Export exactly the date displayed on the main screen.
@@ -545,10 +549,12 @@ Version `0.2.0` historical tests cover consultant snapshot stability, Work type,
 Status, normalized/blank Mileage, Billing minutes at zero/positive/boundary/long totals, exact 15 schema-4 headers and
 duplicated `MM/DD/YYYY` Start date/End date values,
 schema-2/schema-3 owned-tab upgrade to schema 4, unowned-tab protection, and equivalent CSV/XLSX/Google
-values. Automatic-export tests cover captured-date execution before/after midnight, inexact delay,
-running-timer pending state, post-Stop notification action, notification dismissal, reboot/Doze,
-zone changes, disconnect/sign-out, authorization/offline/quota failure, manual/automatic races,
-idempotency, no Main success message, no sensitive notification content, and no CSV/XLSX schedule.
+values. Historical automatic-export tests cover captured-date execution before/after midnight,
+inexact delay, running-timer pending state, notification dismissal, reboot/Doze, zone changes,
+disconnect/sign-out, authorization/offline/quota failure, manual/automatic races, idempotency, no
+Main success message, no sensitive notification content, and no CSV/XLSX schedule. D-106 adds the
+current timer-specific contract: exact-boundary auto-close, no continuation/duplicate, immediate
+completed-date export, and automatic `TIMER_RUNNING` recovery after later Stop/reconciliation.
 
 ## 13. Canonical export schema version 5 (`0.3.0` current)
 
@@ -623,7 +629,7 @@ Start date,End date,Consultant,Client,Description,Expense,Work type,Billing Stat
 An untimed task has blank Start/Stop, `00:00:00` Time spent, and `0` Billing minutes. A running
 interval is never projected with a blank Stop as a successful export row.
 
-## 14. Canonical export schema version 6 (`0.4.0` development)
+## 14. Canonical export schema version 6 (released `0.4.0`)
 
 The first **13** visible headers and their value formats remain exactly as in schema 5 above.
 Append `Notes` as **column 14**, with the complete optional task Notes text or blank. This is one
@@ -667,3 +673,33 @@ debug/release gates passed. An API response missing the sheet's physical column 
 defaults to 13, so it cannot hide occupied reserved columns. The later complete connected suite
 passed 117 tests without failures, errors, or skips. A live Google schema-5 tab upgrade against a
 real account remains a final `0.4.0` integration gate before release.
+
+## 15. Implemented `0.5.0` Tag composition — schema 6 remains unchanged
+
+Reusable Tags do **not** add visible or hidden export columns, change header spelling/order, or
+advance the canonical export schema marker. CSV, one-off XLSX, manual Google, and automatic Google
+continue to emit schema 6's exact 14 visible columns and one row per task. Google remains visible
+A:N, reserved/hidden O, and hidden stable task identity P. Existing schema-6 tabs require no
+structural migration, and `0.4.0`/`0.5.0` devices retain the same keyed append/update contract.
+
+Before building a canonical row, one pure shared composer produces the two affected values:
+
+1. For `Description`, take stored manual Description followed by ordered saved Description Tag
+   snapshots. For `Expense`, take stored manual Hardware / Software Purchases followed by ordered
+   saved purchase Tag snapshots.
+2. Omit blank components and trim their surrounding whitespace for the projection only.
+3. Preserve component text when it already ends in `.`, `?`, or `!`; otherwise append `.`.
+4. Join the resulting components with one ASCII space, manual component first.
+5. Count the resulting Unicode code points, including spaces and generated periods. More than 999
+   is a typed validation failure and cannot be saved/exported successfully.
+
+The composer never modifies Room manual fields or snapshots. A historical task with no snapshots
+therefore exports its current manual value with only the approved export-only punctuation rule.
+Catalog edits and deletes cannot affect a saved row; only an explicit task edit can change its
+snapshots. Repeated Start copies source snapshots and their order before later export.
+
+All destination serializers receive the already composed immutable strings. They must not query
+the Tag catalog, choose order, append punctuation, enforce alternate limits, or render chips.
+Existing CSV quoting/newline/Unicode behavior, XLSX literal-cell behavior, Google formula safety,
+Stop-before-export, immutable snapshot timing, automatic captured-date handling, Room non-mutation,
+and keyed cross-device preservation remain mandatory.

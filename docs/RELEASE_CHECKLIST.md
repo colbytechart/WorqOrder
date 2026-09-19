@@ -8,7 +8,7 @@ Upgrade baseline: public `0.1.0` (`versionCode = 1`)
 Application ID: `worq.order`
 Distribution: owner-signed APK attached to a GitHub Release
 
-## `0.4.0` current handoff status
+## `0.4.0` completed handoff status
 
 At the 2026-09-15 QA source freeze, the `0.4.0` implementation was present on the
 `v0.4.0-development` branch but was not yet published. This file remains a historical `0.2.0`
@@ -17,7 +17,9 @@ Milestone 41C must verify the approved `0.4.0`/code 4 signed candidate,
 the complete non-destructive migration chain and schema-6 exports, current/API-26 device gates,
 live automatic Google behavior, and the last rebuilt artifact checksum, then provide final GitHub
 release instructions. Some gates are now recorded in Section 10 and `QA_REPORT.md`; no release
-is approved merely by this documentation update.
+was approved merely by that documentation update. The owner later completed merge/tag/publication,
+downloaded-asset verification, and physical-device installation. `0.5.0` release work belongs to
+Milestone 48; the checklist below remains historical evidence rather than reusable version values.
 
 ## 1. Permanent policies
 
@@ -345,3 +347,131 @@ repeat the relevant signed-install/export checks before publication. Never force
    Confirm old data remains and the app launches. Record that post-publication result in QA/
    handoff docs in a later reviewed documentation commit; never alter the published tag or APK
    bytes to do so.
+
+## 12. `0.5.0` Milestone 48 owner handoff (not yet released)
+
+The `0.5.0` Tag implementation is present through Milestone 47 on the development branch. Do not
+reuse the historical `0.2.0`/`0.4.0` artifact values above for this release. On 2026-09-19 the owner
+explicitly approved `versionName = 0.5.0` and `versionCode = 5`. Keep the permanent `worq.order`
+signer and complete the remaining owner-run artifact/publication gates recorded in `QA_REPORT.md`
+and `REQUIREMENTS_TRACEABILITY.md`.
+
+Required owner evidence still includes clean offline formatting/lint/JVM/debug/release builds,
+API-26/current connected suites, schema-1-through-7 migration and populated `0.4.0` install-over
+checks, Tag CRUD/search/import/picker/manual task checks, all three export paths plus automatic
+Google, accessibility/lifecycle/performance/security checks, signer/package/version/hash checks,
+and public-download install-over verification. Codex must not claim any of these until the owner
+reports them. No merge, tag, upload, publication, signing-key change, Google-scope change, or
+environment teardown is performed by Codex.
+
+## 13. `0.5.0` Milestone 48C owner-run commands and checklist
+
+The owner runs these commands from a new PowerShell session. They use the project-local Gradle and
+Android user homes and do not uninstall or clear application data. Run the connected suite once per
+active disposable emulator: first API 26, then the current target emulator.
+
+```powershell
+Set-Location 'T:\_SC Video\PROJECTS\2026\DNA Work Order App\app\WorqOrder'
+
+$env:JAVA_HOME = 'S:\Program Files\Android\Android Studio\jbr'
+$env:ANDROID_HOME = 'C:\Users\colby\AppData\Local\Android\Sdk'
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+$env:GRADLE_USER_HOME = (Resolve-Path -LiteralPath '.gradle').Path
+$projectUserHome = (Resolve-Path -LiteralPath '.android-user').Path
+
+git diff --check
+if ($LASTEXITCODE -ne 0) { throw 'Whitespace/conflict check failed.' }
+
+& .\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon clean
+if ($LASTEXITCODE -ne 0) { throw 'Clean failed.' }
+
+& .\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon :app:testDebugUnitTest
+if ($LASTEXITCODE -ne 0) { throw 'JVM unit tests failed.' }
+
+& .\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon :app:lintDebug :app:lintRelease
+if ($LASTEXITCODE -ne 0) { throw 'Lint failed.' }
+
+& .\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
+if ($LASTEXITCODE -ne 0) { throw 'Debug/test APK assembly failed.' }
+
+& .\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon :app:assembleRelease
+if ($LASTEXITCODE -ne 0) { throw 'Release assembly failed.' }
+
+& .\gradlew.bat "-Duser.home=$projectUserHome" --offline --no-daemon :app:connectedDebugAndroidTest
+if ($LASTEXITCODE -ne 0) { throw 'Connected instrumentation tests failed.' }
+```
+
+The connected suite includes Room schema 1-through-7 migration, active-timer, Compose, import,
+Tag, picker, task-form, and export regression tests. If a debug app is already installed with a
+different signer, use a disposable emulator or remove only that disposable test installation;
+never uninstall a populated release installation used for the upgrade check.
+
+### Manual owner matrix
+
+1. **Migration and persistence:** On a populated signed `0.4.0` installation, create clients,
+   Consultants, tasks, Notes, Tags, completed timing data, an active timer, settings, and an export
+   connection. Install the signed `0.5.0` APK over it without uninstalling. Confirm all records,
+   the active timer, preferences, and connection metadata remain. Reopen after force-stop/reboot.
+2. **Tag management:** Verify both catalogs independently support Add, Edit, confirmed Delete,
+   case-insensitive search, clear search, alphabetical ordering, and empty/no-result states.
+3. **Tag CSV import:** Use valid quoted CSV with Unicode, commas, quotes, line breaks, duplicates,
+   and header-looking cells. Confirm nonblank cells append, duplicates skip, lists stay sorted, and
+   malformed/non-CSV/over-1 MiB/over-10,000-cell/over-400-code-point files make no partial change.
+4. **Create/Edit picker:** Verify Add/Edit tags, ordered multi-select, Cancel/Apply, live search,
+   clear search, Select All/Deselect All for filtered results, inline creation, no direct chip
+   removal, and the 999-code-point composed limit. Confirm over-limit bulk selection is atomic.
+5. **Task history:** Save a task with manual text and ordered Tags, then edit/delete catalog Tags.
+   Confirm the task's saved text and export remain unchanged. Repeat Start and confirm snapshots
+   copy in order with new identities; Notes remains blank on the new task.
+6. **Form polish:** Check live `N / 999` and `Character limit: N / 999` states, live Tag-editor
+   `N / 400` states, selector-local Client/Consultant errors, fixed action-only footers, and Edit
+   Task inline Add Client recovery for archived assignments.
+7. **Exports:** With the same task data, manually export CSV and one-off XLSX, then manually export
+   Google Sheets. Confirm identical schema-6 14 columns, composed Description/Expense values,
+   punctuation, no Tag column, and no Room mutation. Re-export from a second device and confirm
+   keyed append/update preserves the other device's rows.
+8. **Automatic Google:** Enable Auto Export, schedule near the local day boundary, and confirm the
+   captured date exports silently. With a running timer, confirm midnight automatically closes the
+   interval at the exact boundary, exports the completed captured date, leaves no active timer, and
+   creates no continuation or duplicate next-day task. If a forced fallback leaves
+   `TIMER_RUNNING`, confirm later successful Stop/reconciliation resumes automatically without a
+   success notification. Reserve the attention notification/Settings action for authorization,
+   connectivity, permission, remote, or local-storage failures that require user recovery.
+9. **Accessibility/layout:** Check TalkBack, large font/display scale, light/dark themes, portrait,
+   landscape handedness, keyboard navigation, picker scrolling, and error announcement. Confirm no
+   critical Tag/task information depends on color or transient animation.
+10. **Lifecycle/performance:** Check background, screen lock, activity recreation, process death,
+    force-stop/reopen, reboot, and timer reconstruction. Observe a long foreground/background run
+    for unbounded memory growth, excessive CPU, overheating, or duplicate refresh work.
+11. **Release/security:** Confirm no secrets are tracked, backup remains disabled, package is
+    `worq.order`, the permanent signer SHA-1 is unchanged, the explicitly approved version identity
+    is present, and the final APK SHA-256 is recorded. Download the GitHub asset independently,
+    verify its checksum/signature/package, and install it over the populated signed installation.
+
+Record only results actually observed by the owner in `QA_REPORT.md`; failures remain release
+blockers until resolved or explicitly accepted by the owner.
+
+### Milestone 48 owner evidence — 2026-09-19
+
+The owner reports Steps 1–10 passed on the required migration/device workflows. Step 8 initially
+exposed the running-timer pending-export defect; D-106 corrected it, and the repeated real-boundary
+check passed with exact timer closure, silent captured-date Google export, and no continuation or
+duplicate task. The latest generated reports show 292/292 JVM and 151/151 connected tests passing;
+the owner separately reports API-26 and current-target suites passed. Preliminary Step 11 source,
+permission, backup, tracked-secret/artifact, prohibited-dependency, and destructive-migration scans
+pass. The release identity is owner-approved and present in source. The owner-signed artifact,
+permanent-signer comparison, package/version inspection, and checksum gate now pass. The exact
+candidate SHA-256 is
+`AB9AAD5FC34A0AD3677C8F3860BE1012DD104488D276816EA904B45A4C06F247`; its certificate SHA-1 is
+`57510ccb3001a7e70c4391c916a80a0cc603bb19`, and `aapt2` reports `worq.order`/`0.5.0`/code 5,
+minSdk 26, targetSdk 36. Install-over/fresh smoke, integration merge, tag/publication, independent
+download, and physical install-over were the remaining gates at that point. Do not rebuild the
+candidate after install verification unless all artifact checks are repeated and the recorded hash
+is replaced.
+
+The owner subsequently verified the official `0.4.0` GitHub APK baseline (SHA-256
+`B944CA0C8244179DFDBB0E899584A2CC4BB1E9A5A93DA0B4F9700020589E14C4`, permanent signer), populated
+it, and installed the unchanged `0.5.0` candidate over it. Data/migration, launch, Tag/task/timer,
+version-display, and force-stop/reopen checks passed. A separate fresh installation on a disposable
+emulator also passed. The APK must not be rebuilt before publication. Integration merge,
+tag/publication, independent public-asset verification, and physical-device installation remain.

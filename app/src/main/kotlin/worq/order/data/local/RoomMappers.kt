@@ -11,6 +11,9 @@ import worq.order.model.Client
 import worq.order.model.DailyTask
 import worq.order.model.Employee
 import worq.order.model.TaskListItem
+import worq.order.model.Tag
+import worq.order.model.TagCategory
+import worq.order.model.TaskTagSnapshot
 import worq.order.model.TaskWithClient
 import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
@@ -36,6 +39,27 @@ internal fun EmployeeEntity.toModel(): Employee =
         createdAt = Instant.ofEpochMilli(createdAtEpochMs),
         updatedAt = Instant.ofEpochMilli(updatedAtEpochMs),
         archivedAt = archivedAtEpochMs?.let(Instant::ofEpochMilli),
+    )
+
+internal fun TagEntity.toModel(): Tag =
+    Tag(
+        id = id,
+        category = TagCategory.valueOf(category),
+        text = text,
+        normalizedText = normalizedText,
+        createdAt = Instant.ofEpochMilli(createdAtEpochMs),
+        updatedAt = Instant.ofEpochMilli(updatedAtEpochMs),
+    )
+
+internal fun TaskTagSnapshotEntity.toModel(): TaskTagSnapshot =
+    TaskTagSnapshot(
+        id = id,
+        taskId = taskId,
+        category = TagCategory.valueOf(category),
+        text = textSnapshot,
+        sourceTagId = sourceTagId,
+        selectionOrder = selectionOrder,
+        createdAt = Instant.ofEpochMilli(createdAtEpochMs),
     )
 
 internal fun DailyTaskEntity.toModel(): DailyTask =
@@ -107,6 +131,7 @@ internal fun TaskWithOrderedIntervalsEntity.toModel(): TaskWithIntervals =
     TaskWithIntervals(
         taskWithClient = taskWithClient.toModel(),
         intervals = intervals.map(WorkIntervalEntity::toModel),
+        tagSnapshots = tagSnapshots.map(TaskTagSnapshotEntity::toModel),
     )
 
 internal fun ActiveTimerTransactionEntity.toModel(): ActiveTimerSnapshot =

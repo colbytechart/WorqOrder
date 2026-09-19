@@ -1,8 +1,10 @@
 # WorqOrder Data Model
 
-Version scope: schema and behavior descriptions explicitly labeled released `0.1.0`/`0.2.0` or
-versions 1–4 preserve historical/migration compatibility. The current `0.3.0` schema-5 model and
-its no-rollover, zero-or-one-interval rules are authoritative in Section 14.
+Version scope: schema and behavior descriptions explicitly labeled earlier releases preserve
+historical/migration compatibility. Released `0.4.0` Room schema 6 and the `0.3.0` no-rollover,
+zero-or-one-interval rules remain release behavior. Section 16 describes the implemented
+`0.5.0`-development schema-7 foundation and Tag integrations are implemented through Milestone 47;
+Milestone 48 still owns the release audit and owner-run gates.
 
 ## 1. Storage conventions
 
@@ -470,3 +472,100 @@ provide schema-6 export and Create/Edit presentation. The exported `6.json` was
 checked against schema 5: Notes is the only added column, with a non-null empty-string default;
 indexes and foreign keys are unchanged. The owner-run offline JVM/lint/debug/release and connected
 gates passed for Milestone 37.
+
+## 16. Implemented `0.5.0` Room schema 7 — reusable Tag catalogs and task snapshots
+
+Milestone 43 implements this approved migration contract. `MIGRATION_6_7` adds tables and indexes
+only; it does not rebuild or rewrite `daily_tasks`, clients, Consultants, intervals,
+`active_timer`, or settings. Supported schema-1-through-6 upgrade paths reach schema 7 without
+destructive fallback, and the exported `7.json` is part of the required commit.
+
+### Catalog entity
+
+An equivalent of `text_tags` stores:
+
+- stable UUID-style `id` primary key;
+- category enum persisted deterministically as `DESCRIPTION` or
+  `HARDWARE_SOFTWARE_PURCHASE`;
+- canonical display `text`, nonblank and no more than 400 Unicode code points;
+- `normalized_text` used for category-scoped duplicate checks and deterministic sorting/search;
+- creation and update UTC timestamps using the existing timestamp representation.
+
+Enforce a unique index on `(category, normalized_text)` and an index supporting category/A–Z
+queries. Canonical display text trims surrounding whitespace and collapses repeated internal
+Unicode whitespace to one space. Duplicate normalization additionally lowercases with a
+locale-independent rule and ignores one terminal ASCII period. Question/exclamation marks and
+other punctuation remain meaningful. A Tag may exist once in each category.
+
+Delete is a real catalog-row deletion after UI confirmation. No archive/restoration list is
+created. Catalog rows are not foreign-key parents of historical task snapshots, so deletion cannot
+cascade into tasks. An import/add/edit conflict is rejected or skipped according to its operation;
+it never overwrites another normalized entry.
+
+### Task-owned snapshot entity
+
+An equivalent of `task_tag_snapshots` stores:
+
+- stable UUID-style snapshot `id` primary key;
+- `task_id` foreign key to `daily_tasks` with task-delete cascade;
+- category matching the field receiving the text;
+- zero-based `position` defining selection/export order within that task and category;
+- `text_snapshot`, nonblank and at most 400 Unicode code points;
+- optional/non-authoritative `source_tag_id` for detecting current, edited, or deleted catalog
+  sources without a destructive foreign-key dependency;
+- creation UTC timestamp using the existing representation.
+
+Use a unique `(task_id, category, position)` index plus task/category lookup indexes. A task cannot
+select the same extant source Tag twice in one category; repository validation enforces this with
+transactional replacement. The snapshot is authoritative for historical task display and export.
+Catalog text is never joined dynamically into an already-saved task.
+
+### Migration and transaction rules
+
+- `MIGRATION_6_7` creates empty catalog/snapshot tables. Every existing task retains exact manual
+  Description and Hardware / Software Purchases text and has zero snapshots.
+- Create Task inserts the task and its ordered snapshots atomically. Edit Task updates manual
+  metadata and replaces that task's intended snapshot sets atomically. Any validation/database
+  failure leaves both metadata and snapshots unchanged.
+- Deleting a task cascades only that task's snapshots. Deleting a Tag cannot touch a task.
+- Repeated Start creates new snapshot identities and copies category/text/source/order exactly
+  from the source task in the same transaction as the copied task, selection, interval, and active
+  timer. Notes retains its blank-copy exception.
+- Running-task mutation guards, one interval per task, global active-timer uniqueness, dates,
+  ZoneIds, and all existing client/Consultant restrictions remain unchanged.
+
+### Pure validation and projection rules
+
+The existing `daily_tasks.description` and purchase/expense field continue storing only manual
+user input. Kotlin domain validation computes the eventual export string from manual text and
+ordered snapshots. Each field permits at most 999 Unicode code points after trimming components,
+adding required periods, and joining with spaces. Generated punctuation is not persisted back.
+Description is structurally usable when its composed value is nonblank; purchases may remain
+blank. Database constraints protect table shape and relationships, while user-facing length,
+duplicate, and required-field errors remain typed Kotlin results suitable for Compose.
+
+### Milestone 43 implementation evidence
+
+The data layer now includes two category-scoped Tag catalogs, ordered task-owned snapshots,
+category/normalized-text uniqueness, task cascade without a catalog-source foreign key, UTC
+snapshot creation timestamps, typed CRUD/search flows, transactional Create/Edit replacement,
+and repeated-Start copying with new snapshot IDs and timestamps. Repository and DAO guards reject
+invalid category/text/order data and duplicate non-null source Tag IDs within one task/category.
+The pure composer and validators count Unicode code points across manual text, ordered snapshots,
+joining spaces, and generated punctuation while leaving stored task text unchanged.
+
+Owner-run verification regenerated schema `7.json`, passed the offline JVM/lint/debug/release
+gate, and passed all 127 connected tests with zero failures. Migration coverage exercises fresh
+schema 7 plus populated supported schema-1-through-6 paths, empty migrated catalogs/snapshots,
+foreign keys, historical snapshot isolation, task cascade, transaction rollback, and active-timer
+repeated Start. An obsolete pre-final schema-7 emulator database was cleared during development;
+schema 7 has never been publicly released, so released user data follows the tested 1-through-6
+migration paths rather than an unsupported interim 7-to-7 shape.
+
+### Milestone 48 audit clarification
+
+The historical schema-5 table above retains its original 400-character wording for upgrade
+traceability. In the implemented `0.5.0` model, manual Description and Hardware / Software
+Purchases plus their ordered Tag snapshots are validated as one composed value of at most 999
+Unicode code points; the persisted manual fields and snapshots remain separate and are never
+rewritten by export punctuation.

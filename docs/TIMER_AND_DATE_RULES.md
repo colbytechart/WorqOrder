@@ -313,10 +313,14 @@ scheduler captures `(targetEpochDay, effectiveZoneId)` as immutable job input. I
 after midnight, export still reads that captured prior date. A device/manual zone change after
 scheduling does not reinterpret the target.
 
-If a timer is open at execution, preserve the target as pending and export nothing. Normal
-Stop/midnight normalization first closes/splits every interval under the pinned timer zone. Only
-after the Stop transaction succeeds may a content-free notification offer the preserved-date
-Google export. This retains the global Stop-before-export rule and avoids blank Stop values.
+At or after the captured date's boundary, automatic execution first runs normal midnight
+normalization. A running interval closes transactionally at the exact first boundary in its pinned
+timer ZoneId, clears the active pointer, and creates no continuation task or interval. Only then is
+the preserved date exported automatically, so exported rows always have completed Stop values.
+If the close cannot yet be confirmed, retain `TIMER_RUNNING` and export nothing. A later successful
+boundary close, ordinary Stop, or startup reconciliation automatically resumes the same captured
+date. Only authorization, connectivity, local-storage, remote, or other genuinely actionable
+failures use the content-free attention notification/Settings recovery flow.
 
 This scheduler is not a timer wake-up mechanism, does not split intervals itself, and cannot use
 an exact alarm, foreground stopwatch service, or tick loop merely to approach 11:59 PM. The exact

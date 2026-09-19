@@ -965,19 +965,123 @@ and a current API, and owner-performed populated `0.3.0` update and export check
 supplies final `0.4.0` versionCode approval, signs with the permanent key, merges to `main`, tags,
 publishes, and verifies the public APK; no release-readiness claim precedes these gates.
 
-### Milestone 42 — Post-`0.4.0` safe teardown guide (documentation only)
+The owner subsequently published and physically verified `0.4.0`. Its former post-release
+Milestones 42 and 43 are superseded by `0.5.0` Milestones 49 and 50 below; do not execute the old
+numbering or treat publication as cleanup permission.
 
-Only after the public `0.4.0` release and an explicit new owner start: Luna inventories verified
-project-specific versus shared tools, Terra drafts staged reversible Windows/Android cleanup and
-rollback instructions, and Sol audits target precision, release/signing/OAuth preservation, and
-recoverability. No deletion, uninstall, cloud change, or BIOS/system change is performed.
+## 21B. WorqOrder `0.5.0` reusable-Tag roadmap
 
-### Milestone 43 — Optional owner-directed closeout
+The integration topology is `main` → `v0.5.0-development` → sequential milestone branches
+42–48. Milestone 42 documents the approved design only. Milestones 43–46 implement Room/domain,
+Settings management and import, task selection UX, and shared export composition. Milestone 47
+owns final Create/Edit task-form consistency and Milestone 48 owns the complete audit and public-
+release handoff. The former teardown/closeout work is moved to Milestones 49–50 after public
+`0.5.0` and still requires separate instructions.
 
-This is a separate, opt-in execution gate after Milestone 42. The owner chooses exact targets and
-explicitly authorizes each material action. Preserve the repository, remote history/releases,
-permanent release key and backups, OAuth setup, and desired user/export data unless separately
-decided. Never infer cleanup authority merely because the guide exists.
+Use the copy/paste prompts and mandatory model pauses in `docs/V0_5_MILESTONE_PROMPTS.md`. The
+owner supplies current weekly-token budget and active model at each milestone start. Luna handles
+bounded inventories, fixtures, mechanical UI/tests, and evidence; Terra handles most production
+implementation; Sol is reserved for critical migration/export decisions, difficult defects, and
+final quality gates. The owner alone runs all PowerShell/Gradle and Android emulator/device tests;
+agents provide complete commands and manual checklists.
+
+### Milestone 42 — `0.5.0` planning and branch preparation (documentation only)
+
+Record the approved category catalogs, snapshot history, search/picker/CRUD/import UX, Unicode
+limits, Room 6-to-7 migration, unchanged export schema 6, centralized export composition, model
+assignments, owner-run test policy, and deferred closeout numbering. Do not change app code,
+schemas, dependencies, resources, or release identity.
+
+### Milestone 43 — Room schema 7 and Tag domain foundation
+
+Add category-scoped Tag catalog and ordered task Tag snapshot tables through explicit
+non-destructive `MIGRATION_6_7`. Existing tasks retain exact text and no snapshots. Implement
+typed repositories, normalization/search/duplicate rules, atomic task-snapshot writes, the pure
+999-character export composer, and repeated-Start snapshot copying. Catalog deletion is real but
+cannot mutate snapshots. No final Settings, picker, or export-adapter UI belongs here.
+
+### Milestone 44 — Tag Management and atomic CSV import
+
+Add Settings → Tag Management after Client and Consultant Management, then separate Description
+Tags and Hardware / Software Purchase Tags pages. Implement searchable alphabetical CRUD with
+confirmed deletion and an atomic SAF CSV importer: every nonblank cell is a Tag, existing/file
+duplicates skip, existing entries are never overwritten, and malformed/overlength/over-1-MiB/
+over-10,000-cell input imports nothing. Request no broad storage permission.
+
+### Milestone 45 — Create/Edit Tag selection and task behavior
+
+Add field-associated, non-wrapping Add/Edit controls with one intrinsic-width, lighter outlined
+pill-style picker-opening Tag/count summary and no direct chip removal, plus an accessible full-
+screen real-time searchable multi-select picker,
+clear/Cancel/Apply, inline persistent creation, historical saved versions, and explicit updated-
+version replacement. Enforce live valid **N / 999** and red over-limit **Character limit: N / 999**
+validation for Description, Hardware / Software Purchases, and Notes,
+allow Tags to satisfy required Description, preserve snapshot order, copy snapshots on repeated
+Start, use the approved main-row manual/fallback display, and keep notification Tag text private.
+
+### Milestone 46 — Shared export composition and compatibility
+
+Use one pure composer to supply Description and Expense to the existing immutable projection.
+CSV, one-off XLSX, manual Google, and automatic Google must receive identical values. Keep export
+schema 6, all 14 visible headers, Google hidden identity/layout, cross-device rows, captured-date
+and Stop-before-export policies, and no Room mutation. No destination may independently inspect
+or format Tags.
+
+### Milestone 47 — Create/Edit task-form polish and consistency
+
+Apply the owner-approved final task-form refinements without changing persistence or export data.
+Unify Description, Hardware / software purchases, and Notes live counters at 999 code points;
+render compact one-line Add/Edit Tag controls with intrinsic-width selected InputChip-style pills;
+open the picker from either control; keep removal inside the picker; and add consistent spacing
+before Work Type. Keep each fixed footer limited to its two actions. Render missing/unavailable
+Client and Consultant validation as small field-style text directly below the relevant selector or
+recovery button, with only that button's outline/content and the error text using the error color;
+other page messages remain in scrollable content. Replace every Tag editor's static limit hint with
+a live `N / 400` counter, switching to red `Character limit: N / 400` and disabling confirmation
+while over limit. When Edit Task's assigned client is archived/unavailable, expose the same inline
+**Add client** editor and archived-match restore flow used by Create Task; selecting the result is
+an unsaved task edit, while the client directory mutation remains if task editing is cancelled.
+Add non-scrolling **Select All** and **Deselect All** picker actions;
+they affect only the current search results, preserve hidden selections, and reject an over-limit
+bulk addition atomically. Complete focused automated and owner-run visual tests, audit the diff,
+provide commit messages, and stop before the release audit.
+
+**Completed on the `milestone47` branch:** the owner reported the complete supplied compilation,
+JVM, lint, debug/release build, connected-instrumentation, and manual visual/behavior gates passed
+after the final Edit Task inline Add Client recovery. Static diff review found no conflict markers
+or whitespace errors; Git only reports the existing informational CRLF/LF conversion warning for
+`TaskFormComponents.kt`. Milestone 48 Tasks 48A and 48B are complete on the owner-created
+`milestone48` branch; Tasks 48C–48D remain gated on the assigned model handoff and owner-run
+evidence.
+
+### Milestone 48 — Full `0.5.0` audit and public-release handoff
+
+Trace every requirement, reconcile user/privacy/security/release documentation, run owner-
+executed clean lint/JVM/debug/release and API-26/current connected gates, prove every supported
+Room path to schema 7 and populated `0.4.0` upgrade, exercise imports and every export path, audit
+security/accessibility/lifecycle/performance, obtain explicit release identity approval, and
+verify the signed public APK. Codex does not merge, tag, upload, or publish for the owner.
+
+The owner-run automatic-Google gate exposed the obsolete post-Stop-notification behavior for a
+midnight-running timer. D-106 is the approved release-blocker correction: the existing exact-
+boundary Room normalizer stops the interval without continuation/duplication, then automatic export
+proceeds for the preserved date. A durable `TIMER_RUNNING` fallback resumes automatically after
+later Stop or reconciliation. Targeted tests and the owner midnight rerun are required before the
+gate can pass; this does not start Task 48D or authorize a version change.
+
+### Milestone 49 — Post-`0.5.0` safe teardown guide (documentation only)
+
+Only after the public `0.5.0` release and a separate explicit start: Luna inventories verified
+project-specific versus shared tools, Terra drafts staged reversible owner-executed Windows/
+Android cleanup and rollback instructions, and Sol audits target precision, release/signing/OAuth
+preservation, and recoverability. No deletion, uninstall, cloud, firmware, or system change occurs.
+
+### Milestone 50 — Optional owner-directed closeout
+
+This is a separate opt-in execution gate after Milestone 49. The owner must name exact targets and
+authorize each material action. Preserve source, remote history/releases, permanent signing key
+and backups, OAuth setup, and desired user/export data unless separately decided. Never infer
+cleanup authority from finishing `0.5.0` or from the existence of a guide.
 
 ## 22. Optional Milestone E — Data Protection, App Access, and Privacy Hardening
 
@@ -1083,6 +1187,10 @@ Milestone E is separately authorized and must pass this checklist before being a
 | XLSX writer is incompatible or unsafe | Malformed workbooks or formula execution | Focused internal Milestone 12 writer, literal cells, independent-parser/golden tests, Excel/LibreOffice checks, and no Apache POI |
 | One-off XLSX provider write fails after document creation | A partial external file may remain | Build and validate bytes before the picker, close output deterministically, attempt provider deletion on failure, report partial-output risk, and never change Room |
 | Per-date sheets exhaust Google grid allocation or become unwieldy | Export failure or poor spreadsheet usability | Keep `0.3.0` schema 5's 13 visible columns for historical compatibility and `0.4.0` schema 6's 14-column projection for new exports; preserve reserved/hidden transport columns, append rows only as needed, monitor the official spreadsheet cell limit, and surface capacity errors without altering Room |
+| Catalog edit/delete rewrites an old task | Historical/exported meaning changes unexpectedly | Store ordered task-owned text snapshots, never resolve catalog text for existing tasks, and test edited/deleted-source reopen/export behavior |
+| Tag CSV is malformed or unexpectedly large | Partial catalog mutation, UI stall, or memory pressure | Parse off-main-thread with 1 MiB/10,000-cell bounds, validate a complete plan, and apply one Room transaction or nothing |
+| Destination adapters compose Tags differently | CSV/XLSX/Google content diverges | Keep export schema 6 and call one pure composer in the immutable snapshot builder; adapters receive final strings only |
+| Tag text makes a task field too large | Unusable UI or spreadsheet-cell growth | Enforce the exact 999-code-point projected export value, including spaces/punctuation, before task Save and cover 999/1000 boundaries |
 | Plaintext app-private database/preferences are extracted from a compromised or sufficiently privileged device | Sensitive client/task data is disclosed | Document that current production relies on Android's application sandbox and does not provide WorqOrder-managed at-rest encryption; retain stronger protection only as optional Milestone E |
 | Optional encryption key is lost or invalidated | Authoritative local data becomes unavailable if optional Milestone E is later implemented | Require versioned key hierarchy, documented recovery limits, non-destructive failure, interrupted-migration tests, and never silently reset Room |
 | Optional encryption degrades core performance | Slow startup, task lists, or timer mutations if optional Milestone E is later implemented | Record pre-encryption baselines and enforce focused startup/query/migration/memory benchmarks within that optional milestone |
@@ -1105,6 +1213,7 @@ Milestone E is separately authorized and must pass this checklist before being a
 - Logical rows, CSV, XLSX, Google protocol, setup, and failures: `EXPORT_SPEC.md`.
 - Observable verification: `ACCEPTANCE_TESTS.md`.
 - Fixed choices and unresolved inputs: `DECISIONS.md`.
+- Versioned `0.5.0` model assignments and copy/paste prompts: `V0_5_MILESTONE_PROMPTS.md`.
 
 Changing implementation behavior requires updating the corresponding source document
 and acceptance tests in the same review.

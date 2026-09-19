@@ -1,6 +1,7 @@
 # WorqOrder Product Specification
 
-Status: released `0.1.0`/`0.2.0`/`0.3.0` history; approved `0.4.0` planning follows
+Status: released through `0.4.0`; `0.5.0` Tag changes in Section 17 are implemented on the
+development branch, with Milestone 48 release audit and owner-run gates pending.
 Product: WorqOrder for Android  
 Minimum Android version: API 26  
 Authoritative data store: local Room database
@@ -137,14 +138,17 @@ A plus/FAB opens a task-creation screen or accessible dialog containing:
 
 - a client selector of alphabetically sorted active clients;
 - an inline **Add client** action using the same validation/repository path as Settings;
-- a required short description, trimmed, maximum 400 characters;
-- an optional text field labeled **Hardware / Software Purchases**, trimmed when nonblank, maximum 400 characters; and
-- the currently selected active **Consultant**, required for creation;
+- a required composed Description: manual text plus ordered Description Tag snapshots may total at
+  most 999 Unicode code points, and Tag-only Description is valid;
+- an optional **Hardware / software purchases** manual field plus ordered purchase Tag snapshots,
+  whose composed value may total at most 999 Unicode code points;
+- an active **Consultant** selected in Settings and required for creation;
 - a **Work Type:** radio group containing **On-Site** and **In-Office**, defaulting to On-Site;
 - a **Billing Status** radio group containing **Billable**, **Do not bill**, and **Do not charge**,
   defaulting new tasks to Billable;
 - an optional **Mileage** decimal field that uses the numeric-decimal keyboard and accepts only a
-  validated non-negative decimal representation; and
+  validated non-negative decimal representation;
+- optional **Notes**, limited to 999 Unicode code points; and
 - **Create** and **Cancel** actions.
 
 Create validates and writes one daily task with an immutable employee-name snapshot. If its work
@@ -239,8 +243,9 @@ screen; validation or persistence failure keeps the editor open.
 
 Validation rejects:
 
-- blank or over-400-character short descriptions;
-- over-400-character **Hardware / Software Purchases** text; this optional field may be blank;
+- a blank composed Description or one exceeding 999 Unicode code points;
+- a composed **Hardware / software purchases** value exceeding 999 Unicode code points; this
+  optional field may be blank;
 - a start at or after stop;
 - overlap with another interval for that task;
 - an interval outside the start/end instants of the task's stored work date and zone;
@@ -467,9 +472,12 @@ authorized consecutive milestones in `IMPLEMENTATION_PLAN.md`:
 10. **Automatic Google daily export.** The opt-in Google-only scheduler captures the intended
     effective-zone date near the end of that date. Approximate execution after midnight still
     exports the captured prior date, never a newly blank day. Owned-tab replacement keeps the
-    operation duplicate-free. If a timer is running, preserve the target as pending; after Stop,
-    post a content-free actionable system notification whose tap resumes/performs or confirms that
-    date's export. CSV/XLSX never auto-run. Failures remain retryable and never mutate Room.
+    operation duplicate-free. At the captured date's local-midnight boundary, an active interval
+    closes transactionally at the exact pinned-ZoneId boundary without a continuation task or
+    interval; the completed captured date then exports automatically. If closure cannot yet be
+    confirmed, retain `TIMER_RUNNING` and automatically resume after a later successful boundary
+    close or Stop. CSV/XLSX never auto-run. Authorization, connectivity, and other actionable
+    failures remain pending without mutating Room.
 
 The former persistent-XLSX choice and the previously deferred natural-midnight device exercises
 are not `0.2.0` backlog items. Appropriate automated and manual verification remains mandatory for
@@ -536,11 +544,10 @@ behavior.
 `0.3.0` does not otherwise redesign clients, Consultants, task metadata, Settings, landscape
 layout, notifications, authentication, destinations, backup policy, licensing, or distribution.
 
-## 16. Approved `0.4.0` product changes (implemented release candidate)
+## 16. Approved `0.4.0` product changes (released)
 
-Milestones 37–40 implement the behavior below. At the 2026-09-15 QA source freeze, `0.3.0`
-remained the latest public APK; the Milestone 41 candidate passed its pre-publication gates.
-GitHub Releases, not this source snapshot, identifies the currently published APK.
+Milestones 37–40 implemented the behavior below. After the Milestone 41 gates, the owner published
+and physically verified `0.4.0`. GitHub Releases remains authoritative for downloadable artifacts.
 
 1. **Task Notes.** New tasks have an optional blank `Notes` field below Mileage on Create Task.
    Notes accept up to 999 Unicode characters and can be edited later in Edit Task. A
@@ -569,6 +576,87 @@ GitHub Releases, not this source snapshot, identifies the currently published AP
    an equal-width fixed footer, Delete on the left and Save on the right, using the page background
    color without changing confirmation, validation, or persistence behavior.
 
-Milestones 36–41 own planning, implementation, verification, and public-release handoff. Project
-environment teardown work moves to post-release Milestone 42; actual cleanup is only optional,
-separately authorized Milestone 43. Security Milestone E stays unscheduled outside release scope.
+Milestones 36–41 own planning, implementation, verification, and public-release handoff. The
+owner subsequently published and physically verified `0.4.0`. The former teardown Milestones 42
+and 43 are deferred and renumbered to post-`0.5.0` Milestones 49 and 50. Security Milestone E
+stays unscheduled outside release scope.
+
+## 17. Implemented `0.5.0` reusable-Tag product changes (release audit pending)
+
+The assigned implementation milestones are complete through Milestone 47 on the development
+branch. Milestone 48 still owns the release audit and owner-run gates. This feature adds reusable
+local text catalogs without adding export columns or changing Room authority.
+
+1. **Two independent catalogs.** Settings places **Tag Management** after Client Management and
+   Consultant Management. Its overview opens separate **Description Tags** and **Hardware /
+   Software Purchase Tags** pages. Each page supports alphabetical browsing, real-time case-
+   insensitive substring search with a clear action, Add, Edit, and confirmed true Delete.
+2. **Bounded Tag text.** A Tag contains at most 400 Unicode code points after surrounding and
+   repeated whitespace normalization. Blank input is rejected. Duplicate detection is category-
+   scoped and ignores case, surrounding/repeated whitespace, and one terminal period. The same
+   normalized text may exist once in each different category.
+3. **Safe CSV import.** Each category page imports a user-selected CSV through the Storage Access
+   Framework. Every nonblank cell—including a header-looking cell—is a Tag. Correct quoting,
+   Unicode, commas, and embedded line breaks are parsed. Existing and within-file duplicates are
+   skipped without overwriting entries. The resulting list remains alphabetical and reports added/
+   skipped counts. Malformed or overlength content, a file over 1 MiB, or more than 10,000 nonblank
+   cells fails atomically and changes nothing. No broad storage permission is requested.
+4. **Compact task selection.** Description and Hardware / Software Purchases retain normal manual
+   entry and gain one unlabeled, non-wrapping row directly below each field. With no selections,
+   its button reads **Add tags** and has no chip. With selections, the button reads **Edit tags**
+   and is followed by either the one selected Tag in an ellipsized chip or a single `+N tags
+   selected` chip for multiple selections. These informational chips use the lighter selected
+   color, outline, pill shape, and intrinsic label width. Only a long single Tag expands into the
+   remaining width before ellipsizing. Both button and chip open the picker; chips have no
+   direct close action. A full-screen
+   picker supports browse, real-time filter, clear, multi-select in selection order, selected
+   count, Cancel/Apply, and inline creation. Filtered-out selections remain selected. An inline-
+   created Tag is persisted and selected even if the task form is later cancelled. Non-scrolling
+   **Select All** and **Deselect All** actions affect only rows visible under the current search;
+   hidden selections remain unchanged. An over-limit Select All changes nothing and explains the
+   limit through the existing picker error.
+5. **Snapshot history.** Saving a task copies selected Tag text and order into task-owned
+   snapshots. Catalog edits/deletions never rewrite old tasks or exports. An old task continues to
+   show saved chips; an edited source offers an explicit **Use Updated Version** replacement, while
+   a deleted source is removable but cannot be newly selected. Deletion removes the catalog entry
+   after confirmation; no Archived Tags area is added.
+6. **Expanded composed limits.** Manual Description and Hardware / Software Purchases expand from
+   400 to an exported composed maximum of 999 Unicode code points. Manual text, Tag snapshots,
+   generated punctuation, and joining spaces all count. Description, Hardware / Software
+   purchases, and Notes show **N / 999** through the limit. Above the limit, show the live red
+   **Character limit: N / 999** state. Never prefix the normal counter with `Exported text:`.
+   Prevent an overlimit selection, surface later manual overage next
+   to the field, and disable Create/Save
+   until valid. Description is valid when either manual text or at least one Description Tag is
+   nonblank. Purchases remains optional.
+7. **Export-only composition.** For Description and Expense, trim components, place manual text
+   first and snapshots in selection order, append a period to a component that lacks terminal
+   `.`, `?`, or `!`, and join components with one ASCII space. Generated punctuation is never
+   written back to manual text or snapshots. All destinations use this one canonical function.
+8. **Compact display/privacy.** A main task row shows the manual short Description when available;
+   otherwise it shows the first Description Tag and `+N tags` for additional snapshots. The
+   running notification continues to show Client plus manual Description, or Client alone when
+   manual text is blank; it never exposes Tag text.
+9. **Repeat and edit behavior.** Repeated Start copies ordered Tag snapshots because it already
+   copies Description and purchase metadata; Notes still starts blank. Editing task Tags changes
+   only that task. Task deletion cascades its snapshots but never deletes catalog entries.
+10. **Compatibility.** Add only an explicit non-destructive Room 6-to-7 migration. Existing tasks
+    retain exact manual fields and begin with no Tag snapshots. Canonical export schema 6 remains
+    exactly 14 visible columns; Tags compose existing Description and Expense values. Google tab
+    ownership/layout and CSV/XLSX lifecycle remain unchanged.
+11. **Local assignment feedback and action-only footers.** Create/Edit footers contain only their
+    respective two actions. A missing/unavailable Client or Consultant error appears as small text
+    directly below its selector or recovery button; that button's outline/content and the error use
+    the error color without recoloring menu entries. Other page messages remain in the scrollable
+    body. Every Settings and inline Tag add/edit dialog shows live **N / 400** feedback, changes to
+    red **Character limit: N / 400** above the limit, and disables confirmation until corrected.
+12. **Edit client recovery.** If an Edit Task form's assigned client is archived or otherwise no
+    longer active, show **Add client** beside the existing client recovery feedback. It opens the
+    same validated inline editor and archived-match restore confirmation as Create Task. The new or
+    restored client is selected as an unsaved task edit; adding/restoring the directory entry is an
+    immediate independent action and is not undone by cancelling the task edit.
+
+Milestones 42–48 own planning through public-release verification. Milestone 47 owns the final
+Create/Edit presentation consistency pass; Milestone 48 owns the release audit. Deferred
+environment teardown and optional closeout are Milestones 49–50 and cannot start implicitly. See
+`V0_5_MILESTONE_PROMPTS.md` for model assignments and mandatory owner-run test handoffs.

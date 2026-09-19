@@ -1,9 +1,9 @@
 # WorqOrder Architecture
 
-Version authority: this document retains released `0.1.0`/`0.2.0` milestone descriptions for
-upgrade and historical traceability. References explicitly labeled `0.2.0` or a released milestone
-are historical; the current `0.3.0` behavior is authoritative in Section 17 and its linked
-specifications.
+Version authority: this document retains earlier release descriptions for upgrade and historical
+traceability. Released `0.4.0` schema-6 Notes/export behavior and `0.3.0` timer/cardinality rules
+are current. Section 19 records the implemented-but-unreleased `0.5.0` Tag architecture; the
+Milestone 48 release audit still gates public distribution.
 
 ## 1. Architectural goals
 
@@ -444,13 +444,17 @@ so an inexact execution after midnight still exports the preceding intended date
 never owns task rows or tokens and advances missed dates one bounded worker at a time.
 
 It invokes the same `ExportSnapshotCoordinator` and Google task-ID merge pipeline as manual export.
-CSV/XLSX remain manual. If Room reports an active timer, Google returns an authorization
-resolution, or a safe terminal operation failure occurs, the coordinator retains typed pending
-state rather than exporting/retrying and asks the API-26+ notification adapter to expose a
-content-free action. API-33+ enablement requires `POST_NOTIFICATIONS`. WorkManager may contribute
-its internal normal scheduling permissions/components and bounded execution wake locks; the app
-does not implement its own receiver/wake lock, exact alarm, foreground service, or background tick.
-No Play Store/App Signing/Console release path is introduced.
+CSV/XLSX remain manual. At the captured date's boundary, the worker/lifecycle path first invokes
+the shared active-timer normalizer. Room transactionally closes the interval at its exact pinned-
+ZoneId midnight, clears the singleton, and creates no continuation; the manager then exports the
+completed date automatically. A `TIMER_RUNNING` fallback remains durable when closure cannot yet
+be confirmed and is retried automatically after boundary closure, Stop, or startup reconciliation.
+Authorization resolution or another safe terminal failure remains typed pending state and asks the
+API-26+ notification adapter for a content-free action. API-33+ enablement requires
+`POST_NOTIFICATIONS`. WorkManager may contribute its internal normal scheduling permissions/
+components and bounded execution wake locks; the app does not implement its own receiver/wake lock,
+exact alarm, foreground service, or background tick. No Play Store/App Signing/Console release
+path is introduced.
 
 ## 15. v0.2.0 architecture boundaries
 
@@ -591,7 +595,7 @@ ordinal column.
 
 ## 18. Implemented `0.4.0` Notes and export architecture
 
-This describes the `0.4.0` release-candidate architecture. Room schema 6 adds a blank-default
+This describes the released `0.4.0` architecture. Room schema 6 adds a blank-default
 `daily_tasks.notes` field through a non-destructive 5-to-6 migration. Notes are optional, editable
 task text limited to 999 Unicode code points. The repository's atomic repeated-Start operation
 creates a new task with blank Notes even when source Notes are nonblank; all other copy/selection/
@@ -613,3 +617,42 @@ Edit Task retains `zoneId` in state and domain operations but omits it from the 
 Delete/Save actions live in the Scaffold bottom bar rather than the scrollable body; Create and
 Edit both explicitly use the theme background for their fixed action footers. Moving these controls
 does not alter ViewModel events, validation, deletion confirmation, or Room writes.
+
+## 19. `0.5.0` reusable-Tag architecture
+
+Milestones 43-45 implement the persistence/domain foundation, catalog management, and task-form
+picker integration. Milestone 46 integrates the saved task snapshots into the shared export
+projection. Room schema 7 is the source of truth for two Tag catalogs and task-owned ordered text
+snapshots. Catalog entities and task snapshots are
+deliberately separate: catalog operations use catalog rows, while repeated Start and later task
+display/export integration use saved snapshots. A catalog update or hard delete therefore never
+rewrites historical tasks. `sourceTagId` is only a comparison hint for offering an explicit
+updated version; snapshot text is authoritative.
+
+The implemented data layer exposes typed catalog/snapshot models, category-scoped observable
+lists, normalized duplicate/search operations, pure text composition/length rules, transactional
+task metadata-plus-snapshot writes, and atomic CSV import off the main thread with 1 MiB/10,000-
+nonblank-cell limits. Compose and ViewModels do not read database keys or parse CSV directly.
+
+Create/Edit form state keeps manual field text separate from ordered selected-snapshot drafts.
+Reusable presentation renders associated chips and a full-screen picker, but all normalization,
+duplicate, selection-order, 400-code-point, composed 999-code-point, and required-Description
+decisions come from pure domain results. Inline Tag creation is a catalog transaction independent
+of eventual task Save/Cancel. Task Save applies manual metadata and both ordered snapshot sets in
+one repository transaction. Repeated Start copies saved snapshots inside its existing operation
+lock and Room transaction; it never resolves current catalog text.
+
+One pure `TaskTextComposer` accepts manual text and ordered snapshots, normalizes only the
+exported value, counts Unicode code points including separators/generated periods, and produces
+the canonical Description and Expense values. The immutable export snapshot builder invokes it for
+both fields and fails closed if persisted content exceeds the supported limit. CSV, XLSX, and Google
+adapters remain unaware of Tags. Export schema 6, 14-column headers, Google ownership
+marker/hidden identity, one-off CSV/XLSX behavior, automatic captured-date logic, and cross-device
+keyed rows are unchanged.
+
+The main task presentation observes ordered Description snapshots only to provide the approved
+fallback when manual Description is blank. The timer notification intentionally does not receive
+Tag text. Navigation preserves unsaved picker/form state through ViewModel/SavedStateHandle-level
+state rather than writing partial tasks. Manual dependency injection remains sufficient; no new
+framework, backend, account, service, broad storage permission, or foreground timer component is
+introduced.

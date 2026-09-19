@@ -6,15 +6,14 @@ CSV, XLSX, and Google Sheets are optional one-way exports.
 
 ## Development Status
 
-At the time this release-source commit was prepared, the latest published APK was `0.3.0`.
-The `0.4.0`/code 4 candidate passed its pre-publication migration, device, export, Google,
-signing, and local security gates; the owner still controls the integration merge, tag, upload,
-and downloaded-asset verification. Check the [Releases page](https://github.com/colbytechart/WorqOrder/releases) for the live
-published version rather than treating this source snapshot as a publication announcement.
-`0.4.0` adds optional task Notes, one shared 14-column export schema, safe owned Google-tab
-upgrades, cleaner Create/Edit forms, and fixed action footers. See the
-[v0.4.0 roadmap](docs/V0_4_MILESTONE_PROMPTS.md) and
-[v0.3.0 release evidence](docs/MILESTONE_35_RELEASE_EVIDENCE.md).
+The owner published and physically verified `0.4.0`/code 4. It adds optional task Notes, one
+shared 14-column export schema, safe owned Google-tab upgrades, cleaner Create/Edit forms, and
+fixed action footers. Check the
+[Releases page](https://github.com/colbytechart/WorqOrder/releases) for authoritative artifacts.
+The owner-approved `0.5.0`/code 5 reusable-Tag release candidate is in Milestone 48 final
+verification on the development branch; it is not yet a published release. See the
+[v0.5.0 roadmap](docs/V0_5_MILESTONE_PROMPTS.md). The
+[v0.4.0 roadmap](docs/V0_4_MILESTONE_PROMPTS.md) is retained as historical delivery evidence.
 
 ## Install WorqOrder From GitHub
 
@@ -60,6 +59,8 @@ signing identity.
 - Add, rename, archive, restore, and CSV-import clients without damaging historical task
   relationships.
 - Manage active/archived Consultants while preserving each task's assignment-time name.
+- Maintain separate Description and Hardware / Software Purchase Tag catalogs, import Tags from
+  user-selected CSV files, and compose ordered task-owned Tag snapshots into existing exports.
 - View derived Billing Minutes rounded upward to 15-minute increments.
 - Follow the system appearance or explicitly choose Light or Dark.
 - Use the device's geographical time zone while preserving every task's assigned historical zone.
@@ -88,7 +89,7 @@ information.
 
 ## Export Behavior
 
-All destinations consume one immutable canonical snapshot and the same 13 columns:
+All destinations consume one immutable canonical snapshot and the same 14 columns:
 
 1. Start date
 2. End date
@@ -103,6 +104,7 @@ All destinations consume one immutable canonical snapshot and the same 13 column
 11. Stop time
 12. Time spent
 13. Billing minutes
+14. Notes
 
 CSV and XLSX use Android's create-document interface, so the user chooses each output location.
 Every XLSX export creates a new workbook. Google Sheets writes to one connected spreadsheet and
@@ -200,8 +202,9 @@ passwords. Then run:
 Never create a new signing key for an update. Losing the permanent key prevents existing users
 from installing future updates over the app. The `0.2.0` checklist and
 [Milestone 35 release evidence](docs/MILESTONE_35_RELEASE_EVIDENCE.md) are historical.
-`0.4.0` pre-publication gates are tracked under Milestone 41. Upload only the owner-signed APK
-whose final SHA-256 and signer have been checked, and compare the public download afterward.
+`0.4.0` pre-publication gates are tracked historically under Milestone 41. Future releases must
+likewise upload only an owner-signed APK whose final SHA-256 and signer have been checked and must
+compare the public download afterward.
 
 ## Troubleshooting
 

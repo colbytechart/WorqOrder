@@ -2,9 +2,10 @@
 
 ## Release status
 
-At the 2026-09-15 QA source freeze, the latest published APK was `0.3.0`; check GitHub Releases
-for the live published version. The owner verified the `0.3.0` public APK/physical update and the
-`0.4.0` release candidate. Notes and export schema 6 belong to `0.4.0`, not to older APKs.
+The owner published `0.4.0`, downloaded its GitHub asset, installed it on a physical device, and
+reported expected behavior. Check GitHub Releases for authoritative artifacts. Notes and export
+schema 6 belong to `0.4.0`, not to older APKs. Reusable Tags are implemented on the unreleased
+`0.5.0` development branch and do not exist in the released `0.4.0` application.
 
 ## Client CSV import limits
 
@@ -88,6 +89,11 @@ they are not partially imported.
   authorization, connectivity, Doze, force-stop, OEM policy, and user settings may require an
   actionable pending flow rather than guaranteed unattended completion. The oldest unresolved date
   is retained and later dates advance one bounded worker at a time after recovery.
+- A captured date with an active midnight timer is normalized through Room before export: the
+  interval closes at its exact pinned-ZoneId boundary and no continuation task is created. A
+  `TIMER_RUNNING` fallback resumes automatically after later boundary recovery or Stop. Android can
+  still delay when the responsible component executes; WorqOrder does not use an exact alarm or
+  foreground stopwatch service to force execution at the physical instant of midnight.
 - Unattended Google authorization is possible only while Play services can return an already-granted
   short-lived `drive.file` token without interaction. If Google returns an authorization
   resolution, the user must tap a content-free notification or resume in Settings. WorqOrder does
@@ -142,17 +148,18 @@ they are not partially imported.
 - One task can no longer aggregate separated work sessions. Resuming completed work creates a new
   task row with the same metadata and a zero-based timer by design.
 
-## `0.4.0` development and Milestone 41C
+## `0.4.0` release and Milestone 41C
 
 Notes, schema 6 export projection, owned schema-5 Google compatibility, the simplified Create
 header, and the pinned Create/Cancel footer are implemented for `0.4.0`. They are absent from
-older `0.3.0` APKs; public availability depends on the owner's GitHub Release publication.
+older `0.3.0` APKs. The owner subsequently completed GitHub publication and public-asset checks.
 
-The signed `0.4.0` candidate and clean offline gate exist. The owner reports a populated
+The signed `0.4.0` candidate and clean offline gate passed before publication. The owner reports a populated
 `0.3.0` install-over, retained running timer and history, Notes/Create/Edit checks, an owned
 schema-5 Google tab upgrade, and 14-column CSV/XLSX checks. The owner explicitly confirms a
 fresh API-37 installation of the exact signed candidate and non-tester Google access; the public
-asset still requires downloaded checksum/signature verification. The owner reports a live
+asset later passed downloaded checksum/signature and physical-install verification. The owner
+reports a live
 automatic Google export succeeded with 14 visible columns and no duplicates, and the post-polish
 API-26 connected
 suite passed 119/119. The owner reports API-37 task/timer/orientation smoke and a shared-sheet
@@ -160,3 +167,12 @@ cross-device append. The populated API-36 signed fixture was intentionally not s
 debug connected suite. Optional app-private encryption and biometric/PIN or screenshot privacy
 controls remain outside every
 release scope in optional Milestone E.
+
+## Implemented but unreleased `0.5.0` Tag limitations
+
+Tag catalogs, task snapshots, picker composition, and local CSV import are implemented through
+Milestone 47. The Milestone 48 release audit and owner-run release gates remain pending. Import is
+local CSV only, every nonblank cell is data, and the 1 MiB/10,000-nonblank-cell bounds are
+intentional. Tags are not labels, categories, remote synchronization, or new export columns.
+Catalog deletion does not erase text already saved in task snapshots. Generated punctuation is an
+export-only projection and does not alter the user's stored manual text.

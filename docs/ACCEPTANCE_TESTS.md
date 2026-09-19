@@ -3,9 +3,10 @@
 Version scope: sections that explicitly identify released `0.1.0`/`0.2.0` behavior preserve
 historical acceptance evidence. Section 15 is the released `0.3.0` acceptance set; its
 one-interval, no-rollover, exact-boundary, and schema-5 rules supersede earlier expectations.
-Section 16 records `0.4.0` acceptance requirements and implementation evidence. The final
-pre-publication execution results belong to `QA_REPORT.md`, Section 17; publication itself
-remains an owner-controlled GitHub action.
+Section 16 records released `0.4.0` acceptance requirements and implementation evidence. Its final
+pre-publication execution results belong to `QA_REPORT.md`, Section 17; the owner later completed
+publication and physical-device verification. Section 17 is the implemented-but-unreleased
+`0.5.0` acceptance contract; Milestone 48 records the remaining owner-run release gates.
 
 ## 1. Test policy
 
@@ -123,13 +124,14 @@ Given edited form fields, when Cancel/back is confirmed according to normal navi
 
 ### TASK-04 Description validation
 
-Blank/whitespace-only and over-400-character short descriptions fail; valid descriptions are
-trimmed and saved.
+Blank/whitespace-only composed Descriptions and values over 999 Unicode code points fail; valid
+manual text and ordered Tag snapshots are retained without export punctuation being written back.
 
 ### TASK-04a Hardware/software-purchases validation
 
-The field labeled `Hardware / Software Purchases` may be blank. Nonblank text is trimmed and saved;
-over-400-character text is rejected with field-level validation.
+The field labeled `Hardware / software purchases` may be blank. Its manual text plus ordered Tag
+snapshots must not exceed 999 Unicode code points; an over-limit composed value is rejected with
+field-level validation.
 
 ### TASK-05 Edit metadata
 
@@ -806,15 +808,18 @@ network-constrained one-time request captures target date, ZoneId, and connectio
 execution-time `today`. Recalculated one-time work stays aligned with geographical DST/zone rules;
 no exact alarm or fixed 24-hour periodic worker exists.
 
-### V2-EXPORT-03 Pending timer and notification
+### V2-EXPORT-03 Running-timer boundary completion and pending recovery
 
-If any timer is running, the scheduled operation exports nothing and persists the target date as
-pending. After successful Stop, a system notification containing no client/task data appears.
-Tapping resumes/performs or confirms that target export. Dismissal does not mark success or delete
-pending state. A successful automatic export produces no Main-screen status and no success
-notification. API-33+ enablement requests `POST_NOTIFICATIONS` in context; denial leaves the switch
-off. API-26+ channel-disabled and later permission-revocation tests prove pending state remains
-recoverable in Google Settings even when Android suppresses the notification.
+If the captured date reaches local midnight with a running timer, the shared normalizer closes its
+interval transactionally at the exact pinned-ZoneId boundary, clears active state, creates no
+continuation or duplicate next-day task, and automatic Google export writes the completed captured
+date. Success produces no Main-screen status or notification. If closure cannot yet be confirmed,
+the target remains `TIMER_RUNNING` and exports nothing; successful later boundary recovery, Stop,
+or startup reconciliation resumes it automatically. Authorization, connectivity, notification,
+permission, remote, and local-storage failures remain typed/actionable pending states. API-33+
+enablement requests `POST_NOTIFICATIONS` in context; denial leaves the switch off. API-26+ channel-
+disabled and later permission-revocation tests prove actionable state remains recoverable in Google
+Settings even when Android suppresses the notification.
 
 ### V2-EXPORT-04 Background correctness and idempotence
 
@@ -1211,5 +1216,129 @@ and manual exports obey the same policy. CSV/XLSX remain one-off.
 
 Before publication, the owner-approved versionCode, permanent signer SHA-1, `worq.order` package,
 disabled backup, GPLv3, exact Google scope, APK hash, populated `0.3.0` upgrade, API-26/current
-automated suites, and physical-device task/edit/export smoke tests must pass. Milestone 42
+automated suites, and physical-device task/edit/export smoke tests must pass. Milestone 49
 teardown planning is not a prerequisite for app release and performs no cleanup.
+
+## 17. Implemented `0.5.0` reusable-Tag acceptance requirements (release audit pending)
+
+These are the complete `0.5.0` acceptance requirements. The schema/domain, UI/import/export, and
+Milestone 47 polish work are implemented through the `milestone48` branch. The owner manually runs
+all supplied PowerShell/Gradle and Android emulator/device gates and reports results; unreported
+Milestone 48 release gates remain pending.
+
+### V5-DB-01 Additive schema-7 migration
+
+A fresh database and every populated supported schema-1-through-6 path reach Room 7 with catalog
+and snapshot constraints intact. Existing clients, Consultants, tasks, manual Description/Expense,
+Notes, intervals, timers, IDs, dates, zones, and settings remain unchanged; old tasks have no Tag
+snapshots. Close/reopen and foreign-key checks pass. No destructive fallback exists.
+
+Milestone 43 evidence: the owner-run offline JVM/lint/debug/release gate passed, and the regenerated
+schema-7 build passed 127 connected tests with zero failures. Tests cover fresh schema 7,
+populated supported schema-1-through-6 upgrades, empty migrated Tag tables, relationship and
+active-timer preservation, transaction rollback, catalog-history isolation, task cascade, and
+repeated-Start snapshot copying.
+
+### V5-TAG-01 Catalog validation and history
+
+Each category independently supports Add/Edit/Delete. Blank and 401-code-point Tags fail; 400 pass.
+Case, surrounding/repeated whitespace, and one terminal period produce category duplicates, while
+the same text in the other category is allowed. A catalog edit/delete leaves every existing task
+snapshot unchanged. Delete requires confirmation and removes the catalog entry, not task history.
+
+### V5-TAG-02 Search and ordering
+
+Both management and picker searches filter case-insensitively by substring on every keystroke.
+Clear restores the complete A–Z list. Filtering never clears selected picker items. Stable keys,
+selection count/order, empty/no-result states, large text, touch targets, and screen-reader state
+all remain usable.
+
+### V5-TAG-03 Atomic CSV import
+
+Each nonblank cell—including header-looking text—is a candidate Tag. Quoted commas/quotes,
+Unicode, and embedded newlines parse safely. Existing and within-file normalized duplicates skip,
+new values append, and results sort A–Z with exact added/skipped counts. Cancellation/read errors,
+malformed CSV, overlength cells, files over 1 MiB, or over 10,000 nonblank cells change nothing.
+No non-CSV/broad-storage path or partial import is permitted.
+
+### V5-TASK-01 Picker, chips, and inline creation
+
+Description and purchase fields show an unlabeled, non-wrapping row directly below the correct
+field. Zero selections show **Add tags** and no chip. One selection shows **Edit tags** plus one
+ellipsized chip. Multiple selections show **Edit tags** plus one `+N tags selected` chip. Each
+informational chip uses the lighter selected color, outline, pill shape, and intrinsic label width;
+a long Tag uses only the remaining row width and ellipsizes. Both button and chip open the correct
+full-screen picker; no chip has a close action. Multi-select,
+live search, clear, selection order, Cancel/Apply, and picker-based removal work without losing
+unsaved manual fields. **Select All** and **Deselect All** remain in the fixed picker controls while
+the result list scrolls. Each affects only the current filtered results and leaves hidden selections
+unchanged; with an empty search it affects the whole category. If Select All would exceed the
+composed 999-code-point limit, no partial draft change occurs and the existing limit error appears.
+Inline creation validates/persists a Tag,
+selects it, and survives later task cancellation. Existing normalized text selects the existing
+Tag rather than creating a duplicate. Create and Edit use the exact label **Hardware / software
+purchases** and preserve deliberate section spacing between its Tag row and **Work Type**.
+
+Create/Edit fixed footers contain only their respective two action buttons. A missing or unavailable
+Client/Consultant renders one small error directly below its selector or recovery button; only that
+button's outline/content and the error use the error color, while dropdown entries retain normal
+styling. Other page messages remain in the scrollable body. Settings and inline Tag add/edit dialogs
+show **N / 400** live, show red **Character limit: N / 400** above 400 Unicode code points, and
+disable Save or Create and Select until the text returns to 400 or fewer.
+
+When Edit Task's assigned client is archived/unavailable, **Add client** is visible and opens the
+same validated editor used by Create Task. A unique client is created and selected; an archived
+normalized match offers restoration and selects it after confirmation. The selected assignment is
+not persisted until Save Task Changes, but the independent client-directory add/restore remains if
+the task edit is cancelled. Running-task guards continue to block the recovery action.
+
+### V5-TASK-02 Composed validation
+
+Manual text, ordered snapshot text, joining spaces, and generated periods produce the Description
+and purchase counters. Description, purchases, and Notes display only **N / 999** at or below the
+limit. On the keystroke that produces 1000, the affected field immediately becomes an error and
+shows red **Character limit: 1000 / 999** without requiring Create/Save. Exactly 999 Unicode code
+points save; 1000 cannot. An overlimit Tag selection is blocked with a field
+explanation; later manual overage disables Create/Save until
+corrected. A Tag-only Description satisfies required validation. Blank manual-and-Tag Description
+does not. Purchases may remain blank.
+
+### V5-TASK-03 Historical and repeated behavior
+
+Reopening a task preserves snapshot text/order even after its source is edited or deleted. An
+edited source exposes an explicit update action; unrelated task Save does not update it. A deleted
+source remains removable and unavailable for new selection. Task deletion cascades snapshots only.
+Starting a completed task copies all snapshots/order to the new task with new identities, retains
+other copy semantics, leaves the source untouched, and still clears Notes. Concurrent Start keeps
+one active timer and one new timed task.
+
+### V5-UI-01 Main row and notification privacy
+
+A row with manual Description shows that text. With manual Description blank, it shows the first
+Description snapshot and `+N tags` for additional snapshots. The running notification shows Client
+plus manual Description when present or Client only when absent; it never reveals Tag text.
+Portrait, landscape, large text/display scale, recreation, and navigation preserve usable output.
+
+### V5-EXPORT-01 Exact centralized composition
+
+For Description and Expense, manual text appears first, followed by snapshots in selection order.
+Blank components omit; each component lacking `.`, `?`, or `!` receives `.`, and components join
+with one ASCII space. Export normalization never modifies stored text. CSV, XLSX, manual Google,
+and automatic Google contain byte/logically equivalent composed values, exact schema-6 14 headers,
+and no Tag column. Catalog changes alone do not change an old task export.
+
+### V5-EXPORT-02 Compatibility and safety
+
+Existing owned schema-6 Google tabs retain marker/layout, other-device rows, and hidden task IDs.
+No schema-7 marker, fifteenth column, clearing, or resizing occurs. Keyed re-export updates only
+the originating task row; CSV/XLSX remain one-off. Stop-before-export, captured-date automatic
+export, formula/literal/quoting safety, immutable snapshots, failure recovery, and no Room mutation
+continue passing.
+
+### V5-RELEASE-01 Owner-executed release gate
+
+Before publication, owner-run formatting/lint/JVM/debug/release, complete API-26/current connected
+suites, populated signed `0.4.0` update, fresh install, CRUD/import/picker/manual task flows, all
+three manual exports plus automatic Google, accessibility/lifecycle/performance/security checks,
+permanent signer/package/version/hash, and public-download install-over checks must pass. Version
+identity requires explicit owner approval. Milestones 49–50 are not release prerequisites.

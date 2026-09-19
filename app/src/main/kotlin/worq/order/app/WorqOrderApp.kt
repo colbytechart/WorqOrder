@@ -22,6 +22,7 @@ import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
 import worq.order.data.ThemeMode
 import worq.order.data.ClientCsvFilePolicy
+import worq.order.model.TagCategory
 import worq.order.export.google.GoogleConnectionFailure
 import worq.order.export.google.GoogleConnectionOperationResult
 import worq.order.export.google.GoogleSheetsExportFailure
@@ -44,6 +45,11 @@ import worq.order.ui.tasks.CreateTaskEffect
 import worq.order.ui.tasks.EditTaskScreen
 import worq.order.ui.tasks.EditTaskEffect
 import worq.order.ui.tasks.EditTaskViewModel
+import worq.order.ui.tags.TagCategoryManagementScreen
+import worq.order.ui.tags.TagCategoryManagementViewModel
+import worq.order.ui.tags.TagManagementEffect
+import worq.order.ui.tags.TagManagementScreen
+import worq.order.ui.tags.TagManagementViewModel
 import worq.order.ui.theme.WorqOrderTheme
 import worq.order.export.CsvExportCoordinator
 import worq.order.export.XlsxExportCoordinator
@@ -230,6 +236,7 @@ fun WorqOrderApp(
                             application.container.consultantSelectionCoordinator,
                         taskMutationCoordinator =
                             application.container.taskMutationCoordinator,
+                        tagRepository = application.container.tagRepository,
                         workDate = workDate,
                     )
                 }
@@ -275,6 +282,7 @@ fun WorqOrderApp(
                             application.container.activeTimerRepository,
                         taskMutationCoordinator =
                             application.container.taskMutationCoordinator,
+                        tagRepository = application.container.tagRepository,
                     )
                 }
             val viewModel: EditTaskViewModel = viewModel(factory = factory)
@@ -352,6 +360,77 @@ fun WorqOrderApp(
                 onEvent = viewModel::onEvent,
                 onNavigateBack = navController::popBackStack,
             )
+        }
+        composable(AppRoutes.TAG_MANAGEMENT) {
+            val application =
+                LocalContext.current.applicationContext as WorqOrderApplication
+            val factory =
+                remember(application) {
+                    TagManagementViewModel.Factory(application.container.tagRepository)
+                }
+            val viewModel: TagManagementViewModel = viewModel(factory = factory)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            LaunchedEffect(viewModel, navController) {
+                viewModel.effects.collect { effect ->
+                    if (effect is TagManagementEffect.NavigateToCategory) {
+                        navController.navigate(AppRoutes.tagCategory(effect.category.name))
+                    }
+                }
+            }
+            TagManagementScreen(
+                uiState = uiState,
+                onEvent = viewModel::onEvent,
+                onNavigateBack = navController::popBackStack,
+            )
+        }
+        composable(
+            route = AppRoutes.TAG_CATEGORY,
+            arguments =
+                listOf(
+                    navArgument(AppRoutes.TAG_CATEGORY_ARGUMENT) {
+                        type = NavType.StringType
+                    },
+                ),
+        ) { backStackEntry ->
+            val category =
+                backStackEntry.arguments
+                    ?.getString(AppRoutes.TAG_CATEGORY_ARGUMENT)
+                    ?.let { categoryName ->
+                        TagCategory.entries.firstOrNull { it.name == categoryName }
+                    }
+            if (category != null) {
+                val application =
+                    LocalContext.current.applicationContext as WorqOrderApplication
+                val factory =
+                    remember(application, category) {
+                        TagCategoryManagementViewModel.Factory(
+                            category = category,
+                            tagRepository = application.container.tagRepository,
+                            tagCsvImportCoordinator = application.container.tagCsvImportCoordinator,
+                        )
+                    }
+                val viewModel: TagCategoryManagementViewModel = viewModel(factory = factory)
+                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                val tagCsvLauncher =
+                    rememberLauncherForActivityResult(
+                        ActivityResultContracts.OpenDocument(),
+                    ) { documentUri ->
+                        viewModel.onEvent(
+                            worq.order.ui.tags.TagCategoryManagementEvent
+                                .ImportCsvDocumentSelected(documentUri?.toString()),
+                        )
+                    }
+                TagCategoryManagementScreen(
+                    uiState = uiState,
+                    onEvent = viewModel::onEvent,
+                    onNavigateBack = navController::popBackStack,
+                    onImportCsv = {
+                        tagCsvLauncher.launch(
+                            ClientCsvFilePolicy.acceptedMimeTypes.toTypedArray(),
+                        )
+                    },
+                )
+            }
         }
     }
 }
@@ -460,6 +539,9 @@ private fun SettingsDestination(
         },
         onOpenConsultantManagement = {
             navController.navigate(AppRoutes.CONSULTANT_MANAGEMENT)
+        },
+        onOpenTagManagement = {
+            navController.navigate(AppRoutes.TAG_MANAGEMENT)
         },
         consultantUiState = consultantUiState,
         onConsultantEvent = consultantViewModel::onEvent,

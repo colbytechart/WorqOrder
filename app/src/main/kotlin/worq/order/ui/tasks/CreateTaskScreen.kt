@@ -1,6 +1,7 @@
 package worq.order.ui.tasks
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,6 +19,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.BottomAppBarDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -34,8 +36,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import worq.order.R
@@ -64,9 +68,18 @@ fun CreateTaskScreen(
     uiState: CreateTaskUiState,
     onEvent: (CreateTaskEvent) -> Unit,
 ) {
-    BackHandler { onEvent(CreateTaskEvent.RequestClose) }
+    val tagPicker = uiState.tagPicker
+    BackHandler {
+        if (tagPicker != null) {
+            onEvent(CreateTaskEvent.DismissTagPicker)
+        } else {
+            onEvent(CreateTaskEvent.RequestClose)
+        }
+    }
 
-    Scaffold(
+    if (tagPicker == null) {
+        val liveTextErrors = uiState.liveTextErrors()
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.create_task)) },
@@ -147,6 +160,10 @@ fun CreateTaskScreen(
                         onOpen = { onEvent(CreateTaskEvent.OpenClientMenu) },
                         onDismiss = { onEvent(CreateTaskEvent.DismissClientMenu) },
                         onSelect = { onEvent(CreateTaskEvent.SelectClient(it)) },
+                        errorMessage =
+                            uiState.message
+                                ?.takeIf(CreateTaskMessage::isClientSelectorError)
+                                ?.let { message -> stringResource(message.stringResource()) },
                     )
             }
             TextButton(
@@ -158,17 +175,33 @@ fun CreateTaskScreen(
             when {
                 uiState.isLoadingConsultant -> CircularProgressIndicator()
                 uiState.selectedConsultantId == null -> {
-                    Text(
-                        text = stringResource(R.string.task_consultant_required),
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    )
+                    val consultantError =
+                        uiState.message
+                            ?.takeIf(CreateTaskMessage::isConsultantSelectorError)
+                            ?.let { message -> stringResource(message.stringResource()) }
+                            ?: stringResource(R.string.task_consultant_required)
                     OutlinedButton(
                         onClick = { onEvent(CreateTaskEvent.OpenConsultantSettings) },
                         enabled = !uiState.isSavingTask,
+                        colors =
+                            ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error,
+                                disabledContentColor = MaterialTheme.colorScheme.error,
+                            ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                     ) {
                         Text(stringResource(R.string.open_consultant_settings))
                     }
+                    Text(
+                        text = consultantError,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier =
+                            Modifier.semantics {
+                                error(consultantError)
+                                liveRegion = LiveRegionMode.Assertive
+                            },
+                    )
                 }
             }
             OutlinedTextField(
@@ -187,18 +220,24 @@ fun CreateTaskScreen(
                     TaskMetadataValidationError.DESCRIPTION_REQUIRED in
                         uiState.metadataErrors ||
                         TaskMetadataValidationError.DESCRIPTION_TOO_LONG in
-                        uiState.metadataErrors,
+                        liveTextErrors,
                 supportingText = {
                     TaskTextSupportingText(
-                        value = uiState.description,
+                        value = composedTaskText(uiState.description, uiState.descriptionTagSelections),
                         maxCodePoints = MAX_TASK_DESCRIPTION_CODE_POINTS,
                         blankError =
                             TaskMetadataValidationError.DESCRIPTION_REQUIRED in
                                 uiState.metadataErrors,
-                        tooLongError =
-                            TaskMetadataValidationError.DESCRIPTION_TOO_LONG in
-                                uiState.metadataErrors,
                     )
+                },
+            )
+            TaskTagControls(
+                selections = uiState.descriptionTagSelections,
+                catalog = uiState.descriptionCatalogTags,
+                enabled = !uiState.isSavingTask,
+                onOpenPicker = { onEvent(CreateTaskEvent.OpenTagPicker(TaskTagField.DESCRIPTION)) },
+                onUseUpdatedVersion = {
+                    onEvent(CreateTaskEvent.UseUpdatedTagVersion(TaskTagField.DESCRIPTION, it))
                 },
             )
             OutlinedTextField(
@@ -219,14 +258,34 @@ fun CreateTaskScreen(
                 keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
                 isError =
                     TaskMetadataValidationError.PURCHASES_TOO_LONG in
-                        uiState.metadataErrors,
+                        liveTextErrors,
                 supportingText = {
                     TaskTextSupportingText(
-                        value = uiState.hardwareSoftwarePurchases,
+                        value =
+                            composedTaskText(
+                                uiState.hardwareSoftwarePurchases,
+                                uiState.purchaseTagSelections,
+                            ),
                         maxCodePoints = MAX_TASK_PURCHASES_CODE_POINTS,
-                        tooLongError =
-                            TaskMetadataValidationError.PURCHASES_TOO_LONG in
-                                uiState.metadataErrors,
+                    )
+                },
+            )
+            TaskTagControls(
+                selections = uiState.purchaseTagSelections,
+                catalog = uiState.purchaseCatalogTags,
+                enabled = !uiState.isSavingTask,
+                modifier = Modifier.padding(bottom = WorqOrderDimens.SectionSpacing),
+                onOpenPicker = {
+                    onEvent(
+                        CreateTaskEvent.OpenTagPicker(TaskTagField.HARDWARE_SOFTWARE_PURCHASES),
+                    )
+                },
+                onUseUpdatedVersion = {
+                    onEvent(
+                        CreateTaskEvent.UseUpdatedTagVersion(
+                            TaskTagField.HARDWARE_SOFTWARE_PURCHASES,
+                            it,
+                        ),
                     )
                 },
             )
@@ -259,30 +318,51 @@ fun CreateTaskScreen(
                 minLines = 2,
                 maxLines = 6,
                 keyboardOptions = WorqOrderTextInputDefaults.sentenceCapitalization,
-                isError = TaskMetadataValidationError.NOTES_TOO_LONG in uiState.metadataErrors,
+                isError = TaskMetadataValidationError.NOTES_TOO_LONG in liveTextErrors,
                 supportingText = {
                     TaskTextSupportingText(
                         value = uiState.notes,
                         maxCodePoints = MAX_TASK_NOTES_CODE_POINTS,
-                        tooLongError =
-                            TaskMetadataValidationError.NOTES_TOO_LONG in
-                                uiState.metadataErrors,
                     )
                 },
             )
-            uiState.message?.let { message ->
+            uiState.message?.takeUnless(CreateTaskMessage::isSelectorError)?.let { message ->
                 Text(
                     text = stringResource(message.stringResource()),
                     color = MaterialTheme.colorScheme.error,
-                    modifier =
-                        Modifier.semantics {
-                            liveRegion = LiveRegionMode.Assertive
-                        },
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
                 )
             }
         }
+        }
+    } else {
+        TaskTagPickerOverlay(
+            picker = tagPicker,
+            catalog =
+                if (tagPicker.field == TaskTagField.DESCRIPTION) {
+                    uiState.descriptionCatalogTags
+                } else {
+                    uiState.purchaseCatalogTags
+                },
+            onSearchChanged = { onEvent(CreateTaskEvent.EditTagSearch(it)) },
+            onClearSearch = { onEvent(CreateTaskEvent.ClearTagSearch) },
+            onToggle = { onEvent(CreateTaskEvent.ToggleTagPickerItem(it)) },
+            onSelectAll = { onEvent(CreateTaskEvent.SelectAllVisibleTagPickerItems) },
+            onDeselectAll = { onEvent(CreateTaskEvent.DeselectAllVisibleTagPickerItems) },
+            onCancel = { onEvent(CreateTaskEvent.DismissTagPicker) },
+            onApply = { onEvent(CreateTaskEvent.ApplyTagPicker) },
+            onCreateInline = { onEvent(CreateTaskEvent.OpenInlineTagCreate) },
+        )
     }
 
+    uiState.tagInlineEditor?.let { editor ->
+        TaskTagInlineEditorDialog(
+            editor = editor,
+            onTextChanged = { onEvent(CreateTaskEvent.EditInlineTagText(it)) },
+            onConfirm = { onEvent(CreateTaskEvent.ConfirmInlineTagCreate) },
+            onDismiss = { onEvent(CreateTaskEvent.DismissInlineTagCreate) },
+        )
+    }
     uiState.addClientEditor?.let { editor ->
         ClientEditorDialog(
             editor = editor,
@@ -359,7 +439,8 @@ private fun CreateTaskActionFooter(
                         !uiState.hasClientLoadError &&
                         !uiState.hasConsultantLoadError &&
                         uiState.activeClients.isNotEmpty() &&
-                        uiState.selectedConsultantId != null,
+                        uiState.selectedConsultantId != null &&
+                        uiState.liveTextErrors().isEmpty(),
                 modifier =
                     Modifier
                         .weight(1f)
@@ -376,6 +457,15 @@ private fun CreateTaskActionFooter(
     }
 }
 
+private fun CreateTaskUiState.liveTextErrors(): Set<TaskMetadataValidationError> =
+    projectedTagTextErrors(
+        description = description,
+        descriptionSelections = descriptionTagSelections,
+        purchases = hardwareSoftwarePurchases,
+        purchaseSelections = purchaseTagSelections,
+        notes = notes,
+    )
+
 private fun CreateTaskMessage.stringResource(): Int =
     when (this) {
         CreateTaskMessage.DATA_UNAVAILABLE -> R.string.data_unavailable
@@ -385,4 +475,17 @@ private fun CreateTaskMessage.stringResource(): Int =
         CreateTaskMessage.CLIENT_ARCHIVED -> R.string.task_client_archived_during_edit
         CreateTaskMessage.CONSULTANT_REQUIRED -> R.string.task_consultant_required
         CreateTaskMessage.CONSULTANT_ARCHIVED -> R.string.consultant_archived_during_selection
+        CreateTaskMessage.TAG_DATA_UNAVAILABLE -> R.string.tag_picker_data_unavailable
     }
+
+private fun CreateTaskMessage.isClientSelectorError(): Boolean =
+    this == CreateTaskMessage.CLIENT_REQUIRED ||
+        this == CreateTaskMessage.CLIENT_NOT_FOUND ||
+        this == CreateTaskMessage.CLIENT_ARCHIVED
+
+private fun CreateTaskMessage.isConsultantSelectorError(): Boolean =
+    this == CreateTaskMessage.CONSULTANT_REQUIRED ||
+        this == CreateTaskMessage.CONSULTANT_ARCHIVED
+
+private fun CreateTaskMessage.isSelectorError(): Boolean =
+    isClientSelectorError() || isConsultantSelectorError()

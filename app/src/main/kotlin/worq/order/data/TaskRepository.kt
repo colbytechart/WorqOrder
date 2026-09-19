@@ -11,6 +11,7 @@ import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.model.WorkType
 import worq.order.model.BillingStatus
+import worq.order.model.TaskTagSnapshotDraft
 
 data class NewDailyTask(
     val clientId: String,
@@ -22,6 +23,8 @@ data class NewDailyTask(
     val billingStatus: BillingStatus? = null,
     val mileage: String? = null,
     val notes: String = "",
+    val descriptionTagSnapshots: List<TaskTagSnapshotDraft> = emptyList(),
+    val hardwareSoftwarePurchaseTagSnapshots: List<TaskTagSnapshotDraft> = emptyList(),
     val workDate: LocalDate,
     val zoneId: ZoneId,
     val seriesId: String? = null,
@@ -117,6 +120,8 @@ interface TaskRepository {
         billingStatus: BillingStatus? = null,
         mileage: String?,
         notes: String,
+        descriptionTagSnapshots: List<TaskTagSnapshotDraft>? = null,
+        hardwareSoftwarePurchaseTagSnapshots: List<TaskTagSnapshotDraft>? = null,
     ): UpdateTaskMetadataResult
 
     suspend fun deleteTask(taskId: String): DeleteTaskResult

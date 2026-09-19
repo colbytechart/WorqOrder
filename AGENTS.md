@@ -13,9 +13,13 @@
 - The only automatic export destination is the single connected Google spreadsheet. Its opt-in
   near-end-of-day schedule captures the intended local work date, remains idempotent, and may run
   shortly after midnight while still exporting that captured date. CSV and XLSX remain manual.
-- If the scheduled Google export finds a running timer, persist the captured date as pending. Do
-  not export an open interval. After Stop, show an actionable system notification; tapping it
-  resumes or confirms export of the preserved date. Never expose task/client content in it.
+- At the captured date's local midnight, automatic Google export must first normalize any running
+  timer through the authoritative exact-boundary Room transaction. The interval closes at that
+  boundary, no continuation task/interval is created, and the preserved date then exports
+  automatically. Never export an open interval. If closure cannot yet be confirmed, retain the
+  captured date as `TIMER_RUNNING`; a later successful boundary close or Stop automatically resumes
+  it. Notifications remain for failures that actually require user attention and never expose
+  task/client content.
 - Do not add Firebase, a custom backend, a web wrapper, embedded credentials, service-account keys, passwords, OAuth client secrets, or unrestricted API credentials.
 - WorqOrder must remain free and open source under GPLv3. Do not add billing, paid API tiers, paid
   quota increases, subscriptions, or a Google Workspace/organization requirement.
@@ -60,20 +64,48 @@
 - Canonical export schema 5 has exactly 13 visible columns and one row per task. All three export
   adapters must continue consuming the same immutable projection; do not retain an interval
   number or redundant interval-duration column.
-- `0.4.0` development begins with documentation-only Milestone 36. Later milestones may start only
-  on explicit owner instruction, with the owner's current weekly-token-budget percentage and the
-  matching milestone branch. Follow `docs/V0_4_MILESTONE_PROMPTS.md` for sequential Luna, Terra,
-  and Sol phases. Before implementation, estimate the whole milestone's percentage cost and state
-  the bounded phases. Do not perform work assigned to a different active model; at each model
-  transition stop and wait for the owner to confirm the requested model. Every implementation
-  milestone requires its designated Sol quality-review phase before completion.
-- Planned `0.4.0` Notes are optional task text with a 999-character limit, editable after creation.
+- Released `0.4.0` was planned and delivered through Milestones 36–41. Its historical prompts
+  remain in `docs/V0_4_MILESTONE_PROMPTS.md`; do not reuse them for later release work.
+- Released `0.4.0` Notes are optional task text with a 999-character limit, editable after creation.
   Existing tasks gain blank Notes through a non-destructive Room migration. Starting a completed
   task creates a new task with blank Notes even if its source has Notes; other approved metadata
   copying is unchanged.
-- Planned canonical export schema 6 has 14 visible columns, retaining schema-5 order and appending
+- Released canonical export schema 6 has 14 visible columns, retaining schema-5 order and appending
   `Notes` as column 14. CSV, one-off XLSX, manual Google, and automatic Google must share the same
   immutable projection. Preserve existing Google date-tab rows and transport identities during a
   reviewed schema-5-to-6 compatibility transition; never clear another device's rows.
-- Post-release project-environment teardown planning is deferred until after the public `0.4.0`
-  release. It is not part of Milestone 36 and never authorizes automatic deletion or uninstall.
+- `0.5.0` development begins with documentation-only Milestone 42. Later milestones may start only
+  on explicit owner instruction, with the owner's current weekly-token-budget percentage and the
+  matching milestone branch. Follow `docs/V0_5_MILESTONE_PROMPTS.md`. Every milestone is divided
+  into explicitly assigned Luna, Terra, and Sol subtasks. Stop after **every** subtask and wait for
+  the owner to confirm the next assigned model. Prefer Luna for bounded inventory, fixtures, and
+  mechanical tests; Terra for implementation; and Sol only for critical design, data-safety,
+  difficult defect resolution, and final quality decisions.
+- The owner alone runs all PowerShell/Gradle and Android emulator/device tests during `0.5.0`.
+  Agents must provide complete PowerShell commands that redeclare JBR/SDK/project-local paths and
+  `-Duser.home`, plus numbered manual test instructions. Do not run Gradle, ADB, emulator, or
+  device tests on the owner's behalf and never claim an owner-run result before it is reported.
+- Planned `0.5.0` reusable Tags are two category-scoped catalogs: Description Tags and Hardware /
+  Software Purchase Tags. Catalog edits/deletions never rewrite task snapshots. A task stores
+  ordered Tag text snapshots; repeated Start copies them because it copies Description and
+  purchase metadata. Inline-created Tags remain in the catalog if task creation is cancelled.
+- Description and Hardware / Software Purchases manual input plus their export-only composed Tag
+  text are limited to 999 Unicode code points. Individual Tags are limited to 400. Description
+  may be satisfied entirely by selected Description Tags. The canonical composer trims components,
+  adds a period when a component lacks `.`, `?`, or `!`, and joins manual text followed by ordered
+  snapshots with one space. It is the only source for Description/Expense export values.
+- `0.5.0` uses a non-destructive Room 6-to-7 migration for Tag catalogs and task snapshots.
+  Existing tasks retain their exact text and receive no snapshots. Canonical export schema 6 stays
+  at the same 14 visible columns and Google layout; Tags do not create export columns or a Google
+  schema transition.
+- `0.5.0` Milestone 47 is the owner-approved Create/Edit task-form polish milestone: unified live
+  character counters, compact picker-opening Tag summaries, consistent task-field labeling and
+  spacing, no direct chip removal, selector-local assignment errors, live 400-code-point Tag-editor
+  counters, filtered bulk Tag-picker selection controls, and Edit Task inline Add Client recovery
+  when its assigned client is no longer active. Create/Edit footers contain only their two actions;
+  non-field page messages remain in the scrollable content. The full audit/public-
+  release handoff is Milestone 48.
+- The former post-`0.4.0` environment teardown Milestones 42 and 43 are renumbered to Milestones
+  49 and 50 and deferred until after the public `0.5.0` release. Milestone 49 is documentation-only;
+  Milestone 50 remains optional and requires exact, separate owner authorization. Neither permits
+  inferred deletion, uninstall, cloud changes, or other destructive action.

@@ -559,6 +559,70 @@ object WorqOrderMigrations {
             }
         }
 
+    /**
+     * Adds reusable Tag catalogs and task-owned snapshots without modifying an existing task,
+     * interval, timer, client, Consultant, or preference row. Snapshot source IDs deliberately
+     * have no foreign key so catalog deletion cannot erase historical export text.
+     */
+    val MIGRATION_6_7 =
+        object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS tags (
+                        id TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        text TEXT NOT NULL,
+                        normalized_text TEXT NOT NULL,
+                        created_at_epoch_ms INTEGER NOT NULL,
+                        updated_at_epoch_ms INTEGER NOT NULL,
+                        PRIMARY KEY(id)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS index_tags_category_normalized_text
+                    ON tags (category, normalized_text)
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS index_tags_category_sort
+                    ON tags (category, text, id)
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS task_tag_snapshots (
+                        id TEXT NOT NULL,
+                        task_id TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        text_snapshot TEXT NOT NULL,
+                        source_tag_id TEXT,
+                        selection_order INTEGER NOT NULL,
+                        created_at_epoch_ms INTEGER NOT NULL,
+                        PRIMARY KEY(id),
+                        FOREIGN KEY(task_id) REFERENCES daily_tasks(id)
+                            ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS index_task_tag_snapshots_task_category_order
+                    ON task_tag_snapshots (task_id, category, selection_order)
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS index_task_tag_snapshots_source_tag_id
+                    ON task_tag_snapshots (source_tag_id)
+                    """.trimIndent(),
+                )
+            }
+        }
+
     val ALL: Array<Migration> =
         arrayOf(
             MIGRATION_1_2,
@@ -566,6 +630,7 @@ object WorqOrderMigrations {
             MIGRATION_3_4,
             MIGRATION_4_5,
             MIGRATION_5_6,
+            MIGRATION_6_7,
         )
 
     internal fun deriveMigratedTaskId(

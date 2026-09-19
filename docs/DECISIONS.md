@@ -6,9 +6,10 @@ Status terms: **Accepted** is a fixed product/architecture decision; **Proposed*
 
 Version scope: decisions D-001 through D-080 preserve the accepted `0.1.0`/`0.2.0` history and
 are not current when a later decision explicitly supersedes them. Decisions D-081 and later define
-released `0.3.0` behavior. Decisions D-097 onward govern implemented `0.4.0` work and supersede
-older milestone scheduling where stated. Migration fixtures and historical wording remain for
-upgrade traceability and must not be interpreted as live production contracts.
+released `0.3.0` behavior. Decisions D-097–D-101 govern released `0.4.0`; D-102 onward records
+approved planning for `0.5.0` and supersedes older milestone scheduling where stated. Migration
+fixtures and historical wording remain for upgrade traceability and must not be interpreted as
+implemented future contracts.
 
 ### D-001 — Native stable Android stack
 
@@ -123,12 +124,13 @@ Use Compose → ViewModels → repositories/domain services → storage/gateways
 
 Export/commit Room schemas from version 1, write explicit migrations and instrumentation tests, and never enable destructive fallback in release builds.
 
-### D-021 — Validation limits
+### D-021 — Initial validation limits (superseded for Tag-enabled fields)
 
 Client names are maximum 100 characters and canonicalized with trim, repeated-whitespace collapse,
-and locale-independent case normalization. A task's required short description and optional
-hardware/software-purchases text are each maximum 400 characters. Both are trimmed; the short
-description cannot be blank, while purchases text may be blank.
+and locale-independent case normalization. Before `0.5.0`, a task's required short description and
+optional hardware/software-purchases text were each maximum 400 characters. Both were trimmed; the
+short description could not be blank, while purchases text could be blank. D-103 supersedes only
+those two task-field limits with the approved Tag-aware 999-code-point composed rule.
 
 ### D-022 — Client rename semantics
 
@@ -1221,8 +1223,9 @@ is transport-only and is not a visible column or a change to the canonical CSV/X
 The owner reports public `0.3.0` publication and a physical-device upgrade that retained existing
 data and worked for new task timing. Milestone 36 is now documentation-only `0.4.0` planning.
 Release-specific implementation occupies Milestones 37–41. The former post-`0.3.0` project
-environment teardown guide moves to Milestone 42 **after** public `0.4.0` publication; any real
-closeout work is separately authorized optional Milestone 43. Milestone E remains independent.
+environment teardown guide originally moved to Milestone 42 after public `0.4.0`, with real
+closeout as optional Milestone 43. D-104 later supersedes those numbers with post-`0.5.0`
+Milestones 49 and 50. Milestone E remains independent.
 
 ### D-098 — Notes are optional, editable task data, but not repeated-Start copy data
 
@@ -1276,6 +1279,113 @@ footer actions, Delete on the left and Save on the right. Both Create and Edit a
 the current theme's page background rather than Material's contrasting bottom-app-bar container.
 This is presentation-only: running/save guards, validation, confirmations, navigation, historical
 time interpretation, and Room persistence are unchanged.
+
+### D-102 — Reusable Tags use catalog rows plus immutable task snapshots
+
+`0.5.0` plans two category-scoped catalogs: Description and Hardware / Software Purchase Tags.
+Catalog text is not a live task reference. When a task is saved, copy selected text, category,
+source hint, and selection order into task-owned snapshots. Catalog Edit/Delete affects later
+selection only. Existing snapshots remain exportable and editable; an edited source can replace an
+old snapshot only through explicit **Use Updated Version**. Catalog deletion is confirmed and real,
+with no archive UI, but task deletion alone cascades its snapshots. Repeated Start copies snapshot
+content/order because Description and purchase metadata already copy; Notes still starts blank.
+
+Room schema 7 adds catalog/snapshot tables through explicit non-destructive `MIGRATION_6_7`.
+Existing schema-6 tasks retain exact manual text and begin with no snapshots. `sourceTagId` is not
+a destructive foreign-key parent: snapshot text remains authoritative after source deletion.
+Create/Edit task metadata and snapshot-set changes are transactional.
+
+### D-103 — Tag input expands existing fields without changing export schema 6
+
+Manual Description and Hardware / Software Purchases plus their selected snapshot text have a
+999-Unicode-code-point composed export limit; individual Tags have a 400-code-point limit.
+Description can be satisfied entirely by Tags. One pure composer places manual text first, then
+snapshots in selection order, adds a period when a component lacks `.`, `?`, or `!`, and joins with
+one space. Shared validation counts that same composed result and returns structured length errors.
+Generated punctuation exists only in exported values. The composer never modifies manual text or
+snapshots. This supersedes D-021's former 400-character Description/purchases limits for `0.5.0`.
+
+Tags do not add columns. Keep canonical export schema 6, its 14 exact visible headers, and current
+Google A:N/O/P layout and marker. Milestone 46 integrates the single pure composer into the
+immutable projection, so every destination receives the same composed Description and Expense;
+adapters never query catalogs or compose independently. This preserves `0.4.0`/`0.5.0` Google tab
+compatibility and other-device keyed rows.
+
+### D-104 — Tag management is bounded, searchable, and safely importable
+
+Settings places Tag Management after Client and Consultant Management and opens one category page
+per catalog. Each provides live case-insensitive substring filtering with clear, alphabetical
+browsing, Add/Edit, confirmed Delete, and SAF CSV import. Every nonblank CSV cell is a Tag; no
+header is special. Existing/within-file duplicates skip without overwrite. Invalid/malformed or
+overlength data, files over 1 MiB, and more than 10,000 nonblank cells fail one atomic import.
+
+Create/Edit place one unlabeled, non-wrapping Tag row directly below each supported text field.
+The button reads **Add tags** when empty and **Edit tags** when populated. One selection shows one
+ellipsized picker-opening chip; multiple selections show one picker-opening `+N tags selected`
+chip. No chip has a direct removal action. The full-screen multi-select picker provides persistent
+selection under filtering, Cancel/Apply, removal, and inline creation. Description, Hardware /
+Software Purchases, and Notes show only **N / 999** while valid, then immediately show a red
+**Character limit: N / 999** live error when over limit. Inline creation is an independent
+catalog action and survives task Cancel. Main rows show manual Description or first-Tag/`+N tags`
+fallback; notifications never expose Tag text. The former teardown Milestones 42/43 are renamed
+49/50 after public `0.5.0`. Every `0.5.0` subtask stops for an owner-confirmed Luna/Terra/Sol
+transition, and the owner alone executes supplied PowerShell and Android test commands.
+
+### D-105 — Milestone 47 standardizes task-form feedback and compact Tag summaries
+
+Create and Edit use the same live task-text feedback: `N / 999` while valid and red
+`Character limit: N / 999` immediately while over limit. The task form uses the exact GUI label
+**Hardware / software purchases** and adds deliberate space before Work Type. Each field's Tag
+control is one non-wrapping row. Its Add/Edit button is followed by no chip, one intrinsic-width
+selected lighter outlined pill, or one intrinsic-width `+N tags selected` pill. A long single-Tag
+pill is bounded by the remaining row width and ellipsizes. Both pills open the picker and have no
+direct removal affordance; removal remains available inside the picker. These presentation rules
+do not change stored snapshots, validation limits, canonical composition, or export schema 6.
+Create/Edit footers contain only their two actions. Missing/unavailable Client and Consultant
+feedback moves directly below the relevant selector or recovery button as small, assertively
+announced field-style error text; only that button and error use the error color, while dropdown
+entries keep normal styling. Other page messages remain in the scrollable body. Settings and inline
+Tag add/edit dialogs replace the static 400-character hint with live `N / 400` feedback, red
+`Character limit: N / 400` above the limit, and disabled confirmation until corrected. The full-screen picker keeps
+**Select All** and **Deselect All** with its non-scrolling controls. Bulk actions target only the
+currently visible filtered result set and preserve hidden selections; empty search targets the
+whole category. A bulk addition that would violate the composed 999-code-point limit is rejected
+atomically with the existing picker error rather than partially selecting Tags.
+
+If Edit Task's assigned client is archived/unavailable, it exposes Create Task's existing inline
+**Add client** editor and archived-match restore confirmation. Client directory mutation is
+immediate and independent; the resulting task assignment is marked unsaved and changes the task
+only after Save Task Changes. Cancelling the edit therefore preserves the added/restored client but
+leaves the task's historical client ID unchanged. Running-task guards remain authoritative.
+
+### D-106 — Midnight automatic export closes the timer and proceeds unattended
+
+During the Milestone 48 owner gate, the previous timer-pending recovery flow failed to complete the
+captured date automatically after Stop. The owner superseded the timer-specific portions of D-071,
+D-076, and D-077: when an automatic Google target reaches its local-date boundary, first invoke the
+shared authoritative timer normalizer. A running interval closes transactionally at the exact first
+midnight in its pinned ZoneId, clears the singleton active timer, and creates no continuation task,
+interval, or next-day duplicate. Automatic Google export then writes that completed captured date
+silently.
+
+If concurrent state or clock-safety policy prevents confirming the close, retain the target as
+`TIMER_RUNNING` and export nothing. A later successful boundary close, normal Stop, or startup/
+foreground reconciliation automatically re-enters the same bounded one-date attempt once Room has
+no active timer; it does not require a notification tap. Authorization, connectivity, permission,
+remote, and local-storage failures continue to use typed pending state and the content-free
+attention notification/Settings recovery. This changes no manual CSV/XLSX/Google running-timer
+lockout and adds no exact alarm, foreground service, wake lock, background tick, or automatic retry
+loop.
+
+### D-107 — `0.5.0` release identity is version code 5
+
+On 2026-09-19, after the Milestone 48 owner-run functional, migration, export, accessibility,
+lifecycle/performance, and preliminary security gates passed, the owner explicitly approved
+`versionName = 0.5.0` and `versionCode = 5`. Application ID `worq.order`, the permanent signing
+identity, minSdk 26, targetSdk 36, disabled backup, GPLv3 license, direct-GitHub distribution, and
+Google `drive.file` scope remain unchanged. Approval authorizes the candidate identity only; it
+does not claim that the signed artifact, merge, tag, GitHub publication, independent download, or
+physical install-over has passed.
 
 ## Deferred decisions
 

@@ -731,3 +731,119 @@ The reviewed source/candidate is approved for the owner's integration merge and 
 public release is not complete until the owner tags/uploads and independently checks the
 downloaded asset. WorkManager's best-effort timing limitation remains; one successful device
 run does not guarantee exact execution time on every Android device.
+
+## 18. Milestone 46 (`0.5.0`) shared export-composition evidence
+
+On 2026-09-18, the owner reported that the focused Milestone 46 JVM suite and complete connected
+instrumentation suite passed after the shared Description/Expense composer was integrated into the
+canonical export projection. The focused coverage includes manual-only, Tag-only, mixed ordered
+snapshots, punctuation, surrounding whitespace, embedded CR/LF, Unicode, exact/over-limit Unicode
+code-point counts, historical tasks without snapshots, CSV quoting, XLSX output, Google schema-6
+planning, legacy compatibility, and exact cross-destination row equivalence.
+
+The owner also reported that manual checks 1-8 and 10 passed: CSV/XLSX/Google retained the same 14
+visible columns and composed values; repeated keyed Google export did not duplicate rows; remote
+rows were preserved; catalog edits/deletes did not rewrite saved task snapshots; and automatic
+Google export used the same composed projection without local task mutation. Manual check 9 for
+formula-looking input was intentionally skipped by the owner. Its transport mechanics remain
+covered by the passing XLSX literal-inline-string and Google `stringValue` encoder tests. CSV
+continues the documented schema-6 policy of preserving exact user text with RFC-style quoting; it
+does not promise to suppress a spreadsheet application's formula interpretation.
+
+Sol's repository audit confirmed that CSV, one-off XLSX, manual Google, and automatic Google all
+receive the same `ExportSnapshotCoordinator` projection. Room reads tasks, intervals, and task-owned
+Tag snapshots in one transaction; the export builder orders snapshots by persisted selection order
+and never reads the mutable Tag catalog. Google remains schema 6 with visible A:N, reserved O,
+hidden identity P, ownership checks, keyed updates, and other-device row preservation. No schema-7
+Google marker, fifteenth visible column, destination-specific Tag logic, or Room write was added.
+No release-blocking Milestone 46 defect remains in the reported evidence.
+
+## 19. Milestone 47 (`0.5.0`) task-form polish evidence
+
+On 2026-09-18, the owner reported that all supplied Milestone 47 compilation, JVM, lint,
+debug/release build, connected-instrumentation, and manual visual/behavior checks passed after the
+final Edit Task inline Add Client recovery. Exact suite counts were not supplied for this final
+rerun, so this section records only the owner's pass report and does not invent per-suite totals.
+
+Verified behavior includes shared live Description, Hardware / software purchases, and Notes
+`N / 999` counters; immediate red over-limit feedback; compact non-wrapping Add/Edit Tag controls;
+picker-opening informational pills; action-only Create/Edit footers; selector-local Client and
+Consultant errors; live 400-code-point Settings and inline Tag-editor counters; filter-scoped
+Select All/Deselect All; and the archived/unavailable Edit Task client recovery flow. The recovery
+uses the canonical inline client validation and archived-match restore confirmation, selects the
+result as an unsaved task change, and remains blocked while the task timer is running.
+
+Static closeout review confirmed branch `milestone47` descends from `v0.5.0-development`, found no
+merge-conflict markers or diff whitespace errors, and reported only the existing informational
+CRLF/LF conversion warning for `TaskFormComponents.kt`. No Room schema, export schema, timer rule,
+task snapshot, or historical client relationship changed in Milestone 47. This closes Milestone
+47 only; Milestone 48 Task 48A is now in progress on the owner-created `milestone48` branch.
+
+## 20. Milestone 48 Task 48A audit baseline
+
+On 2026-09-18, the `milestone48` branch was read-only audited before owner-run release work.
+`main` is an ancestor of `v0.5.0-development`, which is an ancestor of `milestone48`; the
+working tree was clean and `milestone48` pointed at the Milestone 47 integration commit. The
+implemented schema-7 Tag catalogs, task snapshots, bounded CSV import, task pickers, centralized
+composition, and Milestone 47 form polish are mapped in `REQUIREMENTS_TRACEABILITY.md` Section 12.
+
+This section intentionally records no new test pass. The following remain owner-run gates for
+Milestone 48: clean formatting/lint/JVM/debug/release builds, API-26/current connected suites,
+all migration and populated `0.4.0` install-over checks, CSV/XLSX/manual and automatic Google
+exports, accessibility/lifecycle/performance/security checks, release signer/package/version/hash
+verification, and public-download install-over verification. Until those results are reported,
+the `0.5.0` branch is not declared release-ready.
+
+Task 48B then reconciled README, User Guide, product/data/architecture/privacy/security/handoff,
+acceptance, traceability, changelog, and release-checklist wording with the implemented schema-7
+Tag contract. That documentation-only work made no application identity, signer, OAuth scope,
+dependency, backup-policy, migration, or export-layout change and records no new owner-run result.
+
+Task 48C's complete project-local commands and manual verification matrix are now in
+`RELEASE_CHECKLIST.md`, Section 13. No Task 48C result is recorded until the owner runs the
+commands and reports each observed outcome.
+
+On 2026-09-19, the owner reported checks 1–8 passed except the running-timer automatic-Google
+midnight case: the preserved date did not complete automatically after the timer stopped. Static
+diagnosis found that exact-boundary Room normalization already closes the interval without a
+continuation, but `AutomaticGoogleExportManager` deliberately converted `TIMER_RUNNING` into a
+post-Stop notification instead of resuming unattended. D-106 changes that timer-specific recovery:
+successful boundary closure/Stop/reconciliation automatically runs the preserved date, while other
+typed failures remain actionable pending states. Focused automated and repeated live-midnight
+owner evidence were then reported passing. The owner confirmed the timer stopped at the boundary,
+the completed captured date exported silently, and no continuation or duplicate next-day task was
+created.
+
+The owner subsequently reported all Milestone 48 Section 13 checks through Step 10 passing,
+including populated migration/persistence, Tag management/import, Create/Edit picker/history/form
+behavior, all manual export paths, corrected automatic Google behavior, accessibility/layout, and
+lifecycle/performance. The latest locally generated reports independently show 292/292 debug JVM
+tests and 151/151 connected tests with zero failures, errors, or skips; the owner separately reports
+the required API-26 and current-target runs passed. Debug and release lint each contain zero errors
+or fatals (26 non-blocking warnings), and the owner reports the supplied offline build gates passed.
+
+The preliminary Step 11 repository/security checks also pass: `git diff --check` is clean; no
+keystore, local properties, private-key container, APK, or AAB is tracked; no Firebase, Apache POI,
+destructive Room fallback, or secret-value pattern was found; backup remains disabled; and the
+manifest contains only Internet, notifications, and boot-completed permissions.
+
+The owner then explicitly approved `versionName = 0.5.0` and `versionCode = 5`; source identity was
+updated without changing application ID, signing configuration, SDK levels, backup policy, OAuth
+scope, dependencies, Room schema, or export schema. The owner then reported the clean build, lint,
+JVM, and connected gates passed for that exact identity. `apksigner` verified APK Signature Scheme
+v2 and the permanent certificate SHA-1
+`57510ccb3001a7e70c4391c916a80a0cc603bb19`; `aapt2` reported package `worq.order`, versionName
+`0.5.0`, versionCode `5`, minSdk 26, targetSdk 36, and label `WorqOrder`. The exact release APK
+SHA-256 is `AB9AAD5FC34A0AD3677C8F3860BE1012DD104488D276816EA904B45A4C06F247`.
+Install-over/fresh smoke, merge/tag/publication, independent download, and physical-device
+verification remain required. Do not rebuild after those install checks unless every artifact
+identity and checksum check is repeated and this evidence is updated.
+
+The owner then verified the official public `0.4.0` APK baseline with SHA-256
+`B944CA0C8244179DFDBB0E899584A2CC4BB1E9A5A93DA0B4F9700020589E14C4` and the permanent signing
+certificate, populated that installation, and installed the unchanged `0.5.0` candidate over it.
+The upgrade, retained data, migration, launch, task/Tag/timer smoke, force-stop/reopen, and version
+display checks passed. A separate disposable-emulator fresh installation and its persistence smoke
+also passed. This completes the pre-publication signed-artifact gate. Integration merge, tag,
+GitHub publication, independent download/checksum/signature verification, and physical-device
+installation of the downloaded public asset remain unperformed and must not be inferred.

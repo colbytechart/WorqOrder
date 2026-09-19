@@ -4,6 +4,8 @@ import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import worq.order.data.CreateDailyTaskResult
 import worq.order.data.DeleteTaskResult
@@ -14,6 +16,8 @@ import worq.order.data.NormalizedTaskMetadata
 import worq.order.data.TaskMetadataValidationResult
 import worq.order.data.TaskMetadataValidator
 import worq.order.data.TaskRepository
+import worq.order.data.TagTextNormalizer
+import worq.order.data.TagTextValidationResult
 import worq.order.data.UpdateTaskMetadataResult
 import worq.order.model.DailyTask
 import worq.order.model.TaskListItem
@@ -22,6 +26,8 @@ import worq.order.model.TaskWithIntervals
 import worq.order.model.WorkInterval
 import worq.order.model.WorkType
 import worq.order.model.BillingStatus
+import worq.order.model.TagCategory
+import worq.order.model.TaskTagSnapshotDraft
 import worq.order.timer.UtcClock
 
 class RoomTaskRepository(
@@ -31,8 +37,27 @@ class RoomTaskRepository(
     private val clock: UtcClock,
 ) : TaskRepository {
     override fun observeTasksForDate(workDate: LocalDate): Flow<List<TaskListItem>> =
-        taskDao.observeTasksForWorkDate(workDate.toEpochDay()).map { tasks ->
-            tasks.map(TaskListItemEntity::toModel)
+        taskDao.observeTasksForWorkDate(workDate.toEpochDay()).flatMapLatest { tasks ->
+            if (tasks.isEmpty()) {
+                flowOf(emptyList())
+            } else {
+                combine(
+                    tasks.map { task ->
+                        taskDao.observeTaskTagSnapshots(task.task.id).map { snapshots ->
+                            snapshots
+                                .filter { it.category == TagCategory.DESCRIPTION.name }
+                                .sortedWith(
+                                    compareBy(TaskTagSnapshotEntity::selectionOrder)
+                                        .thenBy(TaskTagSnapshotEntity::id),
+                                ).map(TaskTagSnapshotEntity::textSnapshot)
+                        }
+                    },
+                ) { tagTexts ->
+                    tasks.mapIndexed { index, task ->
+                        task.toModel().copy(descriptionTagTexts = tagTexts[index])
+                    }
+                }
+            }
         }
 
     override fun observeTask(taskId: String): Flow<DailyTask?> =
@@ -42,11 +67,13 @@ class RoomTaskRepository(
         combine(
             taskDao.observeTaskWithClient(taskId),
             workIntervalDao.observeOrderedIntervals(taskId),
-        ) { taskWithClient, intervals ->
+            taskDao.observeTaskTagSnapshots(taskId),
+        ) { taskWithClient, intervals, snapshots ->
             taskWithClient?.let {
                 TaskWithIntervals(
                     taskWithClient = it.toModel(),
                     intervals = intervals.map(WorkIntervalEntity::toModel),
+                    tagSnapshots = snapshots.map(TaskTagSnapshotEntity::toModel),
                 )
             }
         }
@@ -66,15 +93,15 @@ class RoomTaskRepository(
 
     override suspend fun insertDailyTask(newTask: NewDailyTask): DailyTask {
         require(newTask.clientId.isNotBlank()) { "clientId must not be blank" }
-        val entity = newTask.toEntity()
-        taskDao.insertDailyTask(entity)
-        return entity.toModel()
+        val write = newTask.toWrite()
+        taskDao.insertDailyTaskWithSnapshots(write.task, write.snapshots)
+        return write.task.toModel()
     }
 
     override suspend fun createDailyTask(newTask: NewDailyTask): CreateDailyTaskResult {
         require(newTask.clientId.isNotBlank()) { "clientId must not be blank" }
-        val entity = newTask.toEntity()
-        val result = taskDao.insertDailyTaskIfReferencesActive(entity)
+        val write = newTask.toWrite()
+        val result = taskDao.insertDailyTaskIfReferencesActive(write.task, write.snapshots)
         return when (result.status) {
             TaskCreationWriteStatus.CREATED ->
                 CreateDailyTaskResult.Created(requireNotNull(result.task).toModel())
@@ -95,6 +122,8 @@ class RoomTaskRepository(
         billingStatus: BillingStatus?,
         mileage: String?,
         notes: String,
+        descriptionTagSnapshots: List<TaskTagSnapshotDraft>?,
+        hardwareSoftwarePurchaseTagSnapshots: List<TaskTagSnapshotDraft>?,
     ): UpdateTaskMetadataResult {
         require(taskId.isNotBlank()) { "taskId must not be blank" }
         require(clientId.isNotBlank()) { "clientId must not be blank" }
@@ -106,7 +135,33 @@ class RoomTaskRepository(
                 billingStatus = billingStatus,
                 mileage = mileage,
                 notes = notes,
+                descriptionTagSnapshots = descriptionTagSnapshots.orEmpty(),
+                hardwareSoftwarePurchaseTagSnapshots =
+                    hardwareSoftwarePurchaseTagSnapshots.orEmpty(),
             )
+        require(
+            (descriptionTagSnapshots == null) ==
+                (hardwareSoftwarePurchaseTagSnapshots == null),
+        ) {
+            "Both Tag snapshot categories must be supplied together"
+        }
+        val nowEpochMs = clock.now().toEpochMilli()
+        val snapshots =
+            if (descriptionTagSnapshots == null) {
+                null
+            } else {
+                snapshotEntities(
+                    taskId = taskId,
+                    category = TagCategory.DESCRIPTION,
+                    drafts = descriptionTagSnapshots,
+                    createdAtEpochMs = nowEpochMs,
+                ) + snapshotEntities(
+                    taskId = taskId,
+                    category = TagCategory.HARDWARE_SOFTWARE_PURCHASE,
+                    drafts = hardwareSoftwarePurchaseTagSnapshots.orEmpty(),
+                    createdAtEpochMs = nowEpochMs,
+                )
+            }
         val result =
             taskDao.updateStoppedTaskMetadata(
                 taskId = taskId,
@@ -118,7 +173,8 @@ class RoomTaskRepository(
                 billingStatus = metadata.billingStatus?.name,
                 mileage = metadata.mileage,
                 notes = metadata.notes,
-                updatedAtEpochMs = clock.now().toEpochMilli(),
+                updatedAtEpochMs = nowEpochMs,
+                snapshots = snapshots,
             )
         return when (result.status) {
             TaskMetadataWriteStatus.UPDATED ->
@@ -210,7 +266,7 @@ class RoomTaskRepository(
     override suspend fun readCompletedDurationMillis(taskId: String): Long =
         workIntervalDao.readCompletedDurationMs(taskId)
 
-    private fun NewDailyTask.toEntity(): DailyTaskEntity {
+    private fun NewDailyTask.toWrite(): TaskWrite {
         val metadata =
             normalizeMetadata(
                 description = description,
@@ -219,24 +275,42 @@ class RoomTaskRepository(
                 billingStatus = billingStatus,
                 mileage = mileage,
                 notes = notes,
+                descriptionTagSnapshots = descriptionTagSnapshots,
+                hardwareSoftwarePurchaseTagSnapshots = hardwareSoftwarePurchaseTagSnapshots,
             )
         val nowEpochMs = clock.now().toEpochMilli()
-        return DailyTaskEntity(
-            id = idGenerator.newId(),
-            seriesId = seriesId ?: idGenerator.newId(),
-            clientId = clientId,
-            description = metadata.description,
-            hardwareSoftwarePurchases = metadata.hardwareSoftwarePurchases,
-            employeeId = employeeId,
-            employeeNameSnapshot = employeeNameSnapshot,
-            workType = metadata.workType.name,
-            billingStatus = metadata.billingStatus?.name,
-            mileage = metadata.mileage,
-            notes = metadata.notes,
-            workDateEpochDay = workDate.toEpochDay(),
-            zoneId = zoneId.id,
-            createdAtEpochMs = nowEpochMs,
-            updatedAtEpochMs = nowEpochMs,
+        val task =
+            DailyTaskEntity(
+                id = idGenerator.newId(),
+                seriesId = seriesId ?: idGenerator.newId(),
+                clientId = clientId,
+                description = metadata.description,
+                hardwareSoftwarePurchases = metadata.hardwareSoftwarePurchases,
+                employeeId = employeeId,
+                employeeNameSnapshot = employeeNameSnapshot,
+                workType = metadata.workType.name,
+                billingStatus = metadata.billingStatus?.name,
+                mileage = metadata.mileage,
+                notes = metadata.notes,
+                workDateEpochDay = workDate.toEpochDay(),
+                zoneId = zoneId.id,
+                createdAtEpochMs = nowEpochMs,
+                updatedAtEpochMs = nowEpochMs,
+            )
+        return TaskWrite(
+            task = task,
+            snapshots =
+                snapshotEntities(
+                    taskId = task.id,
+                    category = TagCategory.DESCRIPTION,
+                    drafts = descriptionTagSnapshots,
+                    createdAtEpochMs = nowEpochMs,
+                ) + snapshotEntities(
+                    taskId = task.id,
+                    category = TagCategory.HARDWARE_SOFTWARE_PURCHASE,
+                    drafts = hardwareSoftwarePurchaseTagSnapshots,
+                    createdAtEpochMs = nowEpochMs,
+                ),
         )
     }
 
@@ -247,6 +321,8 @@ class RoomTaskRepository(
         billingStatus: BillingStatus? = null,
         mileage: String? = null,
         notes: String = "",
+        descriptionTagSnapshots: List<TaskTagSnapshotDraft> = emptyList(),
+        hardwareSoftwarePurchaseTagSnapshots: List<TaskTagSnapshotDraft> = emptyList(),
     ): NormalizedTaskMetadata =
         when (
             val validation =
@@ -257,6 +333,8 @@ class RoomTaskRepository(
                     billingStatus = billingStatus,
                     mileage = mileage,
                     notes = notes,
+                    descriptionTagSnapshots = descriptionTagSnapshots,
+                    hardwareSoftwarePurchaseTagSnapshots = hardwareSoftwarePurchaseTagSnapshots,
                 )
         ) {
             is TaskMetadataValidationResult.Valid -> validation.metadata
@@ -265,6 +343,40 @@ class RoomTaskRepository(
                     "Invalid task metadata: ${validation.errors.joinToString()}",
                 )
         }
+
+    private fun snapshotEntities(
+        taskId: String,
+        category: TagCategory,
+        drafts: List<TaskTagSnapshotDraft>,
+        createdAtEpochMs: Long,
+    ): List<TaskTagSnapshotEntity> {
+        val sourceTagIds =
+            drafts.mapNotNull { draft ->
+                draft.sourceTagId?.trim()?.takeIf(String::isNotEmpty)
+            }
+        require(sourceTagIds.size == sourceTagIds.distinct().size) {
+            "A task cannot select the same source Tag twice in ${category.name}"
+        }
+        return drafts.mapIndexed { selectionOrder, draft ->
+            val normalized =
+                (TagTextNormalizer.validate(draft.text) as? TagTextValidationResult.Valid)?.text
+                    ?: throw IllegalArgumentException("Invalid ${category.name} Tag snapshot")
+            TaskTagSnapshotEntity(
+                id = idGenerator.newId(),
+                taskId = taskId,
+                category = category.name,
+                textSnapshot = normalized.displayText,
+                sourceTagId = draft.sourceTagId?.trim()?.takeIf(String::isNotEmpty),
+                selectionOrder = selectionOrder,
+                createdAtEpochMs = createdAtEpochMs,
+            )
+        }
+    }
+
+    private data class TaskWrite(
+        val task: DailyTaskEntity,
+        val snapshots: List<TaskTagSnapshotEntity>,
+    )
 
 }
 

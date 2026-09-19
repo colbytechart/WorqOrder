@@ -34,12 +34,15 @@ class Schema6MigrationCoreTest {
             val migrated =
                 Room
                     .databaseBuilder(context, WorqOrderDatabase::class.java, DATABASE_NAME)
-                    .addMigrations(WorqOrderMigrations.MIGRATION_5_6)
+                    .addMigrations(
+                        WorqOrderMigrations.MIGRATION_5_6,
+                        WorqOrderMigrations.MIGRATION_6_7,
+                    )
                     .allowMainThreadQueries()
                     .build()
             try {
                 val sqlite = migrated.openHelper.writableDatabase
-                assertEquals(6, sqlite.version)
+                assertEquals(7, sqlite.version)
                 assertEquals(2L, sqlite.scalarLong("SELECT COUNT(*) FROM daily_tasks"))
                 assertEquals(1L, sqlite.scalarLong("SELECT COUNT(*) FROM work_intervals"))
                 assertEquals(1L, sqlite.scalarLong("SELECT COUNT(*) FROM active_timer"))
@@ -63,6 +66,8 @@ class Schema6MigrationCoreTest {
                 assertEquals(3_000L, timedTask.updatedAtEpochMs)
                 assertEquals("", timedTask.notes)
                 assertEquals("", migrated.taskDao().readTask("untimed-task")?.notes)
+                assertEquals(0L, sqlite.scalarLong("SELECT COUNT(*) FROM tags"))
+                assertEquals(0L, sqlite.scalarLong("SELECT COUNT(*) FROM task_tag_snapshots"))
                 assertFalse(requireNotNull(migrated.clientDao().readClient("client-1")).isActive)
                 assertFalse(requireNotNull(migrated.employeeDao().readEmployee("employee-1")).isActive)
                 val historicalClient =
@@ -123,6 +128,7 @@ class Schema6MigrationCoreTest {
                         WorqOrderMigrations.MIGRATION_3_4,
                         WorqOrderMigrations.MIGRATION_4_5,
                         WorqOrderMigrations.MIGRATION_5_6,
+                        WorqOrderMigrations.MIGRATION_6_7,
                     ).allowMainThreadQueries()
                     .build()
             try {
@@ -151,9 +157,43 @@ class Schema6MigrationCoreTest {
                 assertEquals("legacy-three-task", active.taskId)
                 assertEquals("legacy-three-open", active.intervalId)
                 val sqlite = migrated.openHelper.writableDatabase
-                assertEquals(6, sqlite.version)
+                assertEquals(7, sqlite.version)
                 assertEquals(1L, sqlite.scalarLong("SELECT COUNT(*) FROM daily_tasks"))
                 assertEquals(1L, sqlite.scalarLong("SELECT COUNT(*) FROM work_intervals"))
+                assertEquals(0L, sqlite.scalarLong("SELECT COUNT(*) FROM tags"))
+                assertEquals(0L, sqlite.scalarLong("SELECT COUNT(*) FROM task_tag_snapshots"))
+                sqlite.query("PRAGMA foreign_key_check").use { cursor ->
+                    assertFalse(cursor.moveToFirst())
+                }
+            } finally {
+                migrated.close()
+            }
+        }
+
+    @Test
+    fun populatedSchemaSixUpgradeAddsEmptyTagTablesWithoutChangingTaskGraph() =
+        runBlocking {
+            createPopulatedVersionSixDatabase()
+
+            val migrated =
+                Room
+                    .databaseBuilder(context, WorqOrderDatabase::class.java, DATABASE_NAME)
+                    .addMigrations(WorqOrderMigrations.MIGRATION_6_7)
+                    .allowMainThreadQueries()
+                    .build()
+            try {
+                val sqlite = migrated.openHelper.writableDatabase
+                assertEquals(7, sqlite.version)
+                assertEquals("Schema six task", migrated.taskDao().readTask("schema-six-task")?.description)
+                assertEquals(
+                    "schema-six-interval",
+                    migrated.workIntervalDao()
+                        .readIntervalsForOverlapValidation("schema-six-task")
+                        .single()
+                        .id,
+                )
+                assertEquals(0L, sqlite.scalarLong("SELECT COUNT(*) FROM tags"))
+                assertEquals(0L, sqlite.scalarLong("SELECT COUNT(*) FROM task_tag_snapshots"))
                 sqlite.query("PRAGMA foreign_key_check").use { cursor ->
                     assertFalse(cursor.moveToFirst())
                 }
@@ -275,6 +315,38 @@ class Schema6MigrationCoreTest {
             )
         }
 
+    private fun createPopulatedVersionSixDatabase() =
+        createDatabaseFromSchema(SCHEMA_SIX_ASSET, 6) { db ->
+            db.execSQL(
+                """
+                INSERT INTO clients (
+                    id, name, canonical_name, active_name_key, is_active,
+                    created_at_epoch_ms, updated_at_epoch_ms, archived_at_epoch_ms
+                ) VALUES ('schema-six-client', 'Schema Six Client', 'schema six client',
+                          'schema six client', 1, 1000, 1000, NULL)
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                INSERT INTO daily_tasks (
+                    id, series_id, client_id, description, hardware_software_purchases,
+                    employee_id, employee_name_snapshot, work_type, billing_status, mileage,
+                    notes, work_date_epoch_day, zone_id, created_at_epoch_ms, updated_at_epoch_ms
+                ) VALUES ('schema-six-task', 'schema-six-series', 'schema-six-client',
+                          'Schema six task', '', NULL, '', 'UNSPECIFIED', NULL, NULL, '',
+                          20000, 'UTC', 1000, 1000)
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                INSERT INTO work_intervals (
+                    id, task_id, start_epoch_ms, stop_epoch_ms, active_slot,
+                    was_manually_edited, created_at_epoch_ms, updated_at_epoch_ms
+                ) VALUES ('schema-six-interval', 'schema-six-task', 1000, 2000, NULL, 0, 1000, 2000)
+                """.trimIndent(),
+            )
+        }
+
     private fun createDatabaseFromSchema(
         schemaAsset: String,
         version: Int,
@@ -323,5 +395,6 @@ class Schema6MigrationCoreTest {
         const val DATABASE_NAME = "schema-6-upgrade-core-test.db"
         const val SCHEMA_THREE_ASSET = "worq.order.data.local.WorqOrderDatabase/3.json"
         const val SCHEMA_FIVE_ASSET = "worq.order.data.local.WorqOrderDatabase/5.json"
+        const val SCHEMA_SIX_ASSET = "worq.order.data.local.WorqOrderDatabase/6.json"
     }
 }

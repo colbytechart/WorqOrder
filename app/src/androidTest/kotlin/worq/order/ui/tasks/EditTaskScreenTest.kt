@@ -14,7 +14,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
-import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -23,6 +22,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import worq.order.data.TaskMetadataValidationError
 import worq.order.ui.clients.ClientItemUi
 import worq.order.ui.employees.ConsultantItemUi
 import worq.order.model.WorkType
@@ -33,6 +33,31 @@ import worq.order.ui.theme.WorqOrderTheme
 class EditTaskScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun overlengthFieldsKeepTheirLiveCharacterCounts() {
+        setContent(
+            state =
+                readyState().copy(
+                    description = "x".repeat(999) + ".",
+                    notes = "n".repeat(1000),
+                    metadataErrors =
+                        setOf(
+                            TaskMetadataValidationError.DESCRIPTION_TOO_LONG,
+                            TaskMetadataValidationError.NOTES_TOO_LONG,
+                        ),
+                ),
+        )
+
+        composeRule
+            .onAllNodesWithText("Character limit: 1000 / 999")
+            .assertCountEquals(2)
+        composeRule
+            .onAllNodesWithText("Character limit: 1000 / 999")[1]
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(EditTaskScreenTestTags.SAVE).assertIsNotEnabled()
+    }
 
     @Test
     fun metadataAndSingularIntervalAreRenderedWithActions() {
@@ -46,15 +71,9 @@ class EditTaskScreenTest {
         )
 
         composeRule.onNodeWithText("Short description").assertIsDisplayed()
-        composeRule.onNodeWithText("Hardware / Software Purchases").assertIsDisplayed()
+        composeRule.onNodeWithText("Hardware / software purchases").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Hardware / Software Purchases").assertCountEquals(0)
         composeRule.onAllNodesWithText("Time zone:", substring = true).assertCountEquals(0)
-        composeRule
-            .onNodeWithTag(EditTaskScreenTestTags.NOTES)
-            .performScrollTo()
-            .assertIsDisplayed()
-            .performTextInput("Follow up")
-        Espresso.closeSoftKeyboard()
-        composeRule.waitForIdle()
         composeRule
             .onNodeWithText("Task Total: 02:00:00")
             .performScrollTo()
@@ -85,6 +104,12 @@ class EditTaskScreenTest {
         composeRule.onNodeWithTag(EditTaskScreenTestTags.DELETE).assertIsEnabled()
         composeRule.onNodeWithTag(EditTaskScreenTestTags.SAVE).assertIsEnabled()
         composeRule.onNodeWithText("Edit interval").performScrollTo().performClick()
+        composeRule
+            .onNodeWithTag(EditTaskScreenTestTags.NOTES)
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performTextInput("Follow up")
+        composeRule.waitForIdle()
 
         assertTrue(events.contains(EditTaskEvent.OpenEditInterval("only")))
         assertTrue(events.contains(EditTaskEvent.EditNotes("Follow up")))
@@ -111,6 +136,76 @@ class EditTaskScreenTest {
         save.performClick()
         assertTrue(events.contains(EditTaskEvent.RequestDeleteTask))
         assertTrue(events.contains(EditTaskEvent.SaveMetadata))
+    }
+
+    @Test
+    fun unavailableConsultantErrorAppearsDirectlyBelowTheSelector() {
+        setContent(
+            state =
+                readyState().copy(
+                    selectedConsultantId = null,
+                    message = EditTaskMessage.CONSULTANT_UNAVAILABLE,
+                ),
+        )
+
+        val selector =
+            composeRule
+                .onNodeWithText("Choose a Consultant")
+                .performScrollTo()
+                .assertIsDisplayed()
+        val error =
+            composeRule
+                .onNodeWithText("Select an active Consultant before saving this task.")
+                .assertIsDisplayed()
+        assertTrue(
+            selector.fetchSemanticsNode().boundsInRoot.bottom <=
+                error.fetchSemanticsNode().boundsInRoot.top,
+        )
+        composeRule
+            .onAllNodesWithText("Select an active Consultant before saving this task.")
+            .assertCountEquals(1)
+    }
+
+    @Test
+    fun archivedAssignedClientOffersInlineAddClient() {
+        val events = mutableListOf<EditTaskEvent>()
+        setContent(
+            state =
+                readyState().copy(
+                    activeClients = emptyList(),
+                    selectedClientId = "archived-client",
+                    originalClientName = "Archived Client",
+                ),
+            onEvent = events::add,
+        )
+
+        composeRule
+            .onNodeWithText("No active clients are available.", substring = true)
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Add client")
+            .assertIsDisplayed()
+            .assertIsEnabled()
+            .performClick()
+
+        assertTrue(events.contains(EditTaskEvent.OpenAddClient))
+    }
+
+    @Test
+    fun nonAssignmentPageErrorRemainsDismissibleInTheScrollableForm() {
+        val events = mutableListOf<EditTaskEvent>()
+        setContent(
+            state = readyState().copy(message = EditTaskMessage.TASK_ALREADY_HAS_INTERVAL),
+            onEvent = events::add,
+        )
+
+        composeRule
+            .onNodeWithText("This task already has an interval. Delete it before adding another.")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(EditTaskScreenTestTags.FOOTER).assertIsDisplayed()
+        composeRule.onNodeWithText("Dismiss").performClick()
+        assertTrue(events.contains(EditTaskEvent.DismissMessage))
     }
 
     @Test

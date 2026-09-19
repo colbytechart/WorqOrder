@@ -1,10 +1,10 @@
 # Privacy and Data
 
-This document describes the `0.4.0` source/release-candidate data contract, with released
-`0.3.0` and `0.2.0` details retained for upgrade transparency. At the 2026-09-15 QA source
-freeze, publication of the `0.4.0` APK was still owner-controlled; check GitHub Releases for
-the live published version. `0.4.0` Notes are ordinary Room task data. Exported Notes are
-readable plaintext in CSV/XLSX/Google Sheets under the existing export privacy policy.
+This document describes the released `0.4.0` data contract, with earlier details retained for
+upgrade transparency. Check GitHub Releases for authoritative artifacts. `0.4.0` Notes are
+ordinary Room task data. Exported Notes are readable plaintext in CSV/XLSX/Google Sheets under
+the existing export privacy policy. Section 10 describes implemented but unreleased `0.5.0`
+Tag behavior and its remaining release verification boundary.
 
 ## 1. Summary
 
@@ -152,3 +152,21 @@ recovery waits until first unlock so WorqOrder does not copy the task Descriptio
 device-protected storage. Full implementation details are in `LOCK_SCREEN_SURFACE_ADR.md`. Optional Milestone E encryption/app-lock/screenshot/Recents controls are release-agnostic
 backburner items outside `0.2.0` and every other release scope until explicitly assigned; this
 notice must not imply otherwise.
+
+## 10. Implemented but unreleased `0.5.0` reusable Tags
+
+`0.5.0` implements local Description and Hardware / Software Purchase Tag catalogs plus task-owned
+text snapshots. They are ordinary potentially sensitive Room data under the same Android sandbox and
+disabled-backup policy as tasks; WorqOrder does not claim app-managed at-rest encryption. Catalog
+edit/delete does not erase text already snapshotted into a task. Task deletion removes that task's
+snapshots, while deleting a catalog Tag leaves historical task content intact.
+
+When the user exports, ordered snapshots are composed into the existing Description or Expense
+cell and become plaintext in the chosen CSV/XLSX file or connected Google Sheet. No Tag column,
+new OAuth scope, backend, account, analytics, telemetry, or automatic network destination is
+introduced. CSV import reads only the document the user selects through the Storage Access
+Framework and stores accepted cells locally; it does not upload the source document.
+
+Main task rows may show a first Description Tag only when manual Description is blank. The running-
+timer notification never receives Tag text, including in its private lock-screen form. Generated
+export punctuation is not written back to stored manual text or snapshots.

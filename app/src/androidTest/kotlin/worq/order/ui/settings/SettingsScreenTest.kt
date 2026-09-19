@@ -14,6 +14,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.ZoneId
@@ -96,10 +97,14 @@ class SettingsScreenTest {
             .onNode(hasScrollAction())
             .performScrollToNode(hasText("Appearance"))
         composeRule.onNodeWithText("Use system setting").assertIsSelected()
-        composeRule.onNodeWithText("Light").assertIsEnabled()
         composeRule.onNodeWithText("Dark").assertIsEnabled()
         composeRule.onNodeWithText("Appearance").assertIsDisplayed()
-        composeRule.onNodeWithText("Light").performClick()
+        composeRule
+            .onNodeWithText("Light")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .assertIsEnabled()
+            .performClick()
         composeRule
             .onNode(hasScrollAction())
             .performScrollToNode(hasText("Left-handed"))

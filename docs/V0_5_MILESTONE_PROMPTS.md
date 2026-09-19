@@ -339,8 +339,9 @@ checks, audit the final diff, and provide short and long commit messages. Do not
 ```
 
 **Status:** completed on `milestone47` with owner-reported passing compilation, JVM, lint,
-debug/release build, connected-instrumentation, and manual verification. Milestone 48 has not
-started.
+debug/release build, connected-instrumentation, and manual verification. Milestone 48 Task 48A is
+now in progress on `milestone48` under explicit owner direction. Tasks 48A and 48B are complete;
+48C–48D remain gated on the assigned model handoff and owner-run evidence.
 
 ## Milestone 48 — Full `0.5.0` audit and public-release handoff
 
@@ -363,6 +364,10 @@ limits, historical snapshots, exports, and migration. Do not change identity, si
 OAuth scope, backup, or architecture. Stop for Luna.
 ```
 
+**Status:** completed on `milestone48` as documentation-only reconciliation. No application
+identity, signer, dependency, OAuth scope, backup, migration, or export-layout behavior changed.
+Task 48C remains gated on the owner-confirmed Luna handoff.
+
 ### Task 48C — Luna: owner-run gate orchestration
 
 ```text
@@ -371,6 +376,19 @@ format/lint/JVM/debug/release and API-26/current connected suites, plus migratio
 0.4.0-to-0.5.0 install-over, CSV/XLSX/Google/manual/automatic export, accessibility, lifecycle,
 and device smoke checklists. Collect and record only results the owner reports. Stop for Sol.
 ```
+
+**Status:** commands and the owner manual matrix are supplied in `RELEASE_CHECKLIST.md`, Section
+13. The owner reported checks 1–10 passed. Check 8 initially exposed the running-timer midnight
+automatic-export defect; D-106 and its bounded manager/test/specification correction were followed
+by passing focused automated and repeated live-midnight evidence. Preliminary Step 11 repository,
+permission, backup, secret/artifact, dependency, and migration scans pass. Task 48D is authorized
+with Sol; final identity, signed artifact, merge/tag/publication, and public-install evidence remain
+pending.
+
+The owner explicitly approved `versionName = 0.5.0` and `versionCode = 5` for Task 48D. Source
+identity is updated. The clean owner-run build, permanent-signer comparison, package/version
+inspection, exact candidate SHA-256, signed populated-`0.4.0` install-over, and fresh-install gates
+pass. Merge/tag/publication and independent public-download/physical-install gates remain pending.
 
 ### Task 48D — Sol: minimal final release decision
 

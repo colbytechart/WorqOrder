@@ -1,6 +1,7 @@
 # WorqOrder Product Specification
 
-Status: released through `0.4.0`; approved planning-only `0.5.0` changes are in Section 17
+Status: released through `0.4.0`; `0.5.0` Tag changes in Section 17 are implemented on the
+development branch, with Milestone 48 release audit and owner-run gates pending.
 Product: WorqOrder for Android  
 Minimum Android version: API 26  
 Authoritative data store: local Room database
@@ -137,14 +138,17 @@ A plus/FAB opens a task-creation screen or accessible dialog containing:
 
 - a client selector of alphabetically sorted active clients;
 - an inline **Add client** action using the same validation/repository path as Settings;
-- a required short description, trimmed, maximum 400 characters;
-- an optional text field labeled **Hardware / Software Purchases**, trimmed when nonblank, maximum 400 characters; and
-- the currently selected active **Consultant**, required for creation;
+- a required composed Description: manual text plus ordered Description Tag snapshots may total at
+  most 999 Unicode code points, and Tag-only Description is valid;
+- an optional **Hardware / software purchases** manual field plus ordered purchase Tag snapshots,
+  whose composed value may total at most 999 Unicode code points;
+- an active **Consultant** selected in Settings and required for creation;
 - a **Work Type:** radio group containing **On-Site** and **In-Office**, defaulting to On-Site;
 - a **Billing Status** radio group containing **Billable**, **Do not bill**, and **Do not charge**,
   defaulting new tasks to Billable;
 - an optional **Mileage** decimal field that uses the numeric-decimal keyboard and accepts only a
-  validated non-negative decimal representation; and
+  validated non-negative decimal representation;
+- optional **Notes**, limited to 999 Unicode code points; and
 - **Create** and **Cancel** actions.
 
 Create validates and writes one daily task with an immutable employee-name snapshot. If its work
@@ -239,8 +243,9 @@ screen; validation or persistence failure keeps the editor open.
 
 Validation rejects:
 
-- blank or over-400-character short descriptions;
-- over-400-character **Hardware / Software Purchases** text; this optional field may be blank;
+- a blank composed Description or one exceeding 999 Unicode code points;
+- a composed **Hardware / software purchases** value exceeding 999 Unicode code points; this
+  optional field may be blank;
 - a start at or after stop;
 - overlap with another interval for that task;
 - an interval outside the start/end instants of the task's stored work date and zone;
@@ -467,9 +472,12 @@ authorized consecutive milestones in `IMPLEMENTATION_PLAN.md`:
 10. **Automatic Google daily export.** The opt-in Google-only scheduler captures the intended
     effective-zone date near the end of that date. Approximate execution after midnight still
     exports the captured prior date, never a newly blank day. Owned-tab replacement keeps the
-    operation duplicate-free. If a timer is running, preserve the target as pending; after Stop,
-    post a content-free actionable system notification whose tap resumes/performs or confirms that
-    date's export. CSV/XLSX never auto-run. Failures remain retryable and never mutate Room.
+    operation duplicate-free. At the captured date's local-midnight boundary, an active interval
+    closes transactionally at the exact pinned-ZoneId boundary without a continuation task or
+    interval; the completed captured date then exports automatically. If closure cannot yet be
+    confirmed, retain `TIMER_RUNNING` and automatically resume after a later successful boundary
+    close or Stop. CSV/XLSX never auto-run. Authorization, connectivity, and other actionable
+    failures remain pending without mutating Room.
 
 The former persistent-XLSX choice and the previously deferred natural-midnight device exercises
 are not `0.2.0` backlog items. Appropriate automated and manual verification remains mandatory for
@@ -573,10 +581,11 @@ owner subsequently published and physically verified `0.4.0`. The former teardow
 and 43 are deferred and renumbered to post-`0.5.0` Milestones 49 and 50. Security Milestone E
 stays unscheduled outside release scope.
 
-## 17. Approved `0.5.0` reusable-Tag product changes (planned)
+## 17. Implemented `0.5.0` reusable-Tag product changes (release audit pending)
 
-This section is approved design, not implemented behavior until its assigned milestones pass.
-It adds reusable local text catalogs without adding export columns or changing Room authority.
+The assigned implementation milestones are complete through Milestone 47 on the development
+branch. Milestone 48 still owns the release audit and owner-run gates. This feature adds reusable
+local text catalogs without adding export columns or changing Room authority.
 
 1. **Two independent catalogs.** Settings places **Tag Management** after Client Management and
    Consultant Management. Its overview opens separate **Description Tags** and **Hardware /

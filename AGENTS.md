@@ -13,9 +13,13 @@
 - The only automatic export destination is the single connected Google spreadsheet. Its opt-in
   near-end-of-day schedule captures the intended local work date, remains idempotent, and may run
   shortly after midnight while still exporting that captured date. CSV and XLSX remain manual.
-- If the scheduled Google export finds a running timer, persist the captured date as pending. Do
-  not export an open interval. After Stop, show an actionable system notification; tapping it
-  resumes or confirms export of the preserved date. Never expose task/client content in it.
+- At the captured date's local midnight, automatic Google export must first normalize any running
+  timer through the authoritative exact-boundary Room transaction. The interval closes at that
+  boundary, no continuation task/interval is created, and the preserved date then exports
+  automatically. Never export an open interval. If closure cannot yet be confirmed, retain the
+  captured date as `TIMER_RUNNING`; a later successful boundary close or Stop automatically resumes
+  it. Notifications remain for failures that actually require user attention and never expose
+  task/client content.
 - Do not add Firebase, a custom backend, a web wrapper, embedded credentials, service-account keys, passwords, OAuth client secrets, or unrestricted API credentials.
 - WorqOrder must remain free and open source under GPLv3. Do not add billing, paid API tiers, paid
   quota increases, subscriptions, or a Google Workspace/organization requirement.

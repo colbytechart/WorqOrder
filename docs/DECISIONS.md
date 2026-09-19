@@ -124,12 +124,13 @@ Use Compose → ViewModels → repositories/domain services → storage/gateways
 
 Export/commit Room schemas from version 1, write explicit migrations and instrumentation tests, and never enable destructive fallback in release builds.
 
-### D-021 — Validation limits
+### D-021 — Initial validation limits (superseded for Tag-enabled fields)
 
 Client names are maximum 100 characters and canonicalized with trim, repeated-whitespace collapse,
-and locale-independent case normalization. A task's required short description and optional
-hardware/software-purchases text are each maximum 400 characters. Both are trimmed; the short
-description cannot be blank, while purchases text may be blank.
+and locale-independent case normalization. Before `0.5.0`, a task's required short description and
+optional hardware/software-purchases text were each maximum 400 characters. Both were trimmed; the
+short description could not be blank, while purchases text could be blank. D-103 supersedes only
+those two task-field limits with the approved Tag-aware 999-code-point composed rule.
 
 ### D-022 — Client rename semantics
 
@@ -1302,7 +1303,7 @@ Description can be satisfied entirely by Tags. One pure composer places manual t
 snapshots in selection order, adds a period when a component lacks `.`, `?`, or `!`, and joins with
 one space. Shared validation counts that same composed result and returns structured length errors.
 Generated punctuation exists only in exported values. The composer never modifies manual text or
-snapshots.
+snapshots. This supersedes D-021's former 400-character Description/purchases limits for `0.5.0`.
 
 Tags do not add columns. Keep canonical export schema 6, its 14 exact visible headers, and current
 Google A:N/O/P layout and marker. Milestone 46 integrates the single pure composer into the
@@ -1356,6 +1357,35 @@ If Edit Task's assigned client is archived/unavailable, it exposes Create Task's
 immediate and independent; the resulting task assignment is marked unsaved and changes the task
 only after Save Task Changes. Cancelling the edit therefore preserves the added/restored client but
 leaves the task's historical client ID unchanged. Running-task guards remain authoritative.
+
+### D-106 — Midnight automatic export closes the timer and proceeds unattended
+
+During the Milestone 48 owner gate, the previous timer-pending recovery flow failed to complete the
+captured date automatically after Stop. The owner superseded the timer-specific portions of D-071,
+D-076, and D-077: when an automatic Google target reaches its local-date boundary, first invoke the
+shared authoritative timer normalizer. A running interval closes transactionally at the exact first
+midnight in its pinned ZoneId, clears the singleton active timer, and creates no continuation task,
+interval, or next-day duplicate. Automatic Google export then writes that completed captured date
+silently.
+
+If concurrent state or clock-safety policy prevents confirming the close, retain the target as
+`TIMER_RUNNING` and export nothing. A later successful boundary close, normal Stop, or startup/
+foreground reconciliation automatically re-enters the same bounded one-date attempt once Room has
+no active timer; it does not require a notification tap. Authorization, connectivity, permission,
+remote, and local-storage failures continue to use typed pending state and the content-free
+attention notification/Settings recovery. This changes no manual CSV/XLSX/Google running-timer
+lockout and adds no exact alarm, foreground service, wake lock, background tick, or automatic retry
+loop.
+
+### D-107 — `0.5.0` release identity is version code 5
+
+On 2026-09-19, after the Milestone 48 owner-run functional, migration, export, accessibility,
+lifecycle/performance, and preliminary security gates passed, the owner explicitly approved
+`versionName = 0.5.0` and `versionCode = 5`. Application ID `worq.order`, the permanent signing
+identity, minSdk 26, targetSdk 36, disabled backup, GPLv3 license, direct-GitHub distribution, and
+Google `drive.file` scope remain unchanged. Approval authorizes the candidate identity only; it
+does not claim that the signed artifact, merge, tag, GitHub publication, independent download, or
+physical install-over has passed.
 
 ## Deferred decisions
 

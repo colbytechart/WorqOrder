@@ -116,16 +116,18 @@ class AutomaticGoogleExportManager(
                         target
                     }
                 } else {
-                    if (!clock.now().isBefore(automaticGoogleExportBoundary(date, zoneId))) {
-                        val pendingReason = settings.automaticGooglePendingReason
-                        if (
-                            pendingReason != AutomaticGooglePendingReason.TIMER_RUNNING ||
-                            activeTimerRepository.readActiveTimer() == null
-                        ) {
-                            notifier.postAttentionRequired()
-                        }
+                    if (clock.now().isBefore(automaticGoogleExportBoundary(date, zoneId))) {
+                        return@withLock null
                     }
-                    null
+                    if (
+                        settings.automaticGooglePendingReason ==
+                            AutomaticGooglePendingReason.TIMER_RUNNING
+                    ) {
+                        AutomaticGoogleExportTarget(date, zoneId, key)
+                    } else {
+                        notifier.postAttentionRequired()
+                        null
+                    }
                 }
             }
         overdueTarget?.runNow()
@@ -204,23 +206,27 @@ class AutomaticGoogleExportManager(
         val overdueTarget =
             mutex.withLock {
                 val settings = settingsRepository.readSettings()
-                if (settings.automaticGooglePendingReason == AutomaticGooglePendingReason.TIMER_RUNNING) {
-                    notifier.postAttentionRequired()
-                    return@withLock null
-                }
                 if (!settings.automaticGoogleExportEnabled ||
-                    settings.defaultExportDestination != ExportDestination.GOOGLE_SHEETS ||
-                    settings.automaticGooglePendingReason != null
+                    settings.defaultExportDestination != ExportDestination.GOOGLE_SHEETS
                 ) {
                     return@withLock null
                 }
                 val date = settings.automaticGoogleTargetDate ?: return@withLock null
                 val zoneId = settings.automaticGoogleTargetZoneId ?: return@withLock null
                 val key = settings.automaticGoogleTargetConnectionKey ?: return@withLock null
-                AutomaticGoogleExportTarget(date, zoneId, key)
-                    .takeUnless {
-                        clock.now().isBefore(automaticGoogleExportBoundary(date, zoneId))
-                    }
+                if (clock.now().isBefore(automaticGoogleExportBoundary(date, zoneId))) {
+                    return@withLock null
+                }
+                when (settings.automaticGooglePendingReason) {
+                    null -> AutomaticGoogleExportTarget(date, zoneId, key)
+                    AutomaticGooglePendingReason.TIMER_RUNNING ->
+                        if (activeTimerRepository.readActiveTimer() == null) {
+                            AutomaticGoogleExportTarget(date, zoneId, key)
+                        } else {
+                            null
+                        }
+                    else -> null
+                }
             }
         overdueTarget?.runNow()
     }

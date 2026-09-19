@@ -619,12 +619,17 @@ success may still remain silent, but any blocked target stays recoverable in Goo
 next foreground launch; WorqOrder must not claim that Android can guarantee a notification the user
 or OEM has suppressed.
 
-An active Room timer is checked before authorization or snapshot creation. If present, export
-nothing and store `TIMER_RUNNING`. After Stop commits, post the recovery notification. Offline,
-authorization-required, permission, rate-limit, server, timeout, and ambiguous failures also keep
-the target with a typed safe reason. Use `Result.success()` after persisting such a terminal pending
-state rather than WorkManager automatic retry. User action is the retry boundary; there is no
-unbounded retry, paid quota, or repeated background network loop.
+At or after the captured date's real boundary, the automatic path invokes the shared timer
+normalizer before authorization or snapshot creation. If the active interval belongs across that
+boundary, Room closes it transactionally at the exact pinned-ZoneId instant, clears the singleton,
+and creates no continuation; the manager then exports the completed captured date automatically.
+If Room still reports an active timer, export nothing and store `TIMER_RUNNING`. A later successful
+boundary close, ordinary Stop, or startup reconciliation automatically re-enters the bounded
+single-date attempt. Offline, authorization-required, permission, rate-limit, server, timeout, and
+ambiguous failures keep the target with a typed safe reason and use the content-free recovery
+notification/Settings action. Use `Result.success()` after persisting a terminal pending state
+rather than WorkManager automatic retry; there is no unbounded retry, paid quota, or repeated
+background network loop.
 
 ### 16.5 Limits and alternatives rejected
 

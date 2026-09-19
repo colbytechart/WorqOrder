@@ -75,12 +75,6 @@ class EditTaskScreenTest {
         composeRule.onAllNodesWithText("Hardware / Software Purchases").assertCountEquals(0)
         composeRule.onAllNodesWithText("Time zone:", substring = true).assertCountEquals(0)
         composeRule
-            .onNodeWithTag(EditTaskScreenTestTags.NOTES)
-            .performScrollTo()
-            .assertIsDisplayed()
-            .performTextInput("Follow up")
-        composeRule.waitForIdle()
-        composeRule
             .onNodeWithText("Task Total: 02:00:00")
             .performScrollTo()
             .assertIsDisplayed()
@@ -110,6 +104,12 @@ class EditTaskScreenTest {
         composeRule.onNodeWithTag(EditTaskScreenTestTags.DELETE).assertIsEnabled()
         composeRule.onNodeWithTag(EditTaskScreenTestTags.SAVE).assertIsEnabled()
         composeRule.onNodeWithText("Edit interval").performScrollTo().performClick()
+        composeRule
+            .onNodeWithTag(EditTaskScreenTestTags.NOTES)
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performTextInput("Follow up")
+        composeRule.waitForIdle()
 
         assertTrue(events.contains(EditTaskEvent.OpenEditInterval("only")))
         assertTrue(events.contains(EditTaskEvent.EditNotes("Follow up")))

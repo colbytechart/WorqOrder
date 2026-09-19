@@ -549,10 +549,12 @@ Version `0.2.0` historical tests cover consultant snapshot stability, Work type,
 Status, normalized/blank Mileage, Billing minutes at zero/positive/boundary/long totals, exact 15 schema-4 headers and
 duplicated `MM/DD/YYYY` Start date/End date values,
 schema-2/schema-3 owned-tab upgrade to schema 4, unowned-tab protection, and equivalent CSV/XLSX/Google
-values. Automatic-export tests cover captured-date execution before/after midnight, inexact delay,
-running-timer pending state, post-Stop notification action, notification dismissal, reboot/Doze,
-zone changes, disconnect/sign-out, authorization/offline/quota failure, manual/automatic races,
-idempotency, no Main success message, no sensitive notification content, and no CSV/XLSX schedule.
+values. Historical automatic-export tests cover captured-date execution before/after midnight,
+inexact delay, running-timer pending state, notification dismissal, reboot/Doze, zone changes,
+disconnect/sign-out, authorization/offline/quota failure, manual/automatic races, idempotency, no
+Main success message, no sensitive notification content, and no CSV/XLSX schedule. D-106 adds the
+current timer-specific contract: exact-boundary auto-close, no continuation/duplicate, immediate
+completed-date export, and automatic `TIMER_RUNNING` recovery after later Stop/reconciliation.
 
 ## 13. Canonical export schema version 5 (`0.3.0` current)
 

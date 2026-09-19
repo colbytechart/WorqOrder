@@ -43,6 +43,17 @@ custom backend.
 | Gradle wrapper substitution | High | Distribution checksum pinned; checked-in wrapper JAR matches Gradle's published 9.4.1 checksum |
 | At-rest encryption | Medium | Outside all release scopes; unscheduled optional Milestone E |
 
+### Current `0.5.0` Tag audit baseline (unreleased)
+
+The implemented Tag catalogs, task-owned snapshots, local CSV import, and composed exports remain
+inside the Android application sandbox and disabled-backup policy. Catalog edits/deletions do not
+rewrite historical task snapshots. CSV/XLSX and readable Google cells remain intentional plaintext
+external copies; no Tag-specific OAuth scope, backend, analytics, credential, broad storage
+permission, or logging path was added. The running notification continues to omit Tag text.
+
+This is a static repository review only. Owner-run release, device, public-download, and signed
+artifact checks are Milestone 48 gates and are not claimed here.
+
 ## 3. Manifest and permission review
 
 The source manifest directly requests only:

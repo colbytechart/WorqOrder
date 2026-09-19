@@ -3,8 +3,8 @@
 ## 1. Scope and status
 
 This matrix retains released `0.2.0` and `0.3.0` evidence in historical Sections 1–10 and
-describes implemented `0.4.0` work in Section 11. Section 12 is planned `0.5.0` traceability, not
-implementation evidence. Rows explicitly marked historical are not live contracts. `Pass` means
+describes implemented `0.4.0` work in Section 11. Section 12 records the implemented-but-unreleased
+`0.5.0` audit baseline. Rows explicitly marked historical are not live contracts. `Pass` means
 the implementation and test evidence exist. `Partial` means
 the implementation exists but final release-device, human, or external configuration evidence is
 still required. `N/A` identifies an explicitly optional or prohibited capability.
@@ -196,9 +196,17 @@ Implementation and pre-publication verification passed. The owner subsequently p
 `0.4.0`, downloaded the GitHub asset, verified its identity, installed it on a physical device,
 and reported expected behavior; the `0.4.0` release gate is complete.
 
-## 12. Planned `0.5.0` traceability baseline
+## 12. `0.5.0` Milestones 42–47 implementation traceability baseline
 
-The following rows define future gates only. A planned row is not implementation or test evidence.
+The implementation and focused automated evidence below are present on the `milestone48` branch.
+Owner-run release, signed-artifact, upgrade, device, accessibility, lifecycle, and public-download
+checks remain **Partial** until the owner reports them. No row below claims a test that was not
+reported by the owner.
+
+The original planning table below is retained as historical provenance; the current audit table
+follows it.
+
+### Historical planning baseline (superseded)
 
 | Requirement | Planned implementation | Automated evidence | Owner manual evidence | Status |
 |---|---|---|---|---|
@@ -210,5 +218,20 @@ The following rows define future gates only. A planned row is not implementation
 | Historical and repeated-Start snapshots | M43 transactions; M45 presentation | source edit/delete, explicit update, copy/concurrency tests | reopen/edit/delete/restart timing flows | Planned |
 | Main fallback and notification privacy | M45 presentation/notification mapping | manual/Tag fallback and redaction tests | visible/running/locked inspection | Planned |
 | Unchanged schema-6 cross-destination export | M46 canonical projection integration | CSV/XLSX/manual+automatic Google equivalence and regression tests | same-task exports and cross-device Google append | Planned |
-| `0.5.0` release compatibility and public APK | M47 audit/handoff | owner-run lint/JVM/build/API26/current connected gates | populated upgrade, physical install, signer/hash/public download | Planned |
-| Safe environment retirement guidance/actions | M48 guide; optional M49 exact actions | documentation/path/safety review only | separate owner inventory/authorization | Deferred until after public `0.5.0` |
+| `0.5.0` release compatibility and public APK | M48 audit/handoff | owner-run lint/JVM/build/API26/current connected gates | populated upgrade, physical install, signer/hash/public download | Planned |
+| Safe environment retirement guidance/actions | M49 guide; optional M50 exact actions | documentation/path/safety review only | separate owner inventory/authorization | Deferred until after public `0.5.0` |
+
+### Current implementation audit
+
+| Requirement | Implementation location | Automated evidence | Owner manual evidence | Status |
+|---|---|---|---|---|
+| Non-destructive Room 6-to-7 Tag migration | `WorqOrderMigrations.MIGRATION_6_7`, Tag entities/DAOs | `Schema6MigrationCoreTest`, `WorqOrderDatabaseTest`, committed schema 7 | owner reports exact signed-candidate populated `0.4.0` install-over/reopen passed | Pass |
+| Tag CRUD/history/search | `RoomTagRepository`, Tag management ViewModels/screens | `TagTextRulesTest`, `TagCategoryManagementViewModelTest`, `TagManagementScreenTest` | owner reports both category pages, search, edit/delete confirmation passed | Pass |
+| Atomic bounded Tag CSV import | `TagCsvImportCoordinator`, `RoomTagImportRepository` | `TagCsvImportCoordinatorTest`, `WorqOrderDatabaseTest`, `TagManagementScreenTest` | owner reports valid/duplicate/malformed/oversize/cancel picker flows passed | Pass |
+| Create/Edit picker, chips, and bulk controls | `TaskTagFormComponents`, `TagPickerComponents`, Create/Edit ViewModels | `TaskTagViewModelTest`, `EditTaskViewModelTest`, `TaskTagFormScreenTest`, `TagPickerComponentsTest` | owner reports portrait/landscape/large-text/keyboard flows passed | Pass |
+| 999 composed field validation | `TaskTextComposer`, `TaskMetadataValidator`, Create/Edit form components | `TagTextRulesTest`, `TaskMetadataValidatorTest`, Create/Edit ViewModel/UI tests | owner reports counters, punctuation, tag-only Description, blocked save/correction passed | Pass |
+| Historical and repeated-Start snapshots | `TaskMutationCoordinator`, task snapshot DAOs | `TaskTagViewModelTest`, `EditTaskViewModelTest`, Room migration/repeated-Start tests | owner reports reopen/edit/delete/restart and catalog-history flows passed | Pass |
+| Main fallback and notification privacy | main row mapping and `RunningTimerNotificationMapper` | Main/notification unit and Compose tests | owner reports visible/running/locked inspection and redaction passed | Pass |
+| Unchanged schema-6 cross-destination export | `ExportSnapshotCoordinator`, `TaskTextComposer`, CSV/XLSX/Google adapters | `Schema6ExportEquivalenceTest`, `ExportRowBuilderAndCsvSerializerTest`, Google/XLSX tests | owner reports CSV/XLSX/manual+automatic Google and cross-device append passed | Pass |
+| Midnight timer auto-close then automatic Google export | `ActiveTimerNormalizer`, exact-boundary Room close, `AutomaticGoogleExportManager` automatic timer-fallback resumption | timer boundary/concurrency tests plus manager scheduled/Stop/reconcile regressions | owner reports exact Stop, silent captured-date export, and no continuation/duplicate passed | Pass |
+| `0.5.0` release compatibility and public APK | migrations, release config, handoff docs | clean build/lint/JVM/current and API-26 connected suites pass by owner report | exact signed populated upgrade, fresh install, permanent signer, package/version, and hash pass; public download/physical install pending | Partial: pre-publication gate passes; public-asset verification pending |

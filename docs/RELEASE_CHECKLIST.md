@@ -348,21 +348,21 @@ repeat the relevant signed-install/export checks before publication. Never force
    handoff docs in a later reviewed documentation commit; never alter the published tag or APK
    bytes to do so.
 
-## 12. `0.5.0` Milestone 48 owner handoff (not yet released)
+## 12. `0.5.0` Milestone 48 owner handoff (released)
 
 The `0.5.0` Tag implementation is present through Milestone 47 on the development branch. Do not
 reuse the historical `0.2.0`/`0.4.0` artifact values above for this release. On 2026-09-19 the owner
 explicitly approved `versionName = 0.5.0` and `versionCode = 5`. Keep the permanent `worq.order`
-signer and complete the remaining owner-run artifact/publication gates recorded in `QA_REPORT.md`
-and `REQUIREMENTS_TRACEABILITY.md`.
+signer. The completed artifact/publication evidence is recorded in `QA_REPORT.md` and
+`REQUIREMENTS_TRACEABILITY.md`.
 
-Required owner evidence still includes clean offline formatting/lint/JVM/debug/release builds,
+Required owner evidence included clean offline formatting/lint/JVM/debug/release builds,
 API-26/current connected suites, schema-1-through-7 migration and populated `0.4.0` install-over
 checks, Tag CRUD/search/import/picker/manual task checks, all three export paths plus automatic
 Google, accessibility/lifecycle/performance/security checks, signer/package/version/hash checks,
-and public-download install-over verification. Codex must not claim any of these until the owner
-reports them. No merge, tag, upload, publication, signing-key change, Google-scope change, or
-environment teardown is performed by Codex.
+and public-download install-over verification. The owner reported them passed. No merge, tag,
+upload, publication, signing-key change, Google-scope change, or environment teardown was performed
+by Codex.
 
 ## 13. `0.5.0` Milestone 48C owner-run commands and checklist
 
@@ -473,5 +473,11 @@ The owner subsequently verified the official `0.4.0` GitHub APK baseline (SHA-25
 `B944CA0C8244179DFDBB0E899584A2CC4BB1E9A5A93DA0B4F9700020589E14C4`, permanent signer), populated
 it, and installed the unchanged `0.5.0` candidate over it. Data/migration, launch, Tag/task/timer,
 version-display, and force-stop/reopen checks passed. A separate fresh installation on a disposable
-emulator also passed. The APK must not be rebuilt before publication. Integration merge,
-tag/publication, independent public-asset verification, and physical-device installation remain.
+emulator also passed. The APK was not rebuilt before publication. At that stage, integration merge,
+tag/publication, independent public-asset verification, and physical-device installation remained.
+
+The owner then merged Milestone 48 through `v0.5.0-development` into `main`, verified the annotated
+`v0.5.0` tag points to the same `main` commit, published the unchanged APK on GitHub, independently
+downloaded it, and repeated checksum/signature/package and physical-device installation checks.
+All passed. `0.5.0` is publicly released; Milestone 48 is complete. Milestones 49 and 50 did not
+start and still require separate explicit owner authorization.

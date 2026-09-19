@@ -5,8 +5,8 @@ historical acceptance evidence. Section 15 is the released `0.3.0` acceptance se
 one-interval, no-rollover, exact-boundary, and schema-5 rules supersede earlier expectations.
 Section 16 records released `0.4.0` acceptance requirements and implementation evidence. Its final
 pre-publication execution results belong to `QA_REPORT.md`, Section 17; the owner later completed
-publication and physical-device verification. Section 17 is the implemented-but-unreleased
-`0.5.0` acceptance contract; Milestone 48 records the remaining owner-run release gates.
+publication and physical-device verification. Section 17 is the released `0.5.0` acceptance
+contract; Milestone 48 records its completed owner-run release gates.
 
 ## 1. Test policy
 
@@ -1219,12 +1219,12 @@ disabled backup, GPLv3, exact Google scope, APK hash, populated `0.3.0` upgrade,
 automated suites, and physical-device task/edit/export smoke tests must pass. Milestone 49
 teardown planning is not a prerequisite for app release and performs no cleanup.
 
-## 17. Implemented `0.5.0` reusable-Tag acceptance requirements (release audit pending)
+## 17. Released `0.5.0` reusable-Tag acceptance requirements
 
-These are the complete `0.5.0` acceptance requirements. The schema/domain, UI/import/export, and
-Milestone 47 polish work are implemented through the `milestone48` branch. The owner manually runs
-all supplied PowerShell/Gradle and Android emulator/device gates and reports results; unreported
-Milestone 48 release gates remain pending.
+These are the complete released `0.5.0` acceptance requirements. The schema/domain,
+UI/import/export, and Milestone 47 polish work were completed through the `milestone48` branch.
+The owner reported all Milestone 48 automated, manual, signed-upgrade, fresh-install, public-asset,
+and physical-device gates passed.
 
 ### V5-DB-01 Additive schema-7 migration
 

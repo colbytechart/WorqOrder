@@ -1,7 +1,7 @@
 # WorqOrder Product Specification
 
-Status: released through `0.4.0`; `0.5.0` Tag changes in Section 17 are implemented on the
-development branch, with Milestone 48 release audit and owner-run gates pending.
+Status: released through `0.5.0`; its Tag changes and completed Milestone 48 release evidence are
+recorded in Section 17 and the release/QA documents.
 Product: WorqOrder for Android  
 Minimum Android version: API 26  
 Authoritative data store: local Room database
@@ -581,11 +581,11 @@ owner subsequently published and physically verified `0.4.0`. The former teardow
 and 43 are deferred and renumbered to post-`0.5.0` Milestones 49 and 50. Security Milestone E
 stays unscheduled outside release scope.
 
-## 17. Implemented `0.5.0` reusable-Tag product changes (release audit pending)
+## 17. Released `0.5.0` reusable-Tag product changes
 
-The assigned implementation milestones are complete through Milestone 47 on the development
-branch. Milestone 48 still owns the release audit and owner-run gates. This feature adds reusable
-local text catalogs without adding export columns or changing Room authority.
+The assigned implementation milestones completed through Milestone 47, and Milestone 48 completed
+the release audit, publication, downloaded-asset, and physical-device gates. This feature adds
+reusable local text catalogs without adding export columns or changing Room authority.
 
 1. **Two independent catalogs.** Settings places **Tag Management** after Client Management and
    Consultant Management. Its overview opens separate **Description Tags** and **Hardware /
@@ -656,7 +656,8 @@ local text catalogs without adding export columns or changing Room authority.
     restored client is selected as an unsaved task edit; adding/restoring the directory entry is an
     immediate independent action and is not undone by cancelling the task edit.
 
-Milestones 42–48 own planning through public-release verification. Milestone 47 owns the final
-Create/Edit presentation consistency pass; Milestone 48 owns the release audit. Deferred
-environment teardown and optional closeout are Milestones 49–50 and cannot start implicitly. See
+Milestones 42–48 delivered planning through public-release verification. Milestone 47 delivered
+the final Create/Edit presentation consistency pass; Milestone 48 completed the release audit.
+Deferred environment teardown and optional closeout are Milestones 49–50 and cannot start
+implicitly. See
 `V0_5_MILESTONE_PROMPTS.md` for model assignments and mandatory owner-run test handoffs.

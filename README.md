@@ -6,13 +6,12 @@ CSV, XLSX, and Google Sheets are optional one-way exports.
 
 ## Development Status
 
-The owner published and physically verified `0.4.0`/code 4. It adds optional task Notes, one
-shared 14-column export schema, safe owned Google-tab upgrades, cleaner Create/Edit forms, and
-fixed action footers. Check the
-[Releases page](https://github.com/colbytechart/WorqOrder/releases) for authoritative artifacts.
-The owner-approved `0.5.0`/code 5 reusable-Tag release candidate is in Milestone 48 final
-verification on the development branch; it is not yet a published release. See the
-[v0.5.0 roadmap](docs/V0_5_MILESTONE_PROMPTS.md). The
+The owner published and physically verified `0.5.0`/code 5. It adds reusable Description and
+Hardware / Software Purchase Tags, bounded CSV Tag import, searchable task Tag pickers, historical
+task-owned Tag snapshots, task-form refinements, and exact-boundary automatic Google export for a
+running timer. Check the
+[Releases page](https://github.com/colbytechart/WorqOrder/releases) for the authoritative APK.
+The [v0.5.0 roadmap](docs/V0_5_MILESTONE_PROMPTS.md) is retained as delivery evidence. The
 [v0.4.0 roadmap](docs/V0_4_MILESTONE_PROMPTS.md) is retained as historical delivery evidence.
 
 ## Install WorqOrder From GitHub

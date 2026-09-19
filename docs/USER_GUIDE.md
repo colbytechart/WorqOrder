@@ -1,9 +1,8 @@
 # WorqOrder User Guide
 
-This guide covers released `0.4.0` and the implemented-but-unreleased `0.5.0` development behavior;
-check GitHub Releases for the authoritative APK. Notes are available in `0.4.0` but not in older
-`0.3.0` installations. Do not describe the `0.5.0` Tag behavior as publicly released until
-Milestone 48 completes its owner-run gates.
+This guide covers released `0.5.0`; check GitHub Releases for the authoritative APK. Notes are
+available from `0.4.0`, and reusable Tags are available from `0.5.0`. Neither is available in older
+`0.3.0` installations.
 
 ## 1. What WorqOrder Stores
 

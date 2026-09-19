@@ -3,8 +3,8 @@
 ## 1. Scope and status
 
 This matrix retains released `0.2.0` and `0.3.0` evidence in historical Sections 1–10 and
-describes implemented `0.4.0` work in Section 11. Section 12 records the implemented-but-unreleased
-`0.5.0` audit baseline. Rows explicitly marked historical are not live contracts. `Pass` means
+describes implemented `0.4.0` work in Section 11. Section 12 records the released `0.5.0` audit
+baseline. Rows explicitly marked historical are not live contracts. `Pass` means
 the implementation and test evidence exist. `Partial` means
 the implementation exists but final release-device, human, or external configuration evidence is
 still required. `N/A` identifies an explicitly optional or prohibited capability.
@@ -234,4 +234,4 @@ follows it.
 | Main fallback and notification privacy | main row mapping and `RunningTimerNotificationMapper` | Main/notification unit and Compose tests | owner reports visible/running/locked inspection and redaction passed | Pass |
 | Unchanged schema-6 cross-destination export | `ExportSnapshotCoordinator`, `TaskTextComposer`, CSV/XLSX/Google adapters | `Schema6ExportEquivalenceTest`, `ExportRowBuilderAndCsvSerializerTest`, Google/XLSX tests | owner reports CSV/XLSX/manual+automatic Google and cross-device append passed | Pass |
 | Midnight timer auto-close then automatic Google export | `ActiveTimerNormalizer`, exact-boundary Room close, `AutomaticGoogleExportManager` automatic timer-fallback resumption | timer boundary/concurrency tests plus manager scheduled/Stop/reconcile regressions | owner reports exact Stop, silent captured-date export, and no continuation/duplicate passed | Pass |
-| `0.5.0` release compatibility and public APK | migrations, release config, handoff docs | clean build/lint/JVM/current and API-26 connected suites pass by owner report | exact signed populated upgrade, fresh install, permanent signer, package/version, and hash pass; public download/physical install pending | Partial: pre-publication gate passes; public-asset verification pending |
+| `0.5.0` release compatibility and public APK | migrations, release config, handoff docs | clean build/lint/JVM/current and API-26 connected suites pass by owner report | exact signed populated upgrade, fresh install, permanent signer, package/version/hash, GitHub download, and physical install pass | Pass |

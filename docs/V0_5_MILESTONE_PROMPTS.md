@@ -2,8 +2,8 @@
 
 ## Status and operating protocol
 
-The owner has publicly released `0.4.0`. Milestone 42 prepares the approved `0.5.0` Tag feature
-documentation only. Milestones 43–48 implement, integrate, verify, and release it. The former
+The owner has publicly released `0.5.0`. Milestone 42 prepared its approved Tag feature
+documentation only; Milestones 43–48 implemented, integrated, verified, and released it. The former
 post-`0.4.0` teardown Milestones 42 and 43 are renumbered to 49 and 50 and moved after public
 `0.5.0`; they are not part of the Tag implementation. Optional security Milestone E remains
 unscheduled and outside every release until separately assigned.
@@ -382,13 +382,15 @@ and device smoke checklists. Collect and record only results the owner reports. 
 automatic-export defect; D-106 and its bounded manager/test/specification correction were followed
 by passing focused automated and repeated live-midnight evidence. Preliminary Step 11 repository,
 permission, backup, secret/artifact, dependency, and migration scans pass. Task 48D is authorized
-with Sol; final identity, signed artifact, merge/tag/publication, and public-install evidence remain
-pending.
+with Sol. The final identity, signed artifact, merge/tag/publication, and public-install evidence
+subsequently passed as recorded below.
 
 The owner explicitly approved `versionName = 0.5.0` and `versionCode = 5` for Task 48D. Source
 identity is updated. The clean owner-run build, permanent-signer comparison, package/version
 inspection, exact candidate SHA-256, signed populated-`0.4.0` install-over, and fresh-install gates
-pass. Merge/tag/publication and independent public-download/physical-install gates remain pending.
+pass. The owner then completed merge/tag/publication and independently verified and physically
+installed the downloaded GitHub asset. Task 48D and Milestone 48 are complete. Milestones 49 and 50
+remain unstarted and require separate explicit authorization.
 
 ### Task 48D — Sol: minimal final release decision
 

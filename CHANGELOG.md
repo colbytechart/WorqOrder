@@ -6,16 +6,17 @@ The project follows semantic versioning for public release identifiers.
 
 ## [Unreleased]
 
-- `0.5.0` development now contains the reusable Description and Hardware / Software Purchase Tag
+## [0.5.0] - 2026-09-19
+
+- Reusable Description and Hardware / Software Purchase Tag
   catalogs, immutable task snapshots, bounded CSV import, searchable task pickers, centralized
   composition into the unchanged 14-column export schema, and Milestone 47 task-form polish.
-  A running timer at the automatic-Google boundary now closes at exact pinned-zone midnight and the
+- A running timer at the automatic-Google boundary now closes at exact pinned-zone midnight and the
   completed captured date exports automatically; no continuation or duplicate next-day task is
   created, and a durable timer fallback resumes automatically after later Stop/reconciliation.
-  The owner approved the release-candidate identity `versionName = 0.5.0`, `versionCode = 5`;
-  the clean signed artifact, permanent signer, package identity, checksum, populated `0.4.0`
-  install-over, and fresh-install gates pass. Merge/tag/publication and independent public-download
-  installation remain pending, so this is not yet a public release entry.
+- Released as `versionName = 0.5.0`, `versionCode = 5`. The owner verified the clean signed
+  artifact, permanent signer, package identity, checksum, populated `0.4.0` install-over, fresh
+  install, GitHub asset download, and physical-device installation.
 
 ## [0.4.0] - 2026-09-15
 

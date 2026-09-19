@@ -2,7 +2,8 @@
 
 Version authority: this document retains earlier release descriptions for upgrade and historical
 traceability. Released `0.4.0` schema-6 Notes/export behavior and `0.3.0` timer/cardinality rules
-are current. Section 19 is approved `0.5.0` planning, not implemented behavior.
+are current. Section 19 records the implemented-but-unreleased `0.5.0` Tag architecture; the
+Milestone 48 release audit still gates public distribution.
 
 ## 1. Architectural goals
 
@@ -443,13 +444,17 @@ so an inexact execution after midnight still exports the preceding intended date
 never owns task rows or tokens and advances missed dates one bounded worker at a time.
 
 It invokes the same `ExportSnapshotCoordinator` and Google task-ID merge pipeline as manual export.
-CSV/XLSX remain manual. If Room reports an active timer, Google returns an authorization
-resolution, or a safe terminal operation failure occurs, the coordinator retains typed pending
-state rather than exporting/retrying and asks the API-26+ notification adapter to expose a
-content-free action. API-33+ enablement requires `POST_NOTIFICATIONS`. WorkManager may contribute
-its internal normal scheduling permissions/components and bounded execution wake locks; the app
-does not implement its own receiver/wake lock, exact alarm, foreground service, or background tick.
-No Play Store/App Signing/Console release path is introduced.
+CSV/XLSX remain manual. At the captured date's boundary, the worker/lifecycle path first invokes
+the shared active-timer normalizer. Room transactionally closes the interval at its exact pinned-
+ZoneId midnight, clears the singleton, and creates no continuation; the manager then exports the
+completed date automatically. A `TIMER_RUNNING` fallback remains durable when closure cannot yet
+be confirmed and is retried automatically after boundary closure, Stop, or startup reconciliation.
+Authorization resolution or another safe terminal failure remains typed pending state and asks the
+API-26+ notification adapter for a content-free action. API-33+ enablement requires
+`POST_NOTIFICATIONS`. WorkManager may contribute its internal normal scheduling permissions/
+components and bounded execution wake locks; the app does not implement its own receiver/wake lock,
+exact alarm, foreground service, or background tick. No Play Store/App Signing/Console release
+path is introduced.
 
 ## 15. v0.2.0 architecture boundaries
 

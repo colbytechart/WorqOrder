@@ -5,7 +5,8 @@ historical acceptance evidence. Section 15 is the released `0.3.0` acceptance se
 one-interval, no-rollover, exact-boundary, and schema-5 rules supersede earlier expectations.
 Section 16 records released `0.4.0` acceptance requirements and implementation evidence. Its final
 pre-publication execution results belong to `QA_REPORT.md`, Section 17; the owner later completed
-publication and physical-device verification. Section 17 is planned `0.5.0` acceptance only.
+publication and physical-device verification. Section 17 is the implemented-but-unreleased
+`0.5.0` acceptance contract; Milestone 48 records the remaining owner-run release gates.
 
 ## 1. Test policy
 
@@ -123,13 +124,14 @@ Given edited form fields, when Cancel/back is confirmed according to normal navi
 
 ### TASK-04 Description validation
 
-Blank/whitespace-only and over-400-character short descriptions fail; valid descriptions are
-trimmed and saved.
+Blank/whitespace-only composed Descriptions and values over 999 Unicode code points fail; valid
+manual text and ordered Tag snapshots are retained without export punctuation being written back.
 
 ### TASK-04a Hardware/software-purchases validation
 
-The field labeled `Hardware / Software Purchases` may be blank. Nonblank text is trimmed and saved;
-over-400-character text is rejected with field-level validation.
+The field labeled `Hardware / software purchases` may be blank. Its manual text plus ordered Tag
+snapshots must not exceed 999 Unicode code points; an over-limit composed value is rejected with
+field-level validation.
 
 ### TASK-05 Edit metadata
 
@@ -806,15 +808,18 @@ network-constrained one-time request captures target date, ZoneId, and connectio
 execution-time `today`. Recalculated one-time work stays aligned with geographical DST/zone rules;
 no exact alarm or fixed 24-hour periodic worker exists.
 
-### V2-EXPORT-03 Pending timer and notification
+### V2-EXPORT-03 Running-timer boundary completion and pending recovery
 
-If any timer is running, the scheduled operation exports nothing and persists the target date as
-pending. After successful Stop, a system notification containing no client/task data appears.
-Tapping resumes/performs or confirms that target export. Dismissal does not mark success or delete
-pending state. A successful automatic export produces no Main-screen status and no success
-notification. API-33+ enablement requests `POST_NOTIFICATIONS` in context; denial leaves the switch
-off. API-26+ channel-disabled and later permission-revocation tests prove pending state remains
-recoverable in Google Settings even when Android suppresses the notification.
+If the captured date reaches local midnight with a running timer, the shared normalizer closes its
+interval transactionally at the exact pinned-ZoneId boundary, clears active state, creates no
+continuation or duplicate next-day task, and automatic Google export writes the completed captured
+date. Success produces no Main-screen status or notification. If closure cannot yet be confirmed,
+the target remains `TIMER_RUNNING` and exports nothing; successful later boundary recovery, Stop,
+or startup reconciliation resumes it automatically. Authorization, connectivity, notification,
+permission, remote, and local-storage failures remain typed/actionable pending states. API-33+
+enablement requests `POST_NOTIFICATIONS` in context; denial leaves the switch off. API-26+ channel-
+disabled and later permission-revocation tests prove actionable state remains recoverable in Google
+Settings even when Android suppresses the notification.
 
 ### V2-EXPORT-04 Background correctness and idempotence
 
@@ -1214,12 +1219,12 @@ disabled backup, GPLv3, exact Google scope, APK hash, populated `0.3.0` upgrade,
 automated suites, and physical-device task/edit/export smoke tests must pass. Milestone 49
 teardown planning is not a prerequisite for app release and performs no cleanup.
 
-## 17. Planned `0.5.0` reusable-Tag acceptance requirements
+## 17. Implemented `0.5.0` reusable-Tag acceptance requirements (release audit pending)
 
-These are the complete `0.5.0` acceptance requirements. The schema/domain foundation in V5-DB-01
-and its supporting rule tests is implemented; later UI/import/export requirements remain assigned
-to Milestones 44-48. The owner manually runs all supplied PowerShell/Gradle and Android
-emulator/device gates and reports results.
+These are the complete `0.5.0` acceptance requirements. The schema/domain, UI/import/export, and
+Milestone 47 polish work are implemented through the `milestone48` branch. The owner manually runs
+all supplied PowerShell/Gradle and Android emulator/device gates and reports results; unreported
+Milestone 48 release gates remain pending.
 
 ### V5-DB-01 Additive schema-7 migration
 

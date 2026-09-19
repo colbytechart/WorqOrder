@@ -4,8 +4,8 @@
 
 The owner published `0.4.0`, downloaded its GitHub asset, installed it on a physical device, and
 reported expected behavior. Check GitHub Releases for authoritative artifacts. Notes and export
-schema 6 belong to `0.4.0`, not to older APKs. Reusable Tags are approved `0.5.0` planning and do
-not exist in the released `0.4.0` application.
+schema 6 belong to `0.4.0`, not to older APKs. Reusable Tags are implemented on the unreleased
+`0.5.0` development branch and do not exist in the released `0.4.0` application.
 
 ## Client CSV import limits
 
@@ -89,6 +89,11 @@ they are not partially imported.
   authorization, connectivity, Doze, force-stop, OEM policy, and user settings may require an
   actionable pending flow rather than guaranteed unattended completion. The oldest unresolved date
   is retained and later dates advance one bounded worker at a time after recovery.
+- A captured date with an active midnight timer is normalized through Room before export: the
+  interval closes at its exact pinned-ZoneId boundary and no continuation task is created. A
+  `TIMER_RUNNING` fallback resumes automatically after later boundary recovery or Stop. Android can
+  still delay when the responsible component executes; WorqOrder does not use an exact alarm or
+  foreground stopwatch service to force execution at the physical instant of midnight.
 - Unattended Google authorization is possible only while Play services can return an already-granted
   short-lived `drive.file` token without interaction. If Google returns an authorization
   resolution, the user must tap a content-free notification or resume in Settings. WorqOrder does
@@ -163,9 +168,10 @@ debug connected suite. Optional app-private encryption and biometric/PIN or scre
 controls remain outside every
 release scope in optional Milestone E.
 
-## Planned `0.5.0` Tag limitations
+## Implemented but unreleased `0.5.0` Tag limitations
 
-Tag work is not implemented during documentation-only Milestone 42. The approved future import is
+Tag catalogs, task snapshots, picker composition, and local CSV import are implemented through
+Milestone 47. The Milestone 48 release audit and owner-run release gates remain pending. Import is
 local CSV only, every nonblank cell is data, and the 1 MiB/10,000-nonblank-cell bounds are
 intentional. Tags are not labels, categories, remote synchronization, or new export columns.
 Catalog deletion does not erase text already saved in task snapshots. Generated punctuation is an

@@ -483,8 +483,11 @@ Never invent configuration or add a broader Sheets/Drive scope to make unattende
 
 The eventual manual verification must prove an enabled schedule exports its captured date even if
 execution is delayed past midnight; never schedules CSV/XLSX; converges with same-date manual
-export; defers while timing; exposes a content-free post-Stop notification action; recovers from
-offline/auth/disconnect/quota states; and produces no Main or notification success message.
+export; transactionally closes a midnight-running timer without a continuation/duplicate and then
+exports automatically; automatically resumes a `TIMER_RUNNING` fallback after later Stop or
+reconciliation; recovers through a content-free action only for authorization, offline,
+disconnect, quota, or other user-attention states; and produces no Main or notification success
+message.
 - [Android persistent task scheduling](https://developer.android.com/develop/background-work/background-tasks/persistent)
 - [WorkManager stable releases](https://developer.android.com/jetpack/androidx/releases/work)
 - [WorkManager platform interactions and permissions](https://developer.android.com/reference/androidx/work/package-summary)

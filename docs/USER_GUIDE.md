@@ -1,8 +1,9 @@
 # WorqOrder User Guide
 
-This guide covers released `0.4.0`; check GitHub Releases for the authoritative APK. Notes are
-available in `0.4.0` but not in older `0.3.0` installations. Planned `0.5.0` Tags are intentionally
-not presented as user functionality until their implementation and release gates pass.
+This guide covers released `0.4.0` and the implemented-but-unreleased `0.5.0` development behavior;
+check GitHub Releases for the authoritative APK. Notes are available in `0.4.0` but not in older
+`0.3.0` installations. Do not describe the `0.5.0` Tag behavior as publicly released until
+Milestone 48 completes its owner-run gates.
 
 ## 1. What WorqOrder Stores
 
@@ -66,13 +67,30 @@ creating a task.** Directory changes keep historical task Consultant snapshots i
 9. In `0.4.0` and later, optionally enter **Notes** (up to 999 characters).
 10. Choose **Create**.
 
-Short description and Hardware / Software Purchases allow up to 400 characters. Notes are optional
-and allow up to 999 characters. The new task belongs to the date that was displayed when creation
+Short description and Hardware / Software Purchases allow up to 999 composed characters. In the
+`0.5.0` development build, each field can also use its category-scoped Tags; individual Tags allow
+up to 400 Unicode code points. Notes are optional and allow up to 999 characters. The new task belongs to the date that was displayed when creation
 opened. A new task for today becomes selected automatically. A historical or future task can be
 created and edited, but cannot be timed live.
 
 If no active client exists, use the inline **Add client** action. Canceling task creation saves
 nothing. Tapping a task row selects it when no timer is running.
+
+### Reusable Tags (`0.5.0` development)
+
+Open **Settings > Tag Management** to manage separate **Description Tags** and **Hardware / Software
+Purchase Tags** catalogs. Add, edit, delete with confirmation, search, or import a user-selected
+CSV. Every nonblank cell is a candidate Tag; malformed, non-CSV, oversized, overlength, or
+over-limit files are rejected atomically. Existing and duplicate values are skipped and lists stay
+alphabetical.
+
+In Create Task or Edit Task, choose **Add tags**/**Edit tags** below Description or Hardware /
+software purchases. The full-screen picker supports live search, ordered multi-selection,
+Select All/Deselect All for visible results, inline creation, and Cancel/Apply. A saved task keeps
+text snapshots, so later catalog edits or deletion do not rewrite historical tasks. Tags compose
+into the existing Description or Expense export cell; they do not create an export column. For
+export only, manual text is placed first, followed by selected Tags in selection order. Each
+nonblank component without `.`, `?`, or `!` receives a period; stored text is not altered.
 
 In `0.4.0` and later, **Cancel** and **Create** stay at the bottom of the Create Task
 screen while you scroll through the fields. They remain available when the keyboard is open.
@@ -206,8 +224,11 @@ action changes local tasks or the remote spreadsheet.
 After Google Sheets is authorized and connected, **Auto Export** appears at the bottom of Export
 Destination. Turning it on schedules a best-effort export of each captured work date near its end.
 Android may execute shortly after midnight, but WorqOrder still exports the captured prior date.
-Successful automatic export is silent. If timing or authorization blocks the operation, the date
-remains pending and WorqOrder provides an actionable, content-free recovery notification or
+If that date's timer is still running at midnight, WorqOrder closes it at the exact boundary,
+creates no next-day continuation or duplicate task, and exports the completed date automatically.
+Successful automatic export is silent. If the timer cannot yet be closed safely, the preserved date
+resumes automatically after the timer is later closed. Authorization, connectivity, or another
+actionable failure remains pending and WorqOrder provides a content-free recovery notification or
 Settings state. CSV and XLSX are always manual. Force-stop, offline state, Android/OEM background
 restrictions, notification settings, or an interactive Google authorization requirement can delay
 completion.

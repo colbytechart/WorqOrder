@@ -45,7 +45,7 @@ class AutomaticGoogleExportManagerTest {
     }
 
     @Test
-    fun runningTimerBecomesPendingWithoutExportOrEarlyNotification() = runTest {
+    fun runningTimerFallbackExportsAutomaticallyAfterStop() = runTest {
         val fixture = Fixture()
         fixture.manager.setEnabled(true)
         fixture.activeTimers.value = activeTimer()
@@ -62,7 +62,62 @@ class AutomaticGoogleExportManagerTest {
         assertFalse(fixture.notifier.posted)
         fixture.activeTimers.value = null
         fixture.manager.onTimerStopped()
-        assertTrue(fixture.notifier.posted)
+
+        assertEquals(1, fixture.exportCalls)
+        assertEquals(
+            WORK_DATE.plusDays(1),
+            fixture.settings.readSettings().automaticGoogleTargetDate,
+        )
+        assertNull(fixture.settings.readSettings().automaticGooglePendingReason)
+        assertFalse(fixture.notifier.posted)
+    }
+
+    @Test
+    fun reconcileCompletesTimerPendingTargetAfterBoundaryClosure() = runTest {
+        val fixture = Fixture()
+        fixture.manager.setEnabled(true)
+        val target = fixture.scheduler.targets.single()
+        fixture.clock.instant = AFTER_BOUNDARY
+        fixture.settings.setAutomaticGoogleExportTarget(
+            workDate = target.workDate,
+            zoneId = target.zoneId,
+            connectionKey = target.connectionKey,
+            pendingReason = AutomaticGooglePendingReason.TIMER_RUNNING,
+        )
+
+        fixture.manager.reconcile()
+
+        assertEquals(1, fixture.exportCalls)
+        assertEquals(
+            WORK_DATE.plusDays(1),
+            fixture.settings.readSettings().automaticGoogleTargetDate,
+        )
+        assertNull(fixture.settings.readSettings().automaticGooglePendingReason)
+        assertFalse(fixture.notifier.posted)
+    }
+
+    @Test
+    fun reconcileLeavesTimerPendingWhileRoomStillReportsAnActiveTimer() = runTest {
+        val fixture = Fixture()
+        fixture.manager.setEnabled(true)
+        val target = fixture.scheduler.targets.single()
+        fixture.clock.instant = AFTER_BOUNDARY
+        fixture.activeTimers.value = activeTimer()
+        fixture.settings.setAutomaticGoogleExportTarget(
+            workDate = target.workDate,
+            zoneId = target.zoneId,
+            connectionKey = target.connectionKey,
+            pendingReason = AutomaticGooglePendingReason.TIMER_RUNNING,
+        )
+
+        fixture.manager.reconcile()
+
+        assertEquals(0, fixture.exportCalls)
+        assertEquals(
+            AutomaticGooglePendingReason.TIMER_RUNNING,
+            fixture.settings.readSettings().automaticGooglePendingReason,
+        )
+        assertFalse(fixture.notifier.posted)
     }
 
     @Test

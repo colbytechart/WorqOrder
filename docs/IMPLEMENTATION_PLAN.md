@@ -1050,7 +1050,9 @@ provide commit messages, and stop before the release audit.
 JVM, lint, debug/release build, connected-instrumentation, and manual visual/behavior gates passed
 after the final Edit Task inline Add Client recovery. Static diff review found no conflict markers
 or whitespace errors; Git only reports the existing informational CRLF/LF conversion warning for
-`TaskFormComponents.kt`. Milestone 48 remains unstarted and requires a separate owner instruction.
+`TaskFormComponents.kt`. Milestone 48 Tasks 48A and 48B are complete on the owner-created
+`milestone48` branch; Tasks 48C–48D remain gated on the assigned model handoff and owner-run
+evidence.
 
 ### Milestone 48 — Full `0.5.0` audit and public-release handoff
 
@@ -1059,6 +1061,13 @@ executed clean lint/JVM/debug/release and API-26/current connected gates, prove 
 Room path to schema 7 and populated `0.4.0` upgrade, exercise imports and every export path, audit
 security/accessibility/lifecycle/performance, obtain explicit release identity approval, and
 verify the signed public APK. Codex does not merge, tag, upload, or publish for the owner.
+
+The owner-run automatic-Google gate exposed the obsolete post-Stop-notification behavior for a
+midnight-running timer. D-106 is the approved release-blocker correction: the existing exact-
+boundary Room normalizer stops the interval without continuation/duplication, then automatic export
+proceeds for the preserved date. A durable `TIMER_RUNNING` fallback resumes automatically after
+later Stop or reconciliation. Targeted tests and the owner midnight rerun are required before the
+gate can pass; this does not start Task 48D or authorize a version change.
 
 ### Milestone 49 — Post-`0.5.0` safe teardown guide (documentation only)
 

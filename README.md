@@ -10,7 +10,8 @@ The owner published and physically verified `0.4.0`/code 4. It adds optional tas
 shared 14-column export schema, safe owned Google-tab upgrades, cleaner Create/Edit forms, and
 fixed action footers. Check the
 [Releases page](https://github.com/colbytechart/WorqOrder/releases) for authoritative artifacts.
-Approved `0.5.0` reusable-Tag work is planning-only until its sequential milestones land; see the
+The owner-approved `0.5.0`/code 5 reusable-Tag release candidate is in Milestone 48 final
+verification on the development branch; it is not yet a published release. See the
 [v0.5.0 roadmap](docs/V0_5_MILESTONE_PROMPTS.md). The
 [v0.4.0 roadmap](docs/V0_4_MILESTONE_PROMPTS.md) is retained as historical delivery evidence.
 
@@ -58,6 +59,8 @@ signing identity.
 - Add, rename, archive, restore, and CSV-import clients without damaging historical task
   relationships.
 - Manage active/archived Consultants while preserving each task's assignment-time name.
+- Maintain separate Description and Hardware / Software Purchase Tag catalogs, import Tags from
+  user-selected CSV files, and compose ordered task-owned Tag snapshots into existing exports.
 - View derived Billing Minutes rounded upward to 15-minute increments.
 - Follow the system appearance or explicitly choose Light or Dark.
 - Use the device's geographical time zone while preserving every task's assigned historical zone.
@@ -86,7 +89,7 @@ information.
 
 ## Export Behavior
 
-All destinations consume one immutable canonical snapshot and the same 13 columns:
+All destinations consume one immutable canonical snapshot and the same 14 columns:
 
 1. Start date
 2. End date
@@ -101,6 +104,7 @@ All destinations consume one immutable canonical snapshot and the same 13 column
 11. Stop time
 12. Time spent
 13. Billing minutes
+14. Notes
 
 CSV and XLSX use Android's create-document interface, so the user chooses each output location.
 Every XLSX export creates a new workbook. Google Sheets writes to one connected spreadsheet and

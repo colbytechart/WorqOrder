@@ -3,8 +3,8 @@
 Version scope: schema and behavior descriptions explicitly labeled earlier releases preserve
 historical/migration compatibility. Released `0.4.0` Room schema 6 and the `0.3.0` no-rollover,
 zero-or-one-interval rules remain release behavior. Section 16 describes the implemented
-`0.5.0`-development schema-7 foundation; its management, task-form, and export UI integrations
-remain assigned to later `0.5.0` milestones.
+`0.5.0`-development schema-7 foundation and Tag integrations are implemented through Milestone 47;
+Milestone 48 still owns the release audit and owner-run gates.
 
 ## 1. Storage conventions
 
@@ -561,3 +561,11 @@ foreign keys, historical snapshot isolation, task cascade, transaction rollback,
 repeated Start. An obsolete pre-final schema-7 emulator database was cleared during development;
 schema 7 has never been publicly released, so released user data follows the tested 1-through-6
 migration paths rather than an unsupported interim 7-to-7 shape.
+
+### Milestone 48 audit clarification
+
+The historical schema-5 table above retains its original 400-character wording for upgrade
+traceability. In the implemented `0.5.0` model, manual Description and Hardware / Software
+Purchases plus their ordered Tag snapshots are validated as one composed value of at most 999
+Unicode code points; the persisted manual fields and snapshots remain separate and are never
+rewritten by export punctuation.

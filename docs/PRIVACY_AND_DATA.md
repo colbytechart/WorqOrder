@@ -3,7 +3,8 @@
 This document describes the released `0.4.0` data contract, with earlier details retained for
 upgrade transparency. Check GitHub Releases for authoritative artifacts. `0.4.0` Notes are
 ordinary Room task data. Exported Notes are readable plaintext in CSV/XLSX/Google Sheets under
-the existing export privacy policy. Section 10 describes approved `0.5.0` planning only.
+the existing export privacy policy. Section 10 describes implemented but unreleased `0.5.0`
+Tag behavior and its remaining release verification boundary.
 
 ## 1. Summary
 
@@ -152,10 +153,10 @@ device-protected storage. Full implementation details are in `LOCK_SCREEN_SURFAC
 backburner items outside `0.2.0` and every other release scope until explicitly assigned; this
 notice must not imply otherwise.
 
-## 10. Planned `0.5.0` reusable Tags
+## 10. Implemented but unreleased `0.5.0` reusable Tags
 
-`0.5.0` plans local Description and Hardware / Software Purchase Tag catalogs plus task-owned text
-snapshots. They are ordinary potentially sensitive Room data under the same Android sandbox and
+`0.5.0` implements local Description and Hardware / Software Purchase Tag catalogs plus task-owned
+text snapshots. They are ordinary potentially sensitive Room data under the same Android sandbox and
 disabled-backup policy as tasks; WorqOrder does not claim app-managed at-rest encryption. Catalog
 edit/delete does not erase text already snapshotted into a task. Task deletion removes that task's
 snapshots, while deleting a catalog Tag leaves historical task content intact.

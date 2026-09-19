@@ -9,7 +9,7 @@
 - Compile SDK: 36.1
 - Latest published release: `0.4.0` (`versionCode = 4`), owner-verified after public download and
   physical-device installation
-- Approved next-release planning: `0.5.0`; release versionCode remains owner-controlled
+- Approved release candidate: `0.5.0` (`versionCode = 5`); not yet published
 - License: GPLv3
 - Distribution artifact: owner-signed APK attached to a GitHub Release
 
@@ -18,8 +18,12 @@ one-way exports.
 
 `0.4.0` adds the additive Room 5-to-6 Notes migration and shared schema-6 export projection. The
 Milestone 41 signing, populated-update, device, export, merge, tag, public-download, and physical-
-device gates passed by owner report and generated evidence. `0.5.0` planning is documented in
-`V0_5_MILESTONE_PROMPTS.md`; it is not implemented by the planning milestone.
+device gates passed by owner report and generated evidence. `0.5.0` implementation is present
+through Milestone 47 on the development branch and is documented in
+`V0_5_MILESTONE_PROMPTS.md`. The owner approved `0.5.0`/code 5 during Milestone 48; it is not yet a
+public release. The exact signed candidate, signer/package/version/hash, populated signed `0.4.0`
+install-over, and fresh-install gates pass; merge/tag/publication and downloaded-public-asset
+verification remain pending.
 
 The owner-only `0.4.0` branch-to-GitHub sequence and reviewed candidate checksum are in
 `RELEASE_CHECKLIST.md`, Sections 10–11. Historical `0.2.0`/`0.3.0` commands later in this handoff
@@ -112,9 +116,23 @@ Important invariants:
 - each task has zero or one interval, and a midnight crossing closes at the exact pinned-ZoneId
   boundary without a continuation;
 - migrations are explicit and non-destructive;
+- Room schema 7 stores independent Tag catalogs and immutable task-owned text snapshots;
+- catalog edits or deletion never rewrite an existing task snapshot;
+- manual Description/Expense text and ordered snapshots are composed once for all exports, without
+  adding a visible export column; and
 - all exports consume one immutable canonical snapshot;
 - no destination imports or synchronizes back into Room; and
 - running timers block all export destinations.
+
+### `0.5.0` Tag maintenance boundary
+
+Keep the two catalog categories separate: **Description** and **Hardware / Software Purchase**.
+Each Tag is limited to 400 Unicode code points after normalization. Task snapshots preserve selection
+order and must remain the only Tag text used to render a saved task or build its export row. Never
+read the mutable catalog from an export adapter. The shared composer trims nonblank components,
+places manual text first, adds a terminal period only when a component lacks `.`, `?`, or `!`, and
+joins components with one ASCII space. The resulting Description/Expense value must stay within
+999 Unicode code points. This punctuation is projection-only and must not be saved back into Room.
 
 ## 6. Build and Test Commands
 

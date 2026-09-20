@@ -684,3 +684,16 @@ storage permission, or any Google scope beyond `drive.file`.
 - [Sheets API limits and pricing](https://developers.google.com/workspace/sheets/api/limits)
 - [Google Workspace standardized API model](https://developers.google.com/workspace/tools-safety)
 - [OAuth production policy compliance](https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance)
+
+## Planned `0.6.0` portable-restore identity addendum
+
+OAuth credentials, account hints, spreadsheet IDs/titles, validation state, pending automatic
+attempts, and WorkManager identity are excluded from portable backups. Import retains only the
+chosen export-destination preference, clears Google connection state, disables automatic export,
+and requires explicit reauthorization/reconnection/opt-in.
+
+Preserving task IDs across devices requires a new installation-local `exportOriginId`. Hidden row
+identity becomes versioned and origin-scoped while visible schema 6 stays unchanged. Existing
+upgraded installations may idempotently adopt only their own legacy v1 rows. A successful import
+rotates origin and must not claim legacy/source rows. Cross-origin exports append/merge only their
+own identities and never clear another installation's data.

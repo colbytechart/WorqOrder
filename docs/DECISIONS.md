@@ -1224,8 +1224,9 @@ The owner reports public `0.3.0` publication and a physical-device upgrade that 
 data and worked for new task timing. Milestone 36 is now documentation-only `0.4.0` planning.
 Release-specific implementation occupies Milestones 37–41. The former post-`0.3.0` project
 environment teardown guide originally moved to Milestone 42 after public `0.4.0`, with real
-closeout as optional Milestone 43. D-104 later supersedes those numbers with post-`0.5.0`
-Milestones 49 and 50. Milestone E remains independent.
+closeout as optional Milestone 43. Later `0.5.0` planning moved those numbers to post-release
+Milestones 49 and 50; D-114 moves them again to post-`0.6.0` Milestones 56 and 57. Milestone E
+remains independent.
 
 ### D-098 — Notes are optional, editable task data, but not repeated-Start copy data
 
@@ -1386,6 +1387,53 @@ identity, minSdk 26, targetSdk 36, disabled backup, GPLv3 license, direct-GitHub
 Google `drive.file` scope remain unchanged. Approval authorizes the candidate identity only; it
 does not claim that the signed artifact, merge, tag, GitHub publication, independent download, or
 physical install-over has passed.
+
+### D-108 — `0.6.0` uses a versioned logical ZIP backup
+
+Use a standard Deflate ZIP with exactly `manifest.json` and `data.json`. The manifest identifies
+`worq.order`, format/model versions, producer, creation instant, size/encoding, and SHA-256 of the
+data bytes. Never archive SQLite/DataStore files. Format version 1 is stable input to explicit
+future logical upgraders; reject newer unsupported formats.
+
+### D-109 — Portable state excludes credentials and installation identity
+
+Preserve all domain IDs/data, export history, portable preferences, and valid selections. Exclude
+Google/OAuth credentials and connection/account metadata, scheduler/pending automatic state,
+notifications/permissions, transient state, journals, restore point, and transport origin. Import
+preserves export destination, clears Google connection, disables automatic export, and creates a
+new origin.
+
+### D-110 — Import is validated replacement with durable recovery
+
+Parse, bound, upgrade, and validate the complete archive before mutation. Capture and verify the
+current state first. Replace Room in one transaction and coordinate DataStore/runtime reset through
+an app-private durable phase journal with idempotent startup recovery. Destructive migration,
+partial import, and an unsupported claim of cross-store atomicity are prohibited.
+
+### D-111 — The rolling restore point is a one-generation swap
+
+Keep exactly one verified restore point in app-private no-backup storage. Import overwrites it only
+after the current state is safely captured. Restore first captures current state, applies previous
+state, then makes displaced current state the next restore point. It survives update/reboot and is
+removed on uninstall.
+
+### D-112 — Portable backup is bounded plaintext
+
+Do not encrypt `0.6.0` backups. Warn users that work data is readable. Accept at most 100 MiB
+compressed and 500 MiB expanded, stream data, allow only documented entries, check storage, and
+reject traversal, duplicates, encryption, bombs, checksum mismatch, malformed JSON, or invalid
+relationships before mutation.
+
+### D-113 — Backup is not a report-export destination
+
+The 14-column schema-6 CSV/XLSX/Google contract is unchanged. Backup is full application-state
+portability and may include export history/preferences that never appear in task exports. No
+canonical export adapter reads or writes backup archives.
+
+### D-114 — Teardown moves behind the `0.6.0` release
+
+Milestones 49–55 are the `0.6.0` plan. Former teardown Milestones 49–50 become 56–57. Milestone 56
+remains documentation-only and Milestone 57 remains separately optional; neither starts implicitly.
 
 ## Deferred decisions
 

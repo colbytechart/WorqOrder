@@ -703,3 +703,14 @@ the Tag catalog, choose order, append punctuation, enforce alternate limits, or 
 Existing CSV quoting/newline/Unicode behavior, XLSX literal-cell behavior, Google formula safety,
 Stop-before-export, immutable snapshot timing, automatic captured-date handling, Room non-mutation,
 and keyed cross-device preservation remain mandatory.
+
+## 16. Planned `0.6.0` portability boundary
+
+Backup & Restore is not a fourth task-export destination. It does not use, extend, or reorder the
+canonical 14-column schema and does not change CSV, one-off XLSX, or Google report content. It uses
+a separate versioned logical application-state model and may contain settings/export history that
+have no report column. Conversely, report serializers never inspect a backup DTO.
+
+Import preserves the destination preference but clears Google authorization/connection and disables
+automatic Google export. A new installation-scoped hidden Google origin protects source-device rows;
+visible schema 6 and its 14 headers remain unchanged.

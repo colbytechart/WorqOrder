@@ -1216,8 +1216,8 @@ and manual exports obey the same policy. CSV/XLSX remain one-off.
 
 Before publication, the owner-approved versionCode, permanent signer SHA-1, `worq.order` package,
 disabled backup, GPLv3, exact Google scope, APK hash, populated `0.3.0` upgrade, API-26/current
-automated suites, and physical-device task/edit/export smoke tests must pass. Milestone 49
-teardown planning is not a prerequisite for app release and performs no cleanup.
+automated suites, and physical-device task/edit/export smoke tests must pass. The teardown guide,
+now Milestone 56, was not a prerequisite for app release and performs no cleanup.
 
 ## 17. Released `0.5.0` reusable-Tag acceptance requirements
 
@@ -1341,4 +1341,40 @@ Before publication, owner-run formatting/lint/JVM/debug/release, complete API-26
 suites, populated signed `0.4.0` update, fresh install, CRUD/import/picker/manual task flows, all
 three manual exports plus automatic Google, accessibility/lifecycle/performance/security checks,
 permanent signer/package/version/hash, and public-download install-over checks must pass. Version
-identity requires explicit owner approval. Milestones 49–50 are not release prerequisites.
+identity requires explicit owner approval. The teardown work now numbered 56–57 was not a release
+prerequisite.
+
+## Planned `0.6.0` Backup & Restore acceptance tests
+
+These are future gates, not evidence that the released `0.5.0` app implements the feature.
+
+- **V6-BACKUP-01:** Create Backup is disabled while timing; otherwise it writes a readable Deflate
+  ZIP with exactly `manifest.json` and `data.json`, valid marker/version/sizes, and matching SHA-256.
+- **V6-BACKUP-02:** A round trip preserves every portable Client, Consultant, Tag/catalog category,
+  task/lineage/snapshot/Notes field, completed interval/instant, export-history record, portable
+  setting, and valid selection without changing domain IDs.
+- **V6-BACKUP-03:** Tokens/credentials, account hints, spreadsheet metadata, automatic pending/jobs,
+  notifications/permissions, transient state, journal, restore point, and transport origin never
+  appear in the archive.
+- **V6-IMPORT-01:** Import rejects unknown/duplicate/traversal/encrypted entries, over-100-MiB input,
+  over-500-MiB expansion, checksum/UTF-8/JSON/version/value/reference/invariant errors, active/open
+  timing, cancellation, and insufficient storage before authoritative state changes.
+- **V6-IMPORT-02:** Continue first creates and reread-verifies the rolling point, then replaces Room
+  transactionally and portable preferences recoverably. Cancel changes neither state nor point.
+- **V6-IMPORT-03:** Every injected failure/process death between journal phases converges on startup
+  to the complete old or new state, never a mixture, and repeated recovery is idempotent.
+- **V6-IMPORT-04:** Export destination is restored; Google auth/sheet metadata is cleared; automatic
+  Google is off; a new transport origin is used; domain IDs remain unchanged.
+- **V6-RESTORE-01:** Restore is unavailable without a valid point or while timing. A successful
+  Restore applies the previous state and makes the displaced current state the next point; a second
+  Restore swaps back. Failure preserves recoverability.
+- **V6-COMPAT-01:** Known older logical formats upgrade explicitly. A newer unsupported format fails
+  with an update-WorqOrder instruction. Released Room upgrade paths and data remain intact.
+- **V6-GOOGLE-01:** Existing installs safely adopt only their own legacy task keys; imported copies
+  cannot claim or overwrite source-installation rows. Visible 14-column schema 6 stays unchanged.
+- **V6-UI-01:** Exact approved labels, confirmations, persistent status, picker cancel, progress,
+  double-submit prevention, TalkBack/live-region semantics, large text, narrow/landscape layouts,
+  theme contrast, and Activity recreation pass.
+- **V6-RELEASE-01:** Owner-run lint/JVM/build/API-26/current connected, populated upgrade, fresh
+  install, backup/import/restore/corruption/crash/reboot/Google/accessibility/performance/security,
+  permanent-signer, checksum, public-download, and physical-device gates all pass before release.

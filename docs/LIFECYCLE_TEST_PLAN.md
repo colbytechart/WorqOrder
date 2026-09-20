@@ -217,3 +217,16 @@ emulator failure was not a WorqOrder assertion. Debug lint and current debug/rel
 passed. A single combined real-midnight rerun of every corrected path was not performed after the
 last visible-date signal change; its foreground/external-close race is covered deterministically by
 `MainViewModelTest` and remains an appropriate later release-candidate smoke check.
+
+## 9. Planned `0.6.0` replacement lifecycle matrix
+
+For backup creation, import, and Restore, inject cancellation/process loss before and after every
+temp write, flush, reread verification, restore-point promotion, journal phase, Room transaction,
+DataStore apply, origin rotation, runtime reset, and completion marker. On Activity recreation,
+process restart, force-stop/reopen, reboot, or repeated startup reconciliation, the app must expose
+one complete old/new state, retain a valid swap point, and never repeat destructive work.
+
+Also exercise timer Start/Stop/midnight races, low storage, document-provider cancellation/failure,
+large bounded input, update install, Clear storage/uninstall, Google reconnection, and shared-sheet
+two-device behavior. Record journal state, file hashes, Room counts/identities, portable preference
+values, restore availability, and user-visible status without logging private task contents.

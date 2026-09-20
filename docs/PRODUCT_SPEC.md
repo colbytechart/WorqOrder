@@ -578,8 +578,8 @@ and physically verified `0.4.0`. GitHub Releases remains authoritative for downl
 
 Milestones 36–41 own planning, implementation, verification, and public-release handoff. The
 owner subsequently published and physically verified `0.4.0`. The former teardown Milestones 42
-and 43 are deferred and renumbered to post-`0.5.0` Milestones 49 and 50. Security Milestone E
-stays unscheduled outside release scope.
+and 43 first moved to post-`0.5.0` Milestones 49 and 50 and are now deferred as post-`0.6.0`
+Milestones 56 and 57. Security Milestone E stays unscheduled outside release scope.
 
 ## 17. Released `0.5.0` reusable-Tag product changes
 
@@ -658,6 +658,42 @@ reusable local text catalogs without adding export columns or changing Room auth
 
 Milestones 42–48 delivered planning through public-release verification. Milestone 47 delivered
 the final Create/Edit presentation consistency pass; Milestone 48 completed the release audit.
-Deferred environment teardown and optional closeout are Milestones 49–50 and cannot start
-implicitly. See
-`V0_5_MILESTONE_PROMPTS.md` for model assignments and mandatory owner-run test handoffs.
+Deferred environment teardown and optional closeout have moved to Milestones 56–57 and cannot
+start implicitly. See `V0_5_MILESTONE_PROMPTS.md` for released `0.5.0` evidence and
+`V0_6_MILESTONE_PROMPTS.md` for the current plan.
+
+## 18. Approved `0.6.0` portable Backup & Restore scope (planned)
+
+`0.6.0` will add a **Backup & Restore** Settings section after **Export Destination** and before
+the version label. **Import Backup** and **Create Backup** appear side by side; **Restore Previous
+State** and its **Restore** action appear below. The section has one persistent success/error status
+line. Create, import, and restore are disabled while timing.
+
+The portable file is a standard Deflate ZIP containing `manifest.json` and `data.json`. It is a
+versioned logical snapshot, not raw SQLite or DataStore storage. It contains all portable domain
+records and IDs, completed interval timestamps, task metadata/lineage/Tag snapshots, active and
+archived directories, Tag catalogs, export history, portable preferences, and valid selections.
+It excludes active timers/open intervals, credentials and OAuth tokens, account/connected-sheet
+metadata, installation identity, pending automatic-export work, WorkManager jobs, notifications,
+permissions, transient UI/caches, recovery journals, and the restore point itself.
+
+Import fully validates size, entries, checksum, JSON, version, values, references, and invariants
+before confirmation or mutation. **Replace All WorqOrder Data?** explains that current state is
+first captured as a restore point and then replaced. Google destination selection is preserved,
+but Google authorization/sheet connection is cleared and automatic export is disabled. Domain IDs
+remain stable; installation/Google transport identity is regenerated.
+
+Only one verified app-private restore point exists. Import replaces it only after safely capturing
+the current state. **Restore Previous State?** performs a swap: it applies the previous point and
+makes the displaced current state the next point, so the operation can be undone. The point survives
+reboot/update but is removed on uninstall. Crash recovery uses a durable idempotent journal across
+Room and DataStore; no destructive migration or partial best-effort replacement is allowed.
+
+Backups are plaintext and can contain sensitive work information. The UI and documentation must
+say so. Compressed input is limited to 100 MiB, expanded content to 500 MiB, and parsing/writing is
+streaming and storage-aware. Format version 1 is the `0.6.0` baseline. Explicit logical upgraders
+support known older formats; newer unsupported formats fail with an update-WorqOrder instruction.
+This feature does not change the 14-column task export schema or add another report destination.
+
+Milestones 49–55 plan, implement, harden, and release this scope. The old teardown milestones move
+to 56–57. See `V0_6_MILESTONE_PROMPTS.md`.

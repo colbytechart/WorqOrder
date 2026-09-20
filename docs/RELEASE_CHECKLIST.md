@@ -479,5 +479,20 @@ tag/publication, independent public-asset verification, and physical-device inst
 The owner then merged Milestone 48 through `v0.5.0-development` into `main`, verified the annotated
 `v0.5.0` tag points to the same `main` commit, published the unchanged APK on GitHub, independently
 downloaded it, and repeated checksum/signature/package and physical-device installation checks.
-All passed. `0.5.0` is publicly released; Milestone 48 is complete. Milestones 49 and 50 did not
-start and still require separate explicit owner authorization.
+All passed. `0.5.0` is publicly released; Milestone 48 is complete. The former teardown Milestones
+49 and 50 did not start and are now deferred as Milestones 56 and 57.
+
+## Planned `0.6.0` additions to the release gate
+
+- [ ] Milestones 49–54 complete with owner-reported tests and no unreviewed application changes.
+- [ ] Portable format v1, sensitive exclusions, logical upgrader dispatch, limits, and checksums pass.
+- [ ] Populated `0.5.0` upgrade and fresh install both round-trip all portable state exactly.
+- [ ] Every journal phase is fault-injected; process death/reboot converges to old or new state.
+- [ ] Restore swap/undo, timer lockout, corrupt/oversize/newer-version, cancel, and low-storage pass.
+- [ ] Google is disconnected/auto-disabled after import; new origin cannot overwrite source rows.
+- [ ] Canonical task export remains schema 6/14 columns across CSV/XLSX/manual+automatic Google.
+- [ ] Settings accessibility, large text, narrow/landscape, theme, and Activity recreation pass.
+- [ ] Owner explicitly approves release version identity before it changes.
+- [ ] Permanent signer, package, APK SHA-256, populated install-over, fresh install, independent
+      GitHub download, and physical-device checks pass on the unchanged candidate.
+- [ ] Milestones 56–57 remain unstarted unless separately authorized after public release.

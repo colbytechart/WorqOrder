@@ -853,5 +853,16 @@ into `main`. The annotated `v0.5.0` tag was corrected before push so its peeled 
 `main`. The unchanged APK was published on GitHub, independently downloaded, and reverified; its
 SHA-256, permanent signer, package, and version matched the candidate evidence above. The owner
 installed the downloaded release on a physical device and reported all release smoke checks passed.
-WorqOrder `0.5.0` is therefore publicly released and Milestone 48 is complete. No Milestone 49 or
-50 work was started.
+WorqOrder `0.5.0` is therefore publicly released and Milestone 48 is complete. The former teardown
+Milestones 49–50 were not started and have moved to 56–57.
+
+## 21. `0.6.0` Milestone 49 planning baseline
+
+The approved `0.6.0` scope is documented in `V0_6_MILESTONE_PROMPTS.md`: bounded plaintext logical
+ZIP backup, full preflight validation, sensitive/runtime exclusions, verified one-generation swap
+restore point, durable Room/DataStore recovery journal, installation-scoped Google identity, and a
+Settings experience. Milestone 49 changes documentation only. No application source, dependency,
+database, manifest, Gradle, or test change and no automated/manual execution result is claimed.
+
+Milestones 50–55 remain unstarted and individually require explicit owner instruction/model
+handoffs. Teardown is deferred to 56–57 after public `0.6.0`.

@@ -395,3 +395,11 @@ compare the durable date, ZoneId, and connection key before writing, so a later 
 stale and cannot duplicate a completed export. The foreground post-close callback is launched from
 the ViewModel scope independently of the active-only ticker flow: clearing Room's active row stops
 that ticker but cannot cancel the export handoff it just triggered.
+
+## 16. Planned `0.6.0` portability timing rule
+
+Create Backup, Import Backup, and Restore are unavailable while the Room-authoritative active timer
+exists. The logical format never represents an active timer or open interval, and import validation
+rejects either. Portability operations share ordered exclusion with Start, Stop, midnight closure,
+and timer recovery so a timer cannot begin between the UI check and snapshot/replacement. No backup
+operation changes the exact-boundary, monotonic-display, reboot, or automatic-export policies.

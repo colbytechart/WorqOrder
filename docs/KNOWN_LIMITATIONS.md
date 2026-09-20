@@ -2,10 +2,10 @@
 
 ## Release status
 
-The owner published `0.4.0`, downloaded its GitHub asset, installed it on a physical device, and
+The owner published `0.5.0`, downloaded its GitHub asset, installed it on a physical device, and
 reported expected behavior. Check GitHub Releases for authoritative artifacts. Notes and export
-schema 6 belong to `0.4.0`, not to older APKs. Reusable Tags are implemented on the unreleased
-`0.5.0` development branch and do not exist in the released `0.4.0` application.
+schema 6 began in `0.4.0`; reusable Tags are released in `0.5.0`. The planned `0.6.0` Backup &
+Restore feature does not exist in the released `0.5.0` application.
 
 ## Client CSV import limits
 
@@ -176,3 +176,16 @@ cell is data, and the 1 MiB/10,000-nonblank-cell bounds are
 intentional. Tags are not labels, categories, remote synchronization, or new export columns.
 Catalog deletion does not erase text already saved in task snapshots. Generated punctuation is an
 export-only projection and does not alter the user's stored manual text.
+
+## Planned `0.6.0` Backup & Restore limitations
+
+- The feature is planned and is not present in released `0.5.0`.
+- Backups are plaintext and must be protected by the user; `0.6.0` does not provide encryption.
+- Google credentials, account/sheet connection, automatic-export pending work, notifications, and
+  installation identity are intentionally not portable. Reauthorization/reconnection is required.
+- There is one rolling restore point, not a browsable history. Restore swaps the previous/current
+  states; uninstall or Clear storage removes the point.
+- Files above 100 MiB compressed or 500 MiB expanded are unsupported. Newer unknown backup formats
+  require updating WorqOrder; no best-effort partial import is attempted.
+- Backup & Restore cannot run with an active timer and does not act as sync, merge, or conflict
+  resolution. Import replaces portable destination state after confirmation.

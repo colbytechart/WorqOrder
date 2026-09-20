@@ -656,3 +656,28 @@ Tag text. Navigation preserves unsaved picker/form state through ViewModel/Saved
 state rather than writing partial tasks. Manual dependency injection remains sufficient; no new
 framework, backend, account, service, broad storage permission, or foreground timer component is
 introduced.
+
+## 20. Planned `0.6.0` Backup & Restore architecture
+
+A dedicated portability coordinator will assemble/validate versioned logical DTOs through Room
+repositories and portable preference adapters. A streaming archive codec owns only the two-entry
+Deflate ZIP contract and SHA-256 validation. Android document gateways own
+`ACTION_CREATE_DOCUMENT`/`ACTION_OPEN_DOCUMENT`; Compose never parses files or mutates databases.
+
+Import/restore use one replacement mutex ordered with timer and mutation locks. Preflight parses,
+upgrades, and validates everything before authoritative mutation. Current state is written to an
+app-private no-backup temporary archive, flushed, reread, verified, and atomically promoted to the
+single restore point before import. Room replacement is one foreign-key-safe transaction. Portable
+DataStore application and excluded-state reset are coordinated by a durable phase journal because
+the stores cannot share a transaction. Startup/resume recovery idempotently completes or rolls
+back. Restore uses the same engine with a verified swap of previous and displaced-current state.
+
+The archive is plaintext and bounded at 100 MiB compressed/500 MiB expanded. Entry allowlisting,
+duplicate/path/encryption rejection, streaming limits, checksums, sufficient-storage checks, typed
+errors, and safe temporary cleanup are mandatory. No backend, storage permission, foreground
+service, exact alarm, account, or custom encryption is added.
+
+Google hidden row identity becomes installation namespaced without changing visible schema 6.
+Existing installations may idempotently adopt their own legacy v1 task keys; an imported copy gets
+a new origin and cannot claim legacy/source rows. Google credentials and connection metadata never
+cross the portability boundary.

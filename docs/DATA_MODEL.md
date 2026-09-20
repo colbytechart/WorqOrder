@@ -569,3 +569,48 @@ traceability. In the implemented `0.5.0` model, manual Description and Hardware 
 Purchases plus their ordered Tag snapshots are validated as one composed value of at most 999
 Unicode code points; the persisted manual fields and snapshots remain separate and are never
 rewritten by export punctuation.
+
+## 17. Planned `0.6.0` portable logical snapshot
+
+The backup model is deliberately independent of Room table layout and DataStore serialization.
+Format version 1 represents Clients, Consultants, Tag catalogs, tasks, task-owned ordered Tag
+snapshots, completed intervals, export history, portable preferences, and valid selections as
+explicit JSON DTOs. Every domain ID, relationship, work date, ZoneId, UTC instant, nullable field,
+archive state, lineage value, and ordering value is preserved. No task-count cap is invented beyond
+the approved 100 MiB compressed and 500 MiB expanded limits.
+
+The logical snapshot must not contain the active-timer singleton, open intervals, OAuth/access/
+refresh credentials, account hints, connected-sheet data, WorkManager/automatic-export pending
+state, notification state/permission, transient UI/file-picker data, caches, internal recovery
+journal, rolling restore point, or installation-local export origin. Import rejects rather than
+repairs invalid IDs, references, enums, dates, instants, ZoneIds, cardinality, active/open timing,
+or task/interval invariants.
+
+Successful replacement preserves domain identities but generates a new installation/transport
+origin. Selected task/date/Consultant are restored only when their references remain valid. The
+chosen export destination is restored; Google connection is cleared and automatic export is
+disabled. A future Room schema can consume the same logical version through an explicit mapper;
+backup-format compatibility is therefore not tied to SQLite schema numbers.
+
+### Version-1 persistence inventory
+
+| Current state | Portable rule |
+|---|---|
+| `clients` including archive state/timestamps | Include exactly |
+| `employees` / Consultants including archive state/timestamps | Include exactly |
+| `tags` and category/normalized text/timestamps | Include exactly |
+| `daily_tasks` including lineage, assignment snapshots, Notes, and all metadata | Include exactly |
+| `task_tag_snapshots` including text/category/source hint/order | Include exactly |
+| completed `work_intervals` with precise UTC boundaries/manual-edit metadata | Include exactly |
+| singleton `active_timer` or an open interval | Exclude and reject preflight; operations are disabled while running |
+| theme, device/manual ZoneId choice, manual ZoneId, landscape handedness | Include |
+| default export destination | Include |
+| selected Consultant and selected task/date/series/zone | Include, then retain only valid references |
+| persisted last-export-attempt/export history | Include |
+| automatic-Google enabled/target/date/zone/pending/failure scheduling state | Exclude and clear; force disabled |
+| Google account hints, spreadsheet ID/title/validation/authorization state | Exclude and clear |
+| WorkManager requests, notifications, permission grants, dismissed-notification interval | Exclude/reconcile locally |
+| `exportOriginId` and legacy-key adoption state | Exclude; regenerate for the restored installation |
+| form/search/dialog/file-picker/status/cache state | Exclude |
+| replacement journal, temporary archives, rolling restore point | Exclude |
+| build/package/version metadata | Manifest provenance only; never replace installed-app identity |

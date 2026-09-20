@@ -261,3 +261,23 @@ notification/WorkManager execution time, or independent verification of Google's
 distribution policy. The owner confirmed fresh-account eligibility on API 37 using the exact
 signed candidate and an account never on the tester list. Public downloaded-asset integrity
 remains a post-publication check.
+
+## Planned `0.6.0` portability threat model
+
+Treat every selected backup as hostile input. Required defenses include exact ZIP-entry allowlists,
+duplicate/path-traversal/encrypted-entry rejection, 100 MiB compressed and 500 MiB expanded hard
+limits enforced while streaming, declared/actual size checks, SHA-256 validation, strict UTF-8/JSON
+and logical-version parsing, enum/time/ZoneId/length checks, relationship/cardinality validation,
+and full rejection before mutation. Temporary files must use app-private storage, restrictive
+access, bounded space, safe names, cleanup, flush/verification, and atomic promotion.
+
+The principal integrity risk is a crash between Room and DataStore changes. A durable phase journal,
+verified restore point, one Room transaction, idempotent startup reconciliation, fault injection,
+and swap verification are release requirements. The implementation must never silently fall back
+to deleting local data. Import/export/restore serialization and timer locks must prevent races.
+
+Backups intentionally provide confidentiality neither at rest nor in transit. Credentials and
+Google connection identity must never be serialized. Restored domain IDs are safe only when paired
+with a newly generated installation-scoped Google transport origin; otherwise a copied database
+could overwrite another device's rows. No broad storage permission, backend, account, new network
+scope, embedded secret, or custom cryptography is authorized.

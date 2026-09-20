@@ -102,7 +102,23 @@
   when its assigned client is no longer active. Create/Edit footers contain only their two actions;
   non-field page messages remain in the scrollable content. The full audit/public-
   release handoff was completed in Milestone 48.
-- The former post-`0.4.0` environment teardown Milestones 42 and 43 are renumbered to Milestones
-  49 and 50 and deferred until after the public `0.5.0` release. Milestone 49 is documentation-only;
-  Milestone 50 remains optional and requires exact, separate owner authorization. Neither permits
-  inferred deletion, uninstall, cloud changes, or other destructive action.
+- Planned `0.6.0` Milestones 49–55 add portable Backup & Restore. Milestone 49 is documentation-
+  only; do not add application code until the owner explicitly starts Milestone 50. The governing
+  format, atomicity, exclusion, compatibility, model-handoff, and owner-run test contract is
+  `docs/V0_6_MILESTONE_PROMPTS.md`.
+- Portable backups are bounded plaintext ZIP files containing versioned logical JSON, never raw
+  Room/DataStore files. They include portable domain data, settings, selections, and export history,
+  but exclude OAuth tokens/credentials, account and connected-sheet metadata, installation/Google
+  transport identity, automatic-export pending state/jobs, notifications/permissions, transient UI,
+  caches, journals, and the rolling restore point. Import preserves the chosen export destination,
+  clears Google connection state, disables automatic Google export, and creates a new transport
+  origin. No backup/import/restore may run while a timer is active.
+- Import and Restore must fully validate before mutation and use a verified app-private no-backup
+  restore point plus a durable, idempotent cross-store recovery journal. Room replacement is one
+  transaction; never claim Room/DataStore atomicity without the recovery protocol. Restore uses
+  swap semantics so the displaced current state becomes the next restore point. Uninstall naturally
+  removes that app-private point.
+- The former post-release environment teardown Milestones 49 and 50 are renumbered to Milestones
+  56 and 57 and deferred until after public `0.6.0`. Milestone 56 is documentation-only; Milestone
+  57 remains optional and requires exact, separate owner authorization. Neither permits inferred
+  deletion, uninstall, cloud changes, or other destructive action.

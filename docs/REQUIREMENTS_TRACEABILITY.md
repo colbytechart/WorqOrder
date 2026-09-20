@@ -235,3 +235,19 @@ follows it.
 | Unchanged schema-6 cross-destination export | `ExportSnapshotCoordinator`, `TaskTextComposer`, CSV/XLSX/Google adapters | `Schema6ExportEquivalenceTest`, `ExportRowBuilderAndCsvSerializerTest`, Google/XLSX tests | owner reports CSV/XLSX/manual+automatic Google and cross-device append passed | Pass |
 | Midnight timer auto-close then automatic Google export | `ActiveTimerNormalizer`, exact-boundary Room close, `AutomaticGoogleExportManager` automatic timer-fallback resumption | timer boundary/concurrency tests plus manager scheduled/Stop/reconcile regressions | owner reports exact Stop, silent captured-date export, and no continuation/duplicate passed | Pass |
 | `0.5.0` release compatibility and public APK | migrations, release config, handoff docs | clean build/lint/JVM/current and API-26 connected suites pass by owner report | exact signed populated upgrade, fresh install, permanent signer, package/version/hash, GitHub download, and physical install pass | Pass |
+
+## 13. Planned `0.6.0` portability traceability
+
+These rows are `Planned`; they are not claims about released `0.5.0`.
+
+| Requirement | Planned implementation | Required automated evidence | Required manual evidence | Status |
+|---|---|---|---|---|
+| Logical versioned two-entry ZIP | portability DTO/codec/manifest | round-trip, deterministic checksum, allowlist/bounds fixtures | inspect/share/import created file | Planned |
+| Complete portable state and exclusions | Room snapshot plus portable preference adapters | every-field include/exclude matrix and equivalence | populated cross-device comparison | Planned |
+| Atomic import and crash recovery | replacement coordinator, restore point, phase journal | transaction and every-phase fault/restart tests | force-stop/reboot during safe test scenarios | Planned |
+| Swap-style one-generation Restore | verified no-backup point and swap coordinator | swap twice, corruption/failure preservation | import, restore, undo, uninstall behavior | Planned |
+| Version compatibility | logical upgrader registry | known older/newer/invalid fixtures | older backup import and update-required message | Planned |
+| Google ownership safety | installation origin and v2 hidden keys | legacy adoption, foreign origin, no-overwrite tests | two-device same-sheet append | Planned |
+| Settings UX/accessibility | Settings/ViewModel/SAF integration | semantics, state, recreation, responsive Compose tests | TalkBack, large text/display, rotation, picker flows | Planned |
+| Unchanged task exports | existing immutable schema-6 projection | cross-destination regression | CSV/XLSX/manual+automatic Google | Planned |
+| Release safety | Milestone 55 checklist/evidence | full lint/JVM/build/connected/migration suites | signed upgrade/fresh/public physical installs | Planned |

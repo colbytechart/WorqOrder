@@ -32,6 +32,12 @@ import worq.order.data.preferences.PreferencesRunningTimerNotificationPreference
 import worq.order.data.preferences.PreferencesSelectedTaskRepository
 import worq.order.data.preferences.PreferencesSettingsRepository
 import worq.order.data.preferences.worqOrderPreferencesDataStore
+import worq.order.backup.AndroidPortableBackupDocumentOutputDestination
+import worq.order.backup.PortableBackupCoordinator
+import worq.order.backup.PortableBackupCreationCoordinator
+import worq.order.backup.PortableBackupDocumentOutputDestination
+import worq.order.backup.PortableBackupProducer
+import worq.order.backup.RoomPortableBackupSnapshotReader
 import worq.order.domain.ClientCsvImportCoordinator
 import worq.order.domain.ClientCsvParser
 import worq.order.domain.ConsultantSelectionCoordinator
@@ -100,6 +106,9 @@ interface ApplicationContainer {
     val xlsxExportCoordinator: XlsxExportCoordinator
     val documentOutputDestination: DocumentOutputDestination
     val binaryDocumentOutputDestination: BinaryDocumentOutputDestination
+    val portableBackupCoordinator: PortableBackupCoordinator
+    val portableBackupDocumentOutputDestination: PortableBackupDocumentOutputDestination
+    val portableBackupCreationCoordinator: PortableBackupCreationCoordinator
     val automaticGoogleExportManager: AutomaticGoogleExportManager
 
     fun createGoogleConnectionCoordinator(
@@ -340,6 +349,35 @@ internal class DefaultApplicationContainer(
 
     override val binaryDocumentOutputDestination: BinaryDocumentOutputDestination by lazy {
         AndroidBinaryDocumentOutputDestination(applicationContext.contentResolver)
+    }
+
+    override val portableBackupCoordinator: PortableBackupCoordinator by lazy {
+        PortableBackupCoordinator(
+            snapshotReader =
+                RoomPortableBackupSnapshotReader(
+                    database = database,
+                    settingsRepository = settingsRepository,
+                    selectedTaskRepository = selectedTaskRepository,
+                ),
+            timerOperationLock = timerOperationLock,
+            clock = utcClock,
+            producer =
+                PortableBackupProducer(
+                    versionName = worq.order.BuildConfig.VERSION_NAME,
+                    versionCode = worq.order.BuildConfig.VERSION_CODE,
+                ),
+        )
+    }
+
+    override val portableBackupDocumentOutputDestination: PortableBackupDocumentOutputDestination by lazy {
+        AndroidPortableBackupDocumentOutputDestination(applicationContext.contentResolver)
+    }
+
+    override val portableBackupCreationCoordinator: PortableBackupCreationCoordinator by lazy {
+        PortableBackupCreationCoordinator(
+            backupCoordinator = portableBackupCoordinator,
+            outputDestination = portableBackupDocumentOutputDestination,
+        )
     }
 
     private val googleSheetsGateway: RestGoogleSheetsGateway by lazy {

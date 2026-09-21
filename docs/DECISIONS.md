@@ -1453,6 +1453,19 @@ a malformed stored value throws a typed local-storage error rather than silently
 row ownership. A future successful portable replacement is the only path that rotates the origin
 and permanently disables legacy-v1 adoption for that restored installation.
 
+### D-117 -- Backup creation uses a bounded two-pass streamed ZIP writer
+
+Milestone 51 writes the logical data stream once to measure UTF-8 bytes and compute SHA-256, then
+again into a Deflate ZIP after writing a matching manifest. This preserves manifest-first entry
+order without retaining a whole JSON byte array or temporary external file. The local snapshot is
+captured while the existing timer-operation mutex excludes Start/Stop and is rejected if an active
+or open interval exists. The only external output is an `ACTION_CREATE_DOCUMENT` URI with MIME
+type `application/zip`; cancellation and output failure attempt cleanup and return typed results.
+The write boundary exposes only `PreparingSnapshot` and `WritingArchive` phases, because a
+compressed SAF stream has no reliable byte-level progress total. It is deliberately not yet
+presented by Settings. Import/restore, journal, and rolling restore-point logic remain exclusively
+Milestone 52+ work.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.

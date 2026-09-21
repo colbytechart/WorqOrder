@@ -227,6 +227,19 @@ entry contract, memory/disk behavior, cancellation cleanup, SAF behavior, and ex
 release-blocking defects, provide owner-run regression gates, record evidence, and stop.
 ```
 
+### Milestone 51 completion evidence
+
+Completed on the `milestone51` branch after the owner reported the supplied offline compilation,
+full JVM, lint, debug/release assembly, focused backup instrumentation, and complete connected
+instrumentation gates successful. `git diff --check` and the portable-property exclusion audit
+were clean. Production and adversarial tests cover the exact two-entry Deflate contract,
+manifest/data SHA-256 and byte-count agreement, compressed/expanded limits, Unicode, invalid local
+state, cancellation, typed output/partial-document failure, scoped `content://` output, and
+active/open-timer rejection. The Room-backed snapshot fixture confirms complete portable domain
+capture while excluding Google/runtime/credential/recovery state. This milestone is write-only:
+no visible Settings action, archive import, restore point, journal, or authoritative replacement
+exists yet. Milestone 52 remains unstarted.
+
 ## Milestone 52 — Atomic import, crash recovery, and rolling restore
 
 ### Task 52A — Sol: durable replacement protocol

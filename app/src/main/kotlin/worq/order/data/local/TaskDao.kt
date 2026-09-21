@@ -102,6 +102,19 @@ abstract class TaskDao {
     @Query("SELECT * FROM daily_tasks WHERE id = :taskId LIMIT 1")
     abstract suspend fun readTask(taskId: String): DailyTaskEntity?
 
+    /** Stable read order for a portable logical snapshot. */
+    @Query("SELECT * FROM daily_tasks ORDER BY id ASC")
+    abstract suspend fun readAllTasksForPortableBackup(): List<DailyTaskEntity>
+
+    /** Stable category/selection ordering for a portable logical snapshot. */
+    @Query(
+        """
+        SELECT * FROM task_tag_snapshots
+        ORDER BY task_id ASC, category ASC, selection_order ASC, id ASC
+        """,
+    )
+    abstract suspend fun readAllTaskTagSnapshotsForPortableBackup(): List<TaskTagSnapshotEntity>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract suspend fun insertDailyTask(task: DailyTaskEntity)
 

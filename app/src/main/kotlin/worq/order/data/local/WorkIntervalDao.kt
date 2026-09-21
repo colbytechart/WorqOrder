@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 abstract class WorkIntervalDao {
+    /** Stable read order for a portable logical snapshot. */
+    @Query("SELECT * FROM work_intervals ORDER BY task_id ASC, start_epoch_ms ASC, id ASC")
+    abstract suspend fun readAllIntervalsForPortableBackup(): List<WorkIntervalEntity>
+
     @Query(
         """
         SELECT *

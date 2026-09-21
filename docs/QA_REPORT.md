@@ -897,3 +897,31 @@ collision, and malformed-state fail-closed behavior. The focused stable JSON run
 documented in `SECURITY_REVIEW.md`; it adds no Android permission, network client, credential,
 native library, or compiler plugin. Milestone 50 is complete. Archive creation remains Milestone
 51 and has not started.
+
+## 23. `0.6.0` Milestone 51 compressed-backup creation evidence
+
+Milestone 51 adds the write-only portable-backup path: stable Room snapshot queries, explicit
+Room/Preferences/selection adaptation, active/open-timer rejection under the timer-operation lock,
+streamed UTF-8 JSON, a bounded two-entry Deflate writer, exact byte-count/SHA-256 manifest data,
+and an Android scoped-document output boundary. The future Settings action receives typed
+preparation/writing/success/failure state, but no user-visible Settings control, archive reader,
+import, rolling restore point, journal, or authoritative replacement is introduced yet.
+
+The owner reported all supplied Milestone 51 gates successful: debug/JVM/instrumentation-source
+compilation, the full debug JVM suite, debug lint, debug and release APK assembly, the focused
+document/snapshot instrumentation classes, and the complete connected instrumentation suite. The
+initial connected attempt was correctly blocked because the disposable emulator held a differently
+signed release installation; after the owner explicitly authorized removal of that emulator-local
+installation, the focused and complete connected gates passed. Exact test totals were not supplied,
+so this report does not invent them. `git diff --check` was clean and the strict portable-property
+audit found no credential, OAuth/token, Google connection, automatic-export, notification,
+WorkManager, export-origin, recovery-journal, or rolling-restore-point property.
+
+Adversarial evidence covers exact `manifest.json` then `data.json` Deflate entries, matching exact
+UTF-8 byte count and SHA-256, deterministic Unicode JSON, invalid-state rejection before output,
+100 MiB compressed and 500 MiB expanded enforcement during streaming, cancellation propagation,
+typed low-storage/I/O failure, partial-document warning propagation, timer-before-output blocking,
+and rejection of non-`content://` destinations. A Room-backed instrumentation fixture confirms
+portable capture of Client, Consultant, Tag, task/snapshot/interval, export-history, preference,
+and valid-selection state while excluding Google/runtime secrets. Milestone 51 is complete;
+Milestone 52 remains unstarted.

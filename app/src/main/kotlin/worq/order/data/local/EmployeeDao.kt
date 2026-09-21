@@ -25,6 +25,10 @@ abstract class EmployeeDao {
     )
     abstract fun observeAllEmployees(): Flow<List<EmployeeEntity>>
 
+    /** Stable read order for a portable logical snapshot. */
+    @Query("SELECT * FROM employees ORDER BY id ASC")
+    abstract suspend fun readAllEmployeesForPortableBackup(): List<EmployeeEntity>
+
     @Query("SELECT * FROM employees WHERE id = :employeeId LIMIT 1")
     abstract suspend fun readEmployee(employeeId: String): EmployeeEntity?
 

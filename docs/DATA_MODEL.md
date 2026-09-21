@@ -626,3 +626,14 @@ connection metadata, and `exportOriginId` cannot be smuggled into a decoded logi
 not portable preference data: first use generates a 32-lowercase-hex origin; import will later
 rotate it and set legacy v1 adoption to false. A malformed stored origin is a fail-closed storage
 error, never an occasion to silently assume a different Google row identity.
+
+### Milestone-51 archive write contract
+
+The portable file is named `WorqOrder_Backup_YYYY-MM-DD_HHmmss.zip` using the backup creation
+instant in UTC. It has MIME type `application/zip` and exactly two Deflate entries in this order:
+`manifest.json`, then `data.json`. `manifest.json` describes the versioned logical payload and
+contains the exact UTF-8 byte count and lowercase SHA-256 digest of `data.json`; neither entry is
+encrypted. The writer bounds the final compressed stream to 100 MiB and the data JSON stream to
+500 MiB. A running/open timer, an invalid logical state, cancellation, an output failure, or a
+size-bound breach produces no successful backup result. The owner-selected document URI is the
+only external output; no raw Room or DataStore file is copied.

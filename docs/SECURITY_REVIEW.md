@@ -289,3 +289,16 @@ unknown and duplicate object keys, escaped-key aliases, excessive nesting, malfo
 values, and excluded runtime/installation fields before logical graph validation. Archive byte
 limits, ZIP entry controls, checksum verification, and temporary-file handling remain mandatory in
 Milestone 51 because this foundation does not perform archive I/O.
+
+Milestone 51's write-only implementation emits exactly `manifest.json` followed by `data.json`
+through platform Deflate. It hashes and counts the exact UTF-8 data stream before writing a
+matching manifest, then renders the same immutable logical snapshot into the archive without a
+whole-document byte array or external temporary file. Both passes enforce coroutine cancellation;
+the expanded stream is capped at 500 MiB and the complete compressed stream at 100 MiB. Output is
+restricted to an owner-selected `content://` document URI, and failure/cancellation closes the
+stream and attempts deletion of a partial document. A failed deletion remains a typed condition so
+the later UI can warn the user. Active/open timers fail before output begins. The portable DTO and
+Room-backed exclusion test confirm that OAuth material, Google connection metadata, automatic-
+export runtime state, notification state, WorkManager state, recovery artifacts, and installation-
+local export origin are not written. Backups remain deliberate plaintext and must never be
+described as encrypted.

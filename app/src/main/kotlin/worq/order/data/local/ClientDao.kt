@@ -40,6 +40,10 @@ abstract class ClientDao {
     )
     abstract fun observeAllClients(): Flow<List<ClientEntity>>
 
+    /** Stable read order for a portable logical snapshot. */
+    @Query("SELECT * FROM clients ORDER BY id ASC")
+    abstract suspend fun readAllClientsForPortableBackup(): List<ClientEntity>
+
     @Query("SELECT * FROM clients WHERE id = :clientId LIMIT 1")
     abstract suspend fun readClient(clientId: String): ClientEntity?
 

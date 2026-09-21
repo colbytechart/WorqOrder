@@ -30,6 +30,10 @@ abstract class TagDao {
     )
     abstract fun observeTagsForCategory(category: String): Flow<List<TagEntity>>
 
+    /** Stable read order for a portable logical snapshot. */
+    @Query("SELECT * FROM tags ORDER BY id ASC")
+    abstract suspend fun readAllTagsForPortableBackup(): List<TagEntity>
+
     @Query("SELECT * FROM tags WHERE id = :tagId LIMIT 1")
     abstract suspend fun readTag(tagId: String): TagEntity?
 

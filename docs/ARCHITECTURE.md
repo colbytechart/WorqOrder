@@ -690,3 +690,16 @@ format-upgrader dispatch before any archive or replacement code exists. `exportO
 only in a typed Preferences repository; a missing value is generated once, a malformed stored value
 fails closed, and only a successful future portable replacement may rotate it and disable legacy-v1
 row adoption.
+
+Milestone 51 adds the write-only portability boundary. `RoomPortableBackupSnapshotReader` reads
+the authoritative Room graph in one transaction, rejects an active/open interval, adapts only
+portable Preferences/selection values, and validates the resulting logical DTO. The shared timer
+operation lock makes that capture race-free with Start/Stop. `PortableBackupArchiveWriter` renders
+the data JSON twice as a stream: the first pass establishes bounded UTF-8 size and SHA-256; the
+second writes a Deflate ZIP containing `manifest.json` followed by `data.json`. The Android
+document destination writes only to an owner-selected `ACTION_CREATE_DOCUMENT` URI and tries to
+delete a partial file on failure or coroutine cancellation. Its reusable non-UI action boundary
+reports typed `PreparingSnapshot` and `WritingArchive` phases plus typed timer, local-state, and
+output results; it intentionally does not pretend compressed SAF writes have reliable byte-level
+progress. No Settings action, document launcher, import parser, or data replacement is exposed
+until later milestones.

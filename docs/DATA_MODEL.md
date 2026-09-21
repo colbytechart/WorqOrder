@@ -614,3 +614,15 @@ backup-format compatibility is therefore not tied to SQLite schema numbers.
 | form/search/dialog/file-picker/status/cache state | Exclude |
 | replacement journal, temporary archives, rolling restore point | Exclude |
 | build/package/version metadata | Manifest provenance only; never replace installed-app identity |
+
+The Milestone-50 foundation uses explicit version-1 logical DTOs with the current model version
+`7`, rather than serializing Room entities or `Preferences`. It records completed interval
+timestamps as epoch milliseconds, all portable timestamps and domain identity fields, nullable
+metadata, ordered task Tag snapshots, the typed last-export attempt, and the valid selected-task
+tuple. A strict decoder rejects unknown root/object fields, so active timer, runtime state,
+connection metadata, and `exportOriginId` cannot be smuggled into a decoded logical snapshot.
+
+`export_origin_id` and `export_origin_legacy_v1_allowed` are app-local Preferences keys. They are
+not portable preference data: first use generates a 32-lowercase-hex origin; import will later
+rotate it and set legacy v1 adoption to false. A malformed stored origin is a fail-closed storage
+error, never an occasion to silently assume a different Google row identity.

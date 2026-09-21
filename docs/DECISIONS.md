@@ -1435,6 +1435,24 @@ canonical export adapter reads or writes backup archives.
 Milestones 49–55 are the `0.6.0` plan. Former teardown Milestones 49–50 become 56–57. Milestone 56
 remains documentation-only and Milestone 57 remains separately optional; neither starts implicitly.
 
+### D-115 -- `0.6.0` uses a focused strict JSON boundary
+
+Milestone 50 adds the cached, stable `org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1`
+runtime through the version catalog. The logical backup codec uses explicit `JsonElement` mapping,
+not a serialization compiler plugin, reflection, Room entities, or Preferences blobs. It decodes
+only the documented version-1 fields and returns typed parse/shape failures. The pure validator
+accumulates typed manifest and graph failures before any later archive or replacement operation.
+This does not add a ZIP writer/reader, import UI, Room mutation, or a fourth report-export
+destination.
+
+### D-116 -- Export-origin state is installation-local and fail-closed
+
+Milestone 50 stores a generated 32-hex `exportOriginId` plus a legacy-v1-adoption gate only in
+Preferences DataStore. It is excluded from the portable DTO. A missing identity is created once;
+a malformed stored value throws a typed local-storage error rather than silently changing Google
+row ownership. A future successful portable replacement is the only path that rotates the origin
+and permanently disables legacy-v1 adoption for that restored installation.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.

@@ -43,6 +43,9 @@ Room owns clients, tasks, intervals, and active-timer truth. DataStore owns pref
 - Coroutines and Flow for asynchronous work/observation.
 - Room with KSP, schema export, transactions, and explicit migrations.
 - Preferences DataStore.
+- Kotlinx Serialization JSON `1.8.1` is the focused stable logical-backup codec from Milestone
+  50. It uses explicit `JsonElement` mapping rather than a serialization compiler plugin or a
+  reflection mapper; ZIP I/O remains platform-only in its later owning milestone.
 - `java.time` on minimum SDK 26; no legacy date/time library is needed.
 - Gradle Kotlin DSL with `gradle/libs.versions.toml` in the implementation milestone.
 - Manual dependency injection through a small `ApplicationContainer`.
@@ -681,3 +684,9 @@ Google hidden row identity becomes installation namespaced without changing visi
 Existing installations may idempotently adopt their own legacy v1 task keys; an imported copy gets
 a new origin and cannot claim legacy/source rows. Google credentials and connection metadata never
 cross the portability boundary.
+
+Milestone 50 supplies the pure version-1 DTO graph, strict JSON boundary, typed validation and
+format-upgrader dispatch before any archive or replacement code exists. `exportOriginId` is held
+only in a typed Preferences repository; a missing value is generated once, a malformed stored value
+fails closed, and only a successful future portable replacement may rotate it and disable legacy-v1
+row adoption.

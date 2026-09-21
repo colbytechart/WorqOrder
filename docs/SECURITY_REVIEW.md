@@ -281,3 +281,11 @@ Google connection identity must never be serialized. Restored domain IDs are saf
 with a newly generated installation-scoped Google transport origin; otherwise a copied database
 could overwrite another device's rows. No broad storage permission, backend, account, new network
 scope, embedded secret, or custom cryptography is authorized.
+
+Milestone 50 adds only the stable Kotlinx Serialization JSON runtime `1.8.1`, locked in the version
+catalog. The cached JVM artifacts add no Android manifest, native library, permission, network
+client, credential API, or serialization compiler plugin. Explicit `JsonElement` mapping rejects
+unknown and duplicate object keys, escaped-key aliases, excessive nesting, malformed temporal
+values, and excluded runtime/installation fields before logical graph validation. Archive byte
+limits, ZIP entry controls, checksum verification, and temporary-file handling remain mandatory in
+Milestone 51 because this foundation does not perform archive I/O.

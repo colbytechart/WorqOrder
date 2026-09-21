@@ -238,16 +238,17 @@ follows it.
 
 ## 13. Planned `0.6.0` portability traceability
 
-These rows are `Planned`; they are not claims about released `0.5.0`.
+These rows track planned `0.6.0` work and completed foundations; they are not claims about released
+`0.5.0` or about unimplemented archive/import/UI behavior.
 
 | Requirement | Planned implementation | Required automated evidence | Required manual evidence | Status |
 |---|---|---|---|---|
-| Logical versioned two-entry ZIP | portability DTO/codec/manifest | round-trip, deterministic checksum, allowlist/bounds fixtures | inspect/share/import created file | Planned |
-| Complete portable state and exclusions | Room snapshot plus portable preference adapters | every-field include/exclude matrix and equivalence | populated cross-device comparison | Planned |
+| Logical versioned two-entry ZIP | versioned DTO/strict JSON codec/manifest foundation in M50; ZIP writer/parser in M51–52 | DTO round-trip, strict-shape, ambiguity, relationship, checksum-format and bounds fixtures pass; ZIP-entry tests remain | inspect/share/import created file | Partial: logical model/codec pass; ZIP not implemented |
+| Complete portable state and exclusions | logical DTO/exclusion allowlist in M50; Room snapshot plus portable preference adapters in M51–52 | complete/empty/Unicode fixtures and forbidden-field audit pass; live snapshot equivalence remains | populated cross-device comparison | Partial: portable contract pass; live adapters not implemented |
 | Atomic import and crash recovery | replacement coordinator, restore point, phase journal | transaction and every-phase fault/restart tests | force-stop/reboot during safe test scenarios | Planned |
 | Swap-style one-generation Restore | verified no-backup point and swap coordinator | swap twice, corruption/failure preservation | import, restore, undo, uninstall behavior | Planned |
-| Version compatibility | logical upgrader registry | known older/newer/invalid fixtures | older backup import and update-required message | Planned |
-| Google ownership safety | installation origin and v2 hidden keys | legacy adoption, foreign origin, no-overwrite tests | two-device same-sheet append | Planned |
+| Version compatibility | explicit current decoder and older-format upgrader boundary in M50; concrete future adapters as formats evolve | current round-trip, malformed/invalid/newer rejection, and explicit legacy-dispatch fixtures pass | older backup import and update-required message | Partial: dispatch foundation pass; no historical portable format exists yet |
+| Google ownership safety | installation-local origin repository in M50; Google v2 hidden keys/adoption in M54 | origin persistence, malformed-state fail-closed, adoption marking, rotation, and collision tests pass | two-device same-sheet append | Partial: origin foundation pass; Google integration not implemented |
 | Settings UX/accessibility | Settings/ViewModel/SAF integration | semantics, state, recreation, responsive Compose tests | TalkBack, large text/display, rotation, picker flows | Planned |
 | Unchanged task exports | existing immutable schema-6 projection | cross-destination regression | CSV/XLSX/manual+automatic Google | Planned |
 | Release safety | Milestone 55 checklist/evidence | full lint/JVM/build/connected/migration suites | signed upgrade/fresh/public physical installs | Planned |

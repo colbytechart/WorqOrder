@@ -189,6 +189,16 @@ version dispatch. Fix only milestone defects, provide complete owner-run regress
 manual fixture checks, document evidence, and stop before Milestone 51.
 ```
 
+### Milestone 50 completion evidence
+
+Completed on the `milestone50` branch after the owner reported the full supplied offline
+compilation/JVM/lint/debug/release gate and complete connected instrumentation suite passing. The
+strict portable-property audit returned no forbidden runtime, credential, Google-connection,
+automatic-export, origin, journal, or restore-point field, and `git diff --check` was clean. This
+milestone provides only the versioned logical model, strict JSON codec/validator/upgrader boundary,
+and installation-local export-origin foundation. It does not create/read archives, mutate Room or
+DataStore from a backup, or expose Backup & Restore UI. Milestone 51 remains unstarted.
+
 ## Milestone 51 — Compressed backup creation and Android document output
 
 ### Task 51A — Luna: archive fixture and boundary tests

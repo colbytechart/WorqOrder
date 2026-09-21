@@ -864,5 +864,36 @@ restore point, durable Room/DataStore recovery journal, installation-scoped Goog
 Settings experience. Milestone 49 changes documentation only. No application source, dependency,
 database, manifest, Gradle, or test change and no automated/manual execution result is claimed.
 
-Milestones 50–55 remain unstarted and individually require explicit owner instruction/model
-handoffs. Teardown is deferred to 56–57 after public `0.6.0`.
+Milestones 50–55 individually require explicit owner instruction/model handoffs. Teardown is
+deferred to 56–57 after public `0.6.0`.
+
+## 22. `0.6.0` Milestone 50 portable-model foundation evidence
+
+Milestone 50 adds the logical version-1 portable DTOs, strict JSON codec, bounded validator,
+explicit older-format upgrader boundary, and installation-local export-origin repository. It does
+not yet create or read a ZIP, snapshot or replace Room/DataStore, expose Backup & Restore UI, or
+change an existing task/export workflow. Domain IDs remain portable; installation transport
+identity remains outside the portable model and rotates through a typed operation intended for a
+later successful import coordinator.
+
+The owner reported that the complete supplied offline Gradle gate passed: debug application, JVM,
+and instrumentation-source compilation; the full debug JVM suite; debug and release lint; and
+debug and release APK assembly. The owner also reported that the complete connected debug
+instrumentation suite passed on the disposable emulator after the pre-existing differently signed
+installation was removed. Exact test totals were not supplied, so this report does not invent
+them. The earlier focused export-origin instrumentation rerun also passed.
+
+The reported static closeout checks pass: `git diff --check` produced no error, and the portable
+model property audit found no active timer, OAuth/access/refresh token, spreadsheet/account,
+automatic-export, notification/WorkManager, export-origin, recovery-journal, or rolling-restore-
+point property. The sole line-ending message for `gradle/libs.versions.toml` is Git's informational
+working-copy normalization warning, not a source or build failure.
+
+Adversarial automated coverage includes complete/empty/Unicode round trips; exact relationship,
+enum, ZoneId, instant, selection, cardinality, normalization, and text bounds; malformed and
+duplicate JSON keys (including escaped-equivalent keys); excluded runtime/sensitive fields; newer-
+format rejection and explicit legacy dispatch; origin persistence, adoption marking, rotation,
+collision, and malformed-state fail-closed behavior. The focused stable JSON runtime dependency is
+documented in `SECURITY_REVIEW.md`; it adds no Android permission, network client, credential,
+native library, or compiler plugin. Milestone 50 is complete. Archive creation remains Milestone
+51 and has not started.

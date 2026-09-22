@@ -1101,6 +1101,16 @@ journal, one-transaction Room replacement, portable DataStore apply/reset, start
 rotation, and swap-style Restore. Fault injection must prove that cancellation/process loss cannot
 leave partial authoritative state.
 
+Milestone 52 is complete. Task 52A froze the exact lock order, durable-file primitive, next-action
+phase machine, target and rollback orders, cancellation point of no return, startup blocking
+behavior, Import rollback-point promotion, Restore swap, and fault matrix in
+`docs/PORTABLE_BACKUP_RECOVERY_PROTOCOL.md`. Tasks 52B-52D implemented and audited the bounded
+reader, verified restore point, self-checking journal, transactional Room replacement, exact
+Preferences replacement/rollback, excluded-runtime reset, origin rotation, startup convergence,
+swap restore, and every-phase fault/equivalence evidence. The owner reported JVM, connected,
+lint, debug-build, and release-build gates successful. User-facing Settings integration remains
+exclusively Milestone 53.
+
 ### Milestone 53 — Settings experience
 
 Add the approved **Backup & Restore** section, document pickers, confirmations, persistent shared

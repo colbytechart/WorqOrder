@@ -29,23 +29,31 @@ class PortableBackupCoordinator(
 ) {
     suspend fun prepare(): PreparePortableBackupResult =
         timerOperationLock.mutex.withLock {
-            when (val result = snapshotReader.read()) {
-                is PortableBackupSnapshotReadResult.Ready -> {
-                    val createdAt = clock.now()
-                    PreparePortableBackupResult.Ready(
-                        PreparedPortableBackup(
-                            data = result.data,
-                            createdAt = createdAt,
-                            producer = producer,
-                            suggestedFileName = suggestedFileName(createdAt),
-                        ),
-                    )
-                }
-                PortableBackupSnapshotReadResult.TimerRunning ->
-                    PreparePortableBackupResult.TimerRunning
-                PortableBackupSnapshotReadResult.InvalidLocalState ->
-                    PreparePortableBackupResult.InvalidLocalState
+            prepareWhileTimerLocked()
+        }
+
+    /**
+     * Used only by the replacement engine after it already owns [TimerOperationLock]. Keeping
+     * this narrow avoids a recursive Mutex acquisition while ensuring the displaced archive is
+     * captured from precisely the state that will be replaced.
+     */
+    internal suspend fun prepareWhileTimerLocked(): PreparePortableBackupResult =
+        when (val result = snapshotReader.read()) {
+            is PortableBackupSnapshotReadResult.Ready -> {
+                val createdAt = clock.now()
+                PreparePortableBackupResult.Ready(
+                    PreparedPortableBackup(
+                        data = result.data,
+                        createdAt = createdAt,
+                        producer = producer,
+                        suggestedFileName = suggestedFileName(createdAt),
+                    ),
+                )
             }
+            PortableBackupSnapshotReadResult.TimerRunning ->
+                PreparePortableBackupResult.TimerRunning
+            PortableBackupSnapshotReadResult.InvalidLocalState ->
+                PreparePortableBackupResult.InvalidLocalState
         }
 
     companion object {

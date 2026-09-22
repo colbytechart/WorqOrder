@@ -115,6 +115,23 @@ abstract class TaskDao {
     )
     abstract suspend fun readAllTaskTagSnapshotsForPortableBackup(): List<TaskTagSnapshotEntity>
 
+    /** Internal bulk primitive for a fully prevalidated portable-state replacement transaction. */
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    abstract suspend fun insertAllForPortableReplacement(tasks: List<DailyTaskEntity>)
+
+    /** Internal bulk primitive for a fully prevalidated portable-state replacement transaction. */
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    abstract suspend fun insertAllSnapshotsForPortableReplacement(
+        snapshots: List<TaskTagSnapshotEntity>,
+    )
+
+    /** Children must be removed before this parent table. */
+    @Query("DELETE FROM task_tag_snapshots")
+    abstract suspend fun deleteAllSnapshotsForPortableReplacement(): Int
+
+    @Query("DELETE FROM daily_tasks")
+    abstract suspend fun deleteAllForPortableReplacement(): Int
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract suspend fun insertDailyTask(task: DailyTaskEntity)
 

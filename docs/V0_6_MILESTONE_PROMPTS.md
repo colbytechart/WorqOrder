@@ -2,10 +2,10 @@
 
 ## 1. Purpose and fixed decisions
 
-This roadmap governs the planned portable **Backup & Restore** release. Released `0.5.0` remains
-the implementation baseline until the owner explicitly starts an implementation milestone. The
-current Milestone 49 is planning-only: it may change Markdown documentation but no application,
-Gradle, manifest, schema, dependency, or test source.
+This roadmap governs the in-development portable **Backup & Restore** release. Released `0.5.0`
+remains the public baseline. Milestones 49-52 are complete: Milestone 49 was documentation-only,
+and Milestones 50-52 delivered the non-UI portable model, backup writer, and atomic replacement/
+recovery engine. Milestone 53 remains unstarted until the owner explicitly authorizes it.
 
 The approved product contract is:
 
@@ -238,7 +238,8 @@ state, cancellation, typed output/partial-document failure, scoped `content://` 
 active/open-timer rejection. The Room-backed snapshot fixture confirms complete portable domain
 capture while excluding Google/runtime/credential/recovery state. This milestone is write-only:
 no visible Settings action, archive import, restore point, journal, or authoritative replacement
-exists yet. Milestone 52 remains unstarted.
+existed at its completion. Those non-UI read/replacement capabilities were subsequently delivered
+and verified in Milestone 52.
 
 ## Milestone 52 — Atomic import, crash recovery, and rolling restore
 
@@ -251,6 +252,16 @@ rollback/startup recovery, cancellation points, mutex ordering, restore swap, an
 matrix. Resolve ambiguity before code; stop for Terra.
 ```
 
+Completed on the `milestone52` branch as the documentation-only design gate. The frozen protocol is
+`docs/PORTABLE_BACKUP_RECOVERY_PROTOCOL.md`. It defines a next-idempotent-action journal, exact
+same-directory write/sync/verify/atomic-rename/parent-sync boundaries, one application-wide outer
+operation lock, commit-intent and non-cancellable convergence rules, foreign-key-safe Room
+replacement, one-edit Preferences replacement, recovery-only local-preference rollback state,
+successful-replacement Google/runtime reset, pre-generated origin identity, Import rollback-point
+promotion, Restore swap finalization, startup blocking/reconciliation, and the required per-boundary
+fault matrix. No application or test source changed in 52A. Tasks 52B-52D implement and verify that
+protocol; any proposed semantic change still requires owner/Sol review.
+
 ### Task 52B — Terra: import/restore engine
 
 ```text
@@ -261,6 +272,15 @@ recovery, and verified swap-style Restore. Never use destructive migration or pa
 import. Provide owner-run gates; stop for Luna.
 ```
 
+Completed on `milestone52`. It adds the production bounded archive reader; a lock-ordered typed
+replacement engine; strict journal and recovery-only Preferences artifacts below
+`noBackupFilesDir`; verified atomic artifact promotion; a validated one-transaction Room graph
+replacement; one-edit portable Preferences replacement; origin rotation; local Google/automatic-
+export/notification reset; schedule-only rollback reconciliation; startup-before-timer recovery;
+and swap-style Restore finalization. It intentionally adds no Settings UI. The owner reported the
+supplied compilation, JVM, connected-instrumentation, lint, debug-build, and release-build gates
+successful before Tasks 52C and 52D proceeded.
+
 ### Task 52C — Luna: fault-injection and equivalence evidence
 
 ```text
@@ -270,6 +290,13 @@ invalid restore point, cancellation, and exact logical round-trip equivalence. G
 and stop for Sol.
 ```
 
+Completed on `milestone52`. `PortableBackupReplacementFaultMatrixTest` covers every journal action
+in both directions, repeated idempotent replay, pre-commit cancellation, rollback-to-original
+generation, corrupted restore-point rejection, and exact logical DTO round-trip equivalence. The
+connected `PortableBackupRoomReplacementTest` confirms a complete validated graph replaces Room
+with no active timer or open interval. Owner-reported JVM and connected suites passed. Task 52D is
+the remaining Sol-only data-loss gate.
+
 ### Task 52D — Sol: data-loss gate
 
 ```text
@@ -277,6 +304,16 @@ Complete Milestone 52 with Sol. Audit all replacement paths for data loss, half-
 DataStore state, stale credentials/schedulers, concurrency deadlocks, and unbounded input. Require
 owner-reported fault and migration gates before closure. Fix only milestone blockers and stop.
 ```
+
+Completed on `milestone52`. The final audit added a self-authenticating strict journal; bounded and
+typed recovery Preferences; exact Room row-identity/count and foreign-key postconditions; verified
+displaced-generation rollback authority; exact one-edit target Preferences equivalence; and one
+application-wide operation gate across startup, Activity resume, automatic Google work, and boot
+recovery. Startup now withholds normal navigation until journal reconciliation converges and fails
+closed on ambiguous recovery state. The owner reported the complete debug JVM suite and connected
+debug instrumentation suite successful, followed by successful `lintDebug`, `assembleDebug`, and
+`assembleRelease` gates. `git diff --check` is clean. Milestone 52 is complete; no Settings UI was
+added, and Milestone 53 remains unstarted pending explicit owner instruction.
 
 ## Milestone 53 — Backup & Restore Settings experience
 

@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import worq.order.data.ActiveTimerRepository
 import worq.order.data.ClientImportRepository
 import worq.order.data.ClientRepository
@@ -33,10 +34,18 @@ import worq.order.data.preferences.PreferencesSelectedTaskRepository
 import worq.order.data.preferences.PreferencesSettingsRepository
 import worq.order.data.preferences.worqOrderPreferencesDataStore
 import worq.order.backup.AndroidPortableBackupDocumentOutputDestination
+import worq.order.backup.AndroidPortableBackupRecoveryFileStore
+import worq.order.backup.ApplicationDataOperationLock
+import worq.order.backup.LocalPortableBackupReplacementRuntime
 import worq.order.backup.PortableBackupCoordinator
 import worq.order.backup.PortableBackupCreationCoordinator
 import worq.order.backup.PortableBackupDocumentOutputDestination
 import worq.order.backup.PortableBackupProducer
+import worq.order.backup.PortableBackupArchiveReader
+import worq.order.backup.PortableBackupArchiveWriter
+import worq.order.backup.PortableBackupPreferencesReplacement
+import worq.order.backup.PortableBackupReplacementCoordinator
+import worq.order.backup.PortableBackupRoomReplacement
 import worq.order.backup.RoomPortableBackupSnapshotReader
 import worq.order.domain.ClientCsvImportCoordinator
 import worq.order.domain.ClientCsvParser
@@ -109,7 +118,10 @@ interface ApplicationContainer {
     val portableBackupCoordinator: PortableBackupCoordinator
     val portableBackupDocumentOutputDestination: PortableBackupDocumentOutputDestination
     val portableBackupCreationCoordinator: PortableBackupCreationCoordinator
+    val portableBackupReplacementCoordinator: PortableBackupReplacementCoordinator
     val automaticGoogleExportManager: AutomaticGoogleExportManager
+
+    suspend fun <T> withApplicationDataOperationLock(block: suspend () -> T): T
 
     fun createGoogleConnectionCoordinator(
         activity: ComponentActivity,
@@ -212,6 +224,13 @@ internal class DefaultApplicationContainer(
     private val timerOperationLock by lazy {
         TimerOperationLock()
     }
+
+    private val applicationDataOperationLock by lazy {
+        ApplicationDataOperationLock()
+    }
+
+    override suspend fun <T> withApplicationDataOperationLock(block: suspend () -> T): T =
+        applicationDataOperationLock.mutex.withLock { block() }
 
     override val settingsRepository: SettingsRepository by lazy {
         PreferencesSettingsRepository(
@@ -380,6 +399,48 @@ internal class DefaultApplicationContainer(
         )
     }
 
+    private val portableBackupArchiveReader by lazy {
+        PortableBackupArchiveReader()
+    }
+
+    private val portableBackupArchiveWriter by lazy {
+        PortableBackupArchiveWriter()
+    }
+
+    private val portableBackupRecoveryFileStore by lazy {
+        AndroidPortableBackupRecoveryFileStore(applicationContext)
+    }
+
+    private val automaticGoogleWorkScheduler by lazy {
+        WorkManagerAutomaticGoogleExportScheduler(WorkManager.getInstance(applicationContext))
+    }
+
+    private val automaticGoogleAttentionNotifier by lazy {
+        AutomaticGoogleExportNotifier(applicationContext)
+    }
+
+    override val portableBackupReplacementCoordinator: PortableBackupReplacementCoordinator by lazy {
+        PortableBackupReplacementCoordinator(
+            operationLock = applicationDataOperationLock,
+            timerOperationLock = timerOperationLock,
+            backupCoordinator = portableBackupCoordinator,
+            archiveReader = portableBackupArchiveReader,
+            archiveWriter = portableBackupArchiveWriter,
+            roomReplacement = PortableBackupRoomReplacement(database),
+            preferencesReplacement =
+                PortableBackupPreferencesReplacement(applicationContext.worqOrderPreferencesDataStore),
+            fileStore = portableBackupRecoveryFileStore,
+            runtime =
+                LocalPortableBackupReplacementRuntime(
+                    automaticScheduler = automaticGoogleWorkScheduler,
+                    automaticAttentionNotifier = automaticGoogleAttentionNotifier,
+                    runningTimerNotifications = runningTimerNotificationController,
+                    clearLiveTimerSession = liveTimerSession::clear,
+                    reconcileAutomaticScheduleOnly = automaticGoogleExportManager::reconcileScheduleOnly,
+                ),
+        )
+    }
+
     private val googleSheetsGateway: RestGoogleSheetsGateway by lazy {
         RestGoogleSheetsGateway()
     }
@@ -404,11 +465,8 @@ internal class DefaultApplicationContainer(
             zoneIdProvider = zoneIdProvider,
             clock = utcClock,
             exportDate = backgroundGoogleSheetsExportCoordinator::export,
-            workScheduler =
-                WorkManagerAutomaticGoogleExportScheduler(
-                    WorkManager.getInstance(applicationContext),
-                ),
-            notifier = AutomaticGoogleExportNotifier(applicationContext),
+            workScheduler = automaticGoogleWorkScheduler,
+            notifier = automaticGoogleAttentionNotifier,
         )
     }
 

@@ -588,9 +588,11 @@ or task/interval invariants.
 
 Successful replacement preserves domain identities but generates a new installation/transport
 origin. Selected task/date/Consultant are restored only when their references remain valid. The
-chosen export destination is restored; Google connection is cleared and automatic export is
-disabled. A future Room schema can consume the same logical version through an explicit mapper;
-backup-format compatibility is therefore not tied to SQLite schema numbers.
+destination installation's chosen export destination is preserved during Import; swap-style
+Restore applies the destination stored in the restore point. Google connection is cleared and
+automatic export is disabled after either successful replacement. A future Room schema can consume
+the same logical version through an explicit mapper; backup-format compatibility is therefore not
+tied to SQLite schema numbers.
 
 ### Version-1 persistence inventory
 
@@ -637,3 +639,20 @@ encrypted. The writer bounds the final compressed stream to 100 MiB and the data
 500 MiB. A running/open timer, an invalid logical state, cancellation, an output failure, or a
 size-bound breach produces no successful backup result. The owner-selected document URI is the
 only external output; no raw Room or DataStore file is copied.
+
+### Milestone-52 replacement state
+
+The durable replacement model is specified by
+`docs/PORTABLE_BACKUP_RECOVERY_PROTOCOL.md`. In addition to the portable archive, an in-progress
+operation owns a verified displaced-state archive, a recovery-only snapshot of every known local
+Preferences value, an optional preserved prior restore point, and one strict phase journal. These
+artifacts are app-private no-backup state and are never members of the portable logical model.
+
+The target Room generation contains Clients, Consultants, Tags, tasks, snapshots, and completed
+intervals, with no active-timer row. It is installed in one transaction. The target Preferences
+generation is installed in one `edit`: portable values and valid selections are written, Google and
+automatic-export state is absent/disabled, notification dismissal is absent, and the exact
+journal-generated transport origin is written with legacy adoption disabled. Rollback uses the
+displaced archive plus recovery-only Preferences snapshot to reconstruct the exact pre-operation
+generation. Restore promotes displaced portable state as the next point only after target Room,
+Preferences, runtime reset, and logical equivalence all succeed.

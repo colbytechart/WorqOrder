@@ -675,6 +675,16 @@ DataStore application and excluded-state reset are coordinated by a durable phas
 the stores cannot share a transaction. Startup/resume recovery idempotently completes or rolls
 back. Restore uses the same engine with a verified swap of previous and displaced-current state.
 
+Milestone 52A freezes the exact engine contract in
+`docs/PORTABLE_BACKUP_RECOVERY_PROTOCOL.md`. Journal phases name the next idempotent action, so a
+crash between an action and phase advancement safely repeats that action. One application-data
+mutex is always outermost, followed only when needed by the timer lock and then the Google export
+mutex. A successful replacement applies Room in one transaction, applies all Preferences in one
+absolute edit, clears Google/automatic runtime state, and installs the pre-generated journal origin.
+A recovery-only snapshot of all known local Preferences permits exact rollback without making those
+installation-local values portable. Startup blocks normal repositories and recovery work until any
+journal has converged or failed closed.
+
 The archive is plaintext and bounded at 100 MiB compressed/500 MiB expanded. Entry allowlisting,
 duplicate/path/encryption rejection, streaming limits, checksums, sufficient-storage checks, typed
 errors, and safe temporary cleanup are mandatory. No backend, storage permission, foreground
@@ -688,8 +698,8 @@ cross the portability boundary.
 Milestone 50 supplies the pure version-1 DTO graph, strict JSON boundary, typed validation and
 format-upgrader dispatch before any archive or replacement code exists. `exportOriginId` is held
 only in a typed Preferences repository; a missing value is generated once, a malformed stored value
-fails closed, and only a successful future portable replacement may rotate it and disable legacy-v1
-row adoption.
+fails closed. Milestone 52's successful portable replacement is the only implemented path that may
+rotate it and disable legacy-v1 row adoption.
 
 Milestone 51 adds the write-only portability boundary. `RoomPortableBackupSnapshotReader` reads
 the authoritative Room graph in one transaction, rejects an active/open interval, adapts only
@@ -701,5 +711,14 @@ document destination writes only to an owner-selected `ACTION_CREATE_DOCUMENT` U
 delete a partial file on failure or coroutine cancellation. Its reusable non-UI action boundary
 reports typed `PreparingSnapshot` and `WritingArchive` phases plus typed timer, local-state, and
 output results; it intentionally does not pretend compressed SAF writes have reliable byte-level
-progress. No Settings action, document launcher, import parser, or data replacement is exposed
-until later milestones.
+progress.
+
+Milestone 52 adds the non-UI read/replacement boundary. `PortableBackupArchiveReader` strictly
+bounds and validates the two-entry archive before mutation. `PortableBackupReplacementCoordinator`
+then uses the application-wide operation lock, verified no-backup artifacts, and self-checking
+next-action journal to converge Room, Preferences, excluded runtime state, transport origin, and
+the one-generation restore point. Room identity/count and foreign-key checks and exact target or
+rollback Preferences equivalence are mandatory postconditions. `WorqOrderApplication` completes
+startup journal reconciliation before normal Activity content, timer recovery, automatic Google
+work, or boot recovery may proceed. Milestone 53 alone will expose this engine through Settings and
+Android document pickers.

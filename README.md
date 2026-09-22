@@ -14,9 +14,10 @@ running timer. Check the
 The [v0.5.0 roadmap](docs/V0_5_MILESTONE_PROMPTS.md) is retained as delivery evidence. The
 [v0.4.0 roadmap](docs/V0_4_MILESTONE_PROMPTS.md) is retained as historical delivery evidence.
 
-`0.6.0` is currently planning-only. Its approved scope is a user-directed, versioned, compressed
-**Backup & Restore** file for portable WorqOrder data, with fully validated replacement and one
-app-private rolling restore point. It is not present in the released app yet. See the
+`0.6.0` is in development. Milestones 49–53 have delivered the versioned compressed backup format,
+strict validation, atomic replacement/recovery engine, one app-private rolling restore point, and
+the **Backup & Restore** Settings workflow on the development branch. These changes are not present
+in the released `0.5.0` app and still require compatibility hardening and release audit. See the
 [v0.6.0 roadmap](docs/V0_6_MILESTONE_PROMPTS.md). The prior environment-teardown work is deferred
 to Milestones 56–57 after the eventual public `0.6.0` release.
 

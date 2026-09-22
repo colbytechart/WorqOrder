@@ -1,6 +1,7 @@
 package worq.order.backup
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Typed, UI-neutral state emitted by the eventual Settings action. The writer intentionally
@@ -38,10 +39,21 @@ sealed interface PortableBackupCreationResult {
 class PortableBackupCreationCoordinator(
     private val backupCoordinator: PortableBackupCoordinator,
     private val outputDestination: PortableBackupDocumentOutputDestination,
+    private val operationLock: ApplicationDataOperationLock? = null,
 ) {
     suspend fun create(
         documentUri: String,
         onProgress: (PortableBackupCreationProgress) -> Unit = {},
+    ): PortableBackupCreationResult =
+        operationLock?.mutex?.withLock {
+            createWhileOperationLocked(documentUri, onProgress)
+        } ?: createWhileOperationLocked(documentUri, onProgress)
+
+    fun suggestedFileName(): String = backupCoordinator.suggestedFileName()
+
+    private suspend fun createWhileOperationLocked(
+        documentUri: String,
+        onProgress: (PortableBackupCreationProgress) -> Unit,
     ): PortableBackupCreationResult {
         onProgress(PortableBackupCreationProgress.PreparingSnapshot)
         val backup =

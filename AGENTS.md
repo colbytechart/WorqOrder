@@ -118,6 +118,12 @@
   transaction; never claim Room/DataStore atomicity without the recovery protocol. Restore uses
   swap semantics so the displaced current state becomes the next restore point. Uninstall naturally
   removes that app-private point.
+- `0.6.0` Milestone 53 exposes the existing backup/replacement engine through a compact **Backup &
+  Restore** Settings card and Android scoped-document pickers. Inline warnings, progress, success,
+  and error status appear directly below the card title and above all actions; the normal card has
+  no instructional copy or separate Restore subsection label. Destructive Import and Restore still
+  require explicit explanatory confirmation dialogs. All actions are disabled while timing or busy,
+  and document-picker return paths must recheck timer state before staging or writing.
 - The former post-release environment teardown Milestones 49 and 50 are renumbered to Milestones
   56 and 57 and deferred until after public `0.6.0`. Milestone 56 is documentation-only; Milestone
   57 remains optional and requires exact, separate owner authorization. Neither permits inferred

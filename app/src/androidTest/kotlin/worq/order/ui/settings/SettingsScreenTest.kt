@@ -3,11 +3,12 @@ package worq.order.ui.settings
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertHasNoClickAction
-import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHasNoClickAction
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -24,8 +25,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import worq.order.BuildConfig
-import worq.order.data.ThemeMode
+import worq.order.data.BackupRestoreStatus
 import worq.order.data.LandscapeHandedness
+import worq.order.data.ThemeMode
 import worq.order.ui.employees.ConsultantSettingsUiState
 import worq.order.ui.theme.WorqOrderTheme
 
@@ -417,6 +419,156 @@ class SettingsScreenTest {
         composeRule.onAllNodesWithText("Retry").assertCountEquals(0)
     }
 
+    @Test
+    fun backupRestoreSectionExposesActionsAndAvailableRestorePoint() {
+        val backupEvents = mutableListOf<BackupRestoreEvent>()
+        setContent(
+            state = SettingsUiState(effectiveZoneId = ZoneId.of("America/New_York")),
+            backupRestoreState = BackupRestoreUiState(hasRestorePoint = true),
+            onBackupRestoreEvent = backupEvents::add,
+        )
+
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(hasText("Backup & Restore"))
+        composeRule.onNodeWithText("Backup & Restore").assertIsDisplayed()
+        composeRule
+            .onAllNodesWithText(
+                "Create a portable copy of your WorqOrder data or replace this app’s data " +
+                    "from a backup.",
+            ).assertCountEquals(0)
+        composeRule
+            .onAllNodesWithText("Backups are not encrypted. Store and share them carefully.")
+            .assertCountEquals(0)
+        composeRule.onAllNodesWithText("Restore Previous State").assertCountEquals(0)
+        composeRule
+            .onAllNodesWithText(
+                "Restore the most recent state saved before an import or restore. " +
+                    "Your current state becomes the next restore point.",
+            ).assertCountEquals(0)
+        composeRule.onNodeWithText("Import Backup").performClick()
+        composeRule.onNodeWithText("Create Backup").performClick()
+        composeRule.onNodeWithText("Restore").performClick()
+
+        assertEquals(
+            listOf(
+                BackupRestoreEvent.ImportBackup,
+                BackupRestoreEvent.CreateBackup,
+                BackupRestoreEvent.RestorePreviousState,
+            ),
+            backupEvents,
+        )
+    }
+
+    @Test
+    fun backupRestoreDisablesAllMutationsWhileTimerRuns() {
+        setContent(
+            state = SettingsUiState(effectiveZoneId = ZoneId.of("America/New_York")),
+            backupRestoreState =
+                BackupRestoreUiState(
+                    isTimerRunning = true,
+                    hasRestorePoint = true,
+                ),
+        )
+
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(
+                hasText(
+                    "Stop the running timer before creating, importing, or restoring a backup.",
+                ),
+            )
+        composeRule.onNodeWithText("Import Backup").assertIsNotEnabled()
+        composeRule.onNodeWithText("Create Backup").assertIsNotEnabled()
+        composeRule.onNodeWithText("Restore").assertIsNotEnabled()
+        composeRule
+            .onNodeWithText(
+                "Stop the running timer before creating, importing, or restoring a backup.",
+            ).assertIsDisplayed()
+    }
+
+    @Test
+    fun backupImportConfirmationExplainsReplacementBeforeMutation() {
+        val backupEvents = mutableListOf<BackupRestoreEvent>()
+        setContent(
+            state = SettingsUiState(effectiveZoneId = ZoneId.of("America/New_York")),
+            backupRestoreState =
+                BackupRestoreUiState(
+                    operation = BackupRestoreOperation.AWAITING_IMPORT_CONFIRMATION,
+                ),
+            onBackupRestoreEvent = backupEvents::add,
+        )
+
+        composeRule
+            .onNodeWithText("Replace All WorqOrder Data?")
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithText(
+                "WorqOrder will save your current data as a restore point, then replace it with the selected backup.",
+            ).assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
+        assertEquals(listOf(BackupRestoreEvent.DismissImportConfirmation), backupEvents)
+    }
+
+    @Test
+    fun restoreConfirmationExplainsSwapBeforeMutation() {
+        val backupEvents = mutableListOf<BackupRestoreEvent>()
+        setContent(
+            state = SettingsUiState(effectiveZoneId = ZoneId.of("America/New_York")),
+            backupRestoreState =
+                BackupRestoreUiState(
+                    operation = BackupRestoreOperation.AWAITING_RESTORE_CONFIRMATION,
+                ),
+            onBackupRestoreEvent = backupEvents::add,
+        )
+
+        composeRule.onNodeWithText("Restore Previous State?").assertIsDisplayed()
+        composeRule
+            .onNodeWithText(
+                "This replaces your current WorqOrder data. The state being replaced becomes the next restore point.",
+            ).assertIsDisplayed()
+        composeRule.onNodeWithText("Restore").performClick()
+        assertEquals(listOf(BackupRestoreEvent.ConfirmRestore), backupEvents)
+    }
+
+    @Test
+    fun backupRestoreErrorUsesPersistentActionableText() {
+        val backupEvents = mutableListOf<BackupRestoreEvent>()
+        setContent(
+            state = SettingsUiState(effectiveZoneId = ZoneId.of("America/New_York")),
+            backupRestoreState =
+                BackupRestoreUiState(
+                    status =
+                        BackupRestoreStatusUi(
+                            BackupRestoreStatus.IMPORT_INVALID_ARCHIVE,
+                        ),
+                ),
+            onBackupRestoreEvent = backupEvents::add,
+        )
+
+        composeRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(hasText("The selected file is not a valid WorqOrder backup."))
+        composeRule
+            .onNodeWithText("The selected file is not a valid WorqOrder backup.")
+            .assertIsDisplayed()
+        val statusTop =
+            composeRule
+                .onNodeWithText("The selected file is not a valid WorqOrder backup.")
+                .fetchSemanticsNode()
+                .boundsInRoot
+                .top
+        val firstActionTop =
+            composeRule
+                .onNodeWithText("Import Backup")
+                .fetchSemanticsNode()
+                .boundsInRoot
+                .top
+        assertTrue(statusTop < firstActionTop)
+        composeRule.onNodeWithText("Dismiss").performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(listOf(BackupRestoreEvent.DismissStatus), backupEvents)
+    }
+
     private fun setContent(
         state: SettingsUiState,
         onEvent: (SettingsEvent) -> Unit = {},
@@ -424,6 +576,8 @@ class SettingsScreenTest {
         onOpenConsultantManagement: () -> Unit = {},
         onOpenTagManagement: () -> Unit = {},
         consultantState: ConsultantSettingsUiState = ConsultantSettingsUiState(),
+        backupRestoreState: BackupRestoreUiState = BackupRestoreUiState(),
+        onBackupRestoreEvent: (BackupRestoreEvent) -> Unit = {},
         showGoogleSetupRequired: Boolean = false,
     ) {
         composeRule.setContent {
@@ -436,6 +590,8 @@ class SettingsScreenTest {
                     onOpenConsultantManagement = onOpenConsultantManagement,
                     onOpenTagManagement = onOpenTagManagement,
                     consultantUiState = consultantState,
+                    backupRestoreUiState = backupRestoreState,
+                    onBackupRestoreEvent = onBackupRestoreEvent,
                     showGoogleSetupRequired = showGoogleSetupRequired,
                 )
             }

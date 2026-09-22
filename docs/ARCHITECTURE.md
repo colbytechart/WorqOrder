@@ -660,9 +660,9 @@ state rather than writing partial tasks. Manual dependency injection remains suf
 framework, backend, account, service, broad storage permission, or foreground timer component is
 introduced.
 
-## 20. Planned `0.6.0` Backup & Restore architecture
+## 20. In-development `0.6.0` Backup & Restore architecture
 
-A dedicated portability coordinator will assemble/validate versioned logical DTOs through Room
+A dedicated portability coordinator assembles/validates versioned logical DTOs through Room
 repositories and portable preference adapters. A streaming archive codec owns only the two-entry
 Deflate ZIP contract and SHA-256 validation. Android document gateways own
 `ACTION_CREATE_DOCUMENT`/`ACTION_OPEN_DOCUMENT`; Compose never parses files or mutates databases.
@@ -720,5 +720,7 @@ next-action journal to converge Room, Preferences, excluded runtime state, trans
 the one-generation restore point. Room identity/count and foreign-key checks and exact target or
 rollback Preferences equivalence are mandatory postconditions. `WorqOrderApplication` completes
 startup journal reconciliation before normal Activity content, timer recovery, automatic Google
-work, or boot recovery may proceed. Milestone 53 alone will expose this engine through Settings and
-Android document pickers.
+work, or boot recovery may proceed. Milestone 53 exposes this engine through a lifecycle-safe
+ViewModel, Android document pickers, and a compact Settings card. File and replacement work runs on
+the I/O dispatcher, picker returns recheck the timer invariant, one-shot picker effects are buffered,
+and the Compose layer renders typed state without parsing archives or mutating persistence directly.

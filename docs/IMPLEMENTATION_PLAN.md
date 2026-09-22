@@ -1113,16 +1113,21 @@ exclusively Milestone 53.
 
 ### Milestone 53 — Settings experience
 
-Add the approved **Backup & Restore** section, document pickers, confirmations, persistent shared
-status, restore availability, progress/double-submit protection, timer-disabled state, accessibility,
-and responsive layouts without moving business rules into Compose.
+Implement the compact **Backup & Restore** section, scoped document pickers, destructive
+confirmations, persistent shared status, restore availability, progress/double-submit protection,
+timer-disabled state, accessibility, and responsive layouts without moving business rules into
+Compose. Inline status is title-adjacent and precedes all actions; permanent instructional copy and
+the separate Restore subsection label are omitted. Implementation, owner visual verification, the
+final compilation/JVM/lint/debug-and-release build set, and the focused connected Settings test are
+complete by owner report. Milestone 53 is closed.
 
 ### Milestone 54 — Compatibility and hardening
 
 Exercise released-schema upgrades, adversarial/corrupt archives, bounds, restart/reboot, two-device
 restore, and all exports. Complete installation-namespaced Google hidden-key compatibility without
 changing visible schema 6 or overwriting another origin's rows. Audit security, lifecycle,
-concurrency, and performance.
+concurrency, and performance. Supply owner-selectable malformed and valid ZIP fixtures for the
+deferred end-to-end import and swap-Restore cases.
 
 ### Milestone 55 — Full `0.6.0` audit and release handoff
 

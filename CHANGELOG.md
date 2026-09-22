@@ -6,6 +6,15 @@ The project follows semantic versioning for public release identifiers.
 
 ## [Unreleased]
 
+- Added the in-development `0.6.0` portable Backup & Restore foundation: bounded versioned
+  two-entry ZIP files, strict preflight validation, sensitive/runtime exclusions, atomic Room and
+  recoverable Preferences replacement, startup reconciliation, and a one-generation swap restore
+  point.
+- Added a compact **Backup & Restore** Settings card with scoped Android document pickers,
+  destructive-action confirmations, persistent actionable status, timer/busy lockout, picker-race
+  guards, and accessible progress/error announcements. Compatibility hardening and release audit
+  remain before `0.6.0` publication.
+
 ## [0.5.0] - 2026-09-19
 
 - Reusable Description and Hardware / Software Purchase Tag

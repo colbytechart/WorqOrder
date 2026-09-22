@@ -3,7 +3,8 @@
 This document describes the released `0.5.0` data contract, with earlier details retained for
 upgrade transparency. Check GitHub Releases for authoritative artifacts. `0.4.0` Notes and `0.5.0`
 Tags are ordinary local task data; their exported text is readable plaintext in CSV/XLSX/Google
-Sheets. Section 11 describes planned, not-yet-implemented `0.6.0` portable backups.
+Sheets. Section 11 describes the in-development `0.6.0` portable-backup implementation, which is not
+part of released `0.5.0`.
 
 ## 1. Summary
 
@@ -170,7 +171,7 @@ Main task rows may show a first Description Tag only when manual Description is 
 timer notification never receives Tag text, including in its private lock-screen form. Generated
 export punctuation is not written back to stored manual text or snapshots.
 
-## 11. Planned `0.6.0` portable backups
+## 11. In-development `0.6.0` portable backups
 
 Portable backups are explicit user-directed plaintext files. They can contain Client/Consultant
 names, tasks, descriptions, purchases, Tags, Notes, mileage, work/billing choices, dates, precise

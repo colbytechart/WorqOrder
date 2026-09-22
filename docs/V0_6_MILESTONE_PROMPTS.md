@@ -5,7 +5,8 @@
 This roadmap governs the in-development portable **Backup & Restore** release. Released `0.5.0`
 remains the public baseline. Milestones 49-52 are complete: Milestone 49 was documentation-only,
 and Milestones 50-52 delivered the non-UI portable model, backup writer, and atomic replacement/
-recovery engine. Milestone 53 remains unstarted until the owner explicitly authorizes it.
+recovery engine. Milestone 53 has completed the Settings workflow and its owner-run post-polish
+verification; Milestone 54 must not start without explicit owner authorization.
 
 The approved product contract is:
 
@@ -312,8 +313,8 @@ application-wide operation gate across startup, Activity resume, automatic Googl
 recovery. Startup now withholds normal navigation until journal reconciliation converges and fails
 closed on ambiguous recovery state. The owner reported the complete debug JVM suite and connected
 debug instrumentation suite successful, followed by successful `lintDebug`, `assembleDebug`, and
-`assembleRelease` gates. `git diff --check` is clean. Milestone 52 is complete; no Settings UI was
-added, and Milestone 53 remains unstarted pending explicit owner instruction.
+`assembleRelease` gates. `git diff --check` is clean. Milestone 52 was complete with no Settings UI;
+that user-facing workflow was subsequently implemented in Milestone 53.
 
 ## Milestone 53 — Backup & Restore Settings experience
 
@@ -330,9 +331,9 @@ cancellation. Stop for Terra after owner-run compile/tests.
 
 ```text
 Continue Milestone 53 with Terra. Implement the approved Backup & Restore section, confirmations,
-SAF launchers, progress/disabled states, restore swap explanation, plaintext warning, and one shared
-success/error status line that survives Activity recreation but is excluded from backups. Keep
-business rules in coordinators/ViewModels and preserve current Settings behavior. Stop for Sol.
+SAF launchers, progress/disabled states, restore swap explanation, and one shared success/error
+status line that survives Activity recreation but is excluded from backups. Keep business rules in
+coordinators/ViewModels and preserve current Settings behavior. Stop for Sol.
 ```
 
 ### Task 53C — Sol: destructive-UX and accessibility review
@@ -344,6 +345,23 @@ recreation, and timer races. Fix only milestone defects, provide owner-run conne
 record evidence, and stop.
 ```
 
+### Milestone 53 verification status
+
+The compact Settings workflow, SAF create/open launchers, persistent typed status, live-region/error
+semantics, confirmation dialogs, restore availability, timer/busy lockout, picker cancellation,
+and duplicate-submit protection are implemented. Sol review additionally made the staged-import
+handle opaque and rejects a document-picker result if a timer started while the picker was open.
+The owner reported the initially supplied full automated and manual gates successful, then reported
+the focused Sol ViewModel gate successful in 1 minute 28 seconds with 28 actionable tasks (7
+executed, 21 up-to-date). The final compact status-first card—with permanent instructional copy
+removed—passed owner visual checks. The owner then reported both final post-polish gates successful:
+the compilation/JVM/lint/debug-and-release build set and the focused connected
+`SettingsScreenTest`. Milestone 53 is complete.
+
+The owner could not execute the invalid-ZIP, valid-import, and swap-Restore manual cases without
+known fixtures. Milestone 54 must supply one intentionally malformed ZIP and one valid WorqOrder
+backup suitable for device selection before those deferred cases are claimed.
+
 ## Milestone 54 — Compatibility and full backup hardening
 
 ### Task 54A — Luna: compatibility/corruption matrix
@@ -351,8 +369,10 @@ record evidence, and stop.
 ```text
 Begin Milestone 54 with Luna. Expand fixtures across released Room 1-7 upgrade states, backup format
 v1, empty/maximal Unicode data, archived directories, Tag snapshots, export history, selection,
-malformed/adversarial archives, restart/reboot, and two-device restores. Add cross-destination
-regressions proving canonical export schema 6 remains unchanged. Stop for Terra.
+malformed/adversarial archives, restart/reboot, and two-device restores. Produce an intentionally
+malformed ZIP and a valid portable backup file plus owner instructions for the deferred Milestone 53
+device import/restore cases. Add cross-destination regressions proving canonical export schema 6
+remains unchanged. Stop for Terra.
 ```
 
 ### Task 54B — Terra: Google identity transition and integration hardening

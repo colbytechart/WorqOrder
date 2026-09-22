@@ -19,7 +19,7 @@ sealed interface PortableBackupImportStageResult {
 }
 
 /** A validated, app-private archive staged before the UI asks for replacement consent. */
-data class PortableBackupStagedImport internal constructor(
+class PortableBackupStagedImport internal constructor(
     internal val source: PortableBackupArtifact,
     internal val data: PortableBackupDataV1,
 )

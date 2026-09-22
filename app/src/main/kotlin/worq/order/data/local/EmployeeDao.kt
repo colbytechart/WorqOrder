@@ -58,6 +58,14 @@ abstract class EmployeeDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract suspend fun insert(employee: EmployeeEntity)
 
+    /** Internal bulk primitive for a fully prevalidated portable-state replacement transaction. */
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    abstract suspend fun insertAllForPortableReplacement(employees: List<EmployeeEntity>)
+
+    /** Must be called only after every referencing daily task has been removed. */
+    @Query("DELETE FROM employees")
+    abstract suspend fun deleteAllForPortableReplacement(): Int
+
     @Query(
         """
         UPDATE employees

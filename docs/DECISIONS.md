@@ -1463,8 +1463,27 @@ or open interval exists. The only external output is an `ACTION_CREATE_DOCUMENT`
 type `application/zip`; cancellation and output failure attempt cleanup and return typed results.
 The write boundary exposes only `PreparingSnapshot` and `WritingArchive` phases, because a
 compressed SAF stream has no reliable byte-level progress total. It is deliberately not yet
-presented by Settings. Import/restore, journal, and rolling restore-point logic remain exclusively
-Milestone 52+ work.
+presented by Settings. Import/restore, journal, and rolling restore-point logic were reserved for
+Milestone 52 and are governed by D-118.
+
+### D-118 -- Portable replacement uses a next-action journal and exact rollback authority
+
+Milestone 52 implements `docs/PORTABLE_BACKUP_RECOVERY_PROTOCOL.md`. One application-data mutex is
+the outer lock for all local mutations and coherent snapshots; timer and Google locks may only be
+acquired after it. The durable journal records the next idempotent action rather than claiming that
+an action definitely completed. Every phase and recovery artifact uses write, file sync, strict
+verification, same-directory atomic rename, parent-directory sync, and promoted-name verification.
+
+Before commit intent, Import preserves any prior point and promotes a verified capture of current
+portable state as rollback authority; Restore leaves its verified source point untouched. Room is
+then replaced in one foreign-key-safe transaction and Preferences in one absolute DataStore edit.
+A recovery-only snapshot of every known local Preferences value supports exact failure rollback
+without making Google/runtime/origin state portable. Successful Import or Restore clears Google
+connection and automatic-export runtime state and applies one pre-generated origin, making replay
+idempotent. Restore promotes displaced current state as the next point only during successful
+finalization. After commit intent, coroutine cancellation cannot abandon the operation; startup
+blocks normal use and resumes forward or rollback until convergence. Ambiguous or corrupt recovery
+state fails closed and is never answered by deleting Room or silently choosing defaults.
 
 ## Deferred decisions
 

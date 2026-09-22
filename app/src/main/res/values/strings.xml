@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="portable_recovery_blocked">WorqOrder could not safely complete local data recovery. Close and reopen the app. If this message remains, do not clear app storage.</string>
     <string name="app_name">WorqOrder</string>
     <string name="navigate_back">Navigate back</string>
     <string name="open_settings">Open settings</string>

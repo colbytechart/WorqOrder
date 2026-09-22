@@ -924,4 +924,33 @@ typed low-storage/I/O failure, partial-document warning propagation, timer-befor
 and rejection of non-`content://` destinations. A Room-backed instrumentation fixture confirms
 portable capture of Client, Consultant, Tag, task/snapshot/interval, export-history, preference,
 and valid-selection state while excluding Google/runtime secrets. Milestone 51 is complete;
-Milestone 52 remains unstarted.
+Milestone 52 was the next milestone at the time this evidence was recorded.
+
+## 24. `0.6.0` Milestone 52 atomic replacement and recovery evidence
+
+Milestone 52 implements the non-UI import/restore engine against the frozen protocol in
+`PORTABLE_BACKUP_RECOVERY_PROTOCOL.md`. The implementation includes bounded strict archive reading,
+a verified one-generation no-backup restore point, a self-checking next-idempotent-action journal,
+one-transaction Room replacement, one-edit Preferences replacement, recovery-only exact local-
+preference rollback, Google/automatic/runtime reset, pre-generated transport-origin rotation,
+startup-before-use convergence, and swap-style Restore. No Settings controls or document-import
+launcher were added; those remain Milestone 53.
+
+The adversarial JVM matrix covers every journal action and both operation directions, repeated
+idempotent reconciliation, pre-commit cancellation, rollback to the original generation, corrupt
+restore-point rejection, and exact logical DTO equivalence. Connected evidence verifies complete
+Room replacement with stable row identities/counts, valid foreign keys, no active timer/open
+interval, exact portable and excluded Preferences behavior, Google/runtime clearing, and rollback.
+The final Sol data-loss audit also gated Activity startup, resume, automatic Google work, and boot
+recovery behind the same application-data operation lock and durable startup reconciliation.
+
+The owner reported the supplied Milestone 52 compilation gates, full debug JVM suite, and complete
+connected debug instrumentation suite successful. The owner then reported the final
+`lintDebug`, `assembleDebug`, and `assembleRelease` command successful in 1 minute 43 seconds with
+99 actionable tasks (29 executed and 70 up-to-date). Earlier final connected execution completed
+successfully in 4 minutes 4 seconds with 73 actionable tasks (8 executed and 65 up-to-date). Exact
+test counts were not supplied, so this report does not invent them. `git diff --check` is clean.
+
+Milestone 52 is complete. Manual force-stop/reboot, visible Import/Restore/swap-back, picker,
+uninstall-removal, and cross-device equivalence checks remain intentionally deferred until the
+Milestone 53 Settings surface can invoke the engine. Milestone 53 has not started.

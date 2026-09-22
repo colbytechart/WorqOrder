@@ -5,6 +5,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.CancellationException
 import worq.order.app.WorqOrderApplication
+import worq.order.backup.PortableBackupStartupRecoveryResult
 
 class AutomaticGoogleExportWorker(
     appContext: Context,
@@ -19,12 +20,18 @@ class AutomaticGoogleExportWorker(
         }
         return try {
             val application = applicationContext as WorqOrderApplication
-            application
-                .container
-                .automaticGoogleExportManager
-                .runScheduled(workDateEpochDay, zoneId, connectionKey)
-            runCatching {
-                application.container.runningTimerNotificationController.reconcile()
+            if (
+                application.awaitStartupRecovery() is
+                PortableBackupStartupRecoveryResult.Blocked
+            ) return Result.failure()
+            application.container.withApplicationDataOperationLock {
+                application
+                    .container
+                    .automaticGoogleExportManager
+                    .runScheduled(workDateEpochDay, zoneId, connectionKey)
+                runCatching {
+                    application.container.runningTimerNotificationController.reconcile()
+                }
             }
             Result.success()
         } catch (cancellation: CancellationException) {

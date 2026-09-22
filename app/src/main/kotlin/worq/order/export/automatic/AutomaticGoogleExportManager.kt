@@ -133,6 +133,36 @@ class AutomaticGoogleExportManager(
         overdueTarget?.runNow()
     }
 
+    /**
+     * Reconstructs only scheduled local work after a portable-replacement rollback. Unlike
+     * [reconcile], this method never exports an overdue date and never changes remote state.
+     */
+    suspend fun reconcileScheduleOnly() {
+        mutex.withLock {
+            val settings = settingsRepository.readSettings()
+            if (!settings.automaticGoogleExportEnabled ||
+                settings.defaultExportDestination != ExportDestination.GOOGLE_SHEETS
+            ) {
+                cancelWorkAndNotification()
+                return@withLock
+            }
+            val connection = connectionRepository.readConnection()
+            val date = settings.automaticGoogleTargetDate
+            val zoneId = settings.automaticGoogleTargetZoneId
+            val key = settings.automaticGoogleTargetConnectionKey
+            if (!connection.hasStoredDestination || date == null || zoneId == null || key == null) {
+                cancelWorkAndNotification()
+                return@withLock
+            }
+            if (settings.automaticGooglePendingReason == null) {
+                schedule(date, zoneId, key)
+            } else {
+                workScheduler.cancel()
+                notifier.postAttentionRequired()
+            }
+        }
+    }
+
     suspend fun runScheduled(
         workDateEpochDay: Long,
         zoneIdText: String,

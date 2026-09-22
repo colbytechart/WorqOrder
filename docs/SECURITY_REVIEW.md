@@ -302,3 +302,23 @@ Room-backed exclusion test confirm that OAuth material, Google connection metada
 export runtime state, notification state, WorkManager state, recovery artifacts, and installation-
 local export origin are not written. Backups remain deliberate plaintext and must never be
 described as encrypted.
+
+Milestone 52A resolves the crash-integrity design in
+`docs/PORTABLE_BACKUP_RECOVERY_PROTOCOL.md`. Every recovery artifact and journal transition is
+written in the app-private no-backup directory with file sync, full verification, same-directory
+atomic rename, parent-directory sync, and promoted-name re-verification. Journal phases describe
+the next idempotent action. A separately hashed recovery-only Preferences snapshot can restore
+Google/runtime/origin metadata after a failed replacement without ever placing it in the portable
+backup. Successful Import or Restore instead clears local Google connection/automatic state and
+uses one pre-generated origin, preventing replay from rotating identities repeatedly.
+
+Normal app use is unavailable while a durable journal is unresolved. Missing/corrupt artifacts,
+unexpected hashes, unsupported journal versions, rollback failure, or ambiguous restore-point
+state fail closed and retain evidence; they never trigger Room deletion, default reseeding, or
+best-effort partial use. Milestone 52's self-authenticating journal, typed/bounded recovery
+Preferences, exact displaced-generation verification, Room row/FK postconditions, exact target
+Preferences check, shared operation gate, and startup readiness barrier close the implementation
+gaps found by the Sol audit. Owner-run every-phase JVM fault/equivalence tests, the complete JVM
+suite, connected Room/Preferences replacement tests, the complete connected suite, lint, and both
+APK assemblies passed. User-visible force-stop/reboot and import/restore exercises remain release
+gates after Milestone 53 exposes the workflow.

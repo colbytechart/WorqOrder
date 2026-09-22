@@ -1363,8 +1363,9 @@ These are future gates, not evidence that the released `0.5.0` app implements th
   transactionally and portable preferences recoverably. Cancel changes neither state nor point.
 - **V6-IMPORT-03:** Every injected failure/process death between journal phases converges on startup
   to the complete old or new state, never a mixture, and repeated recovery is idempotent.
-- **V6-IMPORT-04:** Export destination is restored; Google auth/sheet metadata is cleared; automatic
-  Google is off; a new transport origin is used; domain IDs remain unchanged.
+- **V6-IMPORT-04:** Import preserves the destination installation's export destination; Restore
+  applies the destination stored in its restore point. Google auth/sheet metadata is cleared,
+  automatic Google is off, a new transport origin is used, and domain IDs remain unchanged.
 - **V6-RESTORE-01:** Restore is unavailable without a valid point or while timing. A successful
   Restore applies the previous state and makes the displaced current state the next point; a second
   Restore swaps back. Failure preserves recoverability.

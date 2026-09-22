@@ -13,6 +13,13 @@ abstract class WorkIntervalDao {
     @Query("SELECT * FROM work_intervals ORDER BY task_id ASC, start_epoch_ms ASC, id ASC")
     abstract suspend fun readAllIntervalsForPortableBackup(): List<WorkIntervalEntity>
 
+    /** Internal bulk primitive for a fully prevalidated portable-state replacement transaction. */
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    abstract suspend fun insertAllForPortableReplacement(intervals: List<WorkIntervalEntity>)
+
+    @Query("DELETE FROM work_intervals")
+    abstract suspend fun deleteAllForPortableReplacement(): Int
+
     @Query(
         """
         SELECT *

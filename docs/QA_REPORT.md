@@ -953,4 +953,35 @@ test counts were not supplied, so this report does not invent them. `git diff --
 
 Milestone 52 is complete. Manual force-stop/reboot, visible Import/Restore/swap-back, picker,
 uninstall-removal, and cross-device equivalence checks remain intentionally deferred until the
-Milestone 53 Settings surface can invoke the engine. Milestone 53 has not started.
+Milestone 53 Settings surface can invoke the engine.
+
+## 25. `0.6.0` Milestone 53 Backup & Restore Settings evidence
+
+Milestone 53 connects the audited creation/replacement coordinators to a dedicated ViewModel and a
+compact Settings card through Android scoped-document launchers. Create, Import, and Restore remain
+disabled during initialization, timing, or another operation. Valid Import and Restore require
+explicit destructive confirmation; picker cancellation returns to idle; buffered one-shot effects
+and synchronous state transitions prevent duplicate picker/confirmation submissions. Status is a
+typed installation-local DataStore value excluded from portable backups. Progress, timer warnings,
+success, and errors use live-region/error semantics directly below the card title and above every
+action. Normal card instruction paragraphs and the separate Restore subsection label were removed
+by owner direction; plaintext sensitivity remains documented outside the compact card.
+
+Sol review found and corrected two defects before closeout: confirmation states could previously
+block their own confirmed operation, and returning from a document picker after a timer started did
+not reject work at the UI boundary. Regression tests now cover confirmed Import/Restore exactly
+once, duplicate taps, picker cancellation, and picker-return timer races. The staged-import handle
+is opaque rather than a data class whose generated `copy()` exposed an internal constructor.
+
+The owner reported the initially supplied complete automated and manual Milestone 53 gates passed.
+After the Sol changes, the focused Backup/Restore ViewModel gate passed in 1 minute 28 seconds with
+28 actionable tasks (7 executed and 21 up-to-date). A project-local Gradle transform-cache failure
+encountered during verification was diagnosed as two lock files with protocol byte zero; deleting
+only those two rebuildable transforms restored the passing gate without changing source or app
+data. The final compact status-first presentation passed owner visual checks. The owner subsequently
+reported both requested post-presentation gates successful: the compilation/JVM/lint/debug-and-
+release build set and the focused connected `SettingsScreenTest`. Milestone 53 is therefore closed.
+
+Manual invalid-ZIP, valid-import, and swap-Restore cases were not run because the owner had neither
+a known malformed archive nor a valid portable backup fixture. Milestone 54 must provide both
+owner-selectable files and execute those deferred cases before release readiness can be claimed.

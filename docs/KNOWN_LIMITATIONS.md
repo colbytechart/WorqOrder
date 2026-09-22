@@ -177,9 +177,10 @@ intentional. Tags are not labels, categories, remote synchronization, or new exp
 Catalog deletion does not erase text already saved in task snapshots. Generated punctuation is an
 export-only projection and does not alter the user's stored manual text.
 
-## Planned `0.6.0` Backup & Restore limitations
+## In-development `0.6.0` Backup & Restore limitations
 
-- The feature is planned and is not present in released `0.5.0`.
+- The feature is implemented on the development branch but is not present in released `0.5.0` and
+  is not public-release ready until Milestones 54 and 55 complete.
 - Backups are plaintext and must be protected by the user; `0.6.0` does not provide encryption.
 - Google credentials, account/sheet connection, automatic-export pending work, notifications, and
   installation identity are intentionally not portable. Reauthorization/reconnection is required.
@@ -189,3 +190,5 @@ export-only projection and does not alter the user's stored manual text.
   require updating WorqOrder; no best-effort partial import is attempted.
 - Backup & Restore cannot run with an active timer and does not act as sync, merge, or conflict
   resolution. Import replaces portable destination state after confirmation.
+- Fixture-backed end-to-end malformed archive, valid Import, and Restore-swap checks remain deferred
+  to Milestone 54; the fixtures and owner instructions must be supplied there.

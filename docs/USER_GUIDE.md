@@ -267,9 +267,11 @@ do not change local data.
 
 WorqOrder has no account, backend, recycle bin, automatic cloud backup, or two-way import recovery.
 
-## Planned `0.6.0`: Backup & Restore
+## In-development `0.6.0`: Backup & Restore
 
-This section describes the approved future workflow; it is not available in released `0.5.0`.
+This workflow is implemented on the `0.6.0` development branch but is not available in released
+`0.5.0`. Treat every created backup as sensitive plaintext work data: the compact Settings card does
+not repeat that warning, and WorqOrder does not encrypt the file.
 
 1. Stop any running timer.
 2. In Settings, open **Backup & Restore** and choose **Create Backup** to select a destination for
@@ -279,8 +281,8 @@ This section describes the approved future workflow; it is not available in rele
    portable app data; **Cancel** makes no change.
 4. Reauthorize Google, reconnect a spreadsheet, and explicitly re-enable automatic export if used.
    The selected export destination is retained, but credentials/connections are never imported.
-5. If needed, choose **Restore** under **Restore Previous State**. Confirming swaps the previous
-   state into the app and keeps the displaced current state as the next restore point.
+5. If needed, choose **Restore** in **Backup & Restore**. Confirming swaps the previous state into
+   the app and keeps the displaced current state as the next restore point.
 
 Import is replacement, not merging. The status line reports success or an actionable validation/
 I/O error. Restore is enabled only when a verified point exists. Uninstall/Clear storage removes it.

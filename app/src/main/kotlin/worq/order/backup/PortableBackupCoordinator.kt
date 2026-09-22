@@ -32,6 +32,9 @@ class PortableBackupCoordinator(
             prepareWhileTimerLocked()
         }
 
+    /** Suggested before `ACTION_CREATE_DOCUMENT`; the archive snapshot is still taken later. */
+    fun suggestedFileName(): String = suggestedFileName(clock.now())
+
     /**
      * Used only by the replacement engine after it already owns [TimerOperationLock]. Keeping
      * this narrow avoids a recursive Mutex acquisition while ensuring the displaced archive is

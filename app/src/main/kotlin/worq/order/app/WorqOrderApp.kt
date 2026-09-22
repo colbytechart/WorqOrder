@@ -28,6 +28,9 @@ import worq.order.export.google.GoogleConnectionOperationResult
 import worq.order.export.google.GoogleSheetsExportFailure
 import worq.order.export.google.GoogleSheetsExportOperationResult
 import worq.order.ui.settings.ApplicationSettingsViewModel
+import worq.order.ui.settings.BackupRestoreEffect
+import worq.order.ui.settings.BackupRestoreEvent
+import worq.order.ui.settings.BackupRestoreViewModel
 import worq.order.ui.settings.SettingsViewModel
 import worq.order.ui.clients.ClientManagementScreen
 import worq.order.ui.clients.ClientManagementViewModel
@@ -461,6 +464,19 @@ private fun SettingsDestination(
         }
     val viewModel: SettingsViewModel = viewModel(factory = factory)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val backupRestoreFactory =
+        remember(application) {
+            BackupRestoreViewModel.Factory(
+                activeTimerRepository = application.container.activeTimerRepository,
+                statusRepository = application.container.backupRestoreStatusRepository,
+                creationCoordinator = application.container.portableBackupCreationCoordinator,
+                importDocumentStager = application.container.portableBackupImportDocumentStager,
+                replacementCoordinator = application.container.portableBackupReplacementCoordinator,
+            )
+        }
+    val backupRestoreViewModel: BackupRestoreViewModel =
+        viewModel(factory = backupRestoreFactory)
+    val backupRestoreUiState by backupRestoreViewModel.uiState.collectAsStateWithLifecycle()
     val consultantFactory =
         remember(application) {
             ConsultantSettingsViewModel.Factory(
@@ -486,6 +502,22 @@ private fun SettingsDestination(
             ActivityResultContracts.RequestPermission(),
         ) { granted ->
             viewModel.onEvent(SettingsEvent.NotificationPermissionResult(granted))
+        }
+    val backupCreateDocumentLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.CreateDocument("application/zip"),
+        ) { documentUri ->
+            backupRestoreViewModel.onEvent(
+                BackupRestoreEvent.BackupDocumentSelected(documentUri?.toString()),
+            )
+        }
+    val backupImportDocumentLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.OpenDocument(),
+        ) { documentUri ->
+            backupRestoreViewModel.onEvent(
+                BackupRestoreEvent.ImportDocumentSelected(documentUri?.toString()),
+            )
         }
     LaunchedEffect(
         viewModel,
@@ -530,6 +562,16 @@ private fun SettingsDestination(
             viewModel.onGoogleOperationResult(result)
         }
     }
+    LaunchedEffect(backupRestoreViewModel) {
+        backupRestoreViewModel.effects.collect { effect ->
+            when (effect) {
+                is BackupRestoreEffect.LaunchCreateBackup ->
+                    backupCreateDocumentLauncher.launch(effect.suggestedFileName)
+                BackupRestoreEffect.LaunchImportBackup ->
+                    backupImportDocumentLauncher.launch(arrayOf("application/zip"))
+            }
+        }
+    }
     SettingsScreen(
         uiState = uiState,
         onEvent = viewModel::onEvent,
@@ -545,6 +587,8 @@ private fun SettingsDestination(
         },
         consultantUiState = consultantUiState,
         onConsultantEvent = consultantViewModel::onEvent,
+        backupRestoreUiState = backupRestoreUiState,
+        onBackupRestoreEvent = backupRestoreViewModel::onEvent,
         showGoogleSetupRequired = showGoogleSetupRequired,
     )
 }

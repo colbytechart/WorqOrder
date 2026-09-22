@@ -1344,9 +1344,13 @@ permanent signer/package/version/hash, and public-download install-over checks m
 identity requires explicit owner approval. The teardown work now numbered 56–57 was not a release
 prerequisite.
 
-## Planned `0.6.0` Backup & Restore acceptance tests
+## In-development `0.6.0` Backup & Restore acceptance tests
 
-These are future gates, not evidence that the released `0.5.0` app implements the feature.
+These gates cover the in-development feature and are not evidence that released `0.5.0` implements
+it. Milestone 53's initial automated and manual workflow checks passed, as did the final compact-card
+visual inspection, compilation/JVM/lint/debug-and-release build set, and focused connected Settings
+test. Milestone 53 is closed. Fixture-backed malformed/import/Restore exercises remain assigned to
+Milestone 54 and require separate owner authorization to begin.
 
 - **V6-BACKUP-01:** Create Backup is disabled while timing; otherwise it writes a readable Deflate
   ZIP with exactly `manifest.json` and `data.json`, valid marker/version/sizes, and matching SHA-256.
@@ -1373,9 +1377,11 @@ These are future gates, not evidence that the released `0.5.0` app implements th
   with an update-WorqOrder instruction. Released Room upgrade paths and data remain intact.
 - **V6-GOOGLE-01:** Existing installs safely adopt only their own legacy task keys; imported copies
   cannot claim or overwrite source-installation rows. Visible 14-column schema 6 stays unchanged.
-- **V6-UI-01:** Exact approved labels, confirmations, persistent status, picker cancel, progress,
-  double-submit prevention, TalkBack/live-region semantics, large text, narrow/landscape layouts,
-  theme contrast, and Activity recreation pass.
+- **V6-UI-01:** The compact card contains the title, inline warning/progress/status directly below
+  it, side-by-side **Import Backup**/**Create Backup** actions, and **Restore** without permanent
+  instructional paragraphs or a separate Restore subsection. Exact approved confirmations, picker
+  cancel, double-submit prevention, TalkBack/live-region semantics, large text, narrow/landscape
+  layouts, theme contrast, and Activity recreation pass.
 - **V6-RELEASE-01:** Owner-run lint/JVM/build/API-26/current connected, populated upgrade, fresh
   install, backup/import/restore/corruption/crash/reboot/Google/accessibility/performance/security,
   permanent-signer, checksum, public-download, and physical-device gates all pass before release.

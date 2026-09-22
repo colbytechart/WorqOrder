@@ -9,6 +9,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import worq.order.data.ActiveTimerRepository
+import worq.order.data.BackupRestoreStatusRepository
 import worq.order.data.ClientImportRepository
 import worq.order.data.ClientRepository
 import worq.order.data.EmployeeRepository
@@ -29,17 +30,20 @@ import worq.order.data.local.RoomTagRepository
 import worq.order.data.local.RoomTagImportRepository
 import worq.order.data.local.WorqOrderDatabase
 import worq.order.data.preferences.PreferencesGoogleConnectionRepository
+import worq.order.data.preferences.PreferencesBackupRestoreStatusRepository
 import worq.order.data.preferences.PreferencesRunningTimerNotificationPreferences
 import worq.order.data.preferences.PreferencesSelectedTaskRepository
 import worq.order.data.preferences.PreferencesSettingsRepository
 import worq.order.data.preferences.worqOrderPreferencesDataStore
 import worq.order.backup.AndroidPortableBackupDocumentOutputDestination
+import worq.order.backup.AndroidPortableBackupImportDocumentStager
 import worq.order.backup.AndroidPortableBackupRecoveryFileStore
 import worq.order.backup.ApplicationDataOperationLock
 import worq.order.backup.LocalPortableBackupReplacementRuntime
 import worq.order.backup.PortableBackupCoordinator
 import worq.order.backup.PortableBackupCreationCoordinator
 import worq.order.backup.PortableBackupDocumentOutputDestination
+import worq.order.backup.PortableBackupImportDocumentStager
 import worq.order.backup.PortableBackupProducer
 import worq.order.backup.PortableBackupArchiveReader
 import worq.order.backup.PortableBackupArchiveWriter
@@ -98,6 +102,7 @@ interface ApplicationContainer {
     val activeTimerRepository: ActiveTimerRepository
     val selectedTaskRepository: SelectedTaskRepository
     val settingsRepository: SettingsRepository
+    val backupRestoreStatusRepository: BackupRestoreStatusRepository
     val googleConnectionRepository: GoogleConnectionRepository
     val utcClock: UtcClock
     val zoneIdProvider: EffectiveZoneIdProvider
@@ -119,6 +124,7 @@ interface ApplicationContainer {
     val portableBackupDocumentOutputDestination: PortableBackupDocumentOutputDestination
     val portableBackupCreationCoordinator: PortableBackupCreationCoordinator
     val portableBackupReplacementCoordinator: PortableBackupReplacementCoordinator
+    val portableBackupImportDocumentStager: PortableBackupImportDocumentStager
     val automaticGoogleExportManager: AutomaticGoogleExportManager
 
     suspend fun <T> withApplicationDataOperationLock(block: suspend () -> T): T
@@ -237,6 +243,12 @@ internal class DefaultApplicationContainer(
             dataStore = applicationContext.worqOrderPreferencesDataStore,
             activeTimerRepository = activeTimerRepository,
             timerOperationLock = timerOperationLock,
+        )
+    }
+
+    override val backupRestoreStatusRepository: BackupRestoreStatusRepository by lazy {
+        PreferencesBackupRestoreStatusRepository(
+            dataStore = applicationContext.worqOrderPreferencesDataStore,
         )
     }
 
@@ -396,6 +408,7 @@ internal class DefaultApplicationContainer(
         PortableBackupCreationCoordinator(
             backupCoordinator = portableBackupCoordinator,
             outputDestination = portableBackupDocumentOutputDestination,
+            operationLock = applicationDataOperationLock,
         )
     }
 
@@ -438,6 +451,13 @@ internal class DefaultApplicationContainer(
                     clearLiveTimerSession = liveTimerSession::clear,
                     reconcileAutomaticScheduleOnly = automaticGoogleExportManager::reconcileScheduleOnly,
                 ),
+        )
+    }
+
+    override val portableBackupImportDocumentStager: PortableBackupImportDocumentStager by lazy {
+        AndroidPortableBackupImportDocumentStager(
+            contentResolver = applicationContext.contentResolver,
+            replacementCoordinator = portableBackupReplacementCoordinator,
         )
     }
 

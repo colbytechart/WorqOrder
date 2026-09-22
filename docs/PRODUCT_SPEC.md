@@ -664,10 +664,13 @@ start implicitly. See `V0_5_MILESTONE_PROMPTS.md` for released `0.5.0` evidence 
 
 ## 18. Approved `0.6.0` portable Backup & Restore scope (planned)
 
-`0.6.0` will add a **Backup & Restore** Settings section after **Export Destination** and before
-the version label. **Import Backup** and **Create Backup** appear side by side; **Restore Previous
-State** and its **Restore** action appear below. The section has one persistent success/error status
-line. Create, import, and restore are disabled while timing.
+`0.6.0` adds a compact **Backup & Restore** Settings section after **Export Destination** and before
+the version label. **Import Backup** and **Create Backup** appear side by side, with **Restore**
+below. The normal card contains no instructional paragraphs or separate Restore subsection label.
+Inline timer warnings, progress, success notices, and errors appear directly below the card title
+and above every action. Destructive Import and Restore dialogs retain concise replacement/swap
+explanations. Create, import, and restore are disabled while timing or while another operation is
+active.
 
 The portable file is a standard Deflate ZIP containing `manifest.json` and `data.json`. It is a
 versioned logical snapshot, not raw SQLite or DataStore storage. It contains all portable domain

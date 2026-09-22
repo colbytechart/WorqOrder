@@ -73,6 +73,8 @@ fun SettingsScreen(
     onOpenTagManagement: () -> Unit = {},
     consultantUiState: ConsultantSettingsUiState = ConsultantSettingsUiState(),
     onConsultantEvent: (ConsultantSettingsEvent) -> Unit = {},
+    backupRestoreUiState: BackupRestoreUiState = BackupRestoreUiState(),
+    onBackupRestoreEvent: (BackupRestoreEvent) -> Unit = {},
     showGoogleSetupRequired: Boolean = false,
 ) {
     val listState = rememberLazyListState()
@@ -83,6 +85,10 @@ fun SettingsScreen(
     var showSignOutConfirmation by rememberSaveable {
         mutableStateOf(false)
     }
+    BackupRestoreConfirmationDialogs(
+        uiState = backupRestoreUiState,
+        onEvent = onBackupRestoreEvent,
+    )
     LaunchedEffect(
         showGoogleSetupRequired,
         uiState.message,
@@ -401,6 +407,12 @@ fun SettingsScreen(
                         )
                     }
                 }
+            }
+            item {
+                BackupRestoreSettingsSection(
+                    uiState = backupRestoreUiState,
+                    onEvent = onBackupRestoreEvent,
+                )
             }
             item {
                 Text(
@@ -792,7 +804,7 @@ private fun GoogleSettingsMessagePanel(
 }
 
 @Composable
-private fun SettingsSection(
+internal fun SettingsSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit,
 ) {

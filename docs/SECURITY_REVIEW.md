@@ -262,7 +262,7 @@ distribution policy. The owner confirmed fresh-account eligibility on API 37 usi
 signed candidate and an account never on the tester list. Public downloaded-asset integrity
 remains a post-publication check.
 
-## Planned `0.6.0` portability threat model
+## In-development `0.6.0` portability threat model
 
 Treat every selected backup as hostile input. Required defenses include exact ZIP-entry allowlists,
 duplicate/path-traversal/encrypted-entry rejection, 100 MiB compressed and 500 MiB expanded hard
@@ -320,5 +320,8 @@ Preferences, exact displaced-generation verification, Room row/FK postconditions
 Preferences check, shared operation gate, and startup readiness barrier close the implementation
 gaps found by the Sol audit. Owner-run every-phase JVM fault/equivalence tests, the complete JVM
 suite, connected Room/Preferences replacement tests, the complete connected suite, lint, and both
-APK assemblies passed. User-visible force-stop/reboot and import/restore exercises remain release
-gates after Milestone 53 exposes the workflow.
+APK assemblies passed. Milestone 53 now exposes the workflow through a compact Settings card. Its
+permanent instructional plaintext warning was deliberately removed from that card to reduce clutter;
+the User Guide and privacy documentation remain the authoritative disclosure, and destructive
+confirmation dialogs retain their explanations. Fixture-backed corrupt/import/Restore exercises and
+later release gates remain mandatory.

@@ -1485,6 +1485,16 @@ finalization. After commit intent, coroutine cancellation cannot abandon the ope
 blocks normal use and resumes forward or rollback until convergence. Ambiguous or corrupt recovery
 state fails closed and is never answered by deleting Room or silently choosing defaults.
 
+### D-119 -- Backup & Restore uses a compact, status-first Settings card
+
+Milestone 53 exposes Import Backup and Create Backup side by side with Restore below, without
+instructional paragraphs or a separate Restore subsection label. Plaintext sensitivity remains
+documented in the user/privacy/security guides and is not repeated as permanent card copy. Inline
+timer warnings, progress, success, and errors appear immediately below the **Backup & Restore**
+title and above every action. Import and Restore retain explicit explanatory confirmation dialogs.
+All actions are disabled during initialization, timing, or another operation; picker callbacks
+recheck timer state, and duplicate requests/confirmations cannot start parallel work.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.

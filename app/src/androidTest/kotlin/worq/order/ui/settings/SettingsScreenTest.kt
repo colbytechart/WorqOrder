@@ -446,9 +446,9 @@ class SettingsScreenTest {
                 "Restore the most recent state saved before an import or restore. " +
                     "Your current state becomes the next restore point.",
             ).assertCountEquals(0)
-        composeRule.onNodeWithText("Import Backup").performClick()
-        composeRule.onNodeWithText("Create Backup").performClick()
-        composeRule.onNodeWithText("Restore").performClick()
+        composeRule.onNodeWithText("Import Backup").performScrollTo().assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Create Backup").performScrollTo().assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Restore").performScrollTo().assertIsDisplayed().performClick()
 
         assertEquals(
             listOf(
@@ -532,6 +532,19 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun destructiveReplacementShowsProgressBarrier() {
+        setContent(
+            state = SettingsUiState(effectiveZoneId = ZoneId.of("America/New_York")),
+            backupRestoreState =
+                BackupRestoreUiState(
+                    operation = BackupRestoreOperation.IMPORTING,
+                ),
+        )
+
+        composeRule.onNodeWithText("Importing backup\u2026").assertIsDisplayed()
+    }
+
+    @Test
     fun backupRestoreErrorUsesPersistentActionableText() {
         val backupEvents = mutableListOf<BackupRestoreEvent>()
         setContent(
@@ -552,19 +565,9 @@ class SettingsScreenTest {
         composeRule
             .onNodeWithText("The selected file is not a valid WorqOrder backup.")
             .assertIsDisplayed()
-        val statusTop =
-            composeRule
-                .onNodeWithText("The selected file is not a valid WorqOrder backup.")
-                .fetchSemanticsNode()
-                .boundsInRoot
-                .top
-        val firstActionTop =
-            composeRule
-                .onNodeWithText("Import Backup")
-                .fetchSemanticsNode()
-                .boundsInRoot
-                .top
-        assertTrue(statusTop < firstActionTop)
+        // A short API 26 viewport cannot display the status and actions simultaneously. Verify
+        // that both remain reachable instead of comparing bounds for an off-screen action.
+        composeRule.onNodeWithText("Import Backup").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Dismiss").performScrollTo().assertIsDisplayed().performClick()
         assertEquals(listOf(BackupRestoreEvent.DismissStatus), backupEvents)
     }

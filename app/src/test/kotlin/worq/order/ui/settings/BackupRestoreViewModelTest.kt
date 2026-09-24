@@ -17,13 +17,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import worq.order.backup.PORTABLE_BACKUP_DATA_MODEL_VERSION
 import worq.order.backup.PortableBackupArtifact
 import worq.order.backup.PortableBackupCreationResult
-import worq.order.backup.PortableBackupDataV1
 import worq.order.backup.PortableBackupImportStageResult
 import worq.order.backup.PortableBackupReplacementResult
-import worq.order.backup.PortableBackupSettingsV1
 import worq.order.backup.PortableBackupStagedImport
 import worq.order.data.ActiveTimerRepository
 import worq.order.data.BackupRestoreStatus
@@ -287,25 +284,6 @@ class BackupRestoreViewModelTest {
                         name = "staged-source.zip",
                         byteCount = 1,
                         sha256 = "0".repeat(64),
-                    ),
-                data =
-                    PortableBackupDataV1(
-                        dataModelVersion = PORTABLE_BACKUP_DATA_MODEL_VERSION,
-                        clients = emptyList(),
-                        consultants = emptyList(),
-                        tags = emptyList(),
-                        tasks = emptyList(),
-                        settings =
-                            PortableBackupSettingsV1(
-                                themeMode = "SYSTEM",
-                                timeZoneMode = "DEVICE",
-                                manualZoneId = null,
-                                defaultExportDestination = "CSV",
-                                lastExportAttempt = null,
-                                selectedConsultantId = null,
-                                landscapeHandedness = "RIGHT_HANDED",
-                            ),
-                        selection = null,
                     ),
             )
     }

@@ -33,16 +33,22 @@ The replacement engine treats local state as four distinct groups:
    naturally removed by Clear Storage or uninstall.
 
 The portable archive is untrusted input even when it was created by WorqOrder. The current archive
-reader must enforce the 100 MiB compressed and 500 MiB expanded limits, the exact two-entry ZIP
-allowlist, safe entry names, non-encrypted Deflate input, UTF-8 and strict JSON, manifest/data byte
-counts and SHA-256, explicit format upgrading, graph validation, and every schema-7 invariant
-before a confirmation can authorize mutation.
+reader must enforce the 100 MiB compressed and 500 MiB expanded absolute limits plus the documented
+device-heap materialization limit, the exact two-entry ZIP allowlist, safe entry names,
+non-encrypted Deflate input, UTF-8 and strict JSON, manifest/data byte counts and SHA-256, explicit
+format upgrading, graph validation, and every schema-7 invariant before a confirmation can
+authorize mutation. Current-format JSON is record-streamed into one logical candidate DTO; the
+whole byte array, String, and DOM must never coexist in production.
+The device-heap ceiling is the smaller of 500 MiB and one eighth of the process maximum heap, with
+an 8 MiB floor. A file below the absolute format ceiling can therefore be rejected on a constrained
+device rather than causing process death.
 
 ## 3. Application-wide operation gate
 
 Milestone 52B introduces one application-scoped `ApplicationDataOperationLock`. Its mutex is the
-outermost lock for all state-changing operations and for snapshots that require a coherent
-Room/preferences view. Public entry points acquire locks only in this order:
+outermost lock for portable replacement/recovery, background operations that can overlap it, and
+snapshots that require a coherent Room/preferences view. Those entry points acquire locks only in
+this order:
 
 1. `ApplicationDataOperationLock`;
 2. the existing `TimerOperationLock`, when a timer snapshot or mutation is involved;
@@ -52,18 +58,24 @@ Room/preferences view. Public entry points acquire locks only in this order:
 
 No code may acquire an earlier lock while holding a later lock. Replacement code holds the
 application lock and calls dedicated low-level bulk Room/preferences adapters that do not reacquire
-it. Normal Client, Consultant, Tag, task, interval, selection, settings, Google-connection,
-automatic-export, and export-origin mutations must enter through the application lock. Timer
-Start, Stop, boundary normalization, recovery, backup snapshots, and export snapshots acquire the
-application lock before the timer lock. A Google export must not hold its Google mutex while
-waiting for the application lock; it obtains its immutable local snapshot first, then performs
-remote I/O under the Google mutex.
+it. Background/runtime entry points that can overlap replacementâ€”startup, Activity resume, boot,
+and automatic exportâ€”enter through the application lock. Ordinary repositories do not reacquire
+that outer lock from inside a replacement transaction. Instead, after destructive confirmation,
+the Settings route presents a non-dismissible progress barrier that blocks navigation and every
+unrelated visible mutation until replacement terminates. Timer state is rechecked under the timer
+lock after the application lock. A Google export must not hold its Google mutex while waiting for
+the application lock; it obtains its immutable local snapshot first, then performs remote I/O under
+the Google mutex.
 
 The confirmation dialog and document picker never hold a mutex. Import may copy, parse, upgrade,
 and validate the selected document before confirmation without the application lock because that
 work is read-only. After **Continue**, the engine acquires the application lock, revalidates the
 staged source, rechecks the active-timer/open-interval invariant, and captures the then-current
 local state. This makes the restore point correspond to the state actually replaced.
+
+The progress barrier is concurrency control at the UI boundary, not crash authority. All archive
+and replacement work runs on the I/O dispatcher, while the durable journal remains authoritative
+if the Activity disappears or the process dies.
 
 Startup recovery owns the same lock and completes before repositories, timer recovery,
 automatic-export reconciliation, notifications, or normal navigation may expose state. If journal

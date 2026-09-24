@@ -1,11 +1,23 @@
 package worq.order.ui.settings
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import worq.order.data.BackupRestoreStatus
 
 class BackupRestoreUiStateTest {
+    @Test
+    fun onlyDestructiveReplacementOperationsRequireTheSettingsBarrier() {
+        BackupRestoreOperation.entries.forEach { operation ->
+            assertEquals(
+                operation == BackupRestoreOperation.IMPORTING ||
+                    operation == BackupRestoreOperation.RESTORING,
+                BackupRestoreUiState(operation = operation).isReplacingData,
+            )
+        }
+    }
+
     @Test
     fun idleWithoutTimerEnablesCreateAndImportButNotRestore() {
         val state = BackupRestoreUiState()

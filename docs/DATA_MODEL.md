@@ -576,8 +576,9 @@ The backup model is deliberately independent of Room table layout and DataStore 
 Format version 1 represents Clients, Consultants, Tag catalogs, tasks, task-owned ordered Tag
 snapshots, completed intervals, export history, portable preferences, and valid selections as
 explicit JSON DTOs. Every domain ID, relationship, work date, ZoneId, UTC instant, nullable field,
-archive state, lineage value, and ordering value is preserved. No task-count cap is invented beyond
-the approved 100 MiB compressed and 500 MiB expanded limits.
+archive state, lineage value, and ordering value is preserved. No task-count cap is invented. The
+absolute 100 MiB compressed/500 MiB expanded bounds and the device-safe logical-payload ceiling in
+D-121 apply to the archive as a whole.
 
 The logical snapshot must not contain the active-timer singleton, open intervals, OAuth/access/
 refresh credentials, account hints, connected-sheet data, WorkManager/automatic-export pending
@@ -656,3 +657,8 @@ journal-generated transport origin is written with legacy adoption disabled. Rol
 displaced archive plus recovery-only Preferences snapshot to reconstruct the exact pre-operation
 generation. Restore promotes displaced portable state as the next point only after target Room,
 Preferences, runtime reset, and logical equivalence all succeed.
+
+Task 54C does not change the logical model or Room schema. The current-format reader incrementally
+decodes bounded top-level records into one candidate DTO instead of retaining complete data bytes,
+String, DOM, and a staged duplicate DTO. Portable domain IDs reject control characters and `:`;
+that delimiter is reserved for Google hidden transport identity and never alters a stored valid ID.

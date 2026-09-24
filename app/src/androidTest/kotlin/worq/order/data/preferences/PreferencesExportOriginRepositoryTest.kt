@@ -89,7 +89,7 @@ class PreferencesExportOriginRepositoryTest {
                     produceFile = { file },
                 )
             store.edit { preferences ->
-                preferences[stringPreferencesKey("export_origin_id")] = "not-a-valid-origin"
+                preferences[stringPreferencesKey("export_origin_id")] = "z".repeat(32)
             }
 
             try {

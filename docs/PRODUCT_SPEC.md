@@ -693,8 +693,11 @@ reboot/update but is removed on uninstall. Crash recovery uses a durable idempot
 Room and DataStore; no destructive migration or partial best-effort replacement is allowed.
 
 Backups are plaintext and can contain sensitive work information. The UI and documentation must
-say so. Compressed input is limited to 100 MiB, expanded content to 500 MiB, and parsing/writing is
-streaming and storage-aware. Format version 1 is the `0.6.0` baseline. Explicit logical upgraders
+say so. Compressed input has a 100 MiB absolute limit and expanded content a 500 MiB absolute limit.
+Import also rejects a logical payload above the device-safe heap ceiling documented in D-121 rather
+than risking process death. Current-format parsing/writing is streaming and storage-aware, and
+confirmed Import/Restore blocks other Settings interaction until replacement terminates. Format
+version 1 is the `0.6.0` baseline. Explicit logical upgraders
 support known older formats; newer unsupported formats fail with an update-WorqOrder instruction.
 This feature does not change the 14-column task export schema or add another report destination.
 

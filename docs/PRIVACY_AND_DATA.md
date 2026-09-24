@@ -187,3 +187,9 @@ The rolling restore point is app-private and deliberately placed in no-backup st
 included in portable or Android backup, survives ordinary restart/update, and is removed with app
 data on uninstall/Clear storage. `0.6.0` does not add encryption; optional encryption remains outside
 scope in Milestone E.
+
+Import parses current-format data incrementally and retains only the validated logical candidate
+needed for replacement; pre-confirmation staging retains the private ZIP rather than a second data
+copy. Heap-aware rejection limits denial-of-service risk from oversized valid-looking input. These
+implementation bounds do not encrypt the plaintext or change the user's responsibility for an
+externally saved/shared backup.

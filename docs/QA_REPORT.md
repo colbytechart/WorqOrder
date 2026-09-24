@@ -982,6 +982,96 @@ data. The final compact status-first presentation passed owner visual checks. Th
 reported both requested post-presentation gates successful: the compilation/JVM/lint/debug-and-
 release build set and the focused connected `SettingsScreenTest`. Milestone 53 is therefore closed.
 
-Manual invalid-ZIP, valid-import, and swap-Restore cases were not run because the owner had neither
-a known malformed archive nor a valid portable backup fixture. Milestone 54 must provide both
-owner-selectable files and execute those deferred cases before release readiness can be claimed.
+At Milestone 53 close, manual invalid-ZIP, valid-import, and swap-Restore cases had not run because
+the owner had neither a known malformed archive nor a valid portable backup fixture. The following
+Milestone 54A evidence records the fixtures and completion of those deferred cases.
+
+## 26. `0.6.0` Milestone 54A compatibility/corruption fixture evidence
+
+Task 54A added a production-reader/writer fixture matrix for archived directories, Unicode, ordered
+Tag snapshots, completed intervals, selection, export history, strict format-version dispatch, and
+malformed/adversarial archives. It also added an owner-run generator and guide for deriving one
+valid selectable backup and one intentionally truncated backup from an actual app-created backup.
+The generated local fixture directory is Git-ignored because a real backup may contain private app
+data.
+
+The owner explicitly authorized agent execution of only
+`worq.order.backup.PortableBackupMilestone54FixtureMatrixTest`. After correcting fixture-only ZIP
+expectations and exact Unicode-code-point boundary data, that class passed in 43 seconds with 28
+actionable tasks (3 executed and 25 up-to-date). No production application source was changed by
+Task 54A.
+
+The owner generated both selectable ZIPs, transferred them to the emulator, and reported every
+fixture-backed manual check successful. The malformed ZIP was rejected without portable-state or
+restore-point mutation; cancelling the valid import changed nothing; continuing the valid import
+replaced portable state as designed; Restore applied the displaced state; and a second Restore
+swapped back. This closes the deferred Milestone 53 fixture cases. Task 54B Google identity and
+integration hardening and Task 54C security/performance review followed in the same milestone.
+
+## 27. `0.6.0` Milestone 54B Google identity-transition evidence
+
+Task 54B changes only Google transport identity and connection-cleanup behavior; it does not add a
+visible export column or alter the canonical schema-6 projection. Planner, coordinator, and
+connection tests cover v2 identity creation, exact original-install v1 adoption, restored-origin
+non-claim of v1/unkeyed/foreign rows, malformed local-origin fail-closed behavior, and automatic-
+export cleanup before Disconnect or Sign Out. The owner reported the focused automated gate and
+connected suite passing.
+
+The owner also reported each required live Google check passing: a signed v0.5.0 installation was
+installed fresh, then upgraded in place to the signed current candidate so its matching legacy row
+was updated without a duplicate; a second installation imported the portable state, reauthorized,
+reconnected the same sheet, and appended without overwriting the source row; and Disconnect/Sign
+Out each left Auto Export disabled with no retained automatic-export attention state. Task 54B is
+complete. Task 54C then performed the required Sol security, compatibility, lifecycle, and
+performance audit.
+
+## 28. `0.6.0` Milestone 54C hardening and approved verification
+
+The Sol audit found one release-blocking memory design in the otherwise bounded reader: the
+current-format path expanded all of `data.json` into a byte array, then a String, then a complete
+JSON DOM and DTO; pre-confirmation staging also retained that DTO until replacement parsed the
+source again. Task 54C replaces that path with strict record-streamed decoding through the existing
+counting/SHA-256 ZIP boundary. It retains only one logical candidate DTO, caps each logical value at
+2 MiB and nesting at 128, and rejects input above the smaller of the 500 MiB absolute expansion cap
+and one eighth of the process maximum heap (8 MiB floor). Staging now retains only the verified
+app-private archive. Tests cover streaming equivalence, escaped duplicate keys, and the runtime
+materialization bound.
+
+The same audit tightened portable IDs against ISO controls and the Google `:` delimiter and made
+recovery operation IDs/export origins exact lowercase 32-hex. Confirmed Import/Restore already run
+through the I/O-dispatched workflow and application operation lock; a new non-dismissible Settings
+progress barrier now prevents navigation and unrelated visible mutations while Room/DataStore
+replacement is active. Startup recovery remains before normal content, and resume/boot/automatic
+work remains serialized through the shared lock. The journal, verified artifacts, one Room
+transaction, one Preferences edit, and idempotent convergence remain unchanged.
+
+Static review confirms the portable model still excludes OAuth/access/refresh credentials,
+Google account/sheet state, automatic-export pending/work state, notifications/permissions,
+transport origin, recovery journal, and rolling restore point. Schema 7, canonical export schema 6,
+visible 14 columns, Android backup policy, Google scope, package identity, signing identity, and
+free/GPLv3 policy are unchanged.
+
+Compatibility review confirms `0.6.0` retains Room schema 7, so a populated signed `0.5.0` update
+uses no new Room migration and must preserve its existing migration-1-through-7 data. Portable
+format 1 is the first public backup format: no historical portable file exists to upgrade, future
+format numbers fail closed, and future support must add an explicit upgrader. An older APK cannot
+import this feature and Android may reject version downgrades; uninstall/downgrade is not an
+authorized recovery path.
+
+The owner reports the complete API-26 connected suite passing after two short-viewport Settings
+assertions were corrected to scroll actions into view. The correction changes instrumentation only;
+production behavior is unchanged. The complete current-target connected suite also passed in
+4m21s with 73 actionable tasks (1 executed, 72 up-to-date).
+
+The current-target manual archive, cancellation, replacement, rotation/background, forced-stop
+recovery, and Restore-swap checks all passed. Across ten alternating Restore swaps, sampled PSS
+changed from 130,117 KiB to 133,143 KiB and RSS from 273,000 KiB to 277,584 KiB; Java heap fell
+from 22,400 KiB to 21,976 KiB, native heap changed from 13,864 KiB to 15,756 KiB, swap remained
+zero, and the final `top` sample reported 0.0% CPU. This does not show a retained-generation-sized
+step increase or crash.
+
+On 2026-09-24 the owner explicitly deferred the remaining API-26 manual lifecycle/performance
+matrix and manual physical-device matrix and removed them from the `0.6.0` release gate. They are
+recorded as unexecuted evidence gaps, with their full procedures retained in `DEFERRED_TESTS.md`;
+they are not claimed as passing. Under that approved reduced matrix, Task 54C and Milestone 54 are
+complete. Milestone 55 has not started.

@@ -713,4 +713,7 @@ have no report column. Conversely, report serializers never inspect a backup DTO
 
 Import preserves the destination preference but clears Google authorization/connection and disables
 automatic Google export. A new installation-scoped hidden Google origin protects source-device rows;
-visible schema 6 and its 14 headers remain unchanged.
+visible schema 6 and its 14 headers remain unchanged. Google writes use the hidden physical-P key
+`worqorder.task.v2:<originId>:<taskId>`. The original upgraded installation may adopt an exact v1
+or unique unkeyed legacy row once by rewriting only that row's hidden key. A restored installation
+never adopts v1, unkeyed, or foreign-origin rows and instead appends its own v2 identity.

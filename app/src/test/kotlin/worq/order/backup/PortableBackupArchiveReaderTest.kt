@@ -2,6 +2,7 @@ package worq.order.backup
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.StringReader
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.util.zip.ZipEntry
@@ -56,6 +57,48 @@ class PortableBackupArchiveReaderTest {
         assertEquals(
             PortableBackupArchiveReadResult.Invalid(PortableBackupArchiveReadFailure.CHECKSUM),
             PortableBackupArchiveReader().read(ByteArrayInputStream(checksumMismatch)),
+        )
+    }
+
+    @Test
+    fun streamingDecoderPreservesStrictLogicalDataAndRejectsEscapedDuplicateKeys() {
+        val encoded = PortableBackupArchiveFixtures.validData.toString(StandardCharsets.UTF_8)
+        val expected = PortableBackupJsonCodec.decodeData(encoded)
+
+        assertEquals(expected, PortableBackupJsonCodec.decodeData(StringReader(encoded)))
+
+        val duplicate = encoded.replaceFirst("{", "{\"dataModel\\u0056ersion\":7,")
+        val result = PortableBackupJsonCodec.decodeData(StringReader(duplicate))
+        assertTrue(result is PortableBackupDecodeResult.Invalid)
+        assertEquals(
+            PortableBackupDecodeError.INVALID_SHAPE,
+            (result as PortableBackupDecodeResult.Invalid).error,
+        )
+    }
+
+    @Test
+    fun readerRejectsDataAboveTheRuntimeMaterializationBudgetBeforeParsing() = runTest {
+        val data =
+            (PortableBackupJsonCodec.decodeData(
+                PortableBackupArchiveFixtures.validData.toString(StandardCharsets.UTF_8),
+            ) as PortableBackupDecodeResult.Success).value
+        val archive = ByteArrayOutputStream()
+        val write =
+            PortableBackupArchiveWriter().write(
+                PreparedPortableBackup(
+                    data = data,
+                    createdAt = Instant.parse("2026-09-20T15:00:00Z"),
+                    producer = PortableBackupProducer("0.6.0", 6),
+                    suggestedFileName = "WorqOrder_Backup_2026-09-20_150000.zip",
+                ),
+                archive,
+            ) as PortableBackupArchiveWriteResult.Success
+
+        assertEquals(
+            PortableBackupArchiveReadResult.Invalid(PortableBackupArchiveReadFailure.EXPANDED_LIMIT),
+            PortableBackupArchiveReader(
+                maxMaterializedDataBytes = write.expandedDataByteCount - 1,
+            ).read(ByteArrayInputStream(archive.toByteArray())),
         )
     }
 

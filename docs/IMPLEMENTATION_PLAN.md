@@ -1129,12 +1129,34 @@ changing visible schema 6 or overwriting another origin's rows. Audit security, 
 concurrency, and performance. Supply owner-selectable malformed and valid ZIP fixtures for the
 deferred end-to-end import and swap-Restore cases.
 
+Task 54A completed the archive-facing logical-state round-trip/corruption matrix and the owner-run
+fixture generator/guide. The focused fixture-matrix JVM class passed, and the owner reported the
+selectable malformed archive, cancelled valid import, successful valid replacement, Restore swap,
+and reverse-swap checks all passed without unintended mutation. No production Google or export
+behavior changed in this task. Task 54B subsequently completed the v2 Google identity and
+connection-cleanup integration with owner-reported focused, connected, and live Google passes.
+
+Task 54B completed the v1-to-v2 hidden Google identity transition without changing the 14 visible
+schema-6 columns. New rows use an installation-scoped v2 identity; an original upgraded
+installation may adopt only its matching v1 or unique unkeyed legacy rows, while an imported or
+restored origin appends and never claims v1, unkeyed, or foreign-origin rows. Disconnect/Sign Out
+now synchronously disable automatic export and clear scheduled/attention state before connection
+metadata is removed. The owner reported focused automated, connected, original-install, two-device
+shared-sheet, and disconnect/sign-out checks passing. Task 54C implementation now record-streams
+current backup JSON, enforces a device-heap materialization ceiling, drops the staged duplicate
+DTO, tightens portable/origin IDs, and blocks Settings interaction during destructive replacement.
+The owner reports API-26/current connected suites and the current-target lifecycle/stability matrix
+passing. The remaining API-26 manual and physical-device matrices are explicitly deferred as
+non-blocking, unexecuted evidence in `DEFERRED_TESTS.md`. Milestone 54 is complete; Milestone 55 has
+not started.
+
 ### Milestone 55 — Full `0.6.0` audit and release handoff
 
 Trace every requirement, run owner-executed JVM/lint/build/connected/manual/migration/upgrade/fresh/
 Google/security/performance gates, obtain explicit version approval, verify permanent signer and
-artifact identity, and provide exact integration/tag/GitHub/download/physical-device instructions.
-Do not declare ready while a release-blocking gate is failing or unverified.
+artifact identity, and provide exact integration/tag/GitHub/download instructions. Apply D-122:
+manual API-26 and physical-device checks remain disclosed deferred evidence rather than release
+blockers. Do not declare ready while any non-deferred release-blocking gate is failing or unverified.
 
 ### Milestone 56 — Post-`0.6.0` safe teardown guide (documentation only)
 

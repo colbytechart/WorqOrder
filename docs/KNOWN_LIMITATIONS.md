@@ -186,9 +186,22 @@ export-only projection and does not alter the user's stored manual text.
   installation identity are intentionally not portable. Reauthorization/reconnection is required.
 - There is one rolling restore point, not a browsable history. Restore swaps the previous/current
   states; uninstall or Clear storage removes the point.
-- Files above 100 MiB compressed or 500 MiB expanded are unsupported. Newer unknown backup formats
-  require updating WorqOrder; no best-effort partial import is attempted.
+- Files above 100 MiB compressed or 500 MiB expanded are unsupported. Import also applies a
+  device-aware logical-payload ceiling equal to the smaller of 500 MiB and one eighth of the
+  process maximum heap, with an 8 MiB floor. A valid but unusually large backup can therefore be
+  rejected on a memory-constrained device instead of risking an out-of-memory crash. Newer unknown
+  backup formats require updating WorqOrder; no best-effort partial import is attempted.
 - Backup & Restore cannot run with an active timer and does not act as sync, merge, or conflict
   resolution. Import replaces portable destination state after confirmation.
-- Fixture-backed end-to-end malformed archive, valid Import, and Restore-swap checks remain deferred
-  to Milestone 54; the fixtures and owner instructions must be supplied there.
+- Format version 1 begins with `0.6.0`, so there is no older public portable-backup format to migrate
+  in this release. Future known formats require explicit upgraders; a future/unknown format fails
+  closed. Older WorqOrder releases do not implement this importer. Android may also refuse an APK
+  version downgrade, so downgrade is not a recovery mechanism and must never require uninstalling
+  a populated installation.
+- Milestone 54A's fixture-backed malformed archive, cancelled/valid Import, Restore-swap, and
+  reverse-swap checks passed by owner report. Task 54B's v2 Google ownership and connection-cleanup
+  checks also passed by owner report. Task 54C implements streamed record decoding, heap-aware
+  rejection, strict ID delimiters/origins, and a destructive-operation UI barrier. API-26/current
+  connected and current-target lifecycle/stability checks passed. The remaining API-26 manual and
+  physical-device matrices are explicitly deferred, unexecuted evidence under
+  `DEFERRED_TESTS.md`. Public-release hardening remains Milestone 55.

@@ -256,8 +256,8 @@ internal object PortableBackupRecoveryJournalCodec {
             .digest(toString().toByteArray(Charsets.UTF_8))
             .joinToString("") { byte -> "%02x".format(byte) }
 
-    private val OPERATION_ID = Regex("^[a-z0-9]{32}$")
-    private val ORIGIN_ID = Regex("^[a-z0-9]{32}$")
+    private val OPERATION_ID = Regex("^[a-f0-9]{32}$")
+    private val ORIGIN_ID = Regex("^[a-f0-9]{32}$")
     private val SAFE_FILE_NAME = Regex("^[a-z0-9][a-z0-9._-]{0,127}$")
     private val SHA256 = Regex("^[a-f0-9]{64}$")
     private val PREFERENCE_NAME = Regex("^[a-z0-9._-]{1,128}$")

@@ -8,6 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import worq.order.data.ExportOriginState
 import worq.order.export.csv.CsvSerializer
 import worq.order.export.google.GoogleSheetsBatchRequest
 import worq.order.export.google.GoogleSheetsExportPlanner
@@ -67,6 +68,7 @@ class Schema6ExportEquivalenceTest {
                         developerMetadata = emptyList(),
                     ),
                 snapshot = snapshot,
+                exportOrigin = EXPORT_ORIGIN,
             )
         val replace =
             ((googlePlan as worq.order.export.google.GoogleSheetsPlanResult.Ready).plan.requests
@@ -110,6 +112,7 @@ class Schema6ExportEquivalenceTest {
                         developerMetadata = emptyList(),
                     ),
                 snapshot = snapshot,
+                exportOrigin = EXPORT_ORIGIN,
             ) as GoogleSheetsPlanResult.Ready
         val metadata = plan.plan.requests.filterIsInstance<GoogleSheetsBatchRequest.CreateSheetMetadata>()
         assertTrue(metadata.any { it.key == GoogleSheetsExportPlanner.SCHEMA_VERSION_KEY && it.value == "6" })
@@ -129,4 +132,12 @@ class Schema6ExportEquivalenceTest {
                 }
             }
         }
+
+    private companion object {
+        val EXPORT_ORIGIN =
+            ExportOriginState(
+                originId = "0123456789abcdef0123456789abcdef",
+                legacyV1AdoptionAllowed = true,
+            )
+    }
 }

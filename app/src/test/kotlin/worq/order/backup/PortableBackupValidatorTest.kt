@@ -197,6 +197,26 @@ class PortableBackupValidatorTest {
         )
     }
 
+    @Test
+    fun portableIdentifiersRejectGoogleIdentityDelimitersAndControlCharacters() {
+        assertFailure(
+            completeData().copy(
+                tasks = completeData().tasks.mapIndexed { index, task ->
+                    if (index == 0) task.copy(id = "invalid:task") else task
+                },
+            ),
+            PortableBackupValidationFailure.INVALID_ID,
+        )
+        assertFailure(
+            completeData().copy(
+                tags = completeData().tags.mapIndexed { index, tag ->
+                    if (index == 0) tag.copy(id = "invalid\ncontrol") else tag
+                },
+            ),
+            PortableBackupValidationFailure.INVALID_ID,
+        )
+    }
+
     private fun assertFailure(
         data: PortableBackupDataV1,
         expected: PortableBackupValidationFailure,

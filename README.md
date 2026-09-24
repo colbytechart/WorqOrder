@@ -20,6 +20,8 @@ the **Backup & Restore** Settings workflow on the development branch. These chan
 in the released `0.5.0` app and still require compatibility hardening and release audit. See the
 [v0.6.0 roadmap](docs/V0_6_MILESTONE_PROMPTS.md). The prior environment-teardown work is deferred
 to Milestones 56–57 after the eventual public `0.6.0` release.
+Owner-deferred, unexecuted release tests are tracked transparently in
+[Deferred Tests](docs/DEFERRED_TESTS.md); they must not be described as passing evidence.
 
 ## Install WorqOrder From GitHub
 

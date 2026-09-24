@@ -1,6 +1,7 @@
 package worq.order.export.google
 
 import java.time.LocalDate
+import worq.order.data.ExportOriginState
 import worq.order.export.ExportSchema
 import worq.order.export.ExportSnapshot
 
@@ -24,7 +25,8 @@ internal object GoogleSheetsExportPlanner {
     const val SCHEMA_VERSION_KEY = "worqorder_export_schema"
     const val WORK_DATE_KEY = "worqorder_export_work_date"
 
-    private const val IDENTITY_PREFIX = "worqorder.task.v1:"
+    private const val LEGACY_IDENTITY_PREFIX = "worqorder.task.v1:"
+    private const val ORIGIN_SCOPED_IDENTITY_PREFIX = "worqorder.task.v2:"
     private const val IDENTITY_HEADER = "WORQORDER_TASK_ID"
     private const val LEGACY_VISIBLE_COLUMNS = 13
     private const val NOTES_COLUMN = 13 // N; previously reserved in schema 5.
@@ -34,6 +36,7 @@ internal object GoogleSheetsExportPlanner {
     fun plan(
         spreadsheet: GoogleSpreadsheetStructure,
         snapshot: ExportSnapshot,
+        exportOrigin: ExportOriginState,
     ): GoogleSheetsPlanResult {
         require(snapshot.schemaVersion == ExportSchema.VERSION) {
             "Unsupported local export schema ${snapshot.schemaVersion}"
@@ -47,6 +50,7 @@ internal object GoogleSheetsExportPlanner {
                     headers = ExportSchema.headers,
                     rows = snapshot.rows.map { GooglePlanningRow(it.values, it.sourceTaskId) },
                 ),
+            exportOrigin = exportOrigin,
         )
     }
 
@@ -54,6 +58,7 @@ internal object GoogleSheetsExportPlanner {
     internal fun planPrepared(
         spreadsheet: GoogleSpreadsheetStructure,
         snapshot: GooglePlanningSnapshot,
+        exportOrigin: ExportOriginState,
     ): GoogleSheetsPlanResult {
         require(spreadsheet.spreadsheetId.isNotBlank()) {
             "Spreadsheet ID must not be blank"
@@ -69,8 +74,11 @@ internal object GoogleSheetsExportPlanner {
         require(snapshot.rows.all { it.values.size == snapshot.headers.size }) {
             "Export row count does not match its canonical headers"
         }
+        require(ORIGIN_ID.matches(exportOrigin.originId)) {
+            "Export origin must be a 32-character lowercase hexadecimal value"
+        }
         val tabName = tabName(snapshot.workDate.toString())
-        val identities = snapshot.rows.map { it.identityOrNull() }
+        val identities = snapshot.rows.map { it.currentIdentityOrNull(exportOrigin) }
         if (identities.any { it == null } || identities.distinct().size != identities.size) {
             return GoogleSheetsPlanResult.SchemaConflict(tabName)
         }
@@ -81,7 +89,7 @@ internal object GoogleSheetsExportPlanner {
         if (existing == null) {
             val rows =
                 listOf(physicalHeader(snapshot.headers)) +
-                    snapshot.rows.map { it.physicalRow(snapshot.headers.size) }
+                    snapshot.rows.map { it.physicalRow(snapshot.headers.size, exportOrigin) }
             val reusable = spreadsheet.sheets.firstOrNull()?.takeIf { spreadsheet.isCompletelyBlank }
             val sheetId = reusable?.sheetId ?: allocateSheetId(spreadsheet.sheets, tabName)
             return GoogleSheetsPlanResult.Ready(
@@ -171,12 +179,19 @@ internal object GoogleSheetsExportPlanner {
         }
 
         val keyedRows = mutableMapOf<String, Int>()
+        val legacyRows = mutableMapOf<String, Int>()
         val unkeyedRows = mutableListOf<Pair<Int, List<String>>>()
         remoteRows.drop(1).forEachIndexed { offset, row ->
             val rowIndex = offset + 1
             val key = row.getOrNull(IDENTITY_COLUMN).orEmpty()
             if (key.isNotEmpty()) {
-                if (!key.startsWith(IDENTITY_PREFIX) || keyedRows.put(key, rowIndex) != null) {
+                val identity = key.remoteIdentityOrNull()
+                if (identity == null || keyedRows.put(key, rowIndex) != null) {
+                    return GoogleSheetsPlanResult.SchemaConflict(tabName)
+                }
+                if (identity is RemoteRowIdentity.LegacyV1 &&
+                    legacyRows.put(identity.taskId, rowIndex) != null
+                ) {
                     return GoogleSheetsPlanResult.SchemaConflict(tabName)
                 }
             } else if (row.any { it.isNotEmpty() }) {
@@ -221,13 +236,18 @@ internal object GoogleSheetsExportPlanner {
             }
         }
 
-        val unkeyedLocalCounts = snapshot.rows
-            .filter { requireNotNull(it.identityOrNull()) !in keyedRows }
-            .groupingBy { it.values.take(remoteVisibleColumns) }
-            .eachCount()
+        val unkeyedLocalCounts: Map<List<String>, Int> =
+            if (exportOrigin.legacyV1AdoptionAllowed) {
+                snapshot.rows
+                    .filter { requireNotNull(it.currentIdentityOrNull(exportOrigin)) !in keyedRows }
+                    .groupingBy { it.values.take(remoteVisibleColumns) }
+                    .eachCount()
+            } else {
+                emptyMap()
+            }
         val appendRows = mutableListOf<List<String>>()
         for (source in snapshot.rows) {
-            val identity = requireNotNull(source.identityOrNull())
+            val identity = requireNotNull(source.currentIdentityOrNull(exportOrigin))
             val existingIndex = keyedRows[identity]
             if (existingIndex != null) {
                 // Only this task's canonical visible cells may change; never replace the tab.
@@ -237,12 +257,44 @@ internal object GoogleSheetsExportPlanner {
                         existingIndex,
                         0,
                         listOf(source.values),
+                )
+                continue
+            }
+            val legacyRowIndex =
+                if (exportOrigin.legacyV1AdoptionAllowed) {
+                    source.sourceTaskIdOrNull()?.let(legacyRows::get)
+                } else {
+                    null
+                }
+            if (legacyRowIndex != null) {
+                // A legacy v1 key has no origin. Only an installation that predates portable
+                // restore is allowed to adopt its own stable local task ID into the v2 namespace.
+                requests +=
+                    GoogleSheetsBatchRequest.WriteCellsAt(
+                        existing.sheetId,
+                        legacyRowIndex,
+                        0,
+                        listOf(source.values),
+                    )
+                requests +=
+                    GoogleSheetsBatchRequest.WriteCellsAt(
+                        existing.sheetId,
+                        legacyRowIndex,
+                        IDENTITY_COLUMN,
+                        listOf(listOf(identity)),
                     )
                 continue
             }
             // A pre-identity row is adopted only on a unique match in both directions.
             val comparableValues = source.values.take(remoteVisibleColumns)
-            val matches = unkeyedRows.filter { (_, row) -> row.take(remoteVisibleColumns) == comparableValues }
+            val matches =
+                if (exportOrigin.legacyV1AdoptionAllowed) {
+                    unkeyedRows.filter { (_, row) ->
+                        row.take(remoteVisibleColumns) == comparableValues
+                    }
+                } else {
+                    emptyList()
+                }
             if (matches.size > 1 || (matches.isNotEmpty() && unkeyedLocalCounts[comparableValues] != 1)) {
                 return GoogleSheetsPlanResult.SchemaConflict(tabName)
             }
@@ -266,7 +318,7 @@ internal object GoogleSheetsExportPlanner {
                         listOf(listOf(identity)),
                     )
             } else {
-                appendRows += source.physicalRow(snapshot.headers.size)
+                appendRows += source.physicalRow(snapshot.headers.size, exportOrigin)
             }
         }
         if (appendRows.isNotEmpty()) {
@@ -302,11 +354,56 @@ internal object GoogleSheetsExportPlanner {
             listOf(snapshot.workDate.toString())
     }
 
-    private fun GooglePlanningRow.identityOrNull(): String? =
-        sourceTaskId?.takeIf { it.isNotBlank() }?.let { IDENTITY_PREFIX + it }
+    private fun GooglePlanningRow.sourceTaskIdOrNull(): String? =
+        sourceTaskId?.takeIf { it.isNotBlank() && ':' !in it }
 
-    private fun GooglePlanningRow.physicalRow(visibleColumns: Int): List<String> =
-        values + List(IDENTITY_COLUMN - visibleColumns) { "" } + requireNotNull(identityOrNull())
+    private fun GooglePlanningRow.currentIdentityOrNull(
+        exportOrigin: ExportOriginState,
+    ): String? =
+        sourceTaskIdOrNull()?.let {
+            ORIGIN_SCOPED_IDENTITY_PREFIX + exportOrigin.originId + ":" + it
+        }
+
+    private fun GooglePlanningRow.physicalRow(
+        visibleColumns: Int,
+        exportOrigin: ExportOriginState,
+    ): List<String> =
+        values +
+            List(IDENTITY_COLUMN - visibleColumns) { "" } +
+            requireNotNull(currentIdentityOrNull(exportOrigin))
+
+    private fun String.remoteIdentityOrNull(): RemoteRowIdentity? =
+        when {
+            startsWith(LEGACY_IDENTITY_PREFIX) ->
+                removePrefix(LEGACY_IDENTITY_PREFIX)
+                    .takeIf { it.isNotBlank() && ':' !in it }
+                    ?.let(RemoteRowIdentity::LegacyV1)
+            startsWith(ORIGIN_SCOPED_IDENTITY_PREFIX) -> {
+                val parts = removePrefix(ORIGIN_SCOPED_IDENTITY_PREFIX).split(':')
+                if (
+                    parts.size == 2 &&
+                        ORIGIN_ID.matches(parts[0]) &&
+                        parts[1].isNotBlank() &&
+                        ':' !in parts[1]
+                ) {
+                    RemoteRowIdentity.OriginScopedV2(parts[0], parts[1])
+                } else {
+                    null
+                }
+            }
+            else -> null
+        }
+
+    private sealed interface RemoteRowIdentity {
+        data class LegacyV1(
+            val taskId: String,
+        ) : RemoteRowIdentity
+
+        data class OriginScopedV2(
+            val originId: String,
+            val taskId: String,
+        ) : RemoteRowIdentity
+    }
 
     private fun physicalHeader(headers: List<String>): List<String> =
         headers + List(IDENTITY_COLUMN - headers.size) { "" } + IDENTITY_HEADER
@@ -319,4 +416,6 @@ internal object GoogleSheetsExportPlanner {
         }
         return candidate
     }
+
+    private val ORIGIN_ID = Regex("^[a-f0-9]{32}$")
 }

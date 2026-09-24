@@ -5,8 +5,10 @@
 This roadmap governs the in-development portable **Backup & Restore** release. Released `0.5.0`
 remains the public baseline. Milestones 49-52 are complete: Milestone 49 was documentation-only,
 and Milestones 50-52 delivered the non-UI portable model, backup writer, and atomic replacement/
-recovery engine. Milestone 53 has completed the Settings workflow and its owner-run post-polish
-verification; Milestone 54 must not start without explicit owner authorization.
+recovery engine. Milestone 53 completed the Settings workflow and its owner-run post-polish
+verification. Milestone 54 is complete under the owner-approved reduced verification matrix;
+`DEFERRED_TESTS.md` preserves the unexecuted API 26 manual and physical-device procedures.
+Milestone 55 has not started.
 
 The approved product contract is:
 
@@ -14,9 +16,10 @@ The approved product contract is:
   through Android's document picker, replace all portable local state, and swap back to the state
   that existed immediately before the latest successful replacement.
 - The Settings section is named **Backup & Restore**. It appears after **Export Destination** and
-  before the version text. **Import Backup** and **Create Backup** are side by side. A **Restore
-  Previous State** subsection contains **Restore**, enabled only when a verified restore point
-  exists.
+  before the version text. Inline warnings, progress, success, and error status appear directly
+  below the title and above all actions. **Import Backup** and **Create Backup** are side by side;
+  **Restore** appears below them and is enabled only when a verified restore point exists. The
+  normal card contains no permanent instructional paragraphs or separate Restore subsection label.
 - Import confirmation is titled **Replace All WorqOrder Data?** and says: “WorqOrder will save
   your current data as a restore point, then replace it with the selected backup.” Its actions are
   **Cancel** and **Continue**. Restore confirmation is titled **Restore Previous State?** and must
@@ -330,7 +333,7 @@ cancellation. Stop for Terra after owner-run compile/tests.
 ### Task 53B — Terra: Settings and document-picker integration
 
 ```text
-Continue Milestone 53 with Terra. Implement the approved Backup & Restore section, confirmations,
+Continue Milestone 53 with Terra. Implement the approved compact Backup & Restore section, confirmations,
 SAF launchers, progress/disabled states, restore swap explanation, and one shared success/error
 status line that survives Activity recreation but is excluded from backups. Keep business rules in
 coordinators/ViewModels and preserve current Settings behavior. Stop for Sol.
@@ -358,9 +361,9 @@ removed—passed owner visual checks. The owner then reported both final post-po
 the compilation/JVM/lint/debug-and-release build set and the focused connected
 `SettingsScreenTest`. Milestone 53 is complete.
 
-The owner could not execute the invalid-ZIP, valid-import, and swap-Restore manual cases without
-known fixtures. Milestone 54 must supply one intentionally malformed ZIP and one valid WorqOrder
-backup suitable for device selection before those deferred cases are claimed.
+At Milestone 53 close, the owner could not execute the invalid-ZIP, valid-import, and swap-Restore
+manual cases without known fixtures. Task 54A subsequently supplied one intentionally malformed ZIP
+and one valid WorqOrder backup suitable for device selection and closed those deferred cases.
 
 ## Milestone 54 — Compatibility and full backup hardening
 
@@ -375,6 +378,19 @@ device import/restore cases. Add cross-destination regressions proving canonical
 remains unchanged. Stop for Terra.
 ```
 
+Task 54A is complete on `milestone54`: the archive matrix round-trips archived
+directories, Unicode, Tag snapshots, completed intervals, selection, and export history through the
+real Deflate writer/reader; malformed, reordered, unknown-entry, invalid-UTF-8, and unsupported-
+version archives fail closed, while the existing descriptor matrix covers duplicate entries.
+`tools/Generate-Milestone54BackupFixtures.ps1` and
+`docs/MILESTONE_54A_FIXTURE_GUIDE.md` provide owner-selectable valid and malformed device fixtures.
+After the owner authorized only the focused fixture-matrix class for agent execution, it passed in
+43 seconds with 28 actionable tasks (3 executed, 25 up-to-date). The owner then generated and
+transferred both selectable fixtures and reported every manual case successful: malformed import
+failed without mutation, cancellation made no change, valid import replaced portable state, Restore
+swapped to the displaced state, and a second Restore swapped back. Task 54B must not begin until the
+owner confirms Terra is active.
+
 ### Task 54B — Terra: Google identity transition and integration hardening
 
 ```text
@@ -384,6 +400,15 @@ and any bounded integration defects found by fixtures. Never change visible expo
 another origin's rows. Provide owner-run Google/device/lifecycle tests; stop for Sol.
 ```
 
+Completed on `milestone54`. Every newly written hidden Google row identity is now
+`worqorder.task.v2:<originId>:<taskId>` while visible schema 6 remains the same 14 columns. The
+original upgraded installation may adopt only matching v1 or unique unkeyed legacy rows; an
+Import/Restore-rotated origin appends without claiming v1, unkeyed, or foreign-origin rows.
+Disconnect and Sign Out now disable Auto Export and cancel its schedule/attention notification
+before clearing connection metadata, failing closed if cleanup cannot finish. The owner reported
+the focused automated gate, connected suite, original-install adoption, two-installation shared-
+sheet append, and disconnect/sign-out cleanup checks passed. Task 54C now requires Sol.
+
 ### Task 54C — Sol: security, performance, and compatibility audit
 
 ```text
@@ -392,6 +417,17 @@ bounds, sensitive exclusions, crash recovery, migration/update/downgrade limits,
 concurrency, and hours-long stability. Resolve blockers, publish exact owner-run API-26/current/
 physical-device matrices, update evidence, and stop before release work.
 ```
+
+Implementation and the approved owner verification are complete on `milestone54`. The audit replaced the
+whole-document production JSON read with bounded record streaming, added the documented heap-aware
+materialization ceiling, removed the duplicate staged DTO, tightened imported-ID/origin syntax,
+and added a non-dismissible destructive-replacement Settings barrier. The exact API-26/current/
+physical lifecycle and stability matrix is recorded in `LIFECYCLE_TEST_PLAN.md` Section 9.1. The
+owner reports the API-26 and current-target connected suites plus the current-target manual and
+ten-swap stability matrix passing. On 2026-09-24 the owner explicitly deferred the remaining API-26
+manual and physical-device evidence; `DEFERRED_TESTS.md` preserves both as unexecuted, non-blocking
+evidence gaps. Task 54C and Milestone 54 are complete. Milestone 55 must not begin without a new
+explicit owner instruction.
 
 ## Milestone 55 — Full `0.6.0` audit and public-release handoff
 

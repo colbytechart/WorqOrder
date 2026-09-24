@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import worq.order.data.ExportOriginState
 import worq.order.export.ExportSnapshot
 
 class RestGoogleSheetsGateway(
@@ -32,12 +33,14 @@ class RestGoogleSheetsGateway(
         accessToken: GoogleAccessToken,
         spreadsheetId: String,
         snapshot: ExportSnapshot,
+        exportOrigin: ExportOriginState,
     ): GoogleSheetsGatewayExportResult =
         withContext(ioDispatcher) {
             exportOnIo(
                 accessToken = accessToken,
                 spreadsheetId = spreadsheetId,
                 snapshot = snapshot,
+                exportOrigin = exportOrigin,
             )
         }
 
@@ -100,6 +103,7 @@ class RestGoogleSheetsGateway(
         accessToken: GoogleAccessToken,
         spreadsheetId: String,
         snapshot: ExportSnapshot,
+        exportOrigin: ExportOriginState,
     ): GoogleSheetsGatewayExportResult {
         val structureResponse =
             execute(
@@ -168,6 +172,7 @@ class RestGoogleSheetsGateway(
                     GoogleSheetsExportPlanner.plan(
                         spreadsheet = inspectedStructure,
                         snapshot = snapshot,
+                        exportOrigin = exportOrigin,
                     )
             ) {
                 is GoogleSheetsPlanResult.Ready -> result.plan

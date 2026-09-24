@@ -79,7 +79,7 @@ class PreferencesExportOriginRepository(
     private companion object {
         val EXPORT_ORIGIN_ID = stringPreferencesKey("export_origin_id")
         val LEGACY_V1_ADOPTION_ALLOWED = booleanPreferencesKey("export_origin_legacy_v1_allowed")
-        val ORIGIN_ID_PATTERN = Regex("^[a-z0-9]{32}$")
+        val ORIGIN_ID_PATTERN = Regex("^[a-f0-9]{32}$")
     }
 }
 

@@ -89,6 +89,7 @@ fun SettingsScreen(
         uiState = backupRestoreUiState,
         onEvent = onBackupRestoreEvent,
     )
+    BackupRestoreReplacementBarrier(uiState = backupRestoreUiState)
     LaunchedEffect(
         showGoogleSetupRequired,
         uiState.message,

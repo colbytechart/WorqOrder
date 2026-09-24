@@ -1,5 +1,6 @@
 package worq.order.backup
 
+import java.io.Reader
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -35,6 +36,14 @@ object PortableBackupJsonCodec {
 
     fun decodeData(source: String): PortableBackupDecodeResult<PortableBackupDataV1> =
         decode { parse(source).toData() }
+
+    /**
+     * Decodes the current logical payload without materializing the complete UTF-8 document or a
+     * complete JSON DOM. Each bounded directory/task object is parsed independently, while the
+     * returned logical DTO remains the one authoritative, fully validated replacement candidate.
+     */
+    fun decodeData(source: Reader): PortableBackupDecodeResult<PortableBackupDataV1> =
+        decode { StreamingDataDecoder(source).decode() }
 
     private fun <T> decode(block: () -> T): PortableBackupDecodeResult<T> =
         try {
@@ -500,6 +509,273 @@ object PortableBackupJsonCodec {
     private fun fail(error: PortableBackupDecodeError, detail: String): Nothing =
         throw CodecFailure(error, detail)
 
+    private class StreamingDataDecoder(
+        source: Reader,
+    ) {
+        private val cursor = JsonStreamCursor(source)
+
+        fun decode(): PortableBackupDataV1 {
+            var dataModelVersion: Int? = null
+            var clients: List<PortableBackupClientV1>? = null
+            var consultants: List<PortableBackupConsultantV1>? = null
+            var tags: List<PortableBackupTagV1>? = null
+            var tasks: List<PortableBackupTaskV1>? = null
+            var settings: PortableBackupSettingsV1? = null
+            var selectionSeen = false
+            var selection: PortableBackupSelectionV1? = null
+            val keys = mutableSetOf<String>()
+
+            cursor.beginObject()
+            if (!cursor.consumeObjectEnd()) {
+                while (true) {
+                    val key = cursor.readName()
+                    if (!keys.add(key)) {
+                        fail(
+                            PortableBackupDecodeError.INVALID_SHAPE,
+                            "JSON object contains duplicate key '$key'.",
+                        )
+                    }
+                    cursor.expectNameSeparator()
+                    when (key) {
+                        "dataModelVersion" ->
+                            dataModelVersion =
+                                parseScalar(cursor.readRawValue(128))
+                                    .requiredInt("value", "$.dataModelVersion")
+                        "clients" ->
+                            clients = cursor.readArray { raw -> parse(raw).toClient("$.clients[]") }
+                        "consultants" ->
+                            consultants = cursor.readArray { raw -> parse(raw).toConsultant("$.consultants[]") }
+                        "tags" -> tags = cursor.readArray { raw -> parse(raw).toTag("$.tags[]") }
+                        "tasks" -> tasks = cursor.readArray { raw -> parse(raw).toTask("$.tasks[]") }
+                        "settings" -> settings = parse(cursor.readRawValue()).toSettings("$.settings")
+                        "selection" -> {
+                            selectionSeen = true
+                            selection =
+                                parseScalar(cursor.readRawValue())
+                                    .nullableObject("value", "$.selection")
+                                    ?.toSelection("$.selection")
+                        }
+                        "activeTimer" ->
+                            throw CodecFailure(
+                                PortableBackupDecodeError.ACTIVE_TIMER_PRESENT,
+                                "Active timer state is not portable.",
+                            )
+                        else ->
+                            fail(
+                                PortableBackupDecodeError.INVALID_SHAPE,
+                                "Unexpected field '$key' in portable data.",
+                            )
+                    }
+                    if (cursor.consumeObjectEnd()) break
+                    cursor.expectItemSeparator()
+                }
+            }
+            cursor.requireEndOfDocument()
+            if (keys != DATA_KEYS || !selectionSeen) {
+                fail(
+                    PortableBackupDecodeError.INVALID_SHAPE,
+                    "Portable data is missing one or more required fields.",
+                )
+            }
+            return PortableBackupDataV1(
+                dataModelVersion = dataModelVersion
+                    ?: fail(PortableBackupDecodeError.INVALID_SHAPE, "Missing dataModelVersion."),
+                clients = clients
+                    ?: fail(PortableBackupDecodeError.INVALID_SHAPE, "Missing clients."),
+                consultants = consultants
+                    ?: fail(PortableBackupDecodeError.INVALID_SHAPE, "Missing consultants."),
+                tags = tags ?: fail(PortableBackupDecodeError.INVALID_SHAPE, "Missing tags."),
+                tasks = tasks ?: fail(PortableBackupDecodeError.INVALID_SHAPE, "Missing tasks."),
+                settings = settings
+                    ?: fail(PortableBackupDecodeError.INVALID_SHAPE, "Missing settings."),
+                selection = selection,
+            )
+        }
+
+        private fun parseScalar(raw: String): JsonObject = parse("{\"value\":$raw}")
+    }
+
+    /** Small strict cursor used only to split the fixed top-level data object into bounded values. */
+    private class JsonStreamCursor(
+        private val source: Reader,
+    ) {
+        private var nextCharacter: Int = UNREAD
+
+        fun beginObject() {
+            skipWhitespace()
+            expect('{')
+        }
+
+        fun consumeObjectEnd(): Boolean {
+            skipWhitespace()
+            return consume('}')
+        }
+
+        fun expectNameSeparator() {
+            skipWhitespace()
+            expect(':')
+        }
+
+        fun expectItemSeparator() {
+            skipWhitespace()
+            expect(',')
+        }
+
+        fun readName(): String {
+            skipWhitespace()
+            val raw = readRawValue(MAX_KEY_CHARS)
+            if (!raw.startsWith('"')) malformed("JSON object key must be a string.")
+            val primitive = json.parseToJsonElement(raw) as? JsonPrimitive
+                ?: malformed("JSON object key must be a string.")
+            return primitive.content
+        }
+
+        fun <T> readArray(decodeItem: (String) -> T): List<T> {
+            skipWhitespace()
+            expect('[')
+            skipWhitespace()
+            if (consume(']')) return emptyList()
+            return buildList {
+                while (true) {
+                    add(decodeItem(readRawValue()))
+                    skipWhitespace()
+                    if (consume(']')) return@buildList
+                    expect(',')
+                }
+            }
+        }
+
+        fun readRawValue(maxChars: Int = MAX_VALUE_CHARS): String {
+            skipWhitespace()
+            val first = peek()
+            if (first < 0) malformed("Unexpected end of JSON.")
+            return when (first.toChar()) {
+                '{', '[' -> readStructuredValue(maxChars)
+                '"' -> readStringValue(maxChars)
+                else -> readPrimitiveValue(maxChars)
+            }
+        }
+
+        fun requireEndOfDocument() {
+            skipWhitespace()
+            if (peek() >= 0) malformed("Unexpected trailing JSON content.")
+        }
+
+        private fun readStructuredValue(maxChars: Int): String =
+            buildString {
+                val expectedClosings = ArrayDeque<Char>()
+                var insideString = false
+                var escaped = false
+                while (true) {
+                    val value = take()
+                    if (value < 0) malformed("Unterminated JSON value.")
+                    val character = value.toChar()
+                    appendBounded(character, maxChars)
+                    if (insideString) {
+                        when {
+                            escaped -> escaped = false
+                            character == '\\' -> escaped = true
+                            character == '"' -> insideString = false
+                            character.code < 0x20 -> malformed("JSON string contains a control character.")
+                        }
+                    } else {
+                        when (character) {
+                            '"' -> insideString = true
+                            '{' -> expectedClosings.addLast('}')
+                            '[' -> expectedClosings.addLast(']')
+                            '}', ']' -> {
+                                if (expectedClosings.isEmpty() || expectedClosings.removeLast() != character) {
+                                    malformed("Mismatched JSON delimiter.")
+                                }
+                                if (expectedClosings.isEmpty()) return@buildString
+                            }
+                        }
+                        if (expectedClosings.size > MAX_STREAM_NESTING) {
+                            throw CodecFailure(
+                                PortableBackupDecodeError.RESOURCE_LIMIT,
+                                "The JSON document is nested too deeply.",
+                            )
+                        }
+                    }
+                }
+            }
+
+        private fun readStringValue(maxChars: Int): String =
+            buildString {
+                var escaped = false
+                while (true) {
+                    val value = take()
+                    if (value < 0) malformed("Unterminated JSON string.")
+                    val character = value.toChar()
+                    appendBounded(character, maxChars)
+                    if (length == 1 && character != '"') malformed("JSON string is malformed.")
+                    if (length > 1) {
+                        when {
+                            escaped -> escaped = false
+                            character == '\\' -> escaped = true
+                            character == '"' -> return@buildString
+                            character.code < 0x20 -> malformed("JSON string contains a control character.")
+                        }
+                    }
+                }
+            }
+
+        private fun readPrimitiveValue(maxChars: Int): String =
+            buildString {
+                while (true) {
+                    val value = peek()
+                    if (value < 0 || value.toChar() in VALUE_DELIMITERS) break
+                    appendBounded(take().toChar(), maxChars)
+                }
+                if (isEmpty()) malformed("JSON value is missing.")
+            }
+
+        private fun StringBuilder.appendBounded(character: Char, maxChars: Int) {
+            if (length >= maxChars) {
+                throw CodecFailure(
+                    PortableBackupDecodeError.RESOURCE_LIMIT,
+                    "A portable JSON value exceeds its safe materialization limit.",
+                )
+            }
+            append(character)
+        }
+
+        private fun skipWhitespace() {
+            while (peek() >= 0 && peek().toChar() in JSON_WHITESPACE) take()
+        }
+
+        private fun expect(expected: Char) {
+            if (!consume(expected)) malformed("Expected '$expected'.")
+        }
+
+        private fun consume(expected: Char): Boolean =
+            if (peek() == expected.code) {
+                take()
+                true
+            } else {
+                false
+            }
+
+        private fun peek(): Int {
+            if (nextCharacter == UNREAD) nextCharacter = source.read()
+            return nextCharacter
+        }
+
+        private fun take(): Int = peek().also { nextCharacter = UNREAD }
+
+        private fun malformed(detail: String): Nothing =
+            throw CodecFailure(PortableBackupDecodeError.MALFORMED_JSON, detail)
+
+        private companion object {
+            const val UNREAD = -2
+            const val MAX_KEY_CHARS = 4_096
+            const val MAX_VALUE_CHARS = 2 * 1024 * 1024
+            const val MAX_STREAM_NESTING = 128
+            val JSON_WHITESPACE = setOf(' ', '\t', '\n', '\r')
+            val VALUE_DELIMITERS = JSON_WHITESPACE + setOf(',', ']', '}')
+        }
+    }
+
     private class CodecFailure(
         val code: PortableBackupDecodeError,
         override val message: String,
@@ -690,5 +966,16 @@ object PortableBackupJsonCodec {
             "lastExportAttempt",
             "selectedConsultantId",
             "landscapeHandedness",
+        )
+
+    private val DATA_KEYS =
+        setOf(
+            "dataModelVersion",
+            "clients",
+            "consultants",
+            "tags",
+            "tasks",
+            "settings",
+            "selection",
         )
 }

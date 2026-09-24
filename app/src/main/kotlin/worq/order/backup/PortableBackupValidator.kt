@@ -398,7 +398,11 @@ object PortableBackupValidator {
     }
 
     private fun isValidId(value: String): Boolean =
-        value.isNotBlank() && value.length <= PortableBackupLimits.MAX_ID_LENGTH && value == value.trim()
+        value.isNotBlank() &&
+            value.length <= PortableBackupLimits.MAX_ID_LENGTH &&
+            value == value.trim() &&
+            ':' !in value &&
+            value.none { character -> character.isISOControl() }
 
     private fun isValidZone(value: String?): Boolean =
         value != null && runCatching { ZoneId.of(value) }.isSuccess

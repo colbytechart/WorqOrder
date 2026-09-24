@@ -1495,6 +1495,59 @@ title and above every action. Import and Restore retain explicit explanatory con
 All actions are disabled during initialization, timing, or another operation; picker callbacks
 recheck timer state, and duplicate requests/confirmations cannot start parallel work.
 
+### D-120 -- Google hidden row identity is origin-scoped and restore-safe
+
+Google schema 6 retains exactly 14 visible columns. Its hidden physical P column uses
+`worqorder.task.v2:<32-hex-origin>:<taskId>` for every new row. A pre-portable original
+installation may idempotently adopt only a matching legacy v1 task ID or unique unkeyed legacy
+row, updating canonical visible cells and the hidden key without replacing a tab. Successful
+Import or Restore rotates the installation origin and permanently disables legacy adoption. That
+restored installation must leave v1, unkeyed, and foreign-origin v2 rows untouched and append only
+its own v2 identity, even when task IDs or visible values coincide.
+
+Disconnect and Sign Out disable Auto Export, cancel scheduled automatic work, clear attention
+notifications, and only then remove local Google connection data. If that cleanup fails, the
+connection remains intact and the operation reports local-storage failure rather than leaving an
+orphaned automatic target.
+
+### D-121 -- Portable archive reads are record-streamed and destructive replacement is modal
+
+The absolute archive ceilings remain 100 MiB compressed and 500 MiB expanded, but neither ceiling
+is a promise that Android can safely materialize a logical graph of that size. The production
+reader therefore parses current-format `data.json` incrementally: it never retains the complete
+UTF-8 byte array, complete JSON string, or complete JSON DOM. Each logical record is strictly
+decoded under a 2 MiB value cap into the one candidate DTO. The accepted expanded payload is also
+bounded by the smaller of the 500 MiB hard ceiling and one eighth of the process maximum heap, with
+an 8 MiB floor. This device-aware fail-closed limit prevents a syntactically valid archive from
+forcing an out-of-memory crash; it is documented as a compatibility limitation rather than hidden.
+Older formats may materialize their bounded input only inside an explicit upgrader path.
+
+Pre-confirmation staging retains only the verified app-private ZIP, not a second complete DTO.
+After confirmation, Import/Restore reopens that artifact under the application operation lock.
+All coordinator file/parse/replacement work runs on `Dispatchers.IO`. While authoritative Room and
+Preferences generations are being replaced, Settings presents a non-dismissible progress barrier
+in addition to its inline status. This prevents navigation or unrelated user mutations from racing
+the recovery protocol. External automatic-export, boot, and resume entry points use the same
+application lock; startup still withholds all normal UI until journal recovery converges.
+
+Portable IDs now reject ISO control characters and `:`, because colon is the hidden Google identity
+delimiter. Operation and transport origins accept exactly 32 lowercase hexadecimal characters.
+These constraints do not change stored Room IDs or visible export schema 6; they reject unsafe or
+ambiguous imported backup identities before mutation.
+
+### D-122 -- Remaining manual API 26 and physical-device matrices are deferred evidence
+
+On 2026-09-24 the owner explicitly removed the remaining manual API 26 Backup & Restore
+lifecycle/performance matrix and all remaining manual physical-device checks from the `0.6.0`
+release gate. This is a test-scope decision, not evidence that those environments passed. The
+complete automated API 26 connected suite remains required and passed; the owner also completed the
+current-target connected, archive/recovery, forced-stop, repeated-Restore, and stability matrices.
+
+Final signing, package/version, checksum, populated update, fresh install, Google, and independent
+public-asset checks remain required but may use suitable emulators. The exact omitted procedures,
+substitute evidence, and revisit triggers are preserved in `docs/DEFERRED_TESTS.md`. Release and QA
+documents must cite the deferral rather than silently omitting or claiming the missing evidence.
+
 ## Deferred decisions
 
 - A secondary one-time export destination chooser; omit unless usability testing shows need.

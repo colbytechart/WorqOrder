@@ -278,11 +278,15 @@ not repeat that warning, and WorqOrder does not encrypt the file.
    a compressed `.zip` file. Treat the file as sensitive plaintext work data.
 3. Choose **Import Backup** and select a WorqOrder backup. After validation, review **Replace All
    WorqOrder Data?**. **Continue** saves current state as one private restore point and replaces
-   portable app data; **Cancel** makes no change.
+   portable app data; **Cancel** makes no change. Keep WorqOrder open while the non-dismissible
+   progress window is visible. If Android terminates the process, reopen WorqOrder so its journaled
+   recovery can finish before normal use.
 4. Reauthorize Google, reconnect a spreadsheet, and explicitly re-enable automatic export if used.
    The selected export destination is retained, but credentials/connections are never imported.
 5. If needed, choose **Restore** in **Backup & Restore**. Confirming swaps the previous state into
    the app and keeps the displaced current state as the next restore point.
 
 Import is replacement, not merging. The status line reports success or an actionable validation/
-I/O error. Restore is enabled only when a verified point exists. Uninstall/Clear storage removes it.
+I/O error. Restore is enabled only when a verified point exists. A backup inside the absolute file
+limits can still be rejected on a memory-constrained phone rather than risking a crash. Uninstall/
+Clear storage removes the private restore point.

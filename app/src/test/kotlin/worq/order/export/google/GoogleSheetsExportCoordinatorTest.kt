@@ -8,6 +8,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import worq.order.data.ExportOriginRepository
+import worq.order.data.ExportOriginState
 import worq.order.data.GoogleAccountHint
 import worq.order.export.ExportRow
 import worq.order.export.ExportSchema
@@ -34,6 +36,7 @@ class GoogleSheetsExportCoordinatorTest {
             assertEquals(1, receipt.dataRowCount)
             assertSame(fixture.snapshot, fixture.gateway.receivedSnapshot)
             assertEquals(SPREADSHEET_ID, fixture.gateway.receivedSpreadsheetId)
+            assertEquals(fixture.exportOriginRepository.state, fixture.gateway.receivedExportOrigin)
         }
 
     @Test
@@ -175,6 +178,22 @@ class GoogleSheetsExportCoordinatorTest {
             assertEquals(0, fixture.gateway.calls)
         }
 
+    @Test
+    fun malformedLocalExportOriginFailsClosedBeforeSnapshotOrGoogleAuthorization() =
+        runTest {
+            val fixture = Fixture()
+            fixture.connect()
+            fixture.exportOriginRepository.failReads = true
+
+            assertEquals(
+                GoogleSheetsExportOperationResult.Failed(GoogleSheetsExportFailure.LOCAL_STORAGE),
+                fixture.coordinator.export(WORK_DATE),
+            )
+            assertEquals(0, fixture.snapshotProvider.calls)
+            assertEquals(0, fixture.authorizer.authorizationCalls)
+            assertEquals(0, fixture.gateway.calls)
+        }
+
     private class Fixture {
         val repository = FakeGoogleConnectionRepository()
         val snapshot =
@@ -207,11 +226,13 @@ class GoogleSheetsExportCoordinatorTest {
         val snapshotProvider = FakeSnapshotProvider(snapshot)
         val authorizer = FakeAuthorizer()
         val gateway = FakeGateway()
+        val exportOriginRepository = FakeExportOriginRepository()
         val coordinator =
             GoogleSheetsExportCoordinator(
                 authorizer = authorizer,
                 gateway = gateway,
                 connectionRepository = repository,
+                exportOriginRepository = exportOriginRepository,
                 snapshotProvider = snapshotProvider,
             )
 
@@ -286,16 +307,42 @@ class GoogleSheetsExportCoordinatorTest {
         var calls = 0
         var receivedSnapshot: ExportSnapshot? = null
         var receivedSpreadsheetId: String? = null
+        var receivedExportOrigin: ExportOriginState? = null
 
         override suspend fun exportSnapshot(
             accessToken: GoogleAccessToken,
             spreadsheetId: String,
             snapshot: ExportSnapshot,
+            exportOrigin: ExportOriginState,
         ): GoogleSheetsGatewayExportResult {
             calls += 1
             receivedSpreadsheetId = spreadsheetId
             receivedSnapshot = snapshot
+            receivedExportOrigin = exportOrigin
             return result
+        }
+    }
+
+    private class FakeExportOriginRepository : ExportOriginRepository {
+        var state =
+            ExportOriginState(
+                originId = "0123456789abcdef0123456789abcdef",
+                legacyV1AdoptionAllowed = true,
+            )
+        var failReads = false
+
+        override suspend fun readOrCreate(): ExportOriginState {
+            check(!failReads) { "origin storage failed" }
+            return state
+        }
+
+        override suspend fun rotateAfterPortableImport(): ExportOriginState {
+            state = state.copy(legacyV1AdoptionAllowed = false)
+            return state
+        }
+
+        override suspend fun markLegacyV1AdoptionComplete() {
+            state = state.copy(legacyV1AdoptionAllowed = false)
         }
     }
 

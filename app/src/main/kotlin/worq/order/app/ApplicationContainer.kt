@@ -13,6 +13,7 @@ import worq.order.data.BackupRestoreStatusRepository
 import worq.order.data.ClientImportRepository
 import worq.order.data.ClientRepository
 import worq.order.data.EmployeeRepository
+import worq.order.data.ExportOriginRepository
 import worq.order.data.GoogleConnectionRepository
 import worq.order.data.SelectedTaskRepository
 import worq.order.data.SettingsRepository
@@ -30,6 +31,7 @@ import worq.order.data.local.RoomTagRepository
 import worq.order.data.local.RoomTagImportRepository
 import worq.order.data.local.WorqOrderDatabase
 import worq.order.data.preferences.PreferencesGoogleConnectionRepository
+import worq.order.data.preferences.PreferencesExportOriginRepository
 import worq.order.data.preferences.PreferencesBackupRestoreStatusRepository
 import worq.order.data.preferences.PreferencesRunningTimerNotificationPreferences
 import worq.order.data.preferences.PreferencesSelectedTaskRepository
@@ -258,6 +260,12 @@ internal class DefaultApplicationContainer(
         )
     }
 
+    private val exportOriginRepository: ExportOriginRepository by lazy {
+        PreferencesExportOriginRepository(
+            dataStore = applicationContext.worqOrderPreferencesDataStore,
+        )
+    }
+
     private val deviceZoneIdSource: DeviceZoneIdSource by lazy {
         AndroidDeviceZoneIdSource(applicationContext)
     }
@@ -471,6 +479,7 @@ internal class DefaultApplicationContainer(
             authorizer = BackgroundGoogleAccountAuthorizer(applicationContext),
             gateway = googleSheetsGateway,
             connectionRepository = googleConnectionRepository,
+            exportOriginRepository = exportOriginRepository,
             snapshotProvider = exportSnapshotCoordinator,
             operationMutex = googleExportOperationMutex,
         )
@@ -501,6 +510,9 @@ internal class DefaultApplicationContainer(
                 ),
             sheetsGateway = googleSheetsGateway,
             connectionRepository = googleConnectionRepository,
+            disableAutomaticGoogleExport = {
+                automaticGoogleExportManager.setEnabled(false)
+            },
             now = utcClock::now,
         )
 
@@ -515,6 +527,7 @@ internal class DefaultApplicationContainer(
                 ),
             gateway = googleSheetsGateway,
             connectionRepository = googleConnectionRepository,
+            exportOriginRepository = exportOriginRepository,
             snapshotProvider = exportSnapshotCoordinator,
             operationMutex = googleExportOperationMutex,
         )

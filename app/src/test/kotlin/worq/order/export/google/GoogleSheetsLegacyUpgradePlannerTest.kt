@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import worq.order.data.ExportOriginState
 import worq.order.export.ExportSchema
 import worq.order.export.ExportSnapshot
 
@@ -22,7 +23,7 @@ class GoogleSheetsLegacyUpgradePlannerTest {
             )
         val plan =
             ready(
-                GoogleSheetsExportPlanner.planPrepared(
+                planPrepared(
                     ownedLegacy(remote),
                     snapshot(row("task-local", "After", "Updated note"), row("new", "New", "")),
                 ),
@@ -52,7 +53,10 @@ class GoogleSheetsLegacyUpgradePlannerTest {
         val appended =
             plan.requests.filterIsInstance<GoogleSheetsBatchRequest.AppendCells>()
                 .single().rows.single()
-        assertEquals(values("New") + listOf("", "", "worqorder.task.v1:new"), appended)
+        assertEquals(
+            values("New") + listOf("", "", "worqorder.task.v2:$ORIGIN_ID:new"),
+            appended,
+        )
         assertEquals(
             GoogleSheetsBatchRequest.UpdateSheetMetadataValue(41, "6"),
             plan.requests.last(),
@@ -70,7 +74,7 @@ class GoogleSheetsLegacyUpgradePlannerTest {
         val legacyRow = values("Unkeyed")
         val plan =
             ready(
-                GoogleSheetsExportPlanner.planPrepared(
+                planPrepared(
                     ownedLegacy(listOf(physicalHeader(), legacyRow)),
                     snapshot(row("task-local", "Unkeyed", "New note")),
                 ),
@@ -86,7 +90,7 @@ class GoogleSheetsLegacyUpgradePlannerTest {
                     27,
                     1,
                     15,
-                    listOf(listOf("worqorder.task.v1:task-local")),
+                    listOf(listOf("worqorder.task.v2:$ORIGIN_ID:task-local")),
                 ),
             ),
         )
@@ -105,7 +109,7 @@ class GoogleSheetsLegacyUpgradePlannerTest {
                     .also { it[column] = "=IF(TRUE,\"\",\"\")" }
             assertEquals(
                 GoogleSheetsPlanResult.SchemaConflict(TAB),
-                GoogleSheetsExportPlanner.planPrepared(
+                planPrepared(
                     ownedLegacy(listOf(physicalHeader(), remote)),
                     snapshot(row("task-local", "Old", "New note")),
                 ),
@@ -124,7 +128,7 @@ class GoogleSheetsLegacyUpgradePlannerTest {
             )
         assertEquals(
             GoogleSheetsPlanResult.SchemaConflict(TAB),
-            GoogleSheetsExportPlanner.planPrepared(noMetadataId, snapshot()),
+            planPrepared(noMetadataId, snapshot()),
         )
     }
 
@@ -132,7 +136,7 @@ class GoogleSheetsLegacyUpgradePlannerTest {
     fun markedLegacyTabWithoutItsCanonicalHeaderFailsClosed() {
         assertEquals(
             GoogleSheetsPlanResult.SchemaConflict(TAB),
-            GoogleSheetsExportPlanner.planPrepared(ownedLegacy(emptyList()), snapshot()),
+            planPrepared(ownedLegacy(emptyList()), snapshot()),
         )
     }
 
@@ -144,7 +148,7 @@ class GoogleSheetsLegacyUpgradePlannerTest {
             )
         assertEquals(
             GoogleSheetsPlanResult.SchemaConflict(TAB),
-            GoogleSheetsExportPlanner.planPrepared(structure, snapshot()),
+            planPrepared(structure, snapshot()),
         )
     }
 
@@ -164,13 +168,13 @@ class GoogleSheetsLegacyUpgradePlannerTest {
                 )
             assertEquals(
                 GoogleSheetsPlanResult.SchemaConflict(TAB),
-                GoogleSheetsExportPlanner.planPrepared(structure, snapshot()),
+                planPrepared(structure, snapshot()),
             )
         }
         val unowned = ownedLegacy(listOf(physicalHeader())).copy(developerMetadata = emptyList())
         assertEquals(
             GoogleSheetsPlanResult.TabNameConflict(TAB),
-            GoogleSheetsExportPlanner.planPrepared(unowned, snapshot()),
+            planPrepared(unowned, snapshot()),
         )
     }
 
@@ -179,7 +183,7 @@ class GoogleSheetsLegacyUpgradePlannerTest {
         val remote = listOf(physicalHeader(), values("Same"))
         assertEquals(
             GoogleSheetsPlanResult.SchemaConflict(TAB),
-            GoogleSheetsExportPlanner.planPrepared(
+            planPrepared(
                 ownedLegacy(remote),
                 snapshot(row("first", "Same", "A"), row("second", "Same", "B")),
             ),
@@ -190,7 +194,7 @@ class GoogleSheetsLegacyUpgradePlannerTest {
     fun freshSchemaSixTabShowsNotesAndHidesOnlyReservedColumns() {
         val plan =
             ready(
-                GoogleSheetsExportPlanner.planPrepared(
+                planPrepared(
                     GoogleSpreadsheetStructure(SPREADSHEET_ID, emptyList(), emptyList()),
                     snapshot(row("new", "New", "Visible note")),
                 ),
@@ -201,7 +205,7 @@ class GoogleSheetsLegacyUpgradePlannerTest {
         assertEquals("Notes", cells.rows.first()[13])
         assertEquals("Visible note", cells.rows[1][13])
         assertEquals("", cells.rows[1][14])
-        assertEquals("worqorder.task.v1:new", cells.rows[1][15])
+        assertEquals("worqorder.task.v2:$ORIGIN_ID:new", cells.rows[1][15])
         assertEquals(GoogleSheetsBatchRequest.HideColumns(added.sheetId, 14, 16), plan.requests.last())
     }
 
@@ -212,8 +216,8 @@ class GoogleSheetsLegacyUpgradePlannerTest {
         val remote =
             listOf(
                 snapshot().headers + listOf("", "WORQORDER_TASK_ID"),
-                prior + listOf("", "worqorder.task.v1:task-local"),
-                other + listOf("", "worqorder.task.v1:task-remote"),
+                prior + listOf("", "worqorder.task.v2:$ORIGIN_ID:task-local"),
+                other + listOf("", "worqorder.task.v2:$ORIGIN_ID:task-remote"),
             )
         val structure =
             ownedLegacy(remote).copy(
@@ -228,7 +232,7 @@ class GoogleSheetsLegacyUpgradePlannerTest {
             )
         val plan =
             ready(
-                GoogleSheetsExportPlanner.planPrepared(
+                planPrepared(
                     structure,
                     snapshot(row("task-local", "Edited", "Current note")),
                 ),
@@ -277,6 +281,14 @@ class GoogleSheetsLegacyUpgradePlannerTest {
 
     private fun ready(result: GoogleSheetsPlanResult): GoogleSheetsBatchPlan =
         (result as GoogleSheetsPlanResult.Ready).plan
+
+    private fun planPrepared(
+        spreadsheet: GoogleSpreadsheetStructure,
+        snapshot: GooglePlanningSnapshot,
+        exportOrigin: ExportOriginState =
+            ExportOriginState(ORIGIN_ID, legacyV1AdoptionAllowed = true),
+    ): GoogleSheetsPlanResult =
+        GoogleSheetsExportPlanner.planPrepared(spreadsheet, snapshot, exportOrigin)
 
     private fun ownedLegacy(rows: List<List<String>>): GoogleSpreadsheetStructure =
         GoogleSpreadsheetStructure(
@@ -332,5 +344,6 @@ class GoogleSheetsLegacyUpgradePlannerTest {
     private companion object {
         const val SPREADSHEET_ID = "1AbCdEfGhIjKlMnOpQrStUvWxYz_123456789"
         const val TAB = "WorqOrder_2026-07-24"
+        const val ORIGIN_ID = "0123456789abcdef0123456789abcdef"
     }
 }

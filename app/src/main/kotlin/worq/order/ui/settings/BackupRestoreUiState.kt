@@ -42,6 +42,16 @@ data class BackupRestoreUiState(
     val isBusy: Boolean
         get() = operation != BackupRestoreOperation.IDLE
 
+    /**
+     * Import and Restore replace Room plus portable DataStore state. The Settings route must stay
+     * modal for this short phase so unrelated UI writes or navigation cannot race the recovery
+     * protocol. Backup creation and source validation remain non-destructive and need no barrier.
+     */
+    val isReplacingData: Boolean
+        get() =
+            operation == BackupRestoreOperation.IMPORTING ||
+                operation == BackupRestoreOperation.RESTORING
+
     /** Create, Import, and Restore must all be blocked while timing or during another operation. */
     val actionsEnabled: Boolean
         get() = !isInitializing && !isTimerRunning && !isBusy

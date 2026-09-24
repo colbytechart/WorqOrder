@@ -21,7 +21,6 @@ sealed interface PortableBackupImportStageResult {
 /** A validated, app-private archive staged before the UI asks for replacement consent. */
 class PortableBackupStagedImport internal constructor(
     internal val source: PortableBackupArtifact,
-    internal val data: PortableBackupDataV1,
 )
 
 sealed interface PortableBackupReplacementResult {
@@ -85,7 +84,10 @@ class PortableBackupReplacementCoordinator internal constructor(
         return when (val staged = fileStore.stageSource(operationId, input, archiveReader)) {
             is PortableBackupStagedSourceResult.Ready ->
                 PortableBackupImportStageResult.Ready(
-                    PortableBackupStagedImport(staged.artifact, staged.archive.data),
+                    // Validation is complete, but retaining its DTO would keep a second complete
+                    // copy alive through the confirmation dialog and replacement. The verified
+                    // private artifact is re-read after the operation lock is acquired.
+                    PortableBackupStagedImport(staged.artifact),
                 )
             PortableBackupStagedSourceResult.Invalid -> PortableBackupImportStageResult.InvalidArchive
             PortableBackupStagedSourceResult.StorageFailure ->
@@ -458,8 +460,8 @@ class PortableBackupReplacementCoordinator internal constructor(
     private class PortableBackupRecoveryException : IllegalStateException()
 
     private companion object {
-        val OPERATION_ID = Regex("^[a-z0-9]{32}$")
-        val ORIGIN_ID = Regex("^[a-z0-9]{32}$")
+        val OPERATION_ID = Regex("^[a-f0-9]{32}$")
+        val ORIGIN_ID = Regex("^[a-f0-9]{32}$")
         val EXPORT_DESTINATIONS = setOf("CSV", "XLSX", "GOOGLE_SHEETS")
     }
 }

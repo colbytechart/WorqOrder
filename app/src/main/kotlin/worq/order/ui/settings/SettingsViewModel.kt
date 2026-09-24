@@ -157,13 +157,6 @@ class SettingsViewModel(
     }
 
     fun onGoogleOperationResult(result: GoogleConnectionOperationResult) {
-        if (
-            result == GoogleConnectionOperationResult.Disconnected ||
-            result == GoogleConnectionOperationResult.SignedOut ||
-            result == GoogleConnectionOperationResult.SignOutPartiallyCompleted
-        ) {
-            viewModelScope.launch { automaticGoogleExportManager?.setEnabled(false) }
-        }
         editorState.update { editor ->
             when (result) {
                 is GoogleConnectionOperationResult.SignedIn ->

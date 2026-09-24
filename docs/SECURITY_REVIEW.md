@@ -282,6 +282,35 @@ with a newly generated installation-scoped Google transport origin; otherwise a 
 could overwrite another device's rows. No broad storage permission, backend, account, new network
 scope, embedded secret, or custom cryptography is authorized.
 
+Task 54C closes the remaining hostile-input memory gap. The production current-format reader
+streams `data.json` through a counting SHA-256 input, parses the fixed top-level object without a
+whole-document byte array/String/DOM, and materializes only one strictly bounded logical record at
+a time into the single candidate DTO. Each value is capped at 2 MiB and nesting at 128. In addition
+to the absolute 100/500 MiB limits, input above the smaller of 500 MiB and one eighth of the current
+process maximum heap (8 MiB floor) is rejected before parsing. This deliberately favors a typed
+invalid-archive result over process OOM on constrained devices. Staging retains only the verified
+private ZIP, so confirmation does not pin a second DTO. Invalid UTF-8, duplicate escaped keys,
+extra/reordered/path entries, checksum/declared-count mismatch, over-limit expansion, and malformed
+logical values all fail before Room or DataStore mutation.
+
+Portable identifiers reject the Google hidden-key `:` delimiter and ISO controls, while recovery
+operation IDs and export origins are exact lowercase 32-hex values. No task/client text, archive
+JSON, account/sheet metadata, credential, origin, journal, or restore point becomes part of a
+portable archive. Recovery-only local Preferences may contain installation state needed for exact
+rollback, remain below `noBackupFilesDir`, and are deleted after convergence or uninstall.
+
+Destructive Import/Restore runs off the main thread under the application lock and a non-dismissible
+Settings progress barrier. The barrier prevents user navigation or unrelated Settings mutations
+during the Room/DataStore generation transition; startup blocks normal UI for journal recovery, and
+automatic-export, boot, and foreground-recovery entry points use the same lock. The journal remains
+the crash authorityâ€”the modal surface is concurrency defense, not an atomicity claim.
+
+The Google identity transition writes origin-scoped hidden v2 row keys. A restored installation
+cannot adopt source v1/unkeyed rows or a foreign v2 row, even when the task ID matches, which
+prevents portable restore from becoming a cross-device overwrite capability. Disconnect and Sign
+Out fail closed if automatic-export schedule cleanup cannot complete, rather than clearing the
+connection while a stale scheduled target could remain.
+
 Milestone 50 adds only the stable Kotlinx Serialization JSON runtime `1.8.1`, locked in the version
 catalog. The cached JVM artifacts add no Android manifest, native library, permission, network
 client, credential API, or serialization compiler plugin. Explicit `JsonElement` mapping rejects

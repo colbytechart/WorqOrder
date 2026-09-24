@@ -8,17 +8,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import worq.order.R
 import worq.order.data.BackupRestoreStatus
 import worq.order.ui.theme.WorqOrderDimens
@@ -55,6 +60,40 @@ internal fun BackupRestoreConfirmationDialogs(
                 onConfirm = { onEvent(BackupRestoreEvent.ConfirmRestore) },
             )
         null -> Unit
+    }
+}
+
+/**
+ * Holds the user on Settings while the cross-store recovery protocol owns authoritative state.
+ * The normal inline operation message remains visible behind this modal barrier and is restored as
+ * soon as the replacement reaches a terminal state.
+ */
+@Composable
+internal fun BackupRestoreReplacementBarrier(uiState: BackupRestoreUiState) {
+    if (!uiState.isReplacingData) return
+    val operationText = backupRestoreOperationText(uiState.operation) ?: return
+    Dialog(
+        onDismissRequest = {},
+        properties =
+            DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+            ),
+    ) {
+        Card {
+            Row(
+                modifier = Modifier.padding(WorqOrderDimens.CardPadding),
+                horizontalArrangement = Arrangement.spacedBy(WorqOrderDimens.ItemSpacing),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularProgressIndicator()
+                Text(
+                    text = operationText,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
+                )
+            }
+        }
     }
 }
 

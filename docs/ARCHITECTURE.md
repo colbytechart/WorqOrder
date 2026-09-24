@@ -685,15 +685,24 @@ A recovery-only snapshot of all known local Preferences permits exact rollback w
 installation-local values portable. Startup blocks normal repositories and recovery work until any
 journal has converged or failed closed.
 
-The archive is plaintext and bounded at 100 MiB compressed/500 MiB expanded. Entry allowlisting,
-duplicate/path/encryption rejection, streaming limits, checksums, sufficient-storage checks, typed
-errors, and safe temporary cleanup are mandatory. No backend, storage permission, foreground
-service, exact alarm, account, or custom encryption is added.
+The archive is plaintext and has absolute ceilings of 100 MiB compressed/500 MiB expanded. The
+current-format reader incrementally splits the fixed top-level JSON and strictly decodes one bounded
+logical value at a time; it does not retain a complete UTF-8 byte array, JSON string, or JSON DOM.
+Only the validated candidate DTO remains. A device-aware materialization ceilingâ€”the smaller of
+500 MiB and one eighth of the process maximum heap, with an 8 MiB floorâ€”fails closed before an
+archive can exhaust a realistic Android heap. Entry allowlisting, duplicate/path/encryption
+rejection, streaming byte/digest limits, checksums, sufficient-storage checks, typed errors, and
+safe temporary cleanup are mandatory. No backend, storage permission, foreground service, exact
+alarm, account, or custom encryption is added.
 
-Google hidden row identity becomes installation namespaced without changing visible schema 6.
-Existing installations may idempotently adopt their own legacy v1 task keys; an imported copy gets
-a new origin and cannot claim legacy/source rows. Google credentials and connection metadata never
-cross the portability boundary.
+Google hidden row identity is installation-namespaced without changing visible schema 6. Every
+newly written row uses `worqorder.task.v2:<32-hex-origin>:<taskId>` in the hidden P column.
+An original upgraded installation may idempotently rewrite only an exact matching legacy v1 key or
+unique unkeyed legacy row to its own v2 key. After portable Import or Restore, the new origin has
+legacy adoption permanently disabled: v1, unkeyed, and another origin's v2 rows remain untouched
+and the restored installation appends only its own v2 row. Google credentials and connection
+metadata never cross the portability boundary. Disconnect and Sign Out first disable Auto Export,
+cancel its scheduled work/attention notification, and only then remove local connection metadata.
 
 Milestone 50 supplies the pure version-1 DTO graph, strict JSON boundary, typed validation and
 format-upgrader dispatch before any archive or replacement code exists. `exportOriginId` is held
@@ -714,8 +723,10 @@ output results; it intentionally does not pretend compressed SAF writes have rel
 progress.
 
 Milestone 52 adds the non-UI read/replacement boundary. `PortableBackupArchiveReader` strictly
-bounds and validates the two-entry archive before mutation. `PortableBackupReplacementCoordinator`
-then uses the application-wide operation lock, verified no-backup artifacts, and self-checking
+bounds and validates the two-entry archive before mutation. Pre-confirmation staging retains only
+the verified app-private archive, not a duplicate candidate DTO; the source is re-read after the
+operation lock is acquired. `PortableBackupReplacementCoordinator` then uses the application-wide
+operation lock, verified no-backup artifacts, and self-checking
 next-action journal to converge Room, Preferences, excluded runtime state, transport origin, and
 the one-generation restore point. Room identity/count and foreign-key checks and exact target or
 rollback Preferences equivalence are mandatory postconditions. `WorqOrderApplication` completes
@@ -724,3 +735,7 @@ work, or boot recovery may proceed. Milestone 53 exposes this engine through a l
 ViewModel, Android document pickers, and a compact Settings card. File and replacement work runs on
 the I/O dispatcher, picker returns recheck the timer invariant, one-shot picker effects are buffered,
 and the Compose layer renders typed state without parsing archives or mutating persistence directly.
+Import/Restore replacement phases add a non-dismissible Settings progress barrier while retaining
+the normal inline live-region status. It blocks navigation and unrelated visible Settings actions
+until the cross-store journal reaches a terminal state; background entry points serialize through
+the application lock.

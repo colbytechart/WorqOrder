@@ -175,7 +175,7 @@ class PortableBackupPreferencesReplacement(
         )
 
     private companion object {
-        val ORIGIN_ID = Regex("^[a-z0-9]{32}$")
+        val ORIGIN_ID = Regex("^[a-f0-9]{32}$")
 
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val TIME_ZONE_MODE = stringPreferencesKey("time_zone_mode")

@@ -5,6 +5,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
 import java.io.InputStream
+import java.io.InputStreamReader
 import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
@@ -48,10 +49,12 @@ class PortableBackupArchiveReader(
     private val upgraderRegistry: PortableBackupUpgraderRegistry = PortableBackupUpgraderRegistry(),
     private val maxCompressedBytes: Long = PortableBackupLimits.MAX_COMPRESSED_BYTES,
     private val maxExpandedBytes: Long = PortableBackupLimits.MAX_EXPANDED_BYTES,
+    private val maxMaterializedDataBytes: Long = defaultMaterializedDataLimit(),
 ) {
     init {
         require(maxCompressedBytes > 0)
         require(maxExpandedBytes > 0)
+        require(maxMaterializedDataBytes > 0)
     }
 
     fun read(file: File): PortableBackupArchiveReadResult =
@@ -70,47 +73,14 @@ class PortableBackupArchiveReader(
         try {
             val boundedInput = BoundedInputStream(input, maxCompressedBytes)
             ZipInputStream(boundedInput).use { zip ->
-                val entries = linkedMapOf<String, ByteArray>()
-                var expandedByteCount = 0L
-                while (true) {
-                    val entry = zip.nextEntry ?: break
-                    if (
-                        entry.isDirectory ||
-                        entry.name !in REQUIRED_ENTRIES ||
-                        entry.name in entries ||
-                        entry.method != ZipEntry.DEFLATED
-                    ) {
-                        return PortableBackupArchiveReadResult.Invalid(
-                            PortableBackupArchiveReadFailure.ARCHIVE_STRUCTURE,
-                        )
-                    }
-                    val entryLimit =
-                        if (entry.name == PORTABLE_BACKUP_MANIFEST_ENTRY) {
-                            MAX_MANIFEST_BYTES
-                        } else {
-                            maxExpandedBytes
-                        }
-                    val bytes = zip.readBoundedEntry(entryLimit)
-                    if (bytes.size.toLong() > maxExpandedBytes - expandedByteCount) {
-                        return PortableBackupArchiveReadResult.Invalid(
-                            PortableBackupArchiveReadFailure.EXPANDED_LIMIT,
-                        )
-                    }
-                    expandedByteCount += bytes.size.toLong()
-                    entries[entry.name] = bytes
-                    zip.closeEntry()
-                }
-                // The writer emits this exact order. Rejecting reordered entries makes the
-                // archive contract deterministic and avoids accepting an archive which carries
-                // otherwise harmless-but-unreviewed ZIP structure.
-                if (entries.keys.toList() != REQUIRED_ENTRY_ORDER) {
+                val manifestEntry = zip.nextEntry
+                if (!manifestEntry.isAcceptedEntry(PORTABLE_BACKUP_MANIFEST_ENTRY)) {
                     return PortableBackupArchiveReadResult.Invalid(
                         PortableBackupArchiveReadFailure.ARCHIVE_STRUCTURE,
                     )
                 }
-
-                val manifestBytes = requireNotNull(entries[PORTABLE_BACKUP_MANIFEST_ENTRY])
-                val dataBytes = requireNotNull(entries[PORTABLE_BACKUP_DATA_ENTRY])
+                val manifestBytes = zip.readBoundedEntry(MAX_MANIFEST_BYTES)
+                zip.closeEntry()
                 val manifest =
                     when (val decoded = PortableBackupJsonCodec.decodeManifest(manifestBytes.decodeUtf8Strict())) {
                         is PortableBackupDecodeResult.Success -> decoded.value
@@ -131,35 +101,79 @@ class PortableBackupArchiveReader(
                         )
                     is PortableBackupManifestValidationResult.UpgradeRequired -> Unit
                 }
-                val actualDataSha256 = dataBytes.sha256()
+
+                val effectiveDataLimit =
+                    minOf(
+                        maxExpandedBytes - manifestBytes.size.toLong(),
+                        maxMaterializedDataBytes,
+                    )
+                if (manifest.dataByteCount !in 1..effectiveDataLimit) {
+                    return PortableBackupArchiveReadResult.Invalid(
+                        PortableBackupArchiveReadFailure.EXPANDED_LIMIT,
+                    )
+                }
+
+                val dataEntry = zip.nextEntry
+                if (!dataEntry.isAcceptedEntry(PORTABLE_BACKUP_DATA_ENTRY)) {
+                    return PortableBackupArchiveReadResult.Invalid(
+                        PortableBackupArchiveReadFailure.ARCHIVE_STRUCTURE,
+                    )
+                }
+                val digestInput = BoundedDigestInputStream(zip, effectiveDataLimit)
+                val manifestValidation = PortableBackupValidator.validateManifest(manifest)
+                val decodedData =
+                    when (manifestValidation) {
+                        PortableBackupManifestValidationResult.Current -> {
+                            val decoder =
+                                Charsets.UTF_8
+                                    .newDecoder()
+                                    .onMalformedInput(CodingErrorAction.REPORT)
+                                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                            PortableBackupJsonCodec.decodeData(InputStreamReader(digestInput, decoder))
+                        }
+                        is PortableBackupManifestValidationResult.UpgradeRequired -> {
+                            val bytes = digestInput.readBoundedBytes(effectiveDataLimit)
+                            val json = bytes.decodeUtf8Strict()
+                            when (val upgraded = upgraderRegistry.upgradeToCurrent(manifest, json)) {
+                                is PortableBackupUpgradeResult.Upgraded ->
+                                    PortableBackupDecodeResult.Success(upgraded.data)
+                                is PortableBackupUpgradeResult.Unsupported -> {
+                                    digestInput.drain()
+                                    zip.closeEntry()
+                                    return PortableBackupArchiveReadResult.Invalid(
+                                        PortableBackupArchiveReadFailure.UNSUPPORTED_VERSION,
+                                    )
+                                }
+                            }
+                        }
+                        else -> error("Manifest validity was checked above")
+                    }
+                // A strict decoder can fail before consuming the entry. Drain through the same
+                // counter/digest so checksum precedence and ZIP-bomb bounds remain authoritative.
+                digestInput.drain()
+                val dataByteCount = digestInput.byteCount
+                val actualDataSha256 = digestInput.sha256()
+                zip.closeEntry()
+                if (zip.nextEntry != null) {
+                    return PortableBackupArchiveReadResult.Invalid(
+                        PortableBackupArchiveReadFailure.ARCHIVE_STRUCTURE,
+                    )
+                }
                 if (
-                    manifest.dataByteCount != dataBytes.size.toLong() ||
+                    manifest.dataByteCount != dataByteCount ||
                     !manifest.dataSha256.equals(actualDataSha256, ignoreCase = true)
                 ) {
                     return PortableBackupArchiveReadResult.Invalid(
                         PortableBackupArchiveReadFailure.CHECKSUM,
                     )
                 }
-                val dataJson = dataBytes.decodeUtf8Strict()
                 val data =
-                    when (val manifestValidation = PortableBackupValidator.validateManifest(manifest)) {
-                        PortableBackupManifestValidationResult.Current ->
-                            when (val decoded = PortableBackupJsonCodec.decodeData(dataJson)) {
-                                is PortableBackupDecodeResult.Success -> decoded.value
-                                is PortableBackupDecodeResult.Invalid ->
-                                    return PortableBackupArchiveReadResult.Invalid(
-                                        PortableBackupArchiveReadFailure.DATA,
-                                    )
-                            }
-                        is PortableBackupManifestValidationResult.UpgradeRequired ->
-                            when (val upgraded = upgraderRegistry.upgradeToCurrent(manifest, dataJson)) {
-                                is PortableBackupUpgradeResult.Upgraded -> upgraded.data
-                                is PortableBackupUpgradeResult.Unsupported ->
-                                    return PortableBackupArchiveReadResult.Invalid(
-                                        PortableBackupArchiveReadFailure.UNSUPPORTED_VERSION,
-                                    )
-                            }
-                        else -> error("Manifest validity was checked above")
+                    when (decodedData) {
+                        is PortableBackupDecodeResult.Success -> decodedData.value
+                        is PortableBackupDecodeResult.Invalid ->
+                            return PortableBackupArchiveReadResult.Invalid(
+                                PortableBackupArchiveReadFailure.DATA,
+                            )
                     }
                 if (PortableBackupValidator.validateData(data) !is PortableBackupDataValidationResult.Valid) {
                     return PortableBackupArchiveReadResult.Invalid(
@@ -170,7 +184,7 @@ class PortableBackupArchiveReader(
                     manifest = manifest,
                     data = data,
                     archiveByteCount = boundedInput.byteCount,
-                    dataByteCount = dataBytes.size.toLong(),
+                    dataByteCount = dataByteCount,
                     dataSha256 = actualDataSha256,
                 )
             }
@@ -186,7 +200,24 @@ class PortableBackupArchiveReader(
             PortableBackupArchiveReadResult.Invalid(PortableBackupArchiveReadFailure.IO)
         }
 
+    private fun ZipEntry?.isAcceptedEntry(expectedName: String): Boolean =
+        this != null &&
+            !isDirectory &&
+            name == expectedName &&
+            method == ZipEntry.DEFLATED
+
     private fun ZipInputStream.readBoundedEntry(limit: Long): ByteArray {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        while (true) {
+            val count = read(buffer)
+            if (count < 0) return output.toByteArray()
+            if (output.size().toLong() > limit - count) throw ExpandedLimitExceeded()
+            output.write(buffer, 0, count)
+        }
+    }
+
+    private fun InputStream.readBoundedBytes(limit: Long): ByteArray {
         val output = ByteArrayOutputStream()
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
         while (true) {
@@ -204,12 +235,6 @@ class PortableBackupArchiveReader(
             .onUnmappableCharacter(CodingErrorAction.REPORT)
             .decode(ByteBuffer.wrap(this))
             .toString()
-
-    private fun ByteArray.sha256(): String =
-        MessageDigest
-            .getInstance("SHA-256")
-            .digest(this)
-            .joinToString("") { byte -> "%02x".format(byte) }
 
     private class BoundedInputStream(
         private val delegate: InputStream,
@@ -238,13 +263,58 @@ class PortableBackupArchiveReader(
         }
     }
 
+    private class BoundedDigestInputStream(
+        private val delegate: InputStream,
+        private val limit: Long,
+    ) : InputStream() {
+        private val digest = MessageDigest.getInstance("SHA-256")
+
+        var byteCount: Long = 0
+            private set
+
+        override fun read(): Int {
+            val value = delegate.read()
+            if (value >= 0) {
+                count(1)
+                digest.update(value.toByte())
+            }
+            return value
+        }
+
+        override fun read(bytes: ByteArray, offset: Int, length: Int): Int {
+            val count = delegate.read(bytes, offset, length)
+            if (count > 0) {
+                count(count.toLong())
+                digest.update(bytes, offset, count)
+            }
+            return count
+        }
+
+        fun drain() {
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (read(buffer) >= 0) {
+                // Counting and digesting happen in read().
+            }
+        }
+
+        fun sha256(): String = digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+
+        private fun count(next: Long) {
+            if (next < 0 || byteCount > limit - next) throw ExpandedLimitExceeded()
+            byteCount += next
+        }
+    }
+
     private class CompressedLimitExceeded : IOException()
 
     private class ExpandedLimitExceeded : IOException()
 
     private companion object {
         const val MAX_MANIFEST_BYTES = 1024L * 1024L
-        val REQUIRED_ENTRY_ORDER = listOf(PORTABLE_BACKUP_MANIFEST_ENTRY, PORTABLE_BACKUP_DATA_ENTRY)
-        val REQUIRED_ENTRIES = REQUIRED_ENTRY_ORDER.toSet()
+
+        fun defaultMaterializedDataLimit(): Long =
+            (Runtime.getRuntime().maxMemory() / 8L)
+                .coerceAtLeast(8L * 1024L * 1024L)
+                .coerceAtMost(PortableBackupLimits.MAX_EXPANDED_BYTES)
     }
 }

@@ -118,12 +118,25 @@
   transaction; never claim Room/DataStore atomicity without the recovery protocol. Restore uses
   swap semantics so the displaced current state becomes the next restore point. Uninstall naturally
   removes that app-private point.
+- Current-format portable import must remain record-streamed: do not restore a whole-data byte
+  array/String/DOM path or retain a second staged DTO. Preserve the absolute 100 MiB compressed and
+  500 MiB expanded limits, the D-121 device-heap materialization ceiling, bounded logical values,
+  exact ZIP allowlist/checksum validation, strict portable IDs, and typed fail-closed results.
+- Confirmed Import/Restore runs off the main thread under the application operation lock. While
+  authoritative Room/Preferences state is being replaced, keep the Settings route behind the
+  non-dismissible progress barrier; startup/background entry points must continue serializing
+  through recovery. The barrier supplements the durable journal and is never an atomicity claim.
 - `0.6.0` Milestone 53 exposes the existing backup/replacement engine through a compact **Backup &
   Restore** Settings card and Android scoped-document pickers. Inline warnings, progress, success,
   and error status appear directly below the card title and above all actions; the normal card has
   no instructional copy or separate Restore subsection label. Destructive Import and Restore still
   require explicit explanatory confirmation dialogs. All actions are disabled while timing or busy,
   and document-picker return paths must recheck timer state before staging or writing.
+- During Milestone 54C the owner explicitly deferred the remaining manual API 26 Backup & Restore
+  lifecycle/performance matrix and all remaining manual physical-device checks. They are recorded
+  as unexecuted, non-blocking evidence gaps in `docs/DEFERRED_TESTS.md`; never describe them as
+  passing. Automated API 26 coverage and the owner-completed current-target manual/stability matrix
+  remain the applicable `0.6.0` hardening evidence.
 - The former post-release environment teardown Milestones 49 and 50 are renumbered to Milestones
   56 and 57 and deferred until after public `0.6.0`. Milestone 56 is documentation-only; Milestone
   57 remains optional and requires exact, separate owner authorization. Neither permits inferred

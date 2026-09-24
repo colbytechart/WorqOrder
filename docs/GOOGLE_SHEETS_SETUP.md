@@ -511,3 +511,9 @@ the Settings destination may still say Google Sheets, but the user must sign in/
 the intended sheet, and explicitly enable Auto Export again. This is intentional credential and
 cross-device row-ownership protection, not data loss. Tests must use two installations against one
 sheet to prove restored task IDs append under a new origin rather than overwrite source rows.
+
+For that two-device check, export a dated task from the original upgraded installation, then import
+its portable backup into a second installation. Reauthorize and reconnect the same sheet on the
+second installation, explicitly re-enable Auto Export if needed, and export the same date. The
+14 visible headers must remain unchanged; the source row must remain intact and the second device
+must append its own row. Do not use hidden Google columns as a user-editable data surface.

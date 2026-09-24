@@ -230,3 +230,36 @@ Also exercise timer Start/Stop/midnight races, low storage, document-provider ca
 large bounded input, update install, Clear storage/uninstall, Google reconnection, and shared-sheet
 two-device behavior. Record journal state, file hashes, Room counts/identities, portable preference
 values, restore availability, and user-visible status without logging private task contents.
+
+For the shared-sheet case, verify an original upgraded installation can transition a matching v1
+row to its own hidden v2 origin. Then import/Restore on another installation, reconnect the same
+sheet, and verify that matching v1, unkeyed, and foreign-origin rows remain unchanged while the
+new origin appends its own v2 row. Also enable Auto Export, Disconnect or Sign Out, and verify the
+switch is off with no retained schedule/attention notification before a later reconnect.
+
+### 9.1 Task 54C owner-run hardening matrix
+
+This table preserves the originally planned three-environment matrix. The owner completed the
+current-target row, but on 2026-09-24 explicitly deferred the API 26 manual row and physical-device
+row. Those two rows are not `0.6.0` release blockers and must be reported as unexecuted rather than
+passing; see `DEFERRED_TESTS.md`. The automated API 26 connected suite remains required and passed.
+
+| Environment | Automated gate | Manual lifecycle/security gate | Performance evidence |
+| --- | --- | --- | --- |
+| API 26 emulator | Complete connected debug suite, including archive reader, Room replacement, Preferences, and Settings Compose tests | Import the known malformed fixture (no mutation), import the valid fixture, force-stop/reopen, Restore, force-stop/reopen, Restore again; verify one complete generation and valid Restore availability after every reopen | Record before/after PSS/RSS and ensure the process survives three Import/Restore swaps without an increasing retained generation |
+| Current target emulator (API 36/37 as available) | Complete connected debug suite plus full offline JVM/lint/debug/release gate | Repeat malformed/valid/swap; during Import/Restore verify the modal progress surface blocks Back and other Settings actions; rotate/background during preflight and force-stop only after confirmation to exercise journal recovery | Run ten alternating Restore swaps on a populated fixture, sample PSS/RSS after GC-stable idle, and verify no retained DTO-sized step increase |
+| Physical Android device | Signed install-over from public `0.5.0`, launch/data-preservation smoke, then current signed candidate | Create a populated backup, import it after local changes, reboot/reopen, Restore twice, reconnect Google, and prove a manual export appends under the new origin without claiming old rows | Run a timer for at least one hour split between visible and locked/background states; sample CPU, PSS/RSS, battery, and temperature at baseline/end, stop normally, then create and validate a backup |
+
+Recorded disposition:
+
+- API 26 automated connected suite: passed; API 26 manual lifecycle/performance row: deferred under
+  DT-001.
+- Current target automated and manual rows: passed. Across ten Restore swaps, PSS changed from
+  130,117 KiB to 133,143 KiB and RSS from 273,000 KiB to 277,584 KiB, with zero swap and 0.0% CPU
+  in the final sample.
+- Physical-device row: deferred under DT-002.
+
+For every environment record device/API, commit, app version, backup byte sizes, operation result,
+task/client/Consultant/Tag counts, selected state, Google reconnection state, and any journal/recovery
+message. Never include task/client content or raw backup JSON in the evidence. A platform/emulator
+crash must be distinguished from a WorqOrder assertion and rerun before classification.

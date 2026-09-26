@@ -1074,4 +1074,37 @@ On 2026-09-24 the owner explicitly deferred the remaining API-26 manual lifecycl
 matrix and manual physical-device matrix and removed them from the `0.6.0` release gate. They are
 recorded as unexecuted evidence gaps, with their full procedures retained in `DEFERRED_TESTS.md`;
 they are not claimed as passing. Under that approved reduced matrix, Task 54C and Milestone 54 are
-complete. Milestone 55 has not started.
+complete. Milestone 55 began with Task 55A on 2026-09-24.
+
+## 29. `0.6.0` Milestone 55A audit baseline
+
+Task 55A audited `milestone55`, confirmed its clean ancestry from the merged
+`v0.6.0-development` baseline, mapped the portable-backup requirements to implementation and
+owner evidence, and supplied the project-local offline/connected gate in
+`MILESTONE_55A_AUDIT.md`. No version identity, signing configuration, release artifact, or Git
+publication state changed. The owner must report the supplied gates before Task 55B begins.
+
+## 30. `0.6.0` Milestone 55B release-document reconciliation
+
+Task 55B reconciled release-facing documentation to the completed Milestones 49–54, ongoing
+Milestone 55 audit, and D-122 deferral policy. No application behavior, release identity, signing
+configuration, artifact, or publication state changed. No confirmed release blocker was found in
+the documentation review. The supplied owner-only candidate commands are retained in
+`MILESTONE_55B_RELEASE_COMMANDS.md`; Task 55C must obtain explicit version identity approval and
+record owner-run gate results before release readiness can be assessed.
+
+## 31. `0.6.0` Milestone 55C release decision
+
+The Sol static audit found no package, migration-chain, portable-format, manifest-permission,
+backup-policy, prohibited-dependency, tracked-secret, or release-document blocker. The owner then
+explicitly approved `versionName = 0.6.0`, `versionCode = 6`, and source was updated without changing
+package or signing configuration. At that point release readiness remained withheld pending the
+owner-run gates and independent public-asset verification. See
+`MILESTONE_55C_RELEASE_DECISION.md`.
+
+The owner subsequently reported Steps 1–7 of the final gate successful: clean offline build/lint/
+JVM verification; separate API-26/current connected suites; signer/package/version/hash inspection;
+populated signed `0.5.0` install-over; fresh install; Backup & Restore, malformed-input, recovery,
+Google, canonical-export, accessibility, layout, and lifecycle smoke. All non-deferred
+pre-publication gates pass. Final-main artifact identity, integration/tag/publication, and
+independent download verification remain open.

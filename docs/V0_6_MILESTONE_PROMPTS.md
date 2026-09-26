@@ -8,7 +8,8 @@ and Milestones 50-52 delivered the non-UI portable model, backup writer, and ato
 recovery engine. Milestone 53 completed the Settings workflow and its owner-run post-polish
 verification. Milestone 54 is complete under the owner-approved reduced verification matrix;
 `DEFERRED_TESTS.md` preserves the unexecuted API 26 manual and physical-device procedures.
-Milestone 55 has not started.
+Milestone 55 is in progress: Task 55A completed the evidence baseline and Task 55B reconciled
+release-facing documentation without changing product behavior or release identity.
 
 The approved product contract is:
 
@@ -441,6 +442,10 @@ trip, crash recovery, Google, lifecycle, accessibility, and performance. Record 
 results. Stop for Terra.
 ```
 
+Task 55A produced `docs/MILESTONE_55A_AUDIT.md`. The repository audit passes and the owner-run
+offline/connected gates are supplied there but remain unclaimed until the owner reports them.
+Version identity, signing, commits, merges, tags, and publication remain unchanged. Stop for Terra.
+
 ### Task 55B — Terra: bounded release documentation and fixes
 
 ```text
@@ -449,6 +454,12 @@ documents and fix only confirmed release blockers. Do not choose versionCode, re
 commit, merge, tag, sign, or publish for the owner. Supply artifact/signature/package/install-over
 commands and stop for Sol.
 ```
+
+Task 55B reconciled README, changelog, product/user/privacy/security/handoff/checklist language to
+the completed Milestones 49–54, ongoing Milestone 55 audit, and D-122 deferred-test policy. It
+found no confirmed application or documentation release blocker. `MILESTONE_55B_RELEASE_COMMANDS.md`
+contains owner-only artifact, signer, package, update, and fresh-install commands. Version identity,
+signing, commits, merges, tags, and publication remain unchanged. Stop for Sol.
 
 ### Task 55C — Sol: final release decision
 
@@ -461,6 +472,16 @@ failing or unverified. Provide exact integration-branch merge, tag, GitHub relea
 download verification, and rollback steps; never execute owner Git/release operations. Stop after
 the owner confirms the public release.
 ```
+
+Task 55C has begun. `MILESTONE_55C_RELEASE_DECISION.md` records a clean static audit but withholds
+readiness pending owner-reported gates and signed-candidate verification. The owner explicitly
+approved `0.6.0`/code 6 and source now carries that identity; no signing, commit, merge, tag,
+artifact publication, or GitHub release action has occurred.
+
+The owner later reported all non-deferred Steps 1–7 passing. Task 55C now authorizes the documented
+owner-controlled integration and publication sequence, but remains incomplete until the exact
+final-main APK and independently downloaded GitHub asset pass identity checks and the owner confirms
+the public release. Manual API 26 and physical-device matrices remain deferred under D-122.
 
 ## Milestone 56 — Post-`0.6.0` environment teardown guide only
 

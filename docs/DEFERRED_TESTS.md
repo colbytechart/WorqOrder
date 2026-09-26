@@ -4,6 +4,9 @@ This register records tests the owner has explicitly removed from the current re
 deferred test is **not** a passing result. It preserves the unexecuted procedure and evidence gap so
 it can be revisited without misrepresenting release confidence.
 
+The owner reconfirmed during Milestone 55C that both entries remain deferred after the `0.6.0`
+release. Publication does not reopen them; only a new explicit owner instruction does.
+
 ## DT-001 — `0.6.0` manual API 26 Backup & Restore lifecycle/performance matrix
 
 - **Deferred:** 2026-09-24 by explicit owner decision during Milestone 54C.

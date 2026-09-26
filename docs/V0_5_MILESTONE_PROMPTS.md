@@ -389,8 +389,9 @@ The owner explicitly approved `versionName = 0.5.0` and `versionCode = 5` for Ta
 identity is updated. The clean owner-run build, permanent-signer comparison, package/version
 inspection, exact candidate SHA-256, signed populated-`0.4.0` install-over, and fresh-install gates
 pass. The owner then completed merge/tag/publication and independently verified and physically
-installed the downloaded GitHub asset. Task 48D and Milestone 48 are complete. Milestones 49 and 50
-remain unstarted and require separate explicit authorization.
+installed the downloaded GitHub asset. Task 48D and Milestone 48 are complete. The unstarted
+teardown work formerly numbered 49–50 is now deferred as Milestones 56–57 and still requires
+separate explicit authorization.
 
 ### Task 48D — Sol: minimal final release decision
 
@@ -403,67 +404,74 @@ gate is failing or unverified. Provide exact GitHub merge/tag/upload/download-ve
 never commit, merge, tag, publish, or run tests for the owner. Stop after public install is verified.
 ```
 
-## Milestone 49 — Post-`0.5.0` environment teardown guide only
+## Milestone 56 — Post-`0.6.0` environment teardown guide only
 
-This is the former Milestone 42. Start only after the owner verifies the public `0.5.0` release
-and separately instructs it. It performs documentation and inventory only—never removal.
+This is the former Milestones 42 and 49. It was deferred again when `0.6.0` planning began. Start
+only after the owner verifies the public `0.6.0` release and separately instructs it. It performs
+documentation and inventory only—never removal.
 
-### Task 49A — Luna: non-destructive inventory
+### Task 56A — Luna: non-destructive inventory
 
 ```text
-Begin post-release Milestone 49 with Luna only after explicit owner instruction. Ask for verified
+Begin post-release Milestone 56 with Luna only after explicit owner instruction. Ask for verified
 project-specific paths and inventory Android Studio, SDK/JBR, AVDs, Gradle, ADB, drivers,
 virtualization, repository clones, OAuth, releases, and signing backups using read-only commands
 within approved paths. Classify preserve, shared/retain, project-only candidate, or unknown. Never
 delete or change machine/cloud state. Stop for Terra.
 ```
 
-### Task 49B — Terra: staged reversible guide
+### Task 56B — Terra: staged reversible guide
 
 ```text
-Continue Milestone 49 with Terra. Draft exact owner-executed cleanup instructions only for verified
+Continue Milestone 56 with Terra. Draft exact owner-executed cleanup instructions only for verified
 project-exclusive targets, including backups, rollback, and checks. Do not use broad recursive
 paths or change firmware/system, OAuth, signing, Git history, public releases, or user data. Do not
 execute the guide. Stop for Sol.
 ```
 
-### Task 49C — Sol: destructive-safety review
+### Task 56C — Sol: destructive-safety review
 
 ```text
-Complete Milestone 49 with Sol. Audit every instruction for exact targets, shared-tool risk,
+Complete Milestone 56 with Sol. Audit every instruction for exact targets, shared-tool risk,
 recoverability, signer/password backups, OAuth, public artifacts, and firmware safety. Require a
 new explicit owner decision for every actual removal. Publish only a safe guide and stop.
 ```
 
-## Milestone 50 — Optional owner-directed closeout
+## Milestone 57 — Optional owner-directed closeout
 
-This is the former Milestone 43. It is not automatic and may never begin from a generic request to
-finish the release or project. The owner must first review Milestone 49, name exact targets, and
-separately authorize each material action. Unknown/shared targets remain untouched.
+This is the former Milestones 43 and 50. It is not automatic and may never begin from a generic
+request to finish the release or project. The owner must first review Milestone 56, name exact
+targets, and separately authorize each material action. Unknown/shared targets remain untouched.
 
-### Task 50A — Luna: target and backup verification
+### Task 57A — Luna: target and backup verification
 
 ```text
-Begin optional Milestone 50 with Luna only after exact owner authorization. Verify every target's
+Begin optional Milestone 57 with Luna only after exact owner authorization. Verify every target's
 resolved path, project exclusivity, backup/recovery status, and explicit approval. Do not remove
 anything. Stop on unknown/shared/out-of-scope targets and hand the verified list to Terra.
 ```
 
-### Task 50B — Terra: approved reversible actions only
+### Task 57B — Sol: exact authorization and irreversible-action gate
 
 ```text
-Continue Milestone 50 with Terra. Perform only separately authorized, exact, recoverable project-
-only steps from the reviewed guide and verify each result. Never touch signing backups, remote
-history/releases, desired app/export data, shared toolchains, cloud configuration, or firmware
-without new specific approval. Stop before any irreversible step for Sol.
+Continue optional Milestone 57 with Sol. Review every target, exact path, shared impact, backup,
+rollback limit, and owner authorization. Withhold unsafe or ambiguous steps. Produce the exact
+approved reversible action list and stop for Terra without changing the environment.
 ```
 
-### Task 50C — Sol: irreversible-action and continuity gate
+### Task 57C — Terra: approved reversible actions only
 
 ```text
-Complete optional Milestone 50 with Sol. Review each proposed irreversible action's exact target,
-backup, rollback limits, shared impact, and owner authorization before it occurs. Withhold unsafe
-steps. After authorized work, verify source, public releases, signer/key backups, and desired OAuth
-configuration remain available. Report every material removal and recovery status; never infer
-permission for another target.
+Continue Milestone 57 with Terra. Perform only separately authorized, exact, recoverable project-
+only steps from Sol's reviewed list and verify each result. Never touch signing backups, remote
+history/releases, desired app/export data, shared toolchains, cloud configuration, or firmware
+without new specific approval. Stop for Sol.
+```
+
+### Task 57D — Sol: continuity and recovery verification
+
+```text
+Complete optional Milestone 57 with Sol. Verify source, public releases, signer/key backups,
+desired OAuth configuration, and all owner-designated retained data/tools remain available. Report
+every material removal and its recovery status; never infer permission for another target.
 ```

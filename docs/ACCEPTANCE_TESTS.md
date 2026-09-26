@@ -1216,8 +1216,8 @@ and manual exports obey the same policy. CSV/XLSX remain one-off.
 
 Before publication, the owner-approved versionCode, permanent signer SHA-1, `worq.order` package,
 disabled backup, GPLv3, exact Google scope, APK hash, populated `0.3.0` upgrade, API-26/current
-automated suites, and physical-device task/edit/export smoke tests must pass. Milestone 49
-teardown planning is not a prerequisite for app release and performs no cleanup.
+automated suites, and physical-device task/edit/export smoke tests must pass. The teardown guide,
+now Milestone 56, was not a prerequisite for app release and performs no cleanup.
 
 ## 17. Released `0.5.0` reusable-Tag acceptance requirements
 
@@ -1335,10 +1335,78 @@ the originating task row; CSV/XLSX remain one-off. Stop-before-export, captured-
 export, formula/literal/quoting safety, immutable snapshots, failure recovery, and no Room mutation
 continue passing.
 
+### V6-GOOGLE-01 Origin-scoped hidden row ownership
+
+Every newly written Google row uses hidden physical-P identity
+`worqorder.task.v2:<originId>:<taskId>` while the visible schema remains the same 14 columns. An
+original upgraded installation may adopt only an exact matching v1 task-ID row or a unique unkeyed
+legacy row into its own v2 identity. After Import or Restore, the rotated destination origin must
+not modify matching v1, unkeyed, or foreign-origin rows; it appends its own v2 row even where the
+stable task ID and visible values match. Disconnect and Sign Out disable Auto Export, cancel pending
+schedule/attention state, and then clear connection metadata; a cleanup failure leaves the
+connection intact and reports an actionable local failure.
+
 ### V5-RELEASE-01 Owner-executed release gate
 
 Before publication, owner-run formatting/lint/JVM/debug/release, complete API-26/current connected
 suites, populated signed `0.4.0` update, fresh install, CRUD/import/picker/manual task flows, all
 three manual exports plus automatic Google, accessibility/lifecycle/performance/security checks,
 permanent signer/package/version/hash, and public-download install-over checks must pass. Version
-identity requires explicit owner approval. Milestones 49–50 are not release prerequisites.
+identity requires explicit owner approval. The teardown work now numbered 56–57 was not a release
+prerequisite.
+
+## In-development `0.6.0` Backup & Restore acceptance tests
+
+These gates cover the in-development feature and are not evidence that released `0.5.0` implements
+it. Milestone 53's initial automated and manual workflow checks passed, as did the final compact-card
+visual inspection, compilation/JVM/lint/debug-and-release build set, and focused connected Settings
+test. Milestone 53 is closed. Milestone 54A then supplied owner-selectable valid and malformed ZIPs;
+the focused archive matrix and owner-run malformed rejection, cancellation, valid replacement,
+Restore swap, and reverse-swap exercises all passed. Milestone 54B's owner-run Google ownership and
+connection-cleanup gates also passed. Task 54C's API-26/current connected suites and current-target
+archive, recovery, forced-stop, repeated-Restore, and stability matrix passed. The owner explicitly
+deferred the remaining API-26 manual and physical-device matrices in `DEFERRED_TESTS.md`; they are
+not release blockers and are not claimed as passing. Milestone 54 is complete.
+
+- **V6-BACKUP-01:** Create Backup is disabled while timing; otherwise it writes a readable Deflate
+  ZIP with exactly `manifest.json` and `data.json`, valid marker/version/sizes, and matching SHA-256.
+- **V6-BACKUP-02:** A round trip preserves every portable Client, Consultant, Tag/catalog category,
+  task/lineage/snapshot/Notes field, completed interval/instant, export-history record, portable
+  setting, and valid selection without changing domain IDs.
+- **V6-BACKUP-03:** Tokens/credentials, account hints, spreadsheet metadata, automatic pending/jobs,
+  notifications/permissions, transient state, journal, restore point, and transport origin never
+  appear in the archive.
+- **V6-IMPORT-01:** Import rejects unknown/duplicate/traversal/encrypted entries, over-100-MiB input,
+  over-500-MiB expansion, payloads above the documented device-heap ceiling,
+  checksum/UTF-8/JSON/version/value/reference/invariant errors, active/open timing, cancellation,
+  and insufficient storage before authoritative state changes. Current-format parsing must not
+  materialize the complete data bytes, String, or DOM.
+- **V6-IMPORT-02:** Continue first creates and reread-verifies the rolling point, then replaces Room
+  transactionally and portable preferences recoverably. Cancel changes neither state nor point.
+- **V6-IMPORT-03:** Every injected failure/process death between journal phases converges on startup
+  to the complete old or new state, never a mixture, and repeated recovery is idempotent.
+- **V6-IMPORT-04:** Import preserves the destination installation's export destination; Restore
+  applies the destination stored in its restore point. Google auth/sheet metadata is cleared,
+  automatic Google is off, a new transport origin is used, and domain IDs remain unchanged.
+- **V6-RESTORE-01:** Restore is unavailable without a valid point or while timing. A successful
+  Restore applies the previous state and makes the displaced current state the next point; a second
+  Restore swaps back. Failure preserves recoverability.
+- **V6-COMPAT-01:** Known older logical formats upgrade explicitly. A newer unsupported format fails
+  with an update-WorqOrder instruction. Released Room upgrade paths and data remain intact.
+- **V6-GOOGLE-01:** Existing installs safely adopt only their own legacy task keys; imported copies
+  cannot claim or overwrite source-installation rows. Visible 14-column schema 6 stays unchanged.
+- **V6-UI-01:** The compact card contains the title, inline warning/progress/status directly below
+  it, side-by-side **Import Backup**/**Create Backup** actions, and **Restore** without permanent
+  instructional paragraphs or a separate Restore subsection. Exact approved confirmations, picker
+  cancel, double-submit prevention, TalkBack/live-region semantics, large text, narrow/landscape
+  layouts, theme contrast, and Activity recreation pass.
+- **V6-HARDEN-01:** Import staging retains only the verified private archive. Portable IDs reject
+  controls and the Google `:` delimiter; origins are exact 32-hex. Confirmed Import/Restore runs on
+  the I/O dispatcher behind a non-dismissible progress barrier, while startup/background work uses
+  the shared operation lock. Repeated/reordered/path/ZIP-bomb input fails closed without mutation,
+  private content in logs, or unbounded memory growth.
+- **V6-RELEASE-01:** Owner-run lint/JVM/build/API-26/current connected, populated emulator upgrade,
+  fresh emulator install, backup/import/restore/corruption/crash/reboot/Google/accessibility/
+  performance/security, permanent-signer, checksum, and public-download gates pass before release.
+  Manual API-26 and physical-device matrices are explicitly deferred under `DEFERRED_TESTS.md` and
+  must be disclosed as unexecuted rather than passed.

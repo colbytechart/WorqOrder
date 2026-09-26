@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="portable_recovery_blocked">WorqOrder could not safely complete local data recovery. Close and reopen the app. If this message remains, do not clear app storage.</string>
     <string name="app_name">WorqOrder</string>
     <string name="navigate_back">Navigate back</string>
     <string name="open_settings">Open settings</string>
@@ -297,6 +298,35 @@
     <string name="tag_import_storage_failed">No Tags were imported because local storage could not be updated.</string>
     <string name="tag_import_failure_at_location">%1$s Row %2$d, column %3$d.</string>
     <string name="about_version_stability">WorqOrder v%1$s - stable</string>
+    <string name="backup_restore">Backup &amp; Restore</string>
+    <string name="import_backup">Import Backup</string>
+    <string name="create_backup">Create Backup</string>
+    <string name="restore">Restore</string>
+    <string name="backup_restore_timer_running">Stop the running timer before creating, importing, or restoring a backup.</string>
+    <string name="replace_all_worqorder_data">Replace All WorqOrder Data?</string>
+    <string name="replace_all_worqorder_data_message">WorqOrder will save your current data as a restore point, then replace it with the selected backup.</string>
+    <string name="continue_action">Continue</string>
+    <string name="restore_previous_state_question">Restore Previous State?</string>
+    <string name="restore_previous_state_confirmation_message">This replaces your current WorqOrder data. The state being replaced becomes the next restore point.</string>
+    <string name="creating_backup">Creating backup…</string>
+    <string name="reading_backup">Reading backup…</string>
+    <string name="importing_backup">Importing backup…</string>
+    <string name="restoring_previous_state">Restoring previous state…</string>
+    <string name="backup_created">Backup created successfully.</string>
+    <string name="backup_timer_running">Stop the running timer before creating a backup.</string>
+    <string name="backup_invalid_local_state">WorqOrder data could not be prepared for backup. Try again.</string>
+    <string name="backup_output_failed">Backup could not be saved. Try choosing a different location.</string>
+    <string name="backup_output_partial">Backup could not be saved completely. A partial file may remain; delete it before trying again.</string>
+    <string name="import_invalid_archive">The selected file is not a valid WorqOrder backup.</string>
+    <string name="import_storage_failure">The selected backup could not be read from this device. Try choosing it again.</string>
+    <string name="import_timer_running">Stop the running timer before importing a backup.</string>
+    <string name="import_succeeded">Backup imported. Reconnect Google Sheets before exporting there.</string>
+    <string name="import_failed">Backup import could not finish. Your existing data was kept or recovery is in progress.</string>
+    <string name="restore_unavailable">No valid restore point is available.</string>
+    <string name="restore_timer_running">Stop the running timer before restoring previous data.</string>
+    <string name="restore_succeeded">Previous state restored. Reconnect Google Sheets before exporting there.</string>
+    <string name="restore_failed">Previous state could not be restored. Your data remains protected while recovery finishes.</string>
+    <string name="backup_recovery_required">WorqOrder must finish recovery before backup actions can continue.</string>
 
     <string name="active_clients">Active Clients</string>
     <string name="archived_clients">Archived Clients</string>

@@ -30,6 +30,17 @@ abstract class TagDao {
     )
     abstract fun observeTagsForCategory(category: String): Flow<List<TagEntity>>
 
+    /** Stable read order for a portable logical snapshot. */
+    @Query("SELECT * FROM tags ORDER BY id ASC")
+    abstract suspend fun readAllTagsForPortableBackup(): List<TagEntity>
+
+    /** Internal bulk primitive for a fully prevalidated portable-state replacement transaction. */
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    abstract suspend fun insertAllForPortableReplacement(tags: List<TagEntity>)
+
+    @Query("DELETE FROM tags")
+    abstract suspend fun deleteAllForPortableReplacement(): Int
+
     @Query("SELECT * FROM tags WHERE id = :tagId LIMIT 1")
     abstract suspend fun readTag(tagId: String): TagEntity?
 

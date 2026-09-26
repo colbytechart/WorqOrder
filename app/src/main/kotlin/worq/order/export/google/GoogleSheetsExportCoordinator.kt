@@ -4,6 +4,7 @@ import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import worq.order.data.ExportOriginRepository
 import worq.order.data.GoogleConnectionRepository
 import worq.order.export.ExportSnapshotProvider
 import worq.order.export.PrepareExportSnapshotResult
@@ -12,6 +13,7 @@ class GoogleSheetsExportCoordinator(
     private val authorizer: GoogleAccountAuthorizer,
     private val gateway: GoogleSheetsExportGateway,
     private val connectionRepository: GoogleConnectionRepository,
+    private val exportOriginRepository: ExportOriginRepository,
     private val snapshotProvider: ExportSnapshotProvider,
     private val operationMutex: Mutex = Mutex(),
 ) {
@@ -36,6 +38,11 @@ class GoogleSheetsExportCoordinator(
         val spreadsheetTitle =
             connection.spreadsheetTitle
                 ?: return GoogleSheetsExportOperationResult.SetupRequired
+        val exportOrigin =
+            localResult { exportOriginRepository.readOrCreate() }
+                .getOrElse {
+                    return failed(GoogleSheetsExportFailure.LOCAL_STORAGE)
+                }
         val snapshot =
             when (val result = snapshotProvider.prepare(workDate)) {
                 PrepareExportSnapshotResult.ActiveTimerChanged ->
@@ -70,6 +77,7 @@ class GoogleSheetsExportCoordinator(
                     accessToken = authorization.accessToken,
                     spreadsheetId = spreadsheetId,
                     snapshot = snapshot,
+                    exportOrigin = exportOrigin,
                 )
         ) {
             GoogleSheetsGatewayExportResult.Success -> {

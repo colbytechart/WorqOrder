@@ -147,6 +147,7 @@ class GoogleConnectionCoordinatorTest {
             assertFalse(
                 fixture.repository.readConnection().hasSpreadsheetMetadata,
             )
+            assertEquals(1, fixture.automaticDisableCalls)
 
             fixture.coordinator.validateAndConnect(SPREADSHEET_ID)
             assertEquals(
@@ -164,6 +165,7 @@ class GoogleConnectionCoordinatorTest {
                 "person@example.com",
                 fixture.authorizer.signedOutAccountId,
             )
+            assertEquals(2, fixture.automaticDisableCalls)
         }
 
     @Test
@@ -184,15 +186,37 @@ class GoogleConnectionCoordinatorTest {
             assertFalse(signedOut.hasSpreadsheetMetadata)
         }
 
+    @Test
+    fun disconnectFailsClosedWhenAutomaticExportCleanupCannotFinish() =
+        runTest {
+            val fixture = Fixture()
+            fixture.coordinator.signIn()
+            fixture.coordinator.validateAndConnect(SPREADSHEET_ID)
+            fixture.failAutomaticDisable = true
+
+            assertEquals(
+                GoogleConnectionOperationResult.Failed(GoogleConnectionFailure.LOCAL_STORAGE),
+                fixture.coordinator.disconnectSpreadsheet(),
+            )
+            assertTrue(fixture.repository.readConnection().hasSpreadsheetMetadata)
+            assertEquals(1, fixture.automaticDisableCalls)
+        }
+
     private class Fixture {
         val repository = FakeGoogleConnectionRepository()
         val authorizer = FakeAuthorizer()
         val gateway = FakeGateway()
+        var automaticDisableCalls = 0
+        var failAutomaticDisable = false
         val coordinator =
             GoogleConnectionCoordinator(
                 authorizer = authorizer,
                 sheetsGateway = gateway,
                 connectionRepository = repository,
+                disableAutomaticGoogleExport = {
+                    automaticDisableCalls += 1
+                    check(!failAutomaticDisable) { "scheduler cleanup failed" }
+                },
                 now = { NOW },
             )
     }

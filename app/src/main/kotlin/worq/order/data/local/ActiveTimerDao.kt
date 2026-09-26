@@ -19,6 +19,9 @@ abstract class ActiveTimerDao {
     )
     abstract suspend fun readActiveTimer(): ActiveTimerEntity?
 
+    @Query("DELETE FROM active_timer")
+    abstract suspend fun deleteAllForPortableReplacement(): Int
+
     @Query(
         """
         SELECT *

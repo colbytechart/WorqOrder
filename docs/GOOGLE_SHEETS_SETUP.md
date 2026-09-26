@@ -503,3 +503,17 @@ message.
 - [Sheets API limits and pricing](https://developers.google.com/workspace/sheets/api/limits)
 - [Google Workspace standardized API model](https://developers.google.com/workspace/tools-safety)
 - [OAuth production policy compliance](https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance)
+
+## 15. Planned `0.6.0` restore behavior
+
+A portable backup never transfers Google authorization or spreadsheet connection. After import,
+the Settings destination may still say Google Sheets, but the user must sign in/authorize, connect
+the intended sheet, and explicitly enable Auto Export again. This is intentional credential and
+cross-device row-ownership protection, not data loss. Tests must use two installations against one
+sheet to prove restored task IDs append under a new origin rather than overwrite source rows.
+
+For that two-device check, export a dated task from the original upgraded installation, then import
+its portable backup into a second installation. Reauthorize and reconnect the same sheet on the
+second installation, explicitly re-enable Auto Export if needed, and export the same date. The
+14 visible headers must remain unchanged; the source row must remain intact and the second device
+must append its own row. Do not use hidden Google columns as a user-editable data surface.

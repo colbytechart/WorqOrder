@@ -966,8 +966,8 @@ supplies final `0.4.0` versionCode approval, signs with the permanent key, merge
 publishes, and verifies the public APK; no release-readiness claim precedes these gates.
 
 The owner subsequently published and physically verified `0.4.0`. Its former post-release
-Milestones 42 and 43 are superseded by `0.5.0` Milestones 49 and 50 below; do not execute the old
-numbering or treat publication as cleanup permission.
+Milestones 42 and 43 first moved to `0.5.0` Milestones 49 and 50, then to post-`0.6.0` Milestones
+56 and 57. Do not execute archived numbering or treat publication as cleanup permission.
 
 ## 21B. WorqOrder `0.5.0` reusable-Tag roadmap
 
@@ -975,8 +975,8 @@ The integration topology is `main` → `v0.5.0-development` → sequential miles
 42–48. Milestone 42 documents the approved design only. Milestones 43–46 implement Room/domain,
 Settings management and import, task selection UX, and shared export composition. Milestone 47
 owns final Create/Edit task-form consistency and Milestone 48 owns the complete audit and public-
-release handoff. The former teardown/closeout work is moved to Milestones 49–50 after public
-`0.5.0` and still requires separate instructions.
+release handoff. The former teardown/closeout work was later moved again to Milestones 56–57 after
+public `0.6.0` and still requires separate instructions.
 
 Use the copy/paste prompts and mandatory model pauses in `docs/V0_5_MILESTONE_PROMPTS.md`. The
 owner supplies current weekly-token budget and active model at each milestone start. Luna handles
@@ -1069,21 +1069,108 @@ proceeds for the preserved date. A durable `TIMER_RUNNING` fallback resumes auto
 later Stop or reconciliation. Targeted tests and the owner midnight rerun are required before the
 gate can pass; this does not start Task 48D or authorize a version change.
 
-### Milestone 49 — Post-`0.5.0` safe teardown guide (documentation only)
+## 22. Planned `0.6.0` portable Backup & Restore delivery
 
-Only after the public `0.5.0` release and a separate explicit start: Luna inventories verified
-project-specific versus shared tools, Terra drafts staged reversible owner-executed Windows/
-Android cleanup and rollback instructions, and Sol audits target precision, release/signing/OAuth
-preservation, and recoverability. No deletion, uninstall, cloud, firmware, or system change occurs.
+The authoritative subtask prompts and model handoffs are in `V0_6_MILESTONE_PROMPTS.md`. Every
+subtask pauses for the owner to switch models. The owner alone runs PowerShell/Gradle and device
+tests. Version identity is not changed until explicit approval in the final release milestone.
 
-### Milestone 50 — Optional owner-directed closeout
+### Milestone 49 — Planning and format contract (documentation only)
 
-This is a separate opt-in execution gate after Milestone 49. The owner must name exact targets and
-authorize each material action. Preserve source, remote history/releases, permanent signing key
-and backups, OAuth setup, and desired user/export data unless separately decided. Never infer
-cleanup authority from finishing `0.5.0` or from the existence of a guide.
+Freeze the approved portable logical ZIP, inclusion/exclusion matrix, bounded validation, rolling
+swap restore point, durable cross-store recovery protocol, Settings copy, Google transport-origin
+transition, compatibility promise, tests, and model assignments. No application code changes.
 
-## 22. Optional Milestone E — Data Protection, App Access, and Privacy Hardening
+### Milestone 50 — Snapshot model and compatibility foundation
+
+Add versioned logical DTOs, focused stable JSON encoding, typed validators/upgrader dispatch, and
+installation-local export-origin state. Tests cover all included/excluded fields and invalid graphs;
+archive I/O and authoritative replacement remain out of scope.
+
+### Milestone 51 — Compressed backup creation
+
+Implement streaming two-entry Deflate output through Android's create-document flow, deterministic
+manifest/checksum behavior, timer lockout, size/storage/cancellation handling, and plaintext privacy
+messaging. Completed with owner-reported JVM/build/lint/focused and full connected gates passing.
+No import mutation or visible Settings action is included.
+
+### Milestone 52 — Atomic import, rollback, and restore
+
+Implement bounded preflight, verified app-private no-backup restore-point creation, durable phase
+journal, one-transaction Room replacement, portable DataStore apply/reset, startup recovery, origin
+rotation, and swap-style Restore. Fault injection must prove that cancellation/process loss cannot
+leave partial authoritative state.
+
+Milestone 52 is complete. Task 52A froze the exact lock order, durable-file primitive, next-action
+phase machine, target and rollback orders, cancellation point of no return, startup blocking
+behavior, Import rollback-point promotion, Restore swap, and fault matrix in
+`docs/PORTABLE_BACKUP_RECOVERY_PROTOCOL.md`. Tasks 52B-52D implemented and audited the bounded
+reader, verified restore point, self-checking journal, transactional Room replacement, exact
+Preferences replacement/rollback, excluded-runtime reset, origin rotation, startup convergence,
+swap restore, and every-phase fault/equivalence evidence. The owner reported JVM, connected,
+lint, debug-build, and release-build gates successful. User-facing Settings integration remains
+exclusively Milestone 53.
+
+### Milestone 53 — Settings experience
+
+Implement the compact **Backup & Restore** section, scoped document pickers, destructive
+confirmations, persistent shared status, restore availability, progress/double-submit protection,
+timer-disabled state, accessibility, and responsive layouts without moving business rules into
+Compose. Inline status is title-adjacent and precedes all actions; permanent instructional copy and
+the separate Restore subsection label are omitted. Implementation, owner visual verification, the
+final compilation/JVM/lint/debug-and-release build set, and the focused connected Settings test are
+complete by owner report. Milestone 53 is closed.
+
+### Milestone 54 — Compatibility and hardening
+
+Exercise released-schema upgrades, adversarial/corrupt archives, bounds, restart/reboot, two-device
+restore, and all exports. Complete installation-namespaced Google hidden-key compatibility without
+changing visible schema 6 or overwriting another origin's rows. Audit security, lifecycle,
+concurrency, and performance. Supply owner-selectable malformed and valid ZIP fixtures for the
+deferred end-to-end import and swap-Restore cases.
+
+Task 54A completed the archive-facing logical-state round-trip/corruption matrix and the owner-run
+fixture generator/guide. The focused fixture-matrix JVM class passed, and the owner reported the
+selectable malformed archive, cancelled valid import, successful valid replacement, Restore swap,
+and reverse-swap checks all passed without unintended mutation. No production Google or export
+behavior changed in this task. Task 54B subsequently completed the v2 Google identity and
+connection-cleanup integration with owner-reported focused, connected, and live Google passes.
+
+Task 54B completed the v1-to-v2 hidden Google identity transition without changing the 14 visible
+schema-6 columns. New rows use an installation-scoped v2 identity; an original upgraded
+installation may adopt only its matching v1 or unique unkeyed legacy rows, while an imported or
+restored origin appends and never claims v1, unkeyed, or foreign-origin rows. Disconnect/Sign Out
+now synchronously disable automatic export and clear scheduled/attention state before connection
+metadata is removed. The owner reported focused automated, connected, original-install, two-device
+shared-sheet, and disconnect/sign-out checks passing. Task 54C implementation now record-streams
+current backup JSON, enforces a device-heap materialization ceiling, drops the staged duplicate
+DTO, tightens portable/origin IDs, and blocks Settings interaction during destructive replacement.
+The owner reports API-26/current connected suites and the current-target lifecycle/stability matrix
+passing. The remaining API-26 manual and physical-device matrices are explicitly deferred as
+non-blocking, unexecuted evidence in `DEFERRED_TESTS.md`. Milestone 54 is complete; Milestone 55 has
+not started.
+
+### Milestone 55 — Full `0.6.0` audit and release handoff
+
+Trace every requirement, run owner-executed JVM/lint/build/connected/manual/migration/upgrade/fresh/
+Google/security/performance gates, obtain explicit version approval, verify permanent signer and
+artifact identity, and provide exact integration/tag/GitHub/download instructions. Apply D-122:
+manual API-26 and physical-device checks remain disclosed deferred evidence rather than release
+blockers. Do not declare ready while any non-deferred release-blocking gate is failing or unverified.
+
+### Milestone 56 — Post-`0.6.0` safe teardown guide (documentation only)
+
+Former Milestone 49. Only after a successful public `0.6.0` release and a separate explicit start,
+inventory exact project-specific versus shared tools and publish a staged reversible owner-executed
+guide. No deletion, uninstall, cloud, firmware, or system change occurs.
+
+### Milestone 57 — Optional owner-directed closeout
+
+Former Milestone 50. This is a separate opt-in execution gate after Milestone 56. The owner must
+name exact targets and authorize each material action. Preserve source, releases, signing material,
+OAuth setup, and desired data unless separately decided. Never infer cleanup authority.
+
+## 23. Optional Milestone E — Data Protection, App Access, and Privacy Hardening
 
 Entry: the owner separately and explicitly assigns and instructs WorqOrder to begin Milestone E.
 It is an unscheduled, release-agnostic backburner item outside `0.2.0` and every other release
@@ -1154,7 +1241,7 @@ Android's application sandbox and must not claim WorqOrder-managed Room/DataStor
 - Run formatting, lint, unit, instrumentation/UI/security tests, and debug/release builds on at
   least API 26 and the current target API.
 
-## 23. Dependency selection checklist
+## 24. Dependency selection checklist
 
 At the first milestone that needs a dependency:
 
@@ -1173,7 +1260,7 @@ selected through the mandatory Milestone 9 discovery gate. XLSX dependencies pas
 checklist in Milestone 12. Local-encryption dependencies may be considered only if optional
 Milestone E is separately authorized and must pass this checklist before being added.
 
-## 24. Risk register
+## 25. Risk register
 
 | Risk | Impact | Mitigation/gate |
 | --- | --- | --- |
@@ -1203,7 +1290,7 @@ Milestone E is separately authorized and must pass this checklist before being a
 | Room migration loss | Irrecoverable local truth | Schema exports from version 1, explicit migrations, populated tests, no destructive release fallback |
 | Frequent timer recomposition | Battery/performance issues | Collection-scoped coarse ticker, derived state, profiling, and no tick writes |
 
-## 25. Traceability
+## 26. Traceability
 
 - Product behavior and concept reconciliation: `PRODUCT_SPEC.md`.
 - Layering, toolchain, security, and test strategy: `ARCHITECTURE.md`.

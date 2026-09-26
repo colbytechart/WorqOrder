@@ -479,5 +479,35 @@ tag/publication, independent public-asset verification, and physical-device inst
 The owner then merged Milestone 48 through `v0.5.0-development` into `main`, verified the annotated
 `v0.5.0` tag points to the same `main` commit, published the unchanged APK on GitHub, independently
 downloaded it, and repeated checksum/signature/package and physical-device installation checks.
-All passed. `0.5.0` is publicly released; Milestone 48 is complete. Milestones 49 and 50 did not
-start and still require separate explicit owner authorization.
+All passed. `0.5.0` is publicly released; Milestone 48 is complete. The former teardown Milestones
+49 and 50 did not start and are now deferred as Milestones 56 and 57.
+
+## Planned `0.6.0` additions to the release gate
+
+- [x] Milestones 49–54 are complete with owner-reported tests and no unreviewed application
+      changes. See `MILESTONE_55A_AUDIT.md` for the release-audit baseline.
+- [x] Portable format v1, sensitive exclusions, logical upgrader dispatch, limits, and checksums pass.
+- [x] Record-streamed current-format parsing, device-heap rejection, exact-entry/path/duplicate/UTF-8
+      defenses, strict portable/origin IDs, and staged-single-copy behavior pass.
+- [x] Populated `0.5.0` upgrade and fresh install both round-trip all portable state exactly.
+- [x] Every journal phase is fault-injected; process death/reboot converges to old or new state.
+- [x] Restore swap/undo, timer lockout, corrupt/oversize/newer-version, cancel, and low-storage pass.
+- [x] Google is disconnected/auto-disabled after import; new origin cannot overwrite source rows.
+- [x] Canonical task export remains schema 6/14 columns across CSV/XLSX/manual+automatic Google.
+- [x] Settings accessibility, large text, narrow/landscape, theme, and Activity recreation pass.
+- [x] Confirmed Import/Restore shows the non-dismissible replacement barrier; Back/navigation and
+      unrelated Settings actions cannot race the journaled Room/DataStore transition.
+- [x] API-26/current connected suites and the current-target lifecycle/performance matrix in
+      `LIFECYCLE_TEST_PLAN.md` Section 9.1 are owner-complete with no retained-generation memory
+      leak observed.
+- [x] **Administratively deferred, not passed or release-blocking:** remaining manual API-26 and
+      physical-device matrices are unexecuted under D-122 and `DEFERRED_TESTS.md`; disclose the
+      evidence gap in final reporting.
+- [x] Owner approved `versionName = 0.6.0` and `versionCode = 6` before the source identity changed.
+- [x] Permanent signer, package, APK SHA-256, populated emulator install-over, and fresh emulator
+      install pass for the pre-publication candidate. Physical-device smoke remains deferred under
+      D-122.
+- [ ] Repeat signer, package/version, and SHA-256 verification on the final `main`-branch APK and
+      independently downloaded GitHub asset; install and launch that downloaded asset on the
+      disposable emulator.
+- [x] Milestones 56–57 remain unstarted unless separately authorized after public release.

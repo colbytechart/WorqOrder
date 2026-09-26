@@ -6,6 +6,23 @@ The project follows semantic versioning for public release identifiers.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-26
+
+- Release identity is `versionName = 0.6.0`, `versionCode = 6`.
+- Added the in-development `0.6.0` portable Backup & Restore foundation: bounded versioned
+  two-entry ZIP files, strict preflight validation, sensitive/runtime exclusions, atomic Room and
+  recoverable Preferences replacement, startup reconciliation, and a one-generation swap restore
+  point.
+- Added a compact **Backup & Restore** Settings card with scoped Android document pickers,
+  destructive-action confirmations, persistent actionable status, timer/busy lockout, picker-race
+  guards, and accessible progress/error announcements.
+- Hardened current-format import with record-streamed strict JSON decoding, a device-heap safety
+  ceiling beneath the absolute archive bounds, single-copy staging, delimiter-safe portable IDs,
+  exact transport origins, and a non-dismissible barrier during destructive replacement. Owner-run
+  API-26/current connected and current-target archive/recovery/stability verification passed.
+  Remaining manual API-26 and physical-device matrices are explicitly deferred in
+  `docs/DEFERRED_TESTS.md`; the release audit remains before `0.6.0` publication.
+
 ## [0.5.0] - 2026-09-19
 
 - Reusable Description and Hardware / Software Purchase Tag

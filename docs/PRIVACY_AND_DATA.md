@@ -1,10 +1,10 @@
 # Privacy and Data
 
-This document describes the released `0.4.0` data contract, with earlier details retained for
-upgrade transparency. Check GitHub Releases for authoritative artifacts. `0.4.0` Notes are
-ordinary Room task data. Exported Notes are readable plaintext in CSV/XLSX/Google Sheets under
-the existing export privacy policy. Section 10 describes implemented but unreleased `0.5.0`
-Tag behavior and its remaining release verification boundary.
+This document describes the released `0.5.0` data contract, with earlier details retained for
+upgrade transparency. Check GitHub Releases for authoritative artifacts. `0.4.0` Notes and `0.5.0`
+Tags are ordinary local task data; their exported text is readable plaintext in CSV/XLSX/Google
+Sheets. Section 11 describes the in-development `0.6.0` portable-backup implementation, which is not
+part of released `0.5.0`.
 
 ## 1. Summary
 
@@ -153,7 +153,7 @@ device-protected storage. Full implementation details are in `LOCK_SCREEN_SURFAC
 backburner items outside `0.2.0` and every other release scope until explicitly assigned; this
 notice must not imply otherwise.
 
-## 10. Implemented but unreleased `0.5.0` reusable Tags
+## 10. Released `0.5.0` reusable Tags
 
 `0.5.0` implements local Description and Hardware / Software Purchase Tag catalogs plus task-owned
 text snapshots. They are ordinary potentially sensitive Room data under the same Android sandbox and
@@ -170,3 +170,26 @@ Framework and stores accepted cells locally; it does not upload the source docum
 Main task rows may show a first Description Tag only when manual Description is blank. The running-
 timer notification never receives Tag text, including in its private lock-screen form. Generated
 export punctuation is not written back to stored manual text or snapshots.
+
+## 11. In-development `0.6.0` portable backups
+
+Portable backups are explicit user-directed plaintext files. They can contain Client/Consultant
+names, tasks, descriptions, purchases, Tags, Notes, mileage, work/billing choices, dates, precise
+interval timestamps, export history, and preferences. Anyone who can read the file may read that
+work information; users must store and share it accordingly. WorqOrder does not upload the file.
+
+OAuth/access/refresh tokens, credentials, Google account hints, connected-sheet IDs/titles,
+notification permission/state, scheduler jobs/pending attempts, installation transport identity,
+and transient UI/cache data are excluded. Import preserves the export-destination choice but clears
+Google authorization/connection and disables automatic export until the user reconnects and opts in.
+
+The rolling restore point is app-private and deliberately placed in no-backup storage. It is not
+included in portable or Android backup, survives ordinary restart/update, and is removed with app
+data on uninstall/Clear storage. `0.6.0` does not add encryption; optional encryption remains outside
+scope in Milestone E.
+
+Import parses current-format data incrementally and retains only the validated logical candidate
+needed for replacement; pre-confirmation staging retains the private ZIP rather than a second data
+copy. Heap-aware rejection limits denial-of-service risk from oversized valid-looking input. These
+implementation bounds do not encrypt the plaintext or change the user's responsibility for an
+externally saved/shared backup.

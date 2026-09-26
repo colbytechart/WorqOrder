@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import worq.order.data.ExportOriginState
 import worq.order.export.ExportRow
 import worq.order.export.ExportSchema
 import worq.order.export.ExportSnapshot
@@ -14,7 +15,7 @@ class GoogleSheetsExportPlannerTest {
     @Test
     fun newTabHasFourteenVisibleColumnsAndHiddenStableTaskIds() {
         val plan = ready(
-            GoogleSheetsExportPlanner.plan(
+            plan(
                 GoogleSpreadsheetStructure(SPREADSHEET_ID, emptyList(), emptyList()),
                 snapshot(row("task-a", "Alpha")),
             ),
@@ -25,7 +26,7 @@ class GoogleSheetsExportPlannerTest {
         val cells = plan.requests.filterIsInstance<GoogleSheetsBatchRequest.ReplaceCells>().single()
         assertEquals(ExportSchema.headers, cells.rows.first().take(14))
         assertEquals("WORQORDER_TASK_ID", cells.rows.first()[15])
-        assertEquals("worqorder.task.v1:task-a", cells.rows[1][15])
+        assertEquals("worqorder.task.v2:$ORIGIN_ID:task-a", cells.rows[1][15])
         assertEquals("Alpha", cells.rows[1][4])
         assertEquals(GoogleSheetsBatchRequest.HideColumns(add.sheetId, 14, 16), plan.requests.last())
     }
@@ -33,7 +34,7 @@ class GoogleSheetsExportPlannerTest {
     @Test
     fun blankSpreadsheetReusesItsOriginalTab() {
         val plan = ready(
-            GoogleSheetsExportPlanner.plan(
+            plan(
                 GoogleSpreadsheetStructure(
                     SPREADSHEET_ID,
                     listOf(GoogleSheetDescriptor(0, "Sheet1")),
@@ -51,7 +52,7 @@ class GoogleSheetsExportPlannerTest {
     @Test
     fun populatedSpreadsheetPreservesOtherTabs() {
         val plan = ready(
-            GoogleSheetsExportPlanner.plan(
+            plan(
                 GoogleSpreadsheetStructure(
                     SPREADSHEET_ID,
                     listOf(GoogleSheetDescriptor(0, "Other data")),
@@ -68,14 +69,14 @@ class GoogleSheetsExportPlannerTest {
     fun secondDeviceAppendsWithoutReplacingOrShrinkingFirstDevicesRows() {
         val remote = listOf(header(), physical(row("task-a", "First device")))
         val plan = ready(
-            GoogleSheetsExportPlanner.plan(
+            plan(
                 ownedStructure(remote),
                 snapshot(row("task-b", "Second device")),
             ),
         )
         assertEquals(1, plan.requests.filterIsInstance<GoogleSheetsBatchRequest.AppendCells>().size)
         assertEquals(
-            "worqorder.task.v1:task-b",
+            "worqorder.task.v2:$ORIGIN_ID:task-b",
             plan.requests.filterIsInstance<GoogleSheetsBatchRequest.AppendCells>().single().rows.single()[15],
         )
         assertFalse(plan.requests.any {
@@ -94,7 +95,7 @@ class GoogleSheetsExportPlannerTest {
             physical(row("task-b", "Other device")),
         )
         val plan = ready(
-            GoogleSheetsExportPlanner.plan(
+            plan(
                 ownedStructure(remote),
                 snapshot(row("task-a", "Edited")),
             ),
@@ -107,17 +108,92 @@ class GoogleSheetsExportPlannerTest {
     }
 
     @Test
+    fun originalInstallationAdoptsItsMatchingLegacyV1RowIntoTheV2Namespace() {
+        val remote =
+            listOf(
+                header(),
+                row("task-a", "Before").values + listOf("", "worqorder.task.v1:task-a"),
+            )
+
+        val plan = ready(plan(ownedStructure(remote), snapshot(row("task-a", "After"))))
+
+        assertFalse(plan.requests.any { it is GoogleSheetsBatchRequest.AppendCells })
+        assertTrue(
+            plan.requests.contains(
+                GoogleSheetsBatchRequest.WriteCellsAt(
+                    27,
+                    1,
+                    0,
+                    listOf(row("task-a", "After").values),
+                ),
+            ),
+        )
+        assertTrue(
+            plan.requests.contains(
+                GoogleSheetsBatchRequest.WriteCellsAt(
+                    27,
+                    1,
+                    15,
+                    listOf(listOf("worqorder.task.v2:$ORIGIN_ID:task-a")),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun restoredInstallationAppendsWithoutClaimingLegacyForeignOrUnkeyedRows() {
+        val foreignOrigin = "fedcba9876543210fedcba9876543210"
+        val remote =
+            listOf(
+                header(),
+                row("task-a", "Legacy source").values + listOf("", "worqorder.task.v1:task-a"),
+                physical(row("task-b", "Foreign source"), foreignOrigin),
+                row("task-c", "Unkeyed source").values,
+            )
+        val restoredOrigin =
+            ExportOriginState(ORIGIN_ID, legacyV1AdoptionAllowed = false)
+
+        val plan =
+            ready(
+                plan(
+                    ownedStructure(remote),
+                    snapshot(
+                        row("task-a", "Legacy source"),
+                        row("task-b", "Foreign source"),
+                        row("task-c", "Unkeyed source"),
+                    ),
+                    restoredOrigin,
+                ),
+            )
+
+        val appended = plan.requests.filterIsInstance<GoogleSheetsBatchRequest.AppendCells>().single()
+        assertEquals(3, appended.rows.size)
+        assertEquals(
+            listOf(
+                "worqorder.task.v2:$ORIGIN_ID:task-a",
+                "worqorder.task.v2:$ORIGIN_ID:task-b",
+                "worqorder.task.v2:$ORIGIN_ID:task-c",
+            ),
+            appended.rows.map { it[15] },
+        )
+        assertFalse(
+            plan.requests.filterIsInstance<GoogleSheetsBatchRequest.WriteCellsAt>()
+                .any { it.rowIndex in 1..3 },
+        )
+    }
+
+    @Test
     fun ambiguousLegacyMatchAndDuplicateRemoteKeysFailWithoutMutation() {
         val old = row("task-a", "Same")
         val ambiguous = ownedStructure(listOf(ExportSchema.headers, old.values, old.values), 13)
         assertEquals(
             GoogleSheetsPlanResult.SchemaConflict(TAB),
-            GoogleSheetsExportPlanner.plan(ambiguous, snapshot(old)),
+            plan(ambiguous, snapshot(old)),
         )
         val duplicate = ownedStructure(listOf(header(), physical(old), physical(old)))
         assertEquals(
             GoogleSheetsPlanResult.SchemaConflict(TAB),
-            GoogleSheetsExportPlanner.plan(duplicate, snapshot(old)),
+            plan(duplicate, snapshot(old)),
         )
     }
 
@@ -126,7 +202,7 @@ class GoogleSheetsExportPlannerTest {
         val structure = ownedStructure(listOf(header())).copy(sheetValues = emptyMap())
         assertEquals(
             GoogleSheetsPlanResult.SchemaConflict(TAB),
-            GoogleSheetsExportPlanner.plan(structure, snapshot(row("task-a", "Alpha"))),
+            plan(structure, snapshot(row("task-a", "Alpha"))),
         )
     }
 
@@ -135,7 +211,7 @@ class GoogleSheetsExportPlannerTest {
         val structure = ownedStructure(listOf(header()), columnCount = 17)
         assertEquals(
             GoogleSheetsPlanResult.SchemaConflict(TAB),
-            GoogleSheetsExportPlanner.plan(structure, snapshot(row("task-a", "Alpha"))),
+            plan(structure, snapshot(row("task-a", "Alpha"))),
         )
     }
 
@@ -148,26 +224,26 @@ class GoogleSheetsExportPlannerTest {
         )
         assertEquals(
             GoogleSheetsPlanResult.SchemaConflict(TAB),
-            GoogleSheetsExportPlanner.plan(structure, snapshot(row("task-a", "Alpha"))),
+            plan(structure, snapshot(row("task-a", "Alpha"))),
         )
     }
 
     @Test
     fun unownedTabAndWrongDateAreRejected() {
         val unowned = ownedStructure(listOf(header())).copy(developerMetadata = emptyList())
-        assertEquals(GoogleSheetsPlanResult.TabNameConflict(TAB), GoogleSheetsExportPlanner.plan(unowned, snapshot()))
+        assertEquals(GoogleSheetsPlanResult.TabNameConflict(TAB), plan(unowned, snapshot()))
         val wrongDate = ownedStructure(listOf(header())).copy(
             developerMetadata = ownedStructure(listOf(header())).developerMetadata.map {
                 if (it.key == GoogleSheetsExportPlanner.WORK_DATE_KEY) it.copy(value = "2026-07-23") else it
             },
         )
-        assertEquals(GoogleSheetsPlanResult.SchemaConflict(TAB), GoogleSheetsExportPlanner.plan(wrongDate, snapshot()))
+        assertEquals(GoogleSheetsPlanResult.SchemaConflict(TAB), plan(wrongDate, snapshot()))
     }
 
     @Test
     fun emptyDateRetainsPreviousRowsOnOwnedTab() {
         val remote = listOf(header(), physical(row("task-a", "Prior")))
-        val plan = ready(GoogleSheetsExportPlanner.plan(ownedStructure(remote), snapshot()))
+        val plan = ready(plan(ownedStructure(remote), snapshot()))
         assertFalse(plan.requests.any {
             it is GoogleSheetsBatchRequest.AppendCells ||
                 it is GoogleSheetsBatchRequest.ResizeSheet ||
@@ -176,6 +252,13 @@ class GoogleSheetsExportPlannerTest {
     }
 
     private fun ready(result: GoogleSheetsPlanResult) = (result as GoogleSheetsPlanResult.Ready).plan
+
+    private fun plan(
+        structure: GoogleSpreadsheetStructure,
+        snapshot: ExportSnapshot,
+        exportOrigin: ExportOriginState = ExportOriginState(ORIGIN_ID, legacyV1AdoptionAllowed = true),
+    ): GoogleSheetsPlanResult =
+        GoogleSheetsExportPlanner.plan(structure, snapshot, exportOrigin)
 
     private fun ownedStructure(
         rows: List<List<String>>,
@@ -206,10 +289,14 @@ class GoogleSheetsExportPlannerTest {
 
     private fun header() = ExportSchema.headers + listOf("", "WORQORDER_TASK_ID")
 
-    private fun physical(row: ExportRow) = row.values + listOf("", "worqorder.task.v1:${row.sourceTaskId}")
+    private fun physical(
+        row: ExportRow,
+        originId: String = ORIGIN_ID,
+    ) = row.values + listOf("", "worqorder.task.v2:$originId:${row.sourceTaskId}")
 
     private companion object {
         const val SPREADSHEET_ID = "1AbCdEfGhIjKlMnOpQrStUvWxYz_123456789"
         const val TAB = "WorqOrder_2026-07-24"
+        const val ORIGIN_ID = "0123456789abcdef0123456789abcdef"
     }
 }

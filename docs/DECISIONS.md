@@ -1224,8 +1224,9 @@ The owner reports public `0.3.0` publication and a physical-device upgrade that 
 data and worked for new task timing. Milestone 36 is now documentation-only `0.4.0` planning.
 Release-specific implementation occupies Milestones 37–41. The former post-`0.3.0` project
 environment teardown guide originally moved to Milestone 42 after public `0.4.0`, with real
-closeout as optional Milestone 43. D-104 later supersedes those numbers with post-`0.5.0`
-Milestones 49 and 50. Milestone E remains independent.
+closeout as optional Milestone 43. Later `0.5.0` planning moved those numbers to post-release
+Milestones 49 and 50; D-114 moves them again to post-`0.6.0` Milestones 56 and 57. Milestone E
+remains independent.
 
 ### D-098 — Notes are optional, editable task data, but not repeated-Start copy data
 
@@ -1386,6 +1387,166 @@ identity, minSdk 26, targetSdk 36, disabled backup, GPLv3 license, direct-GitHub
 Google `drive.file` scope remain unchanged. Approval authorizes the candidate identity only; it
 does not claim that the signed artifact, merge, tag, GitHub publication, independent download, or
 physical install-over has passed.
+
+### D-108 — `0.6.0` uses a versioned logical ZIP backup
+
+Use a standard Deflate ZIP with exactly `manifest.json` and `data.json`. The manifest identifies
+`worq.order`, format/model versions, producer, creation instant, size/encoding, and SHA-256 of the
+data bytes. Never archive SQLite/DataStore files. Format version 1 is stable input to explicit
+future logical upgraders; reject newer unsupported formats.
+
+### D-109 — Portable state excludes credentials and installation identity
+
+Preserve all domain IDs/data, export history, portable preferences, and valid selections. Exclude
+Google/OAuth credentials and connection/account metadata, scheduler/pending automatic state,
+notifications/permissions, transient state, journals, restore point, and transport origin. Import
+preserves export destination, clears Google connection, disables automatic export, and creates a
+new origin.
+
+### D-110 — Import is validated replacement with durable recovery
+
+Parse, bound, upgrade, and validate the complete archive before mutation. Capture and verify the
+current state first. Replace Room in one transaction and coordinate DataStore/runtime reset through
+an app-private durable phase journal with idempotent startup recovery. Destructive migration,
+partial import, and an unsupported claim of cross-store atomicity are prohibited.
+
+### D-111 — The rolling restore point is a one-generation swap
+
+Keep exactly one verified restore point in app-private no-backup storage. Import overwrites it only
+after the current state is safely captured. Restore first captures current state, applies previous
+state, then makes displaced current state the next restore point. It survives update/reboot and is
+removed on uninstall.
+
+### D-112 — Portable backup is bounded plaintext
+
+Do not encrypt `0.6.0` backups. Warn users that work data is readable. Accept at most 100 MiB
+compressed and 500 MiB expanded, stream data, allow only documented entries, check storage, and
+reject traversal, duplicates, encryption, bombs, checksum mismatch, malformed JSON, or invalid
+relationships before mutation.
+
+### D-113 — Backup is not a report-export destination
+
+The 14-column schema-6 CSV/XLSX/Google contract is unchanged. Backup is full application-state
+portability and may include export history/preferences that never appear in task exports. No
+canonical export adapter reads or writes backup archives.
+
+### D-114 — Teardown moves behind the `0.6.0` release
+
+Milestones 49–55 are the `0.6.0` plan. Former teardown Milestones 49–50 become 56–57. Milestone 56
+remains documentation-only and Milestone 57 remains separately optional; neither starts implicitly.
+
+### D-115 -- `0.6.0` uses a focused strict JSON boundary
+
+Milestone 50 adds the cached, stable `org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1`
+runtime through the version catalog. The logical backup codec uses explicit `JsonElement` mapping,
+not a serialization compiler plugin, reflection, Room entities, or Preferences blobs. It decodes
+only the documented version-1 fields and returns typed parse/shape failures. The pure validator
+accumulates typed manifest and graph failures before any later archive or replacement operation.
+This does not add a ZIP writer/reader, import UI, Room mutation, or a fourth report-export
+destination.
+
+### D-116 -- Export-origin state is installation-local and fail-closed
+
+Milestone 50 stores a generated 32-hex `exportOriginId` plus a legacy-v1-adoption gate only in
+Preferences DataStore. It is excluded from the portable DTO. A missing identity is created once;
+a malformed stored value throws a typed local-storage error rather than silently changing Google
+row ownership. A future successful portable replacement is the only path that rotates the origin
+and permanently disables legacy-v1 adoption for that restored installation.
+
+### D-117 -- Backup creation uses a bounded two-pass streamed ZIP writer
+
+Milestone 51 writes the logical data stream once to measure UTF-8 bytes and compute SHA-256, then
+again into a Deflate ZIP after writing a matching manifest. This preserves manifest-first entry
+order without retaining a whole JSON byte array or temporary external file. The local snapshot is
+captured while the existing timer-operation mutex excludes Start/Stop and is rejected if an active
+or open interval exists. The only external output is an `ACTION_CREATE_DOCUMENT` URI with MIME
+type `application/zip`; cancellation and output failure attempt cleanup and return typed results.
+The write boundary exposes only `PreparingSnapshot` and `WritingArchive` phases, because a
+compressed SAF stream has no reliable byte-level progress total. It is deliberately not yet
+presented by Settings. Import/restore, journal, and rolling restore-point logic were reserved for
+Milestone 52 and are governed by D-118.
+
+### D-118 -- Portable replacement uses a next-action journal and exact rollback authority
+
+Milestone 52 implements `docs/PORTABLE_BACKUP_RECOVERY_PROTOCOL.md`. One application-data mutex is
+the outer lock for all local mutations and coherent snapshots; timer and Google locks may only be
+acquired after it. The durable journal records the next idempotent action rather than claiming that
+an action definitely completed. Every phase and recovery artifact uses write, file sync, strict
+verification, same-directory atomic rename, parent-directory sync, and promoted-name verification.
+
+Before commit intent, Import preserves any prior point and promotes a verified capture of current
+portable state as rollback authority; Restore leaves its verified source point untouched. Room is
+then replaced in one foreign-key-safe transaction and Preferences in one absolute DataStore edit.
+A recovery-only snapshot of every known local Preferences value supports exact failure rollback
+without making Google/runtime/origin state portable. Successful Import or Restore clears Google
+connection and automatic-export runtime state and applies one pre-generated origin, making replay
+idempotent. Restore promotes displaced current state as the next point only during successful
+finalization. After commit intent, coroutine cancellation cannot abandon the operation; startup
+blocks normal use and resumes forward or rollback until convergence. Ambiguous or corrupt recovery
+state fails closed and is never answered by deleting Room or silently choosing defaults.
+
+### D-119 -- Backup & Restore uses a compact, status-first Settings card
+
+Milestone 53 exposes Import Backup and Create Backup side by side with Restore below, without
+instructional paragraphs or a separate Restore subsection label. Plaintext sensitivity remains
+documented in the user/privacy/security guides and is not repeated as permanent card copy. Inline
+timer warnings, progress, success, and errors appear immediately below the **Backup & Restore**
+title and above every action. Import and Restore retain explicit explanatory confirmation dialogs.
+All actions are disabled during initialization, timing, or another operation; picker callbacks
+recheck timer state, and duplicate requests/confirmations cannot start parallel work.
+
+### D-120 -- Google hidden row identity is origin-scoped and restore-safe
+
+Google schema 6 retains exactly 14 visible columns. Its hidden physical P column uses
+`worqorder.task.v2:<32-hex-origin>:<taskId>` for every new row. A pre-portable original
+installation may idempotently adopt only a matching legacy v1 task ID or unique unkeyed legacy
+row, updating canonical visible cells and the hidden key without replacing a tab. Successful
+Import or Restore rotates the installation origin and permanently disables legacy adoption. That
+restored installation must leave v1, unkeyed, and foreign-origin v2 rows untouched and append only
+its own v2 identity, even when task IDs or visible values coincide.
+
+Disconnect and Sign Out disable Auto Export, cancel scheduled automatic work, clear attention
+notifications, and only then remove local Google connection data. If that cleanup fails, the
+connection remains intact and the operation reports local-storage failure rather than leaving an
+orphaned automatic target.
+
+### D-121 -- Portable archive reads are record-streamed and destructive replacement is modal
+
+The absolute archive ceilings remain 100 MiB compressed and 500 MiB expanded, but neither ceiling
+is a promise that Android can safely materialize a logical graph of that size. The production
+reader therefore parses current-format `data.json` incrementally: it never retains the complete
+UTF-8 byte array, complete JSON string, or complete JSON DOM. Each logical record is strictly
+decoded under a 2 MiB value cap into the one candidate DTO. The accepted expanded payload is also
+bounded by the smaller of the 500 MiB hard ceiling and one eighth of the process maximum heap, with
+an 8 MiB floor. This device-aware fail-closed limit prevents a syntactically valid archive from
+forcing an out-of-memory crash; it is documented as a compatibility limitation rather than hidden.
+Older formats may materialize their bounded input only inside an explicit upgrader path.
+
+Pre-confirmation staging retains only the verified app-private ZIP, not a second complete DTO.
+After confirmation, Import/Restore reopens that artifact under the application operation lock.
+All coordinator file/parse/replacement work runs on `Dispatchers.IO`. While authoritative Room and
+Preferences generations are being replaced, Settings presents a non-dismissible progress barrier
+in addition to its inline status. This prevents navigation or unrelated user mutations from racing
+the recovery protocol. External automatic-export, boot, and resume entry points use the same
+application lock; startup still withholds all normal UI until journal recovery converges.
+
+Portable IDs now reject ISO control characters and `:`, because colon is the hidden Google identity
+delimiter. Operation and transport origins accept exactly 32 lowercase hexadecimal characters.
+These constraints do not change stored Room IDs or visible export schema 6; they reject unsafe or
+ambiguous imported backup identities before mutation.
+
+### D-122 -- Remaining manual API 26 and physical-device matrices are deferred evidence
+
+On 2026-09-24 the owner explicitly removed the remaining manual API 26 Backup & Restore
+lifecycle/performance matrix and all remaining manual physical-device checks from the `0.6.0`
+release gate. This is a test-scope decision, not evidence that those environments passed. The
+complete automated API 26 connected suite remains required and passed; the owner also completed the
+current-target connected, archive/recovery, forced-stop, repeated-Restore, and stability matrices.
+
+Final signing, package/version, checksum, populated update, fresh install, Google, and independent
+public-asset checks remain required but may use suitable emulators. The exact omitted procedures,
+substitute evidence, and revisit triggers are preserved in `docs/DEFERRED_TESTS.md`. Release and QA
+documents must cite the deferral rather than silently omitting or claiming the missing evidence.
 
 ## Deferred decisions
 

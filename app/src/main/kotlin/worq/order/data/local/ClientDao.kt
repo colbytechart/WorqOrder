@@ -40,6 +40,10 @@ abstract class ClientDao {
     )
     abstract fun observeAllClients(): Flow<List<ClientEntity>>
 
+    /** Stable read order for a portable logical snapshot. */
+    @Query("SELECT * FROM clients ORDER BY id ASC")
+    abstract suspend fun readAllClientsForPortableBackup(): List<ClientEntity>
+
     @Query("SELECT * FROM clients WHERE id = :clientId LIMIT 1")
     abstract suspend fun readClient(clientId: String): ClientEntity?
 
@@ -73,6 +77,14 @@ abstract class ClientDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract suspend fun addClient(client: ClientEntity)
+
+    /** Internal bulk primitive for a fully prevalidated portable-state replacement transaction. */
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    abstract suspend fun insertAllForPortableReplacement(clients: List<ClientEntity>)
+
+    /** Must be called only after every referencing daily task has been removed. */
+    @Query("DELETE FROM clients")
+    abstract suspend fun deleteAllForPortableReplacement(): Int
 
     @Query(
         """

@@ -684,3 +684,20 @@ storage permission, or any Google scope beyond `drive.file`.
 - [Sheets API limits and pricing](https://developers.google.com/workspace/sheets/api/limits)
 - [Google Workspace standardized API model](https://developers.google.com/workspace/tools-safety)
 - [OAuth production policy compliance](https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance)
+
+## Planned `0.6.0` portable-restore identity addendum
+
+OAuth credentials, account hints, spreadsheet IDs/titles, validation state, pending automatic
+attempts, and WorkManager identity are excluded from portable backups. Import retains only the
+chosen export-destination preference, clears Google connection state, disables automatic export,
+and requires explicit reauthorization/reconnection/opt-in.
+
+Preserving task IDs across devices requires a new installation-local `exportOriginId`. Hidden row
+identity becomes `worqorder.task.v2:<32-hex-origin>:<taskId>` while visible schema 6 stays
+unchanged. An original upgraded installation may idempotently adopt an exact matching legacy
+`worqorder.task.v1:<taskId>` row or a unique unkeyed legacy row by changing only its hidden key.
+A successful Import or Restore rotates origin and permanently disables that legacy adoption gate:
+the restored installation never claims v1, unkeyed, or foreign-origin rows, and appends only its
+own v2 identities. Cross-origin exports never clear, replace, or shrink another installation's
+rows. Disconnect and Sign Out first disable Auto Export and cancel its durable scheduled work and
+attention notification; only a successful cleanup permits local connection metadata removal.

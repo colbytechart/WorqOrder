@@ -2,6 +2,7 @@ package worq.order.export.google
 
 import java.time.Instant
 import java.time.LocalDate
+import worq.order.data.ExportOriginState
 import worq.order.export.ExportSnapshot
 
 data class GoogleSheetExportReceipt(
@@ -86,6 +87,7 @@ interface GoogleSheetsExportGateway {
         accessToken: GoogleAccessToken,
         spreadsheetId: String,
         snapshot: ExportSnapshot,
+        exportOrigin: ExportOriginState,
     ): GoogleSheetsGatewayExportResult
 }
 

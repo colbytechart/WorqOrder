@@ -12,6 +12,10 @@
 - License: GPLv3
 - Distribution artifact: owner-signed APK attached to a GitHub Release
 
+The owner approved the in-development release identity `0.6.0`/code 6 on 2026-09-24. `0.5.0`
+remains the latest published release until the Milestone 55 gates, merge, tag, GitHub publication,
+and independent public-asset verification are complete.
+
 Android application backup is disabled. Room is authoritative. CSV, XLSX, and Google Sheets are
 one-way exports.
 
@@ -224,3 +228,24 @@ Never delete/reseed production data to recover a migration or storage failure.
 
 Optional Milestone E is an unscheduled, release-agnostic backburner item and must not begin without
 explicit owner authorization.
+
+## In-development `0.6.0` handoff boundary
+
+Use `V0_6_MILESTONE_PROMPTS.md` as the governing roadmap. Milestones 49–54 implemented the
+portable format and workflow; Milestone 55 is the release audit. Keep backup DTO versions
+independent from Room versions, preserve every domain identity, explicitly classify every new
+persistent preference as portable or installation-local, and never serialize credentials. All
+archive parsing is bounded/streaming and all replacement is journaled/recoverable. The current-format
+production reader must remain record-streamed with one candidate DTO and the D-121 heap-aware
+ceiling; do not restore the removed whole-byte/String/DOM or staged-duplicate DTO paths. Confirmed
+Import/Restore must continue running on the I/O dispatcher behind the non-dismissible Settings
+replacement barrier and shared application lock.
+
+D-122 and `DEFERRED_TESTS.md` remove the remaining manual API 26 and physical-device matrices from
+the `0.6.0` release gate by explicit owner decision. Preserve them as unexecuted evidence gaps;
+never convert the deferral into a passing result. Automated API 26 and current-target gates remain.
+
+Each model subtask stops for the owner to switch models. The owner alone runs supplied complete
+PowerShell/Gradle/ADB/manual gates. Old teardown work is now Milestones 56–57, after public `0.6.0`,
+and remains separately gated. Version name/code, signing, merges, tags, and publication require the
+same explicit owner-controlled release process as prior versions.

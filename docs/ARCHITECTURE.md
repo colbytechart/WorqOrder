@@ -43,6 +43,9 @@ Room owns clients, tasks, intervals, and active-timer truth. DataStore owns pref
 - Coroutines and Flow for asynchronous work/observation.
 - Room with KSP, schema export, transactions, and explicit migrations.
 - Preferences DataStore.
+- Kotlinx Serialization JSON `1.8.1` is the focused stable logical-backup codec from Milestone
+  50. It uses explicit `JsonElement` mapping rather than a serialization compiler plugin or a
+  reflection mapper; ZIP I/O remains platform-only in its later owning milestone.
 - `java.time` on minimum SDK 26; no legacy date/time library is needed.
 - Gradle Kotlin DSL with `gradle/libs.versions.toml` in the implementation milestone.
 - Manual dependency injection through a small `ApplicationContainer`.
@@ -656,3 +659,83 @@ Tag text. Navigation preserves unsaved picker/form state through ViewModel/Saved
 state rather than writing partial tasks. Manual dependency injection remains sufficient; no new
 framework, backend, account, service, broad storage permission, or foreground timer component is
 introduced.
+
+## 20. In-development `0.6.0` Backup & Restore architecture
+
+A dedicated portability coordinator assembles/validates versioned logical DTOs through Room
+repositories and portable preference adapters. A streaming archive codec owns only the two-entry
+Deflate ZIP contract and SHA-256 validation. Android document gateways own
+`ACTION_CREATE_DOCUMENT`/`ACTION_OPEN_DOCUMENT`; Compose never parses files or mutates databases.
+
+Import/restore use one replacement mutex ordered with timer and mutation locks. Preflight parses,
+upgrades, and validates everything before authoritative mutation. Current state is written to an
+app-private no-backup temporary archive, flushed, reread, verified, and atomically promoted to the
+single restore point before import. Room replacement is one foreign-key-safe transaction. Portable
+DataStore application and excluded-state reset are coordinated by a durable phase journal because
+the stores cannot share a transaction. Startup/resume recovery idempotently completes or rolls
+back. Restore uses the same engine with a verified swap of previous and displaced-current state.
+
+Milestone 52A freezes the exact engine contract in
+`docs/PORTABLE_BACKUP_RECOVERY_PROTOCOL.md`. Journal phases name the next idempotent action, so a
+crash between an action and phase advancement safely repeats that action. One application-data
+mutex is always outermost, followed only when needed by the timer lock and then the Google export
+mutex. A successful replacement applies Room in one transaction, applies all Preferences in one
+absolute edit, clears Google/automatic runtime state, and installs the pre-generated journal origin.
+A recovery-only snapshot of all known local Preferences permits exact rollback without making those
+installation-local values portable. Startup blocks normal repositories and recovery work until any
+journal has converged or failed closed.
+
+The archive is plaintext and has absolute ceilings of 100 MiB compressed/500 MiB expanded. The
+current-format reader incrementally splits the fixed top-level JSON and strictly decodes one bounded
+logical value at a time; it does not retain a complete UTF-8 byte array, JSON string, or JSON DOM.
+Only the validated candidate DTO remains. A device-aware materialization ceilingâ€”the smaller of
+500 MiB and one eighth of the process maximum heap, with an 8 MiB floorâ€”fails closed before an
+archive can exhaust a realistic Android heap. Entry allowlisting, duplicate/path/encryption
+rejection, streaming byte/digest limits, checksums, sufficient-storage checks, typed errors, and
+safe temporary cleanup are mandatory. No backend, storage permission, foreground service, exact
+alarm, account, or custom encryption is added.
+
+Google hidden row identity is installation-namespaced without changing visible schema 6. Every
+newly written row uses `worqorder.task.v2:<32-hex-origin>:<taskId>` in the hidden P column.
+An original upgraded installation may idempotently rewrite only an exact matching legacy v1 key or
+unique unkeyed legacy row to its own v2 key. After portable Import or Restore, the new origin has
+legacy adoption permanently disabled: v1, unkeyed, and another origin's v2 rows remain untouched
+and the restored installation appends only its own v2 row. Google credentials and connection
+metadata never cross the portability boundary. Disconnect and Sign Out first disable Auto Export,
+cancel its scheduled work/attention notification, and only then remove local connection metadata.
+
+Milestone 50 supplies the pure version-1 DTO graph, strict JSON boundary, typed validation and
+format-upgrader dispatch before any archive or replacement code exists. `exportOriginId` is held
+only in a typed Preferences repository; a missing value is generated once, a malformed stored value
+fails closed. Milestone 52's successful portable replacement is the only implemented path that may
+rotate it and disable legacy-v1 row adoption.
+
+Milestone 51 adds the write-only portability boundary. `RoomPortableBackupSnapshotReader` reads
+the authoritative Room graph in one transaction, rejects an active/open interval, adapts only
+portable Preferences/selection values, and validates the resulting logical DTO. The shared timer
+operation lock makes that capture race-free with Start/Stop. `PortableBackupArchiveWriter` renders
+the data JSON twice as a stream: the first pass establishes bounded UTF-8 size and SHA-256; the
+second writes a Deflate ZIP containing `manifest.json` followed by `data.json`. The Android
+document destination writes only to an owner-selected `ACTION_CREATE_DOCUMENT` URI and tries to
+delete a partial file on failure or coroutine cancellation. Its reusable non-UI action boundary
+reports typed `PreparingSnapshot` and `WritingArchive` phases plus typed timer, local-state, and
+output results; it intentionally does not pretend compressed SAF writes have reliable byte-level
+progress.
+
+Milestone 52 adds the non-UI read/replacement boundary. `PortableBackupArchiveReader` strictly
+bounds and validates the two-entry archive before mutation. Pre-confirmation staging retains only
+the verified app-private archive, not a duplicate candidate DTO; the source is re-read after the
+operation lock is acquired. `PortableBackupReplacementCoordinator` then uses the application-wide
+operation lock, verified no-backup artifacts, and self-checking
+next-action journal to converge Room, Preferences, excluded runtime state, transport origin, and
+the one-generation restore point. Room identity/count and foreign-key checks and exact target or
+rollback Preferences equivalence are mandatory postconditions. `WorqOrderApplication` completes
+startup journal reconciliation before normal Activity content, timer recovery, automatic Google
+work, or boot recovery may proceed. Milestone 53 exposes this engine through a lifecycle-safe
+ViewModel, Android document pickers, and a compact Settings card. File and replacement work runs on
+the I/O dispatcher, picker returns recheck the timer invariant, one-shot picker effects are buffered,
+and the Compose layer renders typed state without parsing archives or mutating persistence directly.
+Import/Restore replacement phases add a non-dismissible Settings progress barrier while retaining
+the normal inline live-region status. It blocks navigation and unrelated visible Settings actions
+until the cross-store journal reaches a terminal state; background entry points serialize through
+the application lock.

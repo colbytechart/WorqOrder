@@ -266,3 +266,27 @@ do not change local data.
 - Android **Clear storage** or uninstall removes WorqOrder's local database and preferences.
 
 WorqOrder has no account, backend, recycle bin, automatic cloud backup, or two-way import recovery.
+
+## In-development `0.6.0`: Backup & Restore
+
+This workflow is implemented on the `0.6.0` development branch but is not available in released
+`0.5.0`. Treat every created backup as sensitive plaintext work data: the compact Settings card does
+not repeat that warning, and WorqOrder does not encrypt the file.
+
+1. Stop any running timer.
+2. In Settings, open **Backup & Restore** and choose **Create Backup** to select a destination for
+   a compressed `.zip` file. Treat the file as sensitive plaintext work data.
+3. Choose **Import Backup** and select a WorqOrder backup. After validation, review **Replace All
+   WorqOrder Data?**. **Continue** saves current state as one private restore point and replaces
+   portable app data; **Cancel** makes no change. Keep WorqOrder open while the non-dismissible
+   progress window is visible. If Android terminates the process, reopen WorqOrder so its journaled
+   recovery can finish before normal use.
+4. Reauthorize Google, reconnect a spreadsheet, and explicitly re-enable automatic export if used.
+   The selected export destination is retained, but credentials/connections are never imported.
+5. If needed, choose **Restore** in **Backup & Restore**. Confirming swaps the previous state into
+   the app and keeps the displaced current state as the next restore point.
+
+Import is replacement, not merging. The status line reports success or an actionable validation/
+I/O error. Restore is enabled only when a verified point exists. A backup inside the absolute file
+limits can still be rejected on a memory-constrained phone rather than risking a crash. Uninstall/
+Clear storage removes the private restore point.

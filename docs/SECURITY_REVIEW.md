@@ -261,3 +261,97 @@ notification/WorkManager execution time, or independent verification of Google's
 distribution policy. The owner confirmed fresh-account eligibility on API 37 using the exact
 signed candidate and an account never on the tester list. Public downloaded-asset integrity
 remains a post-publication check.
+
+## In-development `0.6.0` portability threat model
+
+Treat every selected backup as hostile input. Required defenses include exact ZIP-entry allowlists,
+duplicate/path-traversal/encrypted-entry rejection, 100 MiB compressed and 500 MiB expanded hard
+limits enforced while streaming, declared/actual size checks, SHA-256 validation, strict UTF-8/JSON
+and logical-version parsing, enum/time/ZoneId/length checks, relationship/cardinality validation,
+and full rejection before mutation. Temporary files must use app-private storage, restrictive
+access, bounded space, safe names, cleanup, flush/verification, and atomic promotion.
+
+The principal integrity risk is a crash between Room and DataStore changes. A durable phase journal,
+verified restore point, one Room transaction, idempotent startup reconciliation, fault injection,
+and swap verification are release requirements. The implementation must never silently fall back
+to deleting local data. Import/export/restore serialization and timer locks must prevent races.
+
+Backups intentionally provide confidentiality neither at rest nor in transit. Credentials and
+Google connection identity must never be serialized. Restored domain IDs are safe only when paired
+with a newly generated installation-scoped Google transport origin; otherwise a copied database
+could overwrite another device's rows. No broad storage permission, backend, account, new network
+scope, embedded secret, or custom cryptography is authorized.
+
+Task 54C closes the remaining hostile-input memory gap. The production current-format reader
+streams `data.json` through a counting SHA-256 input, parses the fixed top-level object without a
+whole-document byte array/String/DOM, and materializes only one strictly bounded logical record at
+a time into the single candidate DTO. Each value is capped at 2 MiB and nesting at 128. In addition
+to the absolute 100/500 MiB limits, input above the smaller of 500 MiB and one eighth of the current
+process maximum heap (8 MiB floor) is rejected before parsing. This deliberately favors a typed
+invalid-archive result over process OOM on constrained devices. Staging retains only the verified
+private ZIP, so confirmation does not pin a second DTO. Invalid UTF-8, duplicate escaped keys,
+extra/reordered/path entries, checksum/declared-count mismatch, over-limit expansion, and malformed
+logical values all fail before Room or DataStore mutation.
+
+Portable identifiers reject the Google hidden-key `:` delimiter and ISO controls, while recovery
+operation IDs and export origins are exact lowercase 32-hex values. No task/client text, archive
+JSON, account/sheet metadata, credential, origin, journal, or restore point becomes part of a
+portable archive. Recovery-only local Preferences may contain installation state needed for exact
+rollback, remain below `noBackupFilesDir`, and are deleted after convergence or uninstall.
+
+Destructive Import/Restore runs off the main thread under the application lock and a non-dismissible
+Settings progress barrier. The barrier prevents user navigation or unrelated Settings mutations
+during the Room/DataStore generation transition; startup blocks normal UI for journal recovery, and
+automatic-export, boot, and foreground-recovery entry points use the same lock. The journal remains
+the crash authorityâ€”the modal surface is concurrency defense, not an atomicity claim.
+
+The Google identity transition writes origin-scoped hidden v2 row keys. A restored installation
+cannot adopt source v1/unkeyed rows or a foreign v2 row, even when the task ID matches, which
+prevents portable restore from becoming a cross-device overwrite capability. Disconnect and Sign
+Out fail closed if automatic-export schedule cleanup cannot complete, rather than clearing the
+connection while a stale scheduled target could remain.
+
+Milestone 50 adds only the stable Kotlinx Serialization JSON runtime `1.8.1`, locked in the version
+catalog. The cached JVM artifacts add no Android manifest, native library, permission, network
+client, credential API, or serialization compiler plugin. Explicit `JsonElement` mapping rejects
+unknown and duplicate object keys, escaped-key aliases, excessive nesting, malformed temporal
+values, and excluded runtime/installation fields before logical graph validation. Archive byte
+limits, ZIP entry controls, checksum verification, and temporary-file handling remain mandatory in
+Milestone 51 because this foundation does not perform archive I/O.
+
+Milestone 51's write-only implementation emits exactly `manifest.json` followed by `data.json`
+through platform Deflate. It hashes and counts the exact UTF-8 data stream before writing a
+matching manifest, then renders the same immutable logical snapshot into the archive without a
+whole-document byte array or external temporary file. Both passes enforce coroutine cancellation;
+the expanded stream is capped at 500 MiB and the complete compressed stream at 100 MiB. Output is
+restricted to an owner-selected `content://` document URI, and failure/cancellation closes the
+stream and attempts deletion of a partial document. A failed deletion remains a typed condition so
+the later UI can warn the user. Active/open timers fail before output begins. The portable DTO and
+Room-backed exclusion test confirm that OAuth material, Google connection metadata, automatic-
+export runtime state, notification state, WorkManager state, recovery artifacts, and installation-
+local export origin are not written. Backups remain deliberate plaintext and must never be
+described as encrypted.
+
+Milestone 52A resolves the crash-integrity design in
+`docs/PORTABLE_BACKUP_RECOVERY_PROTOCOL.md`. Every recovery artifact and journal transition is
+written in the app-private no-backup directory with file sync, full verification, same-directory
+atomic rename, parent-directory sync, and promoted-name re-verification. Journal phases describe
+the next idempotent action. A separately hashed recovery-only Preferences snapshot can restore
+Google/runtime/origin metadata after a failed replacement without ever placing it in the portable
+backup. Successful Import or Restore instead clears local Google connection/automatic state and
+uses one pre-generated origin, preventing replay from rotating identities repeatedly.
+
+Normal app use is unavailable while a durable journal is unresolved. Missing/corrupt artifacts,
+unexpected hashes, unsupported journal versions, rollback failure, or ambiguous restore-point
+state fail closed and retain evidence; they never trigger Room deletion, default reseeding, or
+best-effort partial use. Milestone 52's self-authenticating journal, typed/bounded recovery
+Preferences, exact displaced-generation verification, Room row/FK postconditions, exact target
+Preferences check, shared operation gate, and startup readiness barrier close the implementation
+gaps found by the Sol audit. Owner-run every-phase JVM fault/equivalence tests, the complete JVM
+suite, connected Room/Preferences replacement tests, the complete connected suite, lint, and both
+APK assemblies passed. Milestone 53 now exposes the workflow through a compact Settings card. Its
+permanent instructional plaintext warning was deliberately removed from that card to reduce clutter;
+the User Guide and privacy documentation remain the authoritative disclosure, and destructive
+confirmation dialogs retain their explanations. Fixture-backed corrupt/import/Restore exercises,
+the Task 54C hardening matrix, and the final Milestone 55 release gates remain governed by their
+recorded owner evidence and `DEFERRED_TESTS.md`.

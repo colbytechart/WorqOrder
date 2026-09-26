@@ -8,6 +8,7 @@ class GoogleConnectionCoordinator(
     private val authorizer: GoogleAccountAuthorizer,
     private val sheetsGateway: GoogleSheetsGateway,
     private val connectionRepository: GoogleConnectionRepository,
+    private val disableAutomaticGoogleExport: suspend () -> Unit = {},
     private val now: () -> Instant,
 ) {
     suspend fun signIn(): GoogleConnectionOperationResult =
@@ -159,7 +160,12 @@ class GoogleConnectionCoordinator(
     }
 
     suspend fun disconnectSpreadsheet(): GoogleConnectionOperationResult =
-        localResult { connectionRepository.disconnectSpreadsheet() }.fold(
+        localResult {
+            // Disable and unschedule before removing the stored destination so an already-enqueued
+            // worker cannot retain an automatic-export target after disconnect completes.
+            disableAutomaticGoogleExport()
+            connectionRepository.disconnectSpreadsheet()
+        }.fold(
             onSuccess = { GoogleConnectionOperationResult.Disconnected },
             onFailure = {
                 failed(GoogleConnectionFailure.LOCAL_STORAGE)
@@ -167,6 +173,10 @@ class GoogleConnectionCoordinator(
         )
 
     suspend fun signOut(): GoogleConnectionOperationResult {
+        localResult { disableAutomaticGoogleExport() }
+            .onFailure {
+                return failed(GoogleConnectionFailure.LOCAL_STORAGE)
+            }
         val accountId =
             localResult { connectionRepository.readConnection() }
                 .getOrNull()

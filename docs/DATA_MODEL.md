@@ -569,3 +569,96 @@ traceability. In the implemented `0.5.0` model, manual Description and Hardware 
 Purchases plus their ordered Tag snapshots are validated as one composed value of at most 999
 Unicode code points; the persisted manual fields and snapshots remain separate and are never
 rewritten by export punctuation.
+
+## 17. Planned `0.6.0` portable logical snapshot
+
+The backup model is deliberately independent of Room table layout and DataStore serialization.
+Format version 1 represents Clients, Consultants, Tag catalogs, tasks, task-owned ordered Tag
+snapshots, completed intervals, export history, portable preferences, and valid selections as
+explicit JSON DTOs. Every domain ID, relationship, work date, ZoneId, UTC instant, nullable field,
+archive state, lineage value, and ordering value is preserved. No task-count cap is invented. The
+absolute 100 MiB compressed/500 MiB expanded bounds and the device-safe logical-payload ceiling in
+D-121 apply to the archive as a whole.
+
+The logical snapshot must not contain the active-timer singleton, open intervals, OAuth/access/
+refresh credentials, account hints, connected-sheet data, WorkManager/automatic-export pending
+state, notification state/permission, transient UI/file-picker data, caches, internal recovery
+journal, rolling restore point, or installation-local export origin. Import rejects rather than
+repairs invalid IDs, references, enums, dates, instants, ZoneIds, cardinality, active/open timing,
+or task/interval invariants.
+
+Successful replacement preserves domain identities but generates a new installation/transport
+origin. Selected task/date/Consultant are restored only when their references remain valid. The
+destination installation's chosen export destination is preserved during Import; swap-style
+Restore applies the destination stored in the restore point. Google connection is cleared and
+automatic export is disabled after either successful replacement. A future Room schema can consume
+the same logical version through an explicit mapper; backup-format compatibility is therefore not
+tied to SQLite schema numbers.
+
+### Version-1 persistence inventory
+
+| Current state | Portable rule |
+|---|---|
+| `clients` including archive state/timestamps | Include exactly |
+| `employees` / Consultants including archive state/timestamps | Include exactly |
+| `tags` and category/normalized text/timestamps | Include exactly |
+| `daily_tasks` including lineage, assignment snapshots, Notes, and all metadata | Include exactly |
+| `task_tag_snapshots` including text/category/source hint/order | Include exactly |
+| completed `work_intervals` with precise UTC boundaries/manual-edit metadata | Include exactly |
+| singleton `active_timer` or an open interval | Exclude and reject preflight; operations are disabled while running |
+| theme, device/manual ZoneId choice, manual ZoneId, landscape handedness | Include |
+| default export destination | Include |
+| selected Consultant and selected task/date/series/zone | Include, then retain only valid references |
+| persisted last-export-attempt/export history | Include |
+| automatic-Google enabled/target/date/zone/pending/failure scheduling state | Exclude and clear; force disabled |
+| Google account hints, spreadsheet ID/title/validation/authorization state | Exclude and clear |
+| WorkManager requests, notifications, permission grants, dismissed-notification interval | Exclude/reconcile locally |
+| `exportOriginId` and legacy-key adoption state | Exclude; regenerate for the restored installation |
+| form/search/dialog/file-picker/status/cache state | Exclude |
+| replacement journal, temporary archives, rolling restore point | Exclude |
+| build/package/version metadata | Manifest provenance only; never replace installed-app identity |
+
+The Milestone-50 foundation uses explicit version-1 logical DTOs with the current model version
+`7`, rather than serializing Room entities or `Preferences`. It records completed interval
+timestamps as epoch milliseconds, all portable timestamps and domain identity fields, nullable
+metadata, ordered task Tag snapshots, the typed last-export attempt, and the valid selected-task
+tuple. A strict decoder rejects unknown root/object fields, so active timer, runtime state,
+connection metadata, and `exportOriginId` cannot be smuggled into a decoded logical snapshot.
+
+`export_origin_id` and `export_origin_legacy_v1_allowed` are app-local Preferences keys. They are
+not portable preference data: first use generates a 32-lowercase-hex origin; import will later
+rotate it and set legacy v1 adoption to false. A malformed stored origin is a fail-closed storage
+error, never an occasion to silently assume a different Google row identity.
+
+### Milestone-51 archive write contract
+
+The portable file is named `WorqOrder_Backup_YYYY-MM-DD_HHmmss.zip` using the backup creation
+instant in UTC. It has MIME type `application/zip` and exactly two Deflate entries in this order:
+`manifest.json`, then `data.json`. `manifest.json` describes the versioned logical payload and
+contains the exact UTF-8 byte count and lowercase SHA-256 digest of `data.json`; neither entry is
+encrypted. The writer bounds the final compressed stream to 100 MiB and the data JSON stream to
+500 MiB. A running/open timer, an invalid logical state, cancellation, an output failure, or a
+size-bound breach produces no successful backup result. The owner-selected document URI is the
+only external output; no raw Room or DataStore file is copied.
+
+### Milestone-52 replacement state
+
+The durable replacement model is specified by
+`docs/PORTABLE_BACKUP_RECOVERY_PROTOCOL.md`. In addition to the portable archive, an in-progress
+operation owns a verified displaced-state archive, a recovery-only snapshot of every known local
+Preferences value, an optional preserved prior restore point, and one strict phase journal. These
+artifacts are app-private no-backup state and are never members of the portable logical model.
+
+The target Room generation contains Clients, Consultants, Tags, tasks, snapshots, and completed
+intervals, with no active-timer row. It is installed in one transaction. The target Preferences
+generation is installed in one `edit`: portable values and valid selections are written, Google and
+automatic-export state is absent/disabled, notification dismissal is absent, and the exact
+journal-generated transport origin is written with legacy adoption disabled. Rollback uses the
+displaced archive plus recovery-only Preferences snapshot to reconstruct the exact pre-operation
+generation. Restore promotes displaced portable state as the next point only after target Room,
+Preferences, runtime reset, and logical equivalence all succeed.
+
+Task 54C does not change the logical model or Room schema. The current-format reader incrementally
+decodes bounded top-level records into one candidate DTO instead of retaining complete data bytes,
+String, DOM, and a staged duplicate DTO. Portable domain IDs reject control characters and `:`;
+that delimiter is reserved for Google hidden transport identity and never alters a stored valid ID.

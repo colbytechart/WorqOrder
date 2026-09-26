@@ -482,7 +482,7 @@ downloaded it, and repeated checksum/signature/package and physical-device insta
 All passed. `0.5.0` is publicly released; Milestone 48 is complete. The former teardown Milestones
 49 and 50 did not start and are now deferred as Milestones 56 and 57.
 
-## Planned `0.6.0` additions to the release gate
+## Completed `0.6.0` release gate
 
 - [x] Milestones 49–54 are complete with owner-reported tests and no unreviewed application
       changes. See `MILESTONE_55A_AUDIT.md` for the release-audit baseline.
@@ -507,7 +507,12 @@ All passed. `0.5.0` is publicly released; Milestone 48 is complete. The former t
 - [x] Permanent signer, package, APK SHA-256, populated emulator install-over, and fresh emulator
       install pass for the pre-publication candidate. Physical-device smoke remains deferred under
       D-122.
-- [ ] Repeat signer, package/version, and SHA-256 verification on the final `main`-branch APK and
-      independently downloaded GitHub asset; install and launch that downloaded asset on the
-      disposable emulator.
+- [x] Signer, package/version, and SHA-256 verification passed on the final `main`-branch APK and
+      independently downloaded GitHub asset; the downloaded release APK passed the owner's manual
+      checks.
 - [x] Milestones 56–57 remain unstarted unless separately authorized after public release.
+
+The owner merged Milestone 55 through `v0.6.0-development` into `main`, confirmed the exact branch
+ancestry, tagged that `main` commit as `v0.6.0`, published the owner-signed APK on GitHub, downloaded
+the public asset independently, and reported the final integrity and manual checks successful.
+Milestone 55 is complete. No Milestone 56 work is authorized or started.

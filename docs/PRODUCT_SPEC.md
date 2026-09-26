@@ -701,7 +701,8 @@ version 1 is the `0.6.0` baseline. Explicit logical upgraders
 support known older formats; newer unsupported formats fail with an update-WorqOrder instruction.
 This feature does not change the 14-column task export schema or add another report destination.
 
-Milestones 49–54 planned, implemented, and hardened this scope. Milestone 55 performs the final
-release audit; it must not claim readiness while any non-deferred gate is unverified. The old
-teardown milestones move to 56–57. See `V0_6_MILESTONE_PROMPTS.md` and
+Milestones 49–54 planned, implemented, and hardened this scope. Milestone 55 completed the final
+audit, integration, publication, and independent downloaded-APK verification. The old teardown
+milestones moved to 56–57 and remain unstarted pending explicit authorization. See
+`V0_6_MILESTONE_PROMPTS.md` and
 `MILESTONE_55A_AUDIT.md`.

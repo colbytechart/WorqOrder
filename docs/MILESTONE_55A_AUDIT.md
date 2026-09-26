@@ -4,6 +4,10 @@ Audit date: 2026-09-24
 Branch: `milestone55`  
 Starting weekly token budget reported by owner: 16%
 
+Closure note: the owner later completed every non-deferred gate, merged through
+`v0.6.0-development` into `main`, published `0.6.0`, and independently verified the downloaded
+release APK. This document otherwise preserves the Task 55A baseline as it existed when audited.
+
 ## Repository audit
 
 - `milestone55` is clean and points to the merged `v0.6.0-development` baseline.
@@ -24,7 +28,7 @@ Starting weekly token budget reported by owner: 16%
 | Google ownership | Origin-scoped hidden row identity, legacy adoption guard, disconnect/sign-out cleanup | Automated and prior owner Google/device evidence reported passing |
 | Export compatibility | Existing immutable schema 6 and 14 visible columns | Automated cross-destination evidence present; final owner smoke required |
 | API/device coverage | API 26 and current connected suites; current-target recovery/stability matrix | Passed by owner report; manual API 26 and physical tests deferred under D-122 |
-| Release identity | Owner approved and source now uses `versionName = 0.6.0`, `versionCode = 6` | Approved; candidate verification pending |
+| Release identity | Owner approved and source now uses `versionName = 0.6.0`, `versionCode = 6` | Final-main and independently downloaded release verification passed by owner report |
 
 ## Owner-run gate
 

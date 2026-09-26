@@ -102,10 +102,10 @@
   when its assigned client is no longer active. Create/Edit footers contain only their two actions;
   non-field page messages remain in the scrollable content. The full audit/public-
   release handoff was completed in Milestone 48.
-- Planned `0.6.0` Milestones 49–55 add portable Backup & Restore. Milestone 49 is documentation-
-  only; do not add application code until the owner explicitly starts Milestone 50. The governing
-  format, atomicity, exclusion, compatibility, model-handoff, and owner-run test contract is
-  `docs/V0_6_MILESTONE_PROMPTS.md`.
+- Released `0.6.0` was delivered through Milestones 49–55 and adds portable Backup & Restore. Its
+  governing format, atomicity, exclusion, compatibility, model-handoff, owner-run test contract,
+  and release evidence remain in `docs/V0_6_MILESTONE_PROMPTS.md`. Do not reopen those milestones
+  or infer later work without explicit owner instruction.
 - Portable backups are bounded plaintext ZIP files containing versioned logical JSON, never raw
   Room/DataStore files. They include portable domain data, settings, selections, and export history,
   but exclude OAuth tokens/credentials, account and connected-sheet metadata, installation/Google
@@ -138,6 +138,7 @@
   passing. Automated API 26 coverage and the owner-completed current-target manual/stability matrix
   remain the applicable `0.6.0` hardening evidence.
 - The former post-release environment teardown Milestones 49 and 50 are renumbered to Milestones
-  56 and 57 and deferred until after public `0.6.0`. Milestone 56 is documentation-only; Milestone
-  57 remains optional and requires exact, separate owner authorization. Neither permits inferred
-  deletion, uninstall, cloud changes, or other destructive action.
+  56 and 57. Public `0.6.0` is complete, but Milestone 56 must not begin without new explicit owner
+  authorization. Milestone 56 is documentation-only; Milestone 57 remains optional and requires
+  exact, separate owner authorization. Neither permits inferred deletion, uninstall, cloud changes,
+  or other destructive action.

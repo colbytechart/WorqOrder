@@ -1,8 +1,14 @@
 # Milestone 55C — Final Release Decision
 
-Status: **Pre-publication gates passed; owner Git/publication steps pending**  
-Audit date: 2026-09-24  
-Branch: `milestone55`
+Status: **Complete — public `0.6.0` release independently verified**
+
+Audit started: 2026-09-24
+
+Release completed: 2026-09-26
+
+Release commit: `fb5c73ac78935ab00f375c9260257f92b46a58a0`
+
+Release URL: <https://github.com/colbytechart/WorqOrder/releases/tag/v0.6.0>
 
 ## Static audit result
 
@@ -30,14 +36,14 @@ separate API 26/current connected suites, signer/package/version/hash inspection
 timer lockout, recovery, canonical exports, Google ownership/automatic behavior, accessibility,
 layout, and lifecycle smoke. Manual API 26 and physical-device matrices remain deferred under D-122.
 
-## Evidence still open
+## Final publication evidence
 
-1. Commit Milestone 55, merge through `v0.6.0-development` into `main`, and confirm exact ancestry.
-2. Build the final signed APK from the exact final `main` source and repeat signer, package/version,
-   and SHA-256 inspection. That final hash supersedes the preliminary candidate hash.
-3. Tag the exact final `main` commit, publish the unchanged APK, independently download it, and
-   repeat checksum/signature/package plus disposable-emulator install/launch verification.
-4. Record the public release URL and final evidence before declaring Milestone 55 complete.
+The owner committed Milestone 55, merged it through `v0.6.0-development` into `main`, and confirmed
+the exact ancestry. The final signed APK was built from that clean `main`; signer, package,
+`versionName = 0.6.0`, `versionCode = 6`, and SHA-256 checks passed. The annotated `v0.6.0` tag
+points to the release commit above. The owner published the GitHub release, independently downloaded
+its APK, and reported the final integrity and manual checks successful.
 
-The implementation is ready for the owner-controlled integration and publication sequence. Codex
-must not execute the commit, merge, tag, upload, or publication operations for the owner.
+Milestone 55 is complete. Manual API 26 and physical-device matrices remain explicitly deferred
+under D-122 and `DEFERRED_TESTS.md`; they are not claimed as passing. Milestone 56 has not started
+and requires a new explicit owner authorization.

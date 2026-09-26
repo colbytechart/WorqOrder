@@ -9,7 +9,7 @@ The project follows semantic versioning for public release identifiers.
 ## [0.6.0] - 2026-09-26
 
 - Release identity is `versionName = 0.6.0`, `versionCode = 6`.
-- Added the in-development `0.6.0` portable Backup & Restore foundation: bounded versioned
+- Added the `0.6.0` portable Backup & Restore workflow: bounded versioned
   two-entry ZIP files, strict preflight validation, sensitive/runtime exclusions, atomic Room and
   recoverable Preferences replacement, startup reconciliation, and a one-generation swap restore
   point.
@@ -21,7 +21,8 @@ The project follows semantic versioning for public release identifiers.
   exact transport origins, and a non-dismissible barrier during destructive replacement. Owner-run
   API-26/current connected and current-target archive/recovery/stability verification passed.
   Remaining manual API-26 and physical-device matrices are explicitly deferred in
-  `docs/DEFERRED_TESTS.md`; the release audit remains before `0.6.0` publication.
+  `docs/DEFERRED_TESTS.md`. All non-deferred release gates, final-main artifact checks, GitHub
+  publication, and independent downloaded-APK verification passed by owner report.
 
 ## [0.5.0] - 2026-09-19
 

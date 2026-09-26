@@ -262,7 +262,7 @@ distribution policy. The owner confirmed fresh-account eligibility on API 37 usi
 signed candidate and an account never on the tester list. Public downloaded-asset integrity
 remains a post-publication check.
 
-## In-development `0.6.0` portability threat model
+## Released `0.6.0` portability threat model
 
 Treat every selected backup as hostile input. Required defenses include exact ZIP-entry allowlists,
 duplicate/path-traversal/encrypted-entry rejection, 100 MiB compressed and 500 MiB expanded hard
@@ -353,5 +353,6 @@ APK assemblies passed. Milestone 53 now exposes the workflow through a compact S
 permanent instructional plaintext warning was deliberately removed from that card to reduce clutter;
 the User Guide and privacy documentation remain the authoritative disclosure, and destructive
 confirmation dialogs retain their explanations. Fixture-backed corrupt/import/Restore exercises,
-the Task 54C hardening matrix, and the final Milestone 55 release gates remain governed by their
-recorded owner evidence and `DEFERRED_TESTS.md`.
+the Task 54C hardening matrix, all non-deferred Milestone 55 release gates, and independent public-
+APK verification passed by owner report. The explicitly deferred manual API 26 and physical-device
+matrices remain unexecuted evidence in `DEFERRED_TESTS.md`.

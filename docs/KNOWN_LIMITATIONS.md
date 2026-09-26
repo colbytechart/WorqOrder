@@ -204,4 +204,5 @@ export-only projection and does not alter the user's stored manual text.
   rejection, strict ID delimiters/origins, and a destructive-operation UI barrier. API-26/current
   connected and current-target lifecycle/stability checks passed. The remaining API-26 manual and
   physical-device matrices are explicitly deferred, unexecuted evidence under
-  `DEFERRED_TESTS.md`. Public-release hardening remains Milestone 55.
+  `DEFERRED_TESTS.md`. All non-deferred Milestone 55 gates and independent public-APK verification
+  passed by owner report.

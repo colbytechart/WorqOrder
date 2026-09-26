@@ -1106,5 +1106,9 @@ The owner subsequently reported Steps 1–7 of the final gate successful: clean 
 JVM verification; separate API-26/current connected suites; signer/package/version/hash inspection;
 populated signed `0.5.0` install-over; fresh install; Backup & Restore, malformed-input, recovery,
 Google, canonical-export, accessibility, layout, and lifecycle smoke. All non-deferred
-pre-publication gates pass. Final-main artifact identity, integration/tag/publication, and
-independent download verification remain open.
+pre-publication gates passed. The owner then committed Milestone 55, merged it through
+`v0.6.0-development` into `main`, built and inspected the final signed artifact, tagged the exact
+`main` commit as `v0.6.0`, published the GitHub release, independently downloaded its APK, and
+reported all final checksum/signature/package/install/manual checks successful. Milestone 55 and
+the `0.6.0` release are complete. D-122 manual API 26 and physical-device matrices remain deferred
+and are not claimed as passing.

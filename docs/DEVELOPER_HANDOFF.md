@@ -7,14 +7,14 @@
 - Minimum SDK: 26
 - Target SDK: 36
 - Compile SDK: 36.1
-- Latest published release: `0.5.0` (`versionCode = 5`), owner-verified after public download and
-  physical-device installation
+- Latest published release: `0.6.0` (`versionCode = 6`), owner-verified after independent public
+  download and manual release-APK checks
 - License: GPLv3
 - Distribution artifact: owner-signed APK attached to a GitHub Release
 
-The owner approved the in-development release identity `0.6.0`/code 6 on 2026-09-24. `0.5.0`
-remains the latest published release until the Milestone 55 gates, merge, tag, GitHub publication,
-and independent public-asset verification are complete.
+The owner approved `0.6.0`/code 6 on 2026-09-24 and subsequently completed the Milestone 55 gates,
+merge, tag, GitHub publication, and independent public-asset verification. Manual API 26 and
+physical-device matrices remain explicitly deferred rather than passing evidence.
 
 Android application backup is disabled. Room is authoritative. CSV, XLSX, and Google Sheets are
 one-way exports.
@@ -229,10 +229,10 @@ Never delete/reseed production data to recover a migration or storage failure.
 Optional Milestone E is an unscheduled, release-agnostic backburner item and must not begin without
 explicit owner authorization.
 
-## In-development `0.6.0` handoff boundary
+## Released `0.6.0` handoff boundary
 
-Use `V0_6_MILESTONE_PROMPTS.md` as the governing roadmap. Milestones 49–54 implemented the
-portable format and workflow; Milestone 55 is the release audit. Keep backup DTO versions
+Use `V0_6_MILESTONE_PROMPTS.md` as the governing historical roadmap. Milestones 49–54 implemented
+the portable format and workflow; Milestone 55 completed the release audit and public handoff. Keep backup DTO versions
 independent from Room versions, preserve every domain identity, explicitly classify every new
 persistent preference as portable or installation-local, and never serialize credentials. All
 archive parsing is bounded/streaming and all replacement is journaled/recoverable. The current-format
@@ -246,6 +246,6 @@ the `0.6.0` release gate by explicit owner decision. Preserve them as unexecuted
 never convert the deferral into a passing result. Automated API 26 and current-target gates remain.
 
 Each model subtask stops for the owner to switch models. The owner alone runs supplied complete
-PowerShell/Gradle/ADB/manual gates. Old teardown work is now Milestones 56–57, after public `0.6.0`,
-and remains separately gated. Version name/code, signing, merges, tags, and publication require the
-same explicit owner-controlled release process as prior versions.
+PowerShell/Gradle/ADB/manual gates. Old teardown work is now Milestones 56–57 and remains unstarted
+and separately gated after public `0.6.0`. Version name/code, signing, merges, tags, and publication
+require the same explicit owner-controlled release process as prior versions.

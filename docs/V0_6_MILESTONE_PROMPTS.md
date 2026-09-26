@@ -2,14 +2,14 @@
 
 ## 1. Purpose and fixed decisions
 
-This roadmap governs the in-development portable **Backup & Restore** release. Released `0.5.0`
-remains the public baseline. Milestones 49-52 are complete: Milestone 49 was documentation-only,
+This roadmap records the released portable **Backup & Restore** work. `0.6.0` is the public
+baseline. Milestones 49-52 are complete: Milestone 49 was documentation-only,
 and Milestones 50-52 delivered the non-UI portable model, backup writer, and atomic replacement/
 recovery engine. Milestone 53 completed the Settings workflow and its owner-run post-polish
 verification. Milestone 54 is complete under the owner-approved reduced verification matrix;
 `DEFERRED_TESTS.md` preserves the unexecuted API 26 manual and physical-device procedures.
-Milestone 55 is in progress: Task 55A completed the evidence baseline and Task 55B reconciled
-release-facing documentation without changing product behavior or release identity.
+Milestone 55 completed the final audit, integration, publication, and independent downloaded-APK
+verification. Milestones 56–57 remain unstarted pending new explicit owner authorization.
 
 The approved product contract is:
 
@@ -482,6 +482,11 @@ The owner later reported all non-deferred Steps 1–7 passing. Task 55C now auth
 owner-controlled integration and publication sequence, but remains incomplete until the exact
 final-main APK and independently downloaded GitHub asset pass identity checks and the owner confirms
 the public release. Manual API 26 and physical-device matrices remain deferred under D-122.
+
+Task 55C and Milestone 55 are now complete. The owner merged through `v0.6.0-development` into
+`main`, tagged the exact release commit, published `0.6.0` on GitHub, independently downloaded the
+release APK, and reported the final integrity and manual checks successful. The D-122 matrices
+remain deferred rather than passing evidence. Milestone 56 has not started.
 
 ## Milestone 56 — Post-`0.6.0` environment teardown guide only
 

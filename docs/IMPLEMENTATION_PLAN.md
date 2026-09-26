@@ -1147,16 +1147,17 @@ current backup JSON, enforces a device-heap materialization ceiling, drops the s
 DTO, tightens portable/origin IDs, and blocks Settings interaction during destructive replacement.
 The owner reports API-26/current connected suites and the current-target lifecycle/stability matrix
 passing. The remaining API-26 manual and physical-device matrices are explicitly deferred as
-non-blocking, unexecuted evidence in `DEFERRED_TESTS.md`. Milestone 54 is complete; Milestone 55 has
-not started.
+non-blocking, unexecuted evidence in `DEFERRED_TESTS.md`. Milestones 54 and 55 are complete; the
+owner published and independently verified `0.6.0`.
 
 ### Milestone 55 — Full `0.6.0` audit and release handoff
 
-Trace every requirement, run owner-executed JVM/lint/build/connected/manual/migration/upgrade/fresh/
-Google/security/performance gates, obtain explicit version approval, verify permanent signer and
-artifact identity, and provide exact integration/tag/GitHub/download instructions. Apply D-122:
-manual API-26 and physical-device checks remain disclosed deferred evidence rather than release
-blockers. Do not declare ready while any non-deferred release-blocking gate is failing or unverified.
+Completed. Every non-deferred requirement and owner-executed JVM/lint/build/connected/manual/
+migration/upgrade/fresh/Google/security/performance gate passed. The owner approved the identity,
+verified the permanent signer and final artifact, merged through the integration branch into
+`main`, tagged and published `0.6.0`, then independently downloaded and manually verified the
+release APK. D-122 manual API-26 and physical-device checks remain disclosed deferred evidence,
+not passing evidence.
 
 ### Milestone 56 — Post-`0.6.0` safe teardown guide (documentation only)
 

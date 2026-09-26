@@ -484,17 +484,18 @@ All passed. `0.5.0` is publicly released; Milestone 48 is complete. The former t
 
 ## Planned `0.6.0` additions to the release gate
 
-- [ ] Milestones 49–54 complete with owner-reported tests and no unreviewed application changes.
-- [ ] Portable format v1, sensitive exclusions, logical upgrader dispatch, limits, and checksums pass.
-- [ ] Record-streamed current-format parsing, device-heap rejection, exact-entry/path/duplicate/UTF-8
+- [x] Milestones 49–54 are complete with owner-reported tests and no unreviewed application
+      changes. See `MILESTONE_55A_AUDIT.md` for the release-audit baseline.
+- [x] Portable format v1, sensitive exclusions, logical upgrader dispatch, limits, and checksums pass.
+- [x] Record-streamed current-format parsing, device-heap rejection, exact-entry/path/duplicate/UTF-8
       defenses, strict portable/origin IDs, and staged-single-copy behavior pass.
-- [ ] Populated `0.5.0` upgrade and fresh install both round-trip all portable state exactly.
-- [ ] Every journal phase is fault-injected; process death/reboot converges to old or new state.
-- [ ] Restore swap/undo, timer lockout, corrupt/oversize/newer-version, cancel, and low-storage pass.
-- [ ] Google is disconnected/auto-disabled after import; new origin cannot overwrite source rows.
-- [ ] Canonical task export remains schema 6/14 columns across CSV/XLSX/manual+automatic Google.
-- [ ] Settings accessibility, large text, narrow/landscape, theme, and Activity recreation pass.
-- [ ] Confirmed Import/Restore shows the non-dismissible replacement barrier; Back/navigation and
+- [x] Populated `0.5.0` upgrade and fresh install both round-trip all portable state exactly.
+- [x] Every journal phase is fault-injected; process death/reboot converges to old or new state.
+- [x] Restore swap/undo, timer lockout, corrupt/oversize/newer-version, cancel, and low-storage pass.
+- [x] Google is disconnected/auto-disabled after import; new origin cannot overwrite source rows.
+- [x] Canonical task export remains schema 6/14 columns across CSV/XLSX/manual+automatic Google.
+- [x] Settings accessibility, large text, narrow/landscape, theme, and Activity recreation pass.
+- [x] Confirmed Import/Restore shows the non-dismissible replacement barrier; Back/navigation and
       unrelated Settings actions cannot race the journaled Room/DataStore transition.
 - [x] API-26/current connected suites and the current-target lifecycle/performance matrix in
       `LIFECYCLE_TEST_PLAN.md` Section 9.1 are owner-complete with no retained-generation memory
@@ -502,8 +503,11 @@ All passed. `0.5.0` is publicly released; Milestone 48 is complete. The former t
 - [x] **Administratively deferred, not passed or release-blocking:** remaining manual API-26 and
       physical-device matrices are unexecuted under D-122 and `DEFERRED_TESTS.md`; disclose the
       evidence gap in final reporting.
-- [ ] Owner explicitly approves release version identity before it changes.
-- [ ] Permanent signer, package, APK SHA-256, populated emulator install-over, fresh emulator
-      install, and independent GitHub download checks pass on the unchanged candidate. Physical-
-      device smoke is deferred under D-122.
-- [ ] Milestones 56–57 remain unstarted unless separately authorized after public release.
+- [x] Owner approved `versionName = 0.6.0` and `versionCode = 6` before the source identity changed.
+- [x] Permanent signer, package, APK SHA-256, populated emulator install-over, and fresh emulator
+      install pass for the pre-publication candidate. Physical-device smoke remains deferred under
+      D-122.
+- [ ] Repeat signer, package/version, and SHA-256 verification on the final `main`-branch APK and
+      independently downloaded GitHub asset; install and launch that downloaded asset on the
+      disposable emulator.
+- [x] Milestones 56–57 remain unstarted unless separately authorized after public release.

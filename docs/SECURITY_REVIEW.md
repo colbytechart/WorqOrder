@@ -352,5 +352,6 @@ suite, connected Room/Preferences replacement tests, the complete connected suit
 APK assemblies passed. Milestone 53 now exposes the workflow through a compact Settings card. Its
 permanent instructional plaintext warning was deliberately removed from that card to reduce clutter;
 the User Guide and privacy documentation remain the authoritative disclosure, and destructive
-confirmation dialogs retain their explanations. Fixture-backed corrupt/import/Restore exercises and
-later release gates remain mandatory.
+confirmation dialogs retain their explanations. Fixture-backed corrupt/import/Restore exercises,
+the Task 54C hardening matrix, and the final Milestone 55 release gates remain governed by their
+recorded owner evidence and `DEFERRED_TESTS.md`.

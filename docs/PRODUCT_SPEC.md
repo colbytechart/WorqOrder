@@ -662,7 +662,7 @@ Deferred environment teardown and optional closeout have moved to Milestones 56�
 start implicitly. See `V0_5_MILESTONE_PROMPTS.md` for released `0.5.0` evidence and
 `V0_6_MILESTONE_PROMPTS.md` for the current plan.
 
-## 18. Approved `0.6.0` portable Backup & Restore scope (planned)
+## 18. Implemented `0.6.0` portable Backup & Restore scope
 
 `0.6.0` adds a compact **Backup & Restore** Settings section after **Export Destination** and before
 the version label. **Import Backup** and **Create Backup** appear side by side, with **Restore**
@@ -701,5 +701,7 @@ version 1 is the `0.6.0` baseline. Explicit logical upgraders
 support known older formats; newer unsupported formats fail with an update-WorqOrder instruction.
 This feature does not change the 14-column task export schema or add another report destination.
 
-Milestones 49–55 plan, implement, harden, and release this scope. The old teardown milestones move
-to 56–57. See `V0_6_MILESTONE_PROMPTS.md`.
+Milestones 49–54 planned, implemented, and hardened this scope. Milestone 55 performs the final
+release audit; it must not claim readiness while any non-deferred gate is unverified. The old
+teardown milestones move to 56–57. See `V0_6_MILESTONE_PROMPTS.md` and
+`MILESTONE_55A_AUDIT.md`.

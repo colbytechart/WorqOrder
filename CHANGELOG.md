@@ -6,6 +6,9 @@ The project follows semantic versioning for public release identifiers.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-26
+
+- Release identity is `versionName = 0.6.0`, `versionCode = 6`.
 - Added the in-development `0.6.0` portable Backup & Restore foundation: bounded versioned
   two-entry ZIP files, strict preflight validation, sensitive/runtime exclusions, atomic Room and
   recoverable Preferences replacement, startup reconciliation, and a one-generation swap restore
